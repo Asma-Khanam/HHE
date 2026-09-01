@@ -1,0 +1,301 @@
+.families-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.families-page-header h1 {
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  font-size: 1.7rem;
+  margin: 0 0 4px;
+}
+
+.families-page-subtitle {
+  color: var(--hh-ink);
+  opacity: 0.6;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.families-search {
+  font-family: var(--hh-font-body);
+  font-size: 0.9rem;
+  padding: 10px 16px;
+  border: 1px solid rgba(83, 1, 38, 0.15);
+  border-radius: 999px;
+  background: var(--hh-white);
+  min-width: 280px;
+  outline: none;
+}
+
+.families-search:focus {
+  border-color: var(--hh-gold);
+  box-shadow: 0 0 0 3px rgba(184, 154, 90, 0.2);
+}
+
+.families-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.families-tabs {
+  display: flex;
+  gap: 4px;
+  background: rgba(83, 1, 38, 0.05);
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.families-tab {
+  font-family: var(--hh-font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 7px 15px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--hh-ink);
+  opacity: 0.7;
+  cursor: pointer;
+  transition: background var(--hh-transition), opacity var(--hh-transition);
+  white-space: nowrap;
+}
+
+.families-tab:hover {
+  opacity: 1;
+}
+
+.families-tab.is-active {
+  background: var(--hh-white);
+  color: var(--hh-burgundy);
+  opacity: 1;
+  box-shadow: 0 2px 8px rgba(83, 1, 38, 0.1);
+}
+
+.families-stage-legend {
+  font-size: 0.76rem;
+  color: var(--hh-ink);
+  opacity: 0.45;
+}
+
+.families-tab-note {
+  font-size: 0.82rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+  margin: 0 0 14px;
+}
+
+.families-empty-hint {
+  color: var(--hh-ink);
+  opacity: 0.6;
+  font-size: 0.92rem;
+}
+
+.families-table-wrap {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  overflow-x: auto;
+}
+
+.families-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.families-table thead th {
+  text-align: left;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hh-ink);
+  opacity: 0.5;
+  font-weight: 600;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.08);
+  white-space: nowrap;
+}
+
+.families-table tbody tr {
+  cursor: pointer;
+  transition: background var(--hh-transition);
+}
+
+.families-table tbody tr:hover {
+  background: rgba(184, 154, 90, 0.08);
+}
+
+.families-table tbody tr:not(:last-child) td {
+  border-bottom: 1px solid rgba(83, 1, 38, 0.06);
+}
+
+.families-table td {
+  padding: 14px 18px;
+  color: var(--hh-ink);
+  vertical-align: middle;
+}
+
+.families-cell-family {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.families-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--hh-font-heading);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.families-cell-family-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.families-table-name {
+  font-weight: 500;
+}
+
+.families-cell-sub {
+  font-size: 0.74rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}
+
+.families-cell-sub code {
+  background: rgba(83, 1, 38, 0.06);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--hh-burgundy);
+}
+
+.families-cell-children {
+  max-width: 220px;
+  font-size: 0.85rem;
+}
+
+.families-cell-action {
+  max-width: 220px;
+  font-size: 0.85rem;
+}
+
+.families-cell-action .is-overdue {
+  color: var(--hh-error);
+  font-weight: 500;
+}
+
+.is-muted {
+  opacity: 0.4;
+}
+
+/* The six pipeline segments — filled up to the family's current stage. */
+.stage-dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.stage-dot {
+  width: 16px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--hh-track);
+}
+
+.stage-dot.is-filled {
+  background: var(--hh-good);
+}
+
+.stage-dot.is-current {
+  background: var(--hh-gold);
+}
+
+.families-owner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(184, 154, 90, 0.25);
+  color: var(--hh-burgundy);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.families-badge {
+  display: inline-block;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+  white-space: nowrap;
+}
+
+.families-badge.is-submitted {
+  background: var(--hh-good-bg);
+  color: var(--hh-good);
+}
+
+/* One tint per pipeline stage, warming up as a family gets closer to placed. */
+.families-badge.stage-enquiry {
+  background: rgba(83, 1, 38, 0.06);
+  color: var(--hh-burgundy);
+}
+
+.families-badge.stage-profile {
+  background: rgba(83, 1, 38, 0.1);
+  color: var(--hh-burgundy);
+}
+
+.families-badge.stage-applied {
+  background: rgba(184, 154, 90, 0.2);
+  color: #7a5c1f;
+}
+
+.families-badge.stage-assessed {
+  background: rgba(184, 154, 90, 0.3);
+  color: #6a4f18;
+}
+
+.families-badge.stage-offer {
+  background: rgba(47, 107, 79, 0.15);
+  color: var(--hh-good);
+}
+
+.families-badge.stage-placed {
+  background: var(--hh-good);
+  color: var(--hh-white);
+}
+
+.families-table-foot {
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.45;
+  text-align: center;
+  padding: 14px;
+  margin: 0;
+  border-top: 1px solid rgba(83, 1, 38, 0.06);
+}

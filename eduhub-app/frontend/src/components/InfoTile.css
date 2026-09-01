@@ -1,0 +1,70 @@
+.info-tile {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 20px 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: box-shadow var(--hh-transition), transform var(--hh-transition);
+  min-width: 0;
+}
+
+.info-tile:hover {
+  box-shadow: var(--hh-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.info-tile-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+}
+
+.info-tile-accent-gold .info-tile-icon {
+  background: rgba(184, 154, 90, 0.16);
+  color: var(--hh-gold);
+}
+
+.info-tile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.info-tile-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--hh-ink);
+  opacity: 0.65;
+}
+
+.info-tile-value {
+  font-family: var(--hh-font-heading);
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--hh-burgundy);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-tile-accent-gold .info-tile-value {
+  color: var(--hh-gold);
+}
+
+.info-tile-detail {
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

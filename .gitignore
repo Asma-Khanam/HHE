@@ -1,0 +1,31 @@
+# Dependencies and build output — reinstalled/rebuilt from package.json,
+# never committed.
+node_modules/
+dist/
+dist-ssr/
+
+# Real credentials. Both apps read these at build time; the values live in
+# Vercel's own environment-variable settings for production, and in each
+# app's local .env for development. .env.example (committed) shows the shape
+# without the values.
+.env
+.env.*
+!.env.example
+
+# Big binaries that don't belong in a code repo — the brand originals are
+# hundreds of MB, and the work log is a personal working document. The
+# resized brand assets each app actually uses ARE committed, inside
+# src/assets/brand/.
+Company Images/
+*.xlsx
+*.zip
+
+# Logs and OS/editor noise
+logs
+*.log
+npm-debug.log*
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.sw?

@@ -1,0 +1,31 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+/* A quiet fade-up on the main page body of each /app tab — nothing loud,
+   just enough that switching tabs feels like a designed transition instead
+   of content snapping into place. */
+@keyframes hh-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.overview-body,
+.profile-page-body,
+.application-form-body {
+  animation: hh-page-in 0.25s ease-out;
+}

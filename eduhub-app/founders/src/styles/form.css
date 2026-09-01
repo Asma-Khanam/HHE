@@ -1,0 +1,59 @@
+.hh-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.hh-field label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--hh-ink);
+}
+
+.hh-field input {
+  font-family: var(--hh-font-body);
+  font-size: 1rem;
+  padding: 11px 14px;
+  border: 1px solid rgba(83, 1, 38, 0.2);
+  border-radius: var(--hh-radius);
+  background: var(--hh-white);
+  color: var(--hh-ink);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hh-field input:focus {
+  border-color: var(--hh-gold);
+  box-shadow: 0 0 0 3px rgba(184, 154, 90, 0.25);
+}
+
+.hh-btn-primary {
+  width: 100%;
+  font-family: var(--hh-font-body);
+  font-weight: 500;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  padding: 13px 20px;
+  border: none;
+  border-radius: var(--hh-radius);
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.hh-btn-primary:hover:not(:disabled) {
+  background: var(--hh-burgundy-light);
+}
+
+.hh-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.hh-hint-text {
+  color: var(--hh-ink);
+  opacity: 0.6;
+  font-size: 0.8rem;
+}

@@ -1,0 +1,104 @@
+import { useState } from "react";
+import { updateFamily } from "../lib/staffData";
+import { PIPELINE_STAGES } from "../lib/workflow";
+import "./panels.css";
+
+// The team's own working columns on a family — stage, who owns it, where
+// they're moving from and to, what kind of client they are. None of this is
+// the family's data; it's the agency's view of the family, which is why it
+// sits in its own bar rather than inside the application record below.
+export default function CaseSettingsPanel({ family, staff }) {
+  const [values, setValues] = useState({
+    pipeline_stage: family.pipeline_stage || "enquiry",
+    owner_staff_id: family.owner_staff_id || "",
+    origin: family.origin || "",
+    destination: family.destination || "",
+    membership_type: family.membership_type || "",
+  });
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  async function save(patch) {
+    setValues((v) => ({ ...v, ...patch }));
+    setError("");
+    try {
+      await updateFamily(family.id, patch);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1800);
+    } catch (err) {
+      setError(err.message || "Couldn't save that.");
+    }
+  }
+
+  // Free-text fields save when you leave the box, not on every keystroke —
+  // no point writing to the database once per letter typed.
+  function textProps(key) {
+    return {
+      className: "panel-input",
+      value: values[key],
+      onChange: (e) => setValues((v) => ({ ...v, [key]: e.target.value })),
+      onBlur: (e) => {
+        if ((family[key] || "") !== e.target.value) save({ [key]: e.target.value });
+      },
+    };
+  }
+
+  return (
+    <section className="panel case-settings">
+      <div className="panel-head">
+        <h2>Case</h2>
+        {saved && <span className="panel-saved-note">Saved</span>}
+      </div>
+
+      {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
+
+      <div className="case-settings-grid">
+        <div>
+          <label className="panel-field-label">Pipeline stage</label>
+          <select
+            className="panel-select"
+            value={values.pipeline_stage}
+            onChange={(e) => save({ pipeline_stage: e.target.value })}
+          >
+            {PIPELINE_STAGES.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="panel-field-label">Owner</label>
+          <select
+            className="panel-select"
+            value={values.owner_staff_id}
+            onChange={(e) => save({ owner_staff_id: e.target.value })}
+          >
+            <option value="">Unassigned</option>
+            {(staff || []).map((s) => (
+              <option key={s.user_id} value={s.user_id}>
+                {s.full_name || s.email}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="panel-field-label">Moving from</label>
+          <input type="text" placeholder="e.g. UK" {...textProps("origin")} />
+        </div>
+
+        <div>
+          <label className="panel-field-label">Destination</label>
+          <input type="text" placeholder="e.g. Dubai" {...textProps("destination")} />
+        </div>
+
+        <div>
+          <label className="panel-field-label">Client type</label>
+          <input type="text" placeholder="e.g. Membership" {...textProps("membership_type")} />
+        </div>
+      </div>
+    </section>
+  );
+}

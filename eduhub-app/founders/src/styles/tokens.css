@@ -1,0 +1,24 @@
+/* Same brand tokens as the client app (frontend/src/styles/tokens.css) —
+   kept as a second copy rather than a shared package so the two apps stay
+   fully independent (see project notes on why). If the brand colors/fonts
+   ever change, update both files. */
+:root {
+  --hh-burgundy: #530126;
+  --hh-burgundy-light: #7a1743;
+  --hh-gold: #b89a5a;
+  --hh-white: #ffffff;
+  --hh-cream: #fbf7f4;
+  --hh-ink: #2a1119;
+  --hh-error: #b3261e;
+  --hh-good: #2f6b4f;
+  --hh-good-bg: #e9f2ed;
+  --hh-track: #ece3e6;
+
+  --hh-font-heading: "Poppins", "Segoe UI", sans-serif;
+  --hh-font-body: "Poppins", "Segoe UI", sans-serif;
+
+  --hh-radius: 10px;
+  --hh-shadow: 0 12px 32px rgba(83, 1, 38, 0.12);
+  --hh-shadow-hover: 0 16px 40px rgba(83, 1, 38, 0.18);
+  --hh-transition: 0.18s ease;
+}

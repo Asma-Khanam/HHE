@@ -1,0 +1,121 @@
+.still-outstanding-card {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 22px 26px;
+  margin-bottom: 24px;
+  transition: box-shadow var(--hh-transition);
+}
+
+.still-outstanding-card:hover {
+  box-shadow: var(--hh-shadow-hover);
+}
+
+.still-outstanding-card-done {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  color: var(--hh-good);
+}
+
+.still-outstanding-card-done h3 {
+  margin: 0 0 4px;
+  font-family: var(--hh-font-heading);
+  font-size: 1.02rem;
+  color: var(--hh-ink);
+}
+
+.still-outstanding-card-done p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--hh-ink);
+  opacity: 0.65;
+}
+
+.still-outstanding-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--hh-gold);
+}
+
+.still-outstanding-header h3 {
+  margin: 0;
+  font-family: var(--hh-font-heading);
+  font-size: 1.02rem;
+  color: var(--hh-burgundy);
+}
+
+.still-outstanding-count {
+  color: var(--hh-ink);
+  opacity: 0.5;
+  font-weight: 400;
+}
+
+.still-outstanding-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+}
+
+.still-outstanding-list button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(83, 1, 38, 0.12);
+  background: var(--hh-cream);
+  color: var(--hh-ink);
+  font-family: var(--hh-font-body);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.still-outstanding-list button:hover {
+  background: rgba(184, 154, 90, 0.14);
+  border-color: rgba(184, 154, 90, 0.4);
+}
+
+.still-outstanding-list button svg {
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.still-outstanding-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.still-outstanding-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--hh-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.still-outstanding-tag {
+  font-size: 0.75rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.still-outstanding-more {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+  color: var(--hh-ink);
+  opacity: 0.5;
+}

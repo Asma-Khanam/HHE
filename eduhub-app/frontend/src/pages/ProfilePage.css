@@ -1,0 +1,184 @@
+.profile-page-body {
+  padding: 24px 40px 60px;
+  display: grid;
+  grid-template-columns: minmax(260px, 380px) 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.profile-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  column-gap: 32px;
+}
+
+.profile-details-grid .profile-row {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .profile-page-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .profile-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-card {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 24px 28px;
+  transition: box-shadow var(--hh-transition);
+}
+
+.profile-card:hover {
+  box-shadow: var(--hh-shadow-hover);
+}
+
+.profile-card:first-child {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.profile-card-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.profile-card h2 {
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  margin: 0 0 2px;
+  font-size: 1.2rem;
+}
+
+.profile-card p {
+  margin: 0;
+  color: var(--hh-ink);
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.08);
+  font-size: 0.92rem;
+}
+
+.profile-row:last-child {
+  border-bottom: none;
+}
+
+.profile-row-label {
+  color: var(--hh-ink);
+  opacity: 0.6;
+}
+
+.profile-row-value {
+  color: var(--hh-ink);
+  font-weight: 500;
+  text-align: right;
+}
+
+@media (max-width: 720px) {
+  .profile-page-body {
+    padding: 20px 20px 60px;
+  }
+}
+
+/* Household card always spans the full grid width — this is what actually
+   fixes the old layout bug: a 3rd .profile-card with no explicit column
+   span landed in the grid's narrow left track (row 2, column 1), leaving a
+   large empty gap in column 2 next to it. */
+.profile-card-household {
+  grid-column: 1 / -1;
+}
+
+.profile-household-title {
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+}
+
+.household-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.household-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--hh-cream);
+}
+
+.household-row-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--hh-gold);
+  color: var(--hh-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.household-row-avatar-holder {
+  background: var(--hh-burgundy);
+}
+
+.household-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.household-row-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--hh-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.household-row-detail {
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.household-empty-hint {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+}

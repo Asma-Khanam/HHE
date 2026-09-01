@@ -1,0 +1,414 @@
+/* Shared styling for the staff-side panels on the family record —
+   ApplicationsPanel, TasksPanel, DocumentVaultPanel and CaseSettingsPanel.
+   One stylesheet rather than four because they're all the same kind of
+   object (a white card with a heading, a list of rows, and a small inline
+   form) and were drifting apart when each had its own copy of the rules. */
+
+.panel {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 20px 24px 22px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.panel-head h2 {
+  font-family: var(--hh-font-heading);
+  font-size: 1.02rem;
+  color: var(--hh-burgundy);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+  padding: 1px 9px;
+  border-radius: 999px;
+}
+
+.panel-hint {
+  color: var(--hh-ink);
+  opacity: 0.55;
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.panel-btn {
+  font-family: var(--hh-font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 6px 13px;
+  border-radius: 7px;
+  border: 1px solid rgba(83, 1, 38, 0.18);
+  background: var(--hh-white);
+  color: var(--hh-burgundy);
+  cursor: pointer;
+  transition: background var(--hh-transition);
+  white-space: nowrap;
+}
+
+.panel-btn:hover:not(:disabled) {
+  background: rgba(184, 154, 90, 0.12);
+}
+
+.panel-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.panel-btn-primary {
+  background: var(--hh-burgundy);
+  border-color: var(--hh-burgundy);
+  color: var(--hh-white);
+}
+
+.panel-btn-primary:hover:not(:disabled) {
+  background: var(--hh-burgundy-light);
+}
+
+.panel-btn-quiet {
+  border: none;
+  background: none;
+  color: var(--hh-ink);
+  opacity: 0.5;
+  padding: 4px 6px;
+}
+
+.panel-btn-quiet:hover:not(:disabled) {
+  opacity: 1;
+  background: none;
+  color: var(--hh-error);
+}
+
+/* Small inline form controls, shared by every panel's add/edit row. */
+.panel-input,
+.panel-select {
+  font-family: var(--hh-font-body);
+  font-size: 0.84rem;
+  padding: 7px 10px;
+  border: 1px solid rgba(83, 1, 38, 0.15);
+  border-radius: 7px;
+  background: var(--hh-white);
+  color: var(--hh-ink);
+  outline: none;
+  min-width: 0;
+}
+
+.panel-input:focus,
+.panel-select:focus {
+  border-color: var(--hh-gold);
+  box-shadow: 0 0 0 3px rgba(184, 154, 90, 0.18);
+}
+
+.panel-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(83, 1, 38, 0.14);
+}
+
+.panel-form-grow {
+  flex: 1;
+  min-width: 160px;
+}
+
+.panel-field-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--hh-ink);
+  opacity: 0.45;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.panel-saved-note {
+  font-size: 0.76rem;
+  color: var(--hh-good);
+}
+
+/* -------------------------------------------------------- case settings */
+
+.case-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px 18px;
+}
+
+.case-settings-grid .panel-select,
+.case-settings-grid .panel-input {
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------- tasks */
+
+.task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.06);
+}
+
+.task-row:last-child {
+  border-bottom: none;
+}
+
+.task-check {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(83, 1, 38, 0.28);
+  background: var(--hh-white);
+  color: var(--hh-white);
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--hh-transition), border-color var(--hh-transition);
+}
+
+.task-check:hover {
+  border-color: var(--hh-gold);
+}
+
+.task-check.is-checked {
+  background: var(--hh-good);
+  border-color: var(--hh-good);
+}
+
+.task-row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-row-title {
+  font-size: 0.89rem;
+  color: var(--hh-ink);
+}
+
+.task-row.is-done .task-row-title {
+  text-decoration: line-through;
+  opacity: 0.45;
+}
+
+.task-row-meta {
+  font-size: 0.76rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+  margin-top: 2px;
+}
+
+.task-row-meta.is-overdue {
+  color: var(--hh-error);
+  opacity: 0.9;
+}
+
+/* --------------------------------------------------------- applications */
+
+.app-child-block {
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.08);
+}
+
+.app-child-block:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.app-child-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.app-child-name {
+  font-family: var(--hh-font-heading);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--hh-burgundy);
+}
+
+.app-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+}
+
+.app-row-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.app-row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-row-school {
+  font-size: 0.89rem;
+  font-weight: 500;
+  color: var(--hh-ink);
+}
+
+.app-row-fit {
+  font-size: 0.76rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+}
+
+.app-progress {
+  display: inline-flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.app-progress-seg {
+  width: 18px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--hh-track);
+}
+
+.app-progress-seg.is-filled {
+  background: var(--hh-good);
+}
+
+/* ------------------------------------------------------- document vault */
+
+.doc-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.06);
+  flex-wrap: wrap;
+}
+
+.doc-row:last-child {
+  border-bottom: none;
+}
+
+.doc-row-status {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--hh-track);
+  color: var(--hh-ink);
+}
+
+.doc-row-status.is-verified {
+  background: var(--hh-good);
+  color: var(--hh-white);
+}
+
+.doc-row-status.is-chasing {
+  background: rgba(179, 38, 30, 0.14);
+  color: var(--hh-error);
+}
+
+.doc-row-info {
+  flex: 1;
+  min-width: 180px;
+}
+
+.doc-row-label {
+  font-size: 0.89rem;
+  font-weight: 500;
+  color: var(--hh-ink);
+}
+
+.doc-row-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+}
+
+.doc-row-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+}
+
+.doc-row-tag-muted {
+  background: rgba(83, 1, 38, 0.04);
+  color: var(--hh-ink);
+  opacity: 0.6;
+  font-weight: 500;
+}
+
+.doc-row-tag-expiring {
+  background: rgba(179, 38, 30, 0.1);
+  color: var(--hh-error);
+}
+
+.doc-row-meta {
+  font-size: 0.75rem;
+  color: var(--hh-ink);
+  opacity: 0.5;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+
+.doc-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.doc-row-controls .panel-select,
+.doc-row-controls .panel-input {
+  font-size: 0.78rem;
+  padding: 5px 8px;
+}

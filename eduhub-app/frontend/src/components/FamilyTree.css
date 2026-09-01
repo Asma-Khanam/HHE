@@ -1,0 +1,157 @@
+.family-tree-card {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 24px 24px 28px;
+  margin-bottom: 24px;
+  transition: box-shadow var(--hh-transition);
+}
+
+.family-tree-card:hover {
+  box-shadow: var(--hh-shadow-hover);
+}
+
+.family-tree-card h3 {
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  font-size: 1rem;
+  margin: 0 0 20px;
+}
+
+.family-tree {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 48px;
+  padding: 4px 4px 0;
+  overflow-x: auto;
+}
+
+.family-tree-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.family-tree-line {
+  stroke: var(--hh-burgundy);
+  stroke-width: 1.6;
+  opacity: 0.55;
+}
+
+.family-tree-arrowhead {
+  fill: var(--hh-burgundy);
+  opacity: 0.55;
+}
+
+.family-tree-parents {
+  display: flex;
+  gap: 64px;
+  position: relative;
+  z-index: 1;
+}
+
+.family-tree-children {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+.family-tree-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 168px;
+  padding: 14px 18px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(83, 1, 38, 0.25);
+  background: var(--hh-cream);
+  text-align: center;
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--hh-transition), box-shadow var(--hh-transition), transform 0.1s ease;
+}
+
+.family-tree-node:hover {
+  background: rgba(184, 154, 90, 0.16);
+  box-shadow: var(--hh-shadow);
+}
+
+.family-tree-node:active {
+  transform: scale(0.98);
+}
+
+.family-tree-node-small {
+  min-width: 140px;
+  padding: 12px 16px;
+}
+
+.family-tree-node-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--hh-font-heading);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--hh-burgundy);
+}
+
+.family-tree-holder-badge {
+  font-family: var(--hh-font-body);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--hh-white);
+  background: var(--hh-gold);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.family-tree-node-name {
+  font-size: 0.85rem;
+  color: var(--hh-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.family-tree-node-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--hh-gold);
+  margin-top: 2px;
+}
+
+.family-tree-node-status.is-ready {
+  color: var(--hh-good);
+}
+
+.family-tree-empty-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .family-tree-parents {
+    gap: 32px;
+  }
+
+  .family-tree-node {
+    min-width: 130px;
+    padding: 10px 12px;
+  }
+}

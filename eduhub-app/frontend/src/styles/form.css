@@ -1,0 +1,163 @@
+.hh-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.hh-field label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--hh-ink);
+}
+
+.hh-field input,
+.hh-field select,
+.hh-field textarea {
+  font-family: var(--hh-font-body);
+  font-size: 1rem;
+  padding: 11px 14px;
+  border: 1px solid rgba(83, 1, 38, 0.2);
+  border-radius: var(--hh-radius);
+  background: var(--hh-white);
+  color: var(--hh-ink);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hh-field input:focus,
+.hh-field select:focus,
+.hh-field textarea:focus {
+  border-color: var(--hh-gold);
+  box-shadow: 0 0 0 3px rgba(184, 154, 90, 0.25);
+}
+
+.hh-field-error input,
+.hh-field-error select,
+.hh-field-error textarea {
+  border-color: var(--hh-error);
+  background: rgba(179, 38, 30, 0.03);
+}
+
+.hh-field-error input:focus,
+.hh-field-error select:focus,
+.hh-field-error textarea:focus {
+  box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.18);
+}
+
+.hh-error-text {
+  color: var(--hh-error);
+  font-size: 0.82rem;
+}
+
+.hh-hint-text {
+  color: var(--hh-ink);
+  opacity: 0.6;
+  font-size: 0.8rem;
+}
+
+.hh-field-other-input {
+  margin-top: 4px;
+}
+
+.hh-phone-row {
+  display: flex;
+  gap: 8px;
+}
+
+.hh-phone-code {
+  flex: 0 0 140px;
+  min-width: 0;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.hh-phone-number {
+  flex: 1;
+  min-width: 0;
+}
+
+.hh-btn-primary {
+  width: 100%;
+  font-family: var(--hh-font-body);
+  font-weight: 500;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  padding: 13px 20px;
+  border: none;
+  border-radius: var(--hh-radius);
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.hh-btn-primary:hover:not(:disabled) {
+  background: var(--hh-burgundy-light);
+}
+
+.hh-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.hh-btn-secondary {
+  width: 100%;
+  font-family: var(--hh-font-body);
+  font-weight: 500;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  padding: 13px 20px;
+  border: 1px solid rgba(83, 1, 38, 0.3);
+  border-radius: var(--hh-radius);
+  background: var(--hh-white);
+  color: var(--hh-burgundy);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.hh-btn-secondary:hover:not(:disabled) {
+  background: rgba(83, 1, 38, 0.06);
+}
+
+.hh-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hh-form-banner {
+  padding: 12px 14px;
+  border-radius: var(--hh-radius);
+  font-size: 0.9rem;
+  margin-bottom: 18px;
+}
+
+.hh-form-banner-error {
+  background: rgba(179, 38, 30, 0.08);
+  color: var(--hh-error);
+  border: 1px solid rgba(179, 38, 30, 0.25);
+}
+
+.hh-form-banner-success {
+  background: rgba(184, 154, 90, 0.12);
+  color: var(--hh-burgundy);
+  border: 1px solid rgba(184, 154, 90, 0.4);
+}
+
+.hh-switch-line {
+  margin-top: 22px;
+  font-size: 0.9rem;
+  color: var(--hh-ink);
+  text-align: center;
+}
+
+.hh-switch-line a {
+  color: var(--hh-burgundy);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.hh-switch-line a:hover {
+  text-decoration: underline;
+}

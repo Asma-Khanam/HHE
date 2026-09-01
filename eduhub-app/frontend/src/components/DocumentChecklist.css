@@ -1,0 +1,150 @@
+.doc-checklist {
+  margin-bottom: 28px;
+}
+
+.doc-checklist:last-child {
+  margin-bottom: 0;
+}
+
+.doc-checklist h4 {
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  font-size: 1rem;
+  margin: 0 0 12px;
+}
+
+.doc-checklist-disabled {
+  background: var(--hh-cream);
+  border-radius: var(--hh-radius);
+  padding: 16px 18px;
+}
+
+.doc-checklist-disabled h4 {
+  margin-bottom: 6px;
+}
+
+.doc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.08);
+  flex-wrap: wrap;
+}
+
+.doc-row:last-child {
+  border-bottom: none;
+}
+
+.doc-row-missing {
+  background: rgba(179, 38, 30, 0.04);
+  border-bottom-color: rgba(179, 38, 30, 0.15);
+  margin: 0 -14px;
+  padding: 12px 14px;
+  border-radius: 6px;
+}
+
+.doc-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+}
+
+.doc-row-label {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--hh-ink);
+}
+
+.doc-row-required {
+  color: var(--hh-error);
+}
+
+.doc-row-hint {
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}
+
+.doc-row-error {
+  font-size: 0.78rem;
+  color: var(--hh-error);
+}
+
+.doc-row-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.doc-row-filename {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  color: var(--hh-ink);
+  opacity: 0.75;
+}
+
+.doc-row-btn {
+  font-family: var(--hh-font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: var(--hh-radius);
+  border: 1px solid rgba(83, 1, 38, 0.25);
+  background: var(--hh-white);
+  color: var(--hh-burgundy);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.doc-row-btn:hover:not(:disabled) {
+  background: rgba(83, 1, 38, 0.06);
+}
+
+.doc-row-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.doc-row-btn-upload {
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  border-color: var(--hh-burgundy);
+}
+
+.doc-row-btn-upload:hover:not(:disabled) {
+  background: var(--hh-burgundy-light);
+}
+
+.doc-row-btn-ghost {
+  border-color: transparent;
+  color: var(--hh-error);
+}
+
+.doc-row-btn-ghost:hover:not(:disabled) {
+  background: rgba(179, 38, 30, 0.08);
+}
+
+/* Multi-file slots stack each uploaded file on its own line, "Add another"
+   button underneath — rather than the single label+action row a one-file
+   slot uses. */
+.doc-row-action-stack {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.doc-row-file {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}

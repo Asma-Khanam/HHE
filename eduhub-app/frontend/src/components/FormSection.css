@@ -1,0 +1,56 @@
+.hh-form-section {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  transition: box-shadow var(--hh-transition);
+}
+
+.hh-form-section:hover {
+  box-shadow: var(--hh-shadow-hover);
+}
+
+.hh-form-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.1);
+}
+
+.hh-form-section-header h2 {
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  font-size: 1.4rem;
+  margin: 0 0 4px;
+}
+
+.hh-form-section-header p {
+  margin: 0;
+  color: var(--hh-ink);
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
+.hh-form-section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 24px;
+}
+
+.hh-form-section-grid .hh-field-full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 720px) {
+  .hh-form-section {
+    padding: 22px 18px;
+  }
+
+  .hh-form-section-grid {
+    grid-template-columns: 1fr;
+  }
+}

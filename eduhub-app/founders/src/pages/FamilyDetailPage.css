@@ -1,0 +1,418 @@
+.hh-link-btn {
+  display: inline-block;
+  color: var(--hh-burgundy);
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-decoration: none;
+  margin-bottom: 18px;
+}
+
+.hh-link-btn:hover {
+  text-decoration: underline;
+}
+
+.family-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.family-detail-avatar {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--hh-font-heading);
+  font-weight: 600;
+  font-size: 1.3rem;
+}
+
+.family-detail-header-text h1 {
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  font-size: 1.5rem;
+  margin: 0 0 4px;
+}
+
+.family-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--hh-ink);
+  opacity: 0.7;
+}
+
+.family-detail-meta code {
+  background: rgba(83, 1, 38, 0.06);
+  padding: 2px 8px;
+  border-radius: 5px;
+  color: var(--hh-burgundy);
+  opacity: 1;
+}
+
+/* Same badge look as the families table (FamiliesListPage.css) — repeated
+   here rather than imported so this page still renders correctly on its
+   own if it's ever reached without the list page's stylesheet loaded. */
+.families-badge {
+  display: inline-block;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+  opacity: 1;
+}
+
+.families-badge.is-submitted {
+  background: var(--hh-good-bg);
+  color: var(--hh-good);
+}
+
+/* Pipeline-stage tints — same set as the caseload table's, repeated here for
+   the same reason as the badge above (this page doesn't load that
+   stylesheet). */
+.families-badge.stage-enquiry {
+  background: rgba(83, 1, 38, 0.06);
+  color: var(--hh-burgundy);
+}
+
+.families-badge.stage-profile {
+  background: rgba(83, 1, 38, 0.1);
+  color: var(--hh-burgundy);
+}
+
+.families-badge.stage-applied {
+  background: rgba(184, 154, 90, 0.2);
+  color: #7a5c1f;
+}
+
+.families-badge.stage-assessed {
+  background: rgba(184, 154, 90, 0.3);
+  color: #6a4f18;
+}
+
+.families-badge.stage-offer {
+  background: rgba(47, 107, 79, 0.15);
+  color: var(--hh-good);
+}
+
+.families-badge.stage-placed {
+  background: var(--hh-good);
+  color: var(--hh-white);
+}
+
+/* Full-width rows that sit above and below the two-column middle. */
+.family-detail-stack {
+  margin-bottom: 20px;
+}
+
+.family-detail-grid + .family-detail-stack {
+  margin-bottom: 0;
+  margin-top: 20px;
+}
+
+/* The record column is deliberately wider than the side column — it carries
+   the whole application, the side column only carries summaries. */
+.family-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.family-detail-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.family-detail-section-title {
+  font-family: var(--hh-font-heading);
+  font-size: 1.05rem;
+  color: var(--hh-burgundy);
+  margin: 0;
+  opacity: 0.75;
+  letter-spacing: 0.02em;
+}
+
+.family-detail-card {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 22px 24px;
+}
+
+.family-detail-card h2 {
+  font-family: var(--hh-font-heading);
+  font-size: 1.02rem;
+  color: var(--hh-burgundy);
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.family-detail-card-count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+  padding: 1px 9px;
+  border-radius: 999px;
+}
+
+.family-detail-hint {
+  color: var(--hh-ink);
+  opacity: 0.55;
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------------
+   Per-person record cards — one per parent, one per child, each holding
+   every field that person's side of the form collects.
+   ------------------------------------------------------------------------ */
+
+.person-card {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  overflow: hidden;
+}
+
+.person-card-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 24px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.08);
+  font-family: var(--hh-font-body);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--hh-transition);
+}
+
+.person-card.is-collapsed .person-card-head {
+  border-bottom: none;
+}
+
+.person-card-head:hover {
+  background: rgba(184, 154, 90, 0.07);
+}
+
+.person-card-avatar {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--hh-gold);
+  color: var(--hh-burgundy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.person-card-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.person-card-name {
+  font-family: var(--hh-font-heading);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--hh-burgundy);
+}
+
+.person-card-role {
+  font-size: 0.8rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+}
+
+.person-card-chevron {
+  color: var(--hh-burgundy);
+  opacity: 0.5;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.person-card-body {
+  padding: 20px 24px 24px;
+}
+
+.rec-subhead {
+  font-family: var(--hh-font-heading);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--hh-burgundy);
+  opacity: 0.65;
+  margin: 26px 0 12px;
+}
+
+.rec-subhead:first-child {
+  margin-top: 0;
+}
+
+.rec-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 22px;
+}
+
+.rec-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.rec-field-wide {
+  grid-column: 1 / -1;
+}
+
+.rec-field-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--hh-ink);
+  opacity: 0.45;
+}
+
+.rec-field-value {
+  font-size: 0.92rem;
+  color: var(--hh-ink);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* An unanswered field still shows, just visibly greyed — the gap is the
+   information. */
+.rec-field-value.is-empty {
+  opacity: 0.3;
+}
+
+/* ------------------------------------------------------------------------
+   Side column — household roster, what's needed, document vault
+   ------------------------------------------------------------------------ */
+
+.household-list,
+.school-list,
+.missing-list,
+.doc-vault-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.household-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.06);
+}
+
+.household-row:last-child {
+  border-bottom: none;
+}
+
+.household-row-avatar {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--hh-gold);
+  color: var(--hh-burgundy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.household-row-avatar-child {
+  background: rgba(83, 1, 38, 0.1);
+  color: var(--hh-burgundy);
+}
+
+.household-row-name {
+  font-weight: 500;
+  font-size: 0.92rem;
+  color: var(--hh-ink);
+}
+
+.household-tag {
+  font-weight: 400;
+  opacity: 0.6;
+  font-size: 0.82rem;
+}
+
+.household-row-detail {
+  font-size: 0.8rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+}
+
+.household-empty-hint {
+  color: var(--hh-ink);
+  opacity: 0.55;
+  font-size: 0.88rem;
+}
+
+.missing-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  font-size: 0.86rem;
+  color: var(--hh-ink);
+}
+
+.missing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hh-gold);
+  flex-shrink: 0;
+}
+
+.missing-dot.is-document {
+  background: var(--hh-burgundy);
+}
+
+/* The document vault now lives in components/DocumentVaultPanel.jsx and is
+   styled by components/panels.css — its old rules used to sit here. */
+
+@media (max-width: 1100px) {
+  .family-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .rec-grid {
+    grid-template-columns: 1fr;
+  }
+}

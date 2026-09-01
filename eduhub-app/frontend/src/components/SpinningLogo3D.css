@@ -1,0 +1,14 @@
+.spinning-logo-stage {
+  width: min(380px, 85%);
+  aspect-ratio: 1 / 1;
+}
+
+.spinning-logo-stage canvas {
+  display: block;
+}
+
+.spinning-logo-fallback {
+  width: 100%;
+  height: auto;
+  filter: brightness(0) invert(1);
+}

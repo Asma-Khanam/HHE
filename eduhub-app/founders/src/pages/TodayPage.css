@@ -1,0 +1,267 @@
+.today-header {
+  margin-bottom: 24px;
+}
+
+.today-header h1 {
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  font-size: 1.7rem;
+  margin: 0 0 4px;
+}
+
+.today-subtitle {
+  color: var(--hh-ink);
+  opacity: 0.6;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.today-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.today-stat {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 20px 22px;
+}
+
+.today-stat-value {
+  font-family: var(--hh-font-heading);
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--hh-burgundy);
+  line-height: 1.1;
+}
+
+.today-stat-label {
+  font-size: 0.88rem;
+  color: var(--hh-ink);
+  opacity: 0.75;
+  margin-top: 6px;
+}
+
+.today-stat-note {
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+  margin-top: 8px;
+}
+
+.today-stat-note.is-bad {
+  color: var(--hh-error);
+  opacity: 0.85;
+}
+
+.today-stat-note.is-good {
+  color: var(--hh-good);
+  opacity: 0.85;
+}
+
+.today-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.today-card {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 20px 24px 24px;
+}
+
+.today-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.today-card-head h2 {
+  font-family: var(--hh-font-heading);
+  font-size: 1.02rem;
+  color: var(--hh-burgundy);
+  margin: 0;
+}
+
+.today-link-btn {
+  background: none;
+  border: none;
+  font-family: var(--hh-font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--hh-burgundy);
+  opacity: 0.75;
+  cursor: pointer;
+  padding: 0;
+}
+
+.today-link-btn:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.today-hint {
+  color: var(--hh-ink);
+  opacity: 0.55;
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.today-task-list,
+.today-deadline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.today-task {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.06);
+}
+
+.today-task:last-child {
+  border-bottom: none;
+}
+
+.today-check {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  border: 1.5px solid rgba(83, 1, 38, 0.28);
+  background: var(--hh-white);
+  color: var(--hh-white);
+  font-size: 0.72rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--hh-transition), border-color var(--hh-transition);
+}
+
+.today-check:hover {
+  border-color: var(--hh-gold);
+}
+
+.today-check.is-checked {
+  background: var(--hh-good);
+  border-color: var(--hh-good);
+}
+
+.today-task-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.today-task-title {
+  font-size: 0.92rem;
+  color: var(--hh-ink);
+}
+
+.today-task.is-done .today-task-title {
+  text-decoration: line-through;
+  opacity: 0.45;
+}
+
+.today-task-meta {
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+  margin-top: 2px;
+}
+
+.today-task-family {
+  color: var(--hh-burgundy);
+  text-decoration: none;
+}
+
+.today-task-family:hover {
+  text-decoration: underline;
+}
+
+.today-pill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.today-pill.is-overdue {
+  background: rgba(179, 38, 30, 0.1);
+  color: var(--hh-error);
+}
+
+.today-pill.is-today {
+  background: rgba(184, 154, 90, 0.18);
+  color: #7a5c1f;
+}
+
+.today-assignee {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(184, 154, 90, 0.25);
+  color: var(--hh-burgundy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.today-deadline {
+  display: flex;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.06);
+}
+
+.today-deadline:last-child {
+  border-bottom: none;
+}
+
+.today-deadline-date {
+  font-family: var(--hh-font-heading);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--hh-burgundy);
+  flex-shrink: 0;
+  min-width: 62px;
+  border-left: 3px solid var(--hh-gold);
+  padding-left: 10px;
+}
+
+.today-deadline-title {
+  font-size: 0.88rem;
+  color: var(--hh-ink);
+}
+
+.today-deadline-meta {
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+  margin-top: 2px;
+}
+
+@media (max-width: 1150px) {
+  .today-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .today-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,116 @@
+.doc-vault-card {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 22px 26px;
+  margin-bottom: 24px;
+  transition: box-shadow var(--hh-transition);
+}
+
+.doc-vault-card:hover {
+  box-shadow: var(--hh-shadow-hover);
+}
+
+.doc-vault-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--hh-gold);
+}
+
+.doc-vault-header h3 {
+  margin: 0;
+  font-family: var(--hh-font-heading);
+  font-size: 1.02rem;
+  color: var(--hh-burgundy);
+}
+
+.doc-vault-count {
+  color: var(--hh-ink);
+  opacity: 0.5;
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+
+.doc-vault-hint {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}
+
+.doc-vault-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  border-top: 1px solid rgba(83, 1, 38, 0.1);
+}
+
+.doc-vault-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.1);
+}
+
+.doc-vault-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.doc-vault-row-label {
+  font-family: var(--hh-font-heading);
+  font-size: 0.92rem;
+  color: var(--hh-ink);
+}
+
+.doc-vault-row-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.doc-vault-row-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+}
+
+.doc-vault-row-tag-muted {
+  background: rgba(83, 1, 38, 0.04);
+  color: var(--hh-ink);
+  opacity: 0.6;
+  font-weight: 500;
+}
+
+.doc-vault-row-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 9px 2px 7px;
+  border-radius: 999px;
+  background: var(--hh-good-bg);
+  color: var(--hh-good);
+}
+
+.doc-vault-row-meta {
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}
+
+.doc-vault-row-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}

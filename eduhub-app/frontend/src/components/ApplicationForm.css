@@ -1,0 +1,405 @@
+.application-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.application-form-body {
+  padding: 24px 40px 100px;
+  flex: 1;
+}
+
+.hh-link-btn {
+  background: none;
+  border: none;
+  color: var(--hh-burgundy);
+  font-family: var(--hh-font-body);
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.back-to-list-btn {
+  display: inline-block;
+  margin-bottom: 18px;
+  text-decoration: none;
+}
+
+.back-to-list-btn:hover {
+  text-decoration: underline;
+}
+
+.application-form-footer {
+  position: sticky;
+  bottom: 0;
+  background: var(--hh-white);
+  border-top: 1px solid rgba(83, 1, 38, 0.1);
+  padding: 16px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 -8px 16px -8px rgba(83, 1, 38, 0.12);
+}
+
+.application-form-footer-hint {
+  font-size: 0.85rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+.application-form-footer-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.application-form-footer .hh-btn-primary,
+.application-form-footer .hh-btn-secondary {
+  width: auto;
+  padding: 13px 28px;
+}
+
+/* Card-list overview — the Application tab's default view: a stack of
+   person cards (Mother, Father, each child), grouped under small-caps step
+   headings, each with a live progress bar and an Edit button. */
+.card-list-view {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-list-group {
+  margin-bottom: 28px;
+}
+
+.card-list-group:last-child {
+  margin-bottom: 0;
+}
+
+.card-list-heading {
+  font-family: var(--hh-font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hh-ink);
+  opacity: 0.55;
+  margin: 0 0 12px;
+}
+
+.step-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 18px 20px;
+  margin-bottom: 12px;
+  transition: box-shadow var(--hh-transition), transform var(--hh-transition);
+}
+
+.step-card:hover {
+  box-shadow: var(--hh-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.step-card-index {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--hh-cream);
+  border: 1px solid rgba(184, 154, 90, 0.35);
+  color: var(--hh-burgundy);
+  font-family: var(--hh-font-heading);
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.step-card-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.step-card-title strong {
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  font-size: 1.02rem;
+}
+
+.step-card-title span {
+  font-size: 0.9rem;
+  color: var(--hh-ink);
+  opacity: 0.7;
+}
+
+.step-card-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.step-card-bar {
+  width: 160px;
+  max-width: 40%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--hh-track);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.step-card-bar-fill {
+  height: 100%;
+  background: var(--hh-gold);
+  border-radius: 999px;
+  transition: width var(--hh-transition);
+}
+
+.step-card-caption {
+  font-size: 0.82rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-card-edit {
+  flex-shrink: 0;
+  font-family: var(--hh-font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(83, 1, 38, 0.25);
+  background: var(--hh-white);
+  color: var(--hh-burgundy);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--hh-transition);
+}
+
+.step-card-edit:hover {
+  background: rgba(83, 1, 38, 0.06);
+}
+
+/* "How many children" — a compact +/- stepper instead of a dropdown. */
+.child-count-block {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.child-count-block .hh-hint-text {
+  margin: 0;
+}
+
+.child-count-stepper {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.child-count-stepper span {
+  font-family: var(--hh-font-heading);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--hh-burgundy);
+  min-width: 1.2em;
+  text-align: center;
+}
+
+.child-count-stepper button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--hh-transition), opacity var(--hh-transition);
+}
+
+.child-count-stepper button:hover:not(:disabled) {
+  background: var(--hh-burgundy-light);
+}
+
+.child-count-stepper button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.account-holder-picker label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--hh-ink);
+  margin-bottom: 8px;
+}
+
+.account-holder-toggle {
+  display: inline-flex;
+  border: 1px solid rgba(83, 1, 38, 0.25);
+  border-radius: var(--hh-radius);
+  overflow: hidden;
+}
+
+.account-holder-btn {
+  font-family: var(--hh-font-body);
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 10px 24px;
+  border: none;
+  background: var(--hh-white);
+  color: var(--hh-burgundy);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.account-holder-btn + .account-holder-btn {
+  border-left: 1px solid rgba(83, 1, 38, 0.25);
+}
+
+.account-holder-btn.is-active {
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+}
+
+.account-holder-btn:hover:not(.is-active) {
+  background: rgba(83, 1, 38, 0.06);
+}
+
+@media (max-width: 900px) {
+  .application-form-body {
+    padding: 20px 20px 100px;
+  }
+
+  .application-form-footer {
+    padding: 14px 20px;
+  }
+}
+
+@media (max-width: 560px) {
+  .step-card {
+    flex-wrap: wrap;
+  }
+
+  .step-card-edit {
+    margin-left: 50px;
+  }
+
+  .child-count-block {
+    flex-wrap: wrap;
+  }
+}
+
+/* Father's "Same as Mother" toggle — sits inline in the field grid, full
+   width so it reads as its own row rather than competing with a label. */
+.same-as-toggle {
+  margin-bottom: 4px;
+}
+
+.hh-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--hh-burgundy);
+  cursor: pointer;
+}
+
+.hh-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--hh-burgundy);
+  cursor: pointer;
+}
+
+/* Confirm-before-delete banner — shown under the child-count stepper only
+   when decreasing it would actually remove a saved child's data. */
+.child-remove-confirm {
+  background: rgba(179, 38, 30, 0.06);
+  border: 1px solid rgba(179, 38, 30, 0.3);
+  border-radius: var(--hh-radius);
+  padding: 14px 18px;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.child-remove-confirm p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--hh-ink);
+}
+
+.child-remove-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.child-remove-cancel-btn,
+.child-remove-btn {
+  font-family: var(--hh-font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background var(--hh-transition), opacity var(--hh-transition);
+}
+
+.child-remove-cancel-btn {
+  border: 1px solid rgba(83, 1, 38, 0.25);
+  background: var(--hh-white);
+  color: var(--hh-burgundy);
+}
+
+.child-remove-cancel-btn:hover:not(:disabled) {
+  background: rgba(83, 1, 38, 0.06);
+}
+
+.child-remove-btn {
+  border: 1px solid var(--hh-error);
+  background: var(--hh-error);
+  color: var(--hh-white);
+}
+
+.child-remove-btn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.child-remove-cancel-btn:disabled,
+.child-remove-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
