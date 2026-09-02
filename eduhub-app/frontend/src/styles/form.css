@@ -207,3 +207,64 @@
   opacity: 0.75;
   cursor: not-allowed;
 }
+
+/* Shared avatar — initials by default, a photo once one is uploaded. Squared
+   tiles with burgundy for adults and sand for children, matching the
+   founders' household card. */
+.hh-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 11px;
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.hh-avatar.is-child {
+  background: #efe0d3;
+  color: var(--hh-burgundy);
+}
+
+.hh-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.hh-avatar-lg {
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+  font-size: 1.3rem;
+}
+
+.avatar-upload {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 4px;
+}
+
+.avatar-upload-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.avatar-upload-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.avatar-upload-remove {
+  opacity: 0.6;
+}

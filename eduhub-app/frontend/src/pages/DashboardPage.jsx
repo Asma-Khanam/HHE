@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import DocumentVaultCard from "../components/DocumentVaultCard";
+import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import { IconCheckCircle, IconChevronRight } from "../components/icons";
 import {
   getMissingItems,
@@ -11,17 +12,16 @@ import {
 } from "../lib/completeness";
 import "./DashboardPage.css";
 
-// The Dashboard — rebuilt 2026-09-02 against the founders' own consultant-view
-// mockup: a cream page of white cards, a family header carrying the one
-// readiness number, a main column and a narrower side rail rather than
-// everything stretched wall to wall.
+// The Dashboard — built against the founders' own consultant-view mockup and
+// then trimmed twice on their feedback (2026-09-02).
 //
-// Gone from the first version, on their feedback: the five-step "Where we're
-// up to" tracker (it didn't tell anyone anything the progress bars don't), and
-// "Needs you today" (it was the outstanding-documents list under a second
-// name). What's left is meant to answer three questions and stop: how far
-// along are we, who still needs something, and what's the one next thing.
-
+// Three things came out along the way, all for the same reason — the page was
+// saying the same thing more than once: the five-step "Where we're up to"
+// tracker (the progress meters already said it), "Needs you today" (it was the
+// outstanding-documents list under another name), and the separate Household
+// card (the same people as "Your application", listed twice). What's left
+// answers three questions and stops: how far along are we, who still needs
+// something, and what's the one next thing.
 function greetingForNow() {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
@@ -48,6 +48,13 @@ function familySurname({ father, children, holder }) {
     (children.map((c) => (c.last_name || "").trim()).find(Boolean) || "") ||
     surnameOf(holder?.full_name)
   );
+}
+
+function formatDob(dob) {
+  if (!dob) return null;
+  const d = new Date(dob);
+  if (Number.isNaN(d.getTime())) return null;
+  return `DOB ${d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })}`;
 }
 
 function statusFor(pct) {
@@ -77,9 +84,8 @@ export default function DashboardPage() {
   const overallPct = getReadinessPct({ parents, accountHolderRole, children, currentSchools, documentsByOwner });
   const breakdown = getStepBreakdown({ parents, accountHolderRole, children, currentSchools, documentsByOwner });
 
-  const intakeStatus = data?.family?.intake_status || "draft";
+  const isSubmitted = (data?.family?.intake_status || "draft") === "submitted";
   const submittedAt = data?.family?.intake_submitted_at;
-  const isSubmitted = intakeStatus === "submitted";
 
   const greetingName = firstNameOf(holder?.full_name);
   const surname = familySurname({ father, children, holder });
@@ -88,41 +94,50 @@ export default function DashboardPage() {
     navigate("/app/form", { state: { stepKey, fieldKey } });
   }
 
-  // The single next thing worth doing, as one clear call to action rather than
-  // a list competing with the two lists already on this page.
+  function docsFor(ownerType, ownerId) {
+    return ownerId ? documentsByOwner[`${ownerType}:${ownerId}`] || [] : [];
+  }
+
+  // The one next thing, as a single call to action. Deliberately never about
+  // documents — those have their own panel, and saying "2 documents to upload"
+  // here as well was just the same sentence twice.
   let spotlight;
-  if (isSubmitted && !outstandingDocs.length) {
+  if (isSubmitted) {
     spotlight = {
-      eyebrow: "All done",
-      title: "Everything's in",
-      body: "Your application and every document we asked for are with us. We'll be in touch as things move forward.",
+      eyebrow: "Submitted",
+      title: "Your application is with us",
+      body: submittedAt
+        ? `Sent on ${new Date(submittedAt).toLocaleDateString(undefined, {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}. You can still go back and change anything.`
+        : "You can still go back and change anything.",
       cta: null,
-    };
-  } else if (isSubmitted) {
-    spotlight = {
-      eyebrow: "One thing left",
-      title: `${outstandingDocs.length} document${outstandingDocs.length === 1 ? "" : "s"} still to upload`,
-      body: "Your application is already submitted — these can follow whenever you get hold of them.",
-      cta: { label: "Upload documents", onClick: () => openForm(outstandingDocs[0].stepKey, outstandingDocs[0].fieldKey) },
     };
   } else if (missingFields.length) {
     spotlight = {
       eyebrow: "Next step",
       title: `${missingFields.length} required field${missingFields.length === 1 ? "" : "s"} to finish`,
-      body: "Everything you've typed is already saved. Fill these in and you'll be able to submit — missing documents won't hold you up.",
-      cta: { label: "Continue the application", onClick: () => openForm(missingFields[0].stepKey, missingFields[0].fieldKey) },
+      body: "Everything you've typed is already saved. Fill these in and you'll be able to submit.",
+      cta: {
+        label: "Continue the application",
+        onClick: () => openForm(missingFields[0].stepKey, missingFields[0].fieldKey),
+      },
     };
   } else {
     spotlight = {
       eyebrow: "Ready",
       title: "You can submit whenever you're ready",
-      body: "Everything required is filled in. Any documents still to come can be uploaded after you submit.",
+      body: "Everything required is filled in. Anything still to upload can follow afterwards.",
       cta: { label: "Go to the application", onClick: () => openForm() },
     };
   }
 
   // Everyone on the application, in the order the form itself shows them —
-  // whoever is filling it in first.
+  // whoever is filling it in first. One list, used once: this replaced the
+  // separate "Your application" and "Household" cards, which were the same
+  // people twice.
   const people = [];
   const parentOrder = accountHolderRole === "Father" ? ["Father", "Mother"] : ["Mother", "Father"];
   parentOrder.forEach((role) => {
@@ -130,23 +145,29 @@ export default function DashboardPage() {
     const stepKey = role === "Mother" ? "mother" : "father";
     people.push({
       key: stepKey,
+      stepKey,
       name: parent?.full_name,
       role,
-      isHolder: role === accountHolderRole,
-      detail: parent?.employer_name ? `employer: ${parent.employer_name}` : parent?.phone,
+      tagline: [role, role === accountHolderRole ? "primary contact" : null, parent?.employer_name || parent?.phone]
+        .filter(Boolean)
+        .join(" · "),
       pct: breakdown[stepKey]?.pct ?? 0,
-      stepKey,
+      photo: findProfilePhoto(docsFor("parent", parent?.id)),
     });
   });
   children.forEach((child, i) => {
+    const label = displayNameForChild(child, i);
     people.push({
       key: `child-${i}`,
-      name: displayNameForChild(child, i),
-      role: child.year_group_applying_for || (children.length > 1 ? `Child ${i + 1}` : "Child"),
-      isChild: true,
-      detail: formatDob(child.date_of_birth),
-      pct: breakdown[`child-${i}`]?.pct ?? 0,
       stepKey: `child-${i}`,
+      name: label,
+      role: children.length > 1 ? `Child ${i + 1}` : "Child",
+      isChild: true,
+      badge: child.year_group_applying_for,
+      tagline: [formatDob(child.date_of_birth), child.year_group_applying_for].filter(Boolean).join(" · ") ||
+        "Details still to come",
+      pct: breakdown[`child-${i}`]?.pct ?? 0,
+      photo: findProfilePhoto(docsFor("child", child.id)),
     });
   });
 
@@ -171,14 +192,7 @@ export default function DashboardPage() {
                 {isSubmitted && <IconCheckCircle size={13} />}
                 {isSubmitted ? "Submitted" : "Draft"}
               </span>
-              {isSubmitted && submittedAt && (
-                <span className="dash-chip is-quiet">
-                  {new Date(submittedAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
-                </span>
-              )}
-              {!isSubmitted && missingFields.length === 0 && (
-                <span className="dash-chip is-quiet">Ready to submit</span>
-              )}
+              {!isSubmitted && missingFields.length === 0 && <span className="dash-chip is-quiet">Ready to submit</span>}
             </div>
           </div>
         </div>
@@ -186,54 +200,54 @@ export default function DashboardPage() {
         <Readiness pct={overallPct} />
       </header>
 
+      <section className="dash-spotlight">
+        <span className="dash-spotlight-eyebrow">{spotlight.eyebrow}</span>
+        <h2>{spotlight.title}</h2>
+        <p>{spotlight.body}</p>
+        {spotlight.cta && (
+          <button type="button" className="dash-spotlight-cta" onClick={spotlight.cta.onClick}>
+            {spotlight.cta.label}
+          </button>
+        )}
+      </section>
+
       <div className="dash-grid">
         {/* ---------- main column ---------- */}
         <div className="dash-main">
           <section className="dash-card">
             <div className="dash-card-head">
-              <h2>Your application</h2>
+              <h2>Your family</h2>
               <button type="button" className="dash-card-link" onClick={() => openForm()}>
-                Open <IconChevronRight size={14} />
+                Edit <IconChevronRight size={14} />
               </button>
             </div>
             <div className="dash-rows">
               {people.map((person) => {
                 const status = statusFor(person.pct);
                 return (
-                  <button
-                    type="button"
-                    className="dash-row"
-                    key={person.key}
-                    onClick={() => openForm(person.stepKey)}
-                  >
-                    <span className={"dash-avatar" + (person.isChild ? " is-child" : "")}>
-                      {initialsFor(person.name, person.role)}
-                    </span>
+                  <button type="button" className="dash-row" key={person.key} onClick={() => openForm(person.stepKey)}>
+                    <PersonAvatar
+                      doc={person.photo}
+                      name={person.name}
+                      fallback={person.role}
+                      isChild={person.isChild}
+                    />
                     <span className="dash-row-text">
-                      <span className="dash-row-name">{person.name || `${person.role} — not added yet`}</span>
-                      <span className="dash-row-detail">
-                        {person.role}
-                        {person.isHolder ? " · filling this in" : ""}
-                        {person.detail ? ` · ${person.detail}` : ""}
+                      <span className="dash-row-name">
+                        {person.name || `${person.role} — not added yet`}
+                        {person.badge && <span className="dash-row-tag"> · {person.badge}</span>}
                       </span>
+                      <span className="dash-row-detail">{person.tagline}</span>
                     </span>
-                    <Segments pct={person.pct} />
-                    <span className={"dash-pill tone-" + status.tone}>{status.label}</span>
+                    <span className="dash-row-meta">
+                      <Segments pct={person.pct} />
+                      <span className={"dash-pill tone-" + status.tone}>{status.label}</span>
+                      <IconChevronRight size={16} />
+                    </span>
                   </button>
                 );
               })}
             </div>
-          </section>
-
-          <section className="dash-spotlight">
-            <span className="dash-spotlight-eyebrow">{spotlight.eyebrow}</span>
-            <h2>{spotlight.title}</h2>
-            <p>{spotlight.body}</p>
-            {spotlight.cta && (
-              <button type="button" className="dash-spotlight-cta" onClick={spotlight.cta.onClick}>
-                {spotlight.cta.label}
-              </button>
-            )}
           </section>
 
           {missingFields.length > 0 && (
@@ -264,34 +278,6 @@ export default function DashboardPage() {
         <aside className="dash-side">
           <section className="dash-card">
             <div className="dash-card-head">
-              <h2>Household</h2>
-              <button type="button" className="dash-card-link" onClick={() => openForm()}>
-                Edit <IconChevronRight size={14} />
-              </button>
-            </div>
-            <div className="dash-household">
-              {people.map((person) => (
-                <div className="dash-household-row" key={person.key}>
-                  <span className={"dash-avatar" + (person.isChild ? " is-child" : "")}>
-                    {initialsFor(person.name, person.role)}
-                  </span>
-                  <span className="dash-row-text">
-                    <span className="dash-row-name">
-                      {person.name || `${person.role} — not added yet`}
-                      {person.isChild && person.role ? <span className="dash-row-tag"> · {person.role}</span> : null}
-                    </span>
-                    <span className="dash-row-detail">
-                      {person.isChild ? person.detail || "Details to come" : person.role}
-                      {person.isHolder ? " · primary contact" : ""}
-                    </span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="dash-card">
-            <div className="dash-card-head">
               <h2>Outstanding documents</h2>
               {outstandingDocs.length > 0 && <span className="dash-count">{outstandingDocs.length}</span>}
             </div>
@@ -303,7 +289,7 @@ export default function DashboardPage() {
             ) : (
               <>
                 <ul className="dash-docs">
-                  {outstandingDocs.slice(0, 7).map((item) => (
+                  {outstandingDocs.slice(0, 8).map((item) => (
                     <li key={item.fieldKey}>
                       <button type="button" onClick={() => openForm(item.stepKey, item.fieldKey)}>
                         <span className="dash-doc-mark" aria-hidden="true" />
@@ -318,8 +304,8 @@ export default function DashboardPage() {
                     </li>
                   ))}
                 </ul>
-                {outstandingDocs.length > 7 && (
-                  <p className="dash-note">+ {outstandingDocs.length - 7} more, once these are in.</p>
+                {outstandingDocs.length > 8 && (
+                  <p className="dash-note">+ {outstandingDocs.length - 8} more, once these are in.</p>
                 )}
                 <p className="dash-note dash-note-soft">
                   None of these stop you submitting — upload them whenever you get hold of them.
@@ -339,22 +325,6 @@ export default function DashboardPage() {
       />
     </div>
   );
-}
-
-function formatDob(dob) {
-  if (!dob) return null;
-  const d = new Date(dob);
-  if (Number.isNaN(d.getTime())) return null;
-  return `DOB ${d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })}`;
-}
-
-// Two initials for a full name, one for a single name — the same shape the
-// founders' own mockup uses for its household rows.
-function initialsFor(name, fallback) {
-  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return (fallback || "?").charAt(0).toUpperCase();
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
 // The four-segment progress meter from the founders' mockup — easier to read
@@ -384,15 +354,8 @@ function Readiness({ pct }) {
 
   return (
     <div className="dash-readiness">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-        <circle
-          className="dash-ring-track"
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          strokeWidth={stroke}
-          fill="none"
-        />
+      <svg viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+        <circle className="dash-ring-track" cx={size / 2} cy={size / 2} r={radius} strokeWidth={stroke} fill="none" />
         <circle
           className="dash-ring-fill"
           cx={size / 2}

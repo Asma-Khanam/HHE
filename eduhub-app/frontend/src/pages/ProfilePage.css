@@ -139,28 +139,6 @@
   border-color: var(--hh-gold);
 }
 
-/* Squared tiles with initials, matching the founders' household card —
-   burgundy for the adults, a soft sand for the children. */
-.household-row-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  background: var(--hh-burgundy);
-  color: var(--hh-white);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  flex-shrink: 0;
-}
-
-.household-row-avatar-child {
-  background: #efe0d3;
-  color: var(--hh-burgundy);
-}
-
 .household-row-text {
   display: flex;
   flex-direction: column;

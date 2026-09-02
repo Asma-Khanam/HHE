@@ -71,6 +71,27 @@ export const PARENT_DOCUMENT_TYPES = [
 // .docx (the modern zipped one) report differently, and some browsers /
 // operating systems hand over an empty or generic type for either — hence
 // the extension fallback in isAcceptedFile below.
+// A family member's own photo. Deliberately NOT in either list above: it
+// reuses the same polymorphic documents table and storage bucket (so no
+// schema change was needed for it), but it isn't paperwork — it should never
+// appear on a checklist, in the outstanding list, or in the Document Vault,
+// and nothing about it is ever chased.
+export const PROFILE_PHOTO_TYPE = "profile_photo";
+
+export const ACCEPTED_IMAGE_EXTENSIONS = ".png,.jpg,.jpeg,.webp";
+const ACCEPTED_IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const ACCEPTED_IMAGE_EXTS = ["png", "jpg", "jpeg", "webp"];
+
+export function isAcceptedImage(file) {
+  if (!file) return false;
+  if (file.type && ACCEPTED_IMAGE_MIME_TYPES.includes(file.type)) return true;
+  const name = file.name || "";
+  const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
+  return ACCEPTED_IMAGE_EXTS.includes(ext);
+}
+
+export const ACCEPTED_IMAGE_MESSAGE = "Photos need to be a PNG, JPEG, or WebP image.";
+
 export const ACCEPTED_FILE_EXTENSIONS = ".pdf,.png,.jpg,.jpeg,.doc,.docx";
 
 export const ACCEPTED_MIME_TYPES = [

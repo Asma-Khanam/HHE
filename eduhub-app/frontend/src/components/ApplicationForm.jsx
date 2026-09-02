@@ -7,6 +7,7 @@ import YesNoSelect from "./YesNoSelect";
 import PhoneField from "./PhoneField";
 import DateField from "./DateField";
 import AddressBlock, { resolveAddress } from "./AddressBlock";
+import AvatarUpload from "./AvatarUpload";
 import PageHeader from "./PageHeader";
 import DocumentChecklist from "./DocumentChecklist";
 import { saveApplication, submitApplication, deleteChild } from "../lib/applicationData";
@@ -840,6 +841,18 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                 return (
                   <>
                     <FormSection title={`${displayName}'s general info`} description="As it appears on their passport.">
+                      <div className="hh-field-full">
+                        <AvatarUpload
+                          userId={userId}
+                          ownerType="child"
+                          ownerId={child.id}
+                          name={displayNameForChild(child)}
+                          fallback={`Child ${i + 1}`}
+                          isChild
+                          documents={docsFor("child", child.id)}
+                          onDocumentsChange={(docs) => setDocsFor("child", child.id, docs)}
+                        />
+                      </div>
                       <FormField
                         label="First name (as in passport)"
                         required
@@ -1414,6 +1427,17 @@ function ParentSection({
           : "Their details, as much as you have — only their full name is required."
       }
     >
+      <div className="hh-field-full">
+        <AvatarUpload
+          userId={userId}
+          ownerType="parent"
+          ownerId={parent.id}
+          name={parent.full_name}
+          fallback={role}
+          documents={documents}
+          onDocumentsChange={onDocumentsChange}
+        />
+      </div>
       <FormField
         label="Full name"
         required

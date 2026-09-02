@@ -2,12 +2,16 @@
    Built to the founders' consultant-view mockup: a wide main column with a
    narrower rail beside it, not one full-width stack. */
 
+/* Everything here scales with the window rather than snapping between a
+   handful of fixed sizes — the first version had a fixed max width and fixed
+   padding, which left it looking wrong at most real screen sizes. */
 .dash {
-  padding: 28px 36px 60px;
+  padding: clamp(16px, 2.2vw, 32px) clamp(16px, 2.6vw, 40px) 60px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  max-width: 1320px;
+  gap: clamp(14px, 1.6vw, 20px);
+  width: 100%;
+  min-width: 0;
 }
 
 /* Cards arrive with a small settle rather than snapping in — enough to feel
@@ -29,14 +33,12 @@
   animation: dash-rise 0.4s ease both;
 }
 
-.dash-main > *:nth-child(2) {
-  animation-delay: 0.06s;
+.dash-spotlight {
+  animation-delay: 0.05s;
 }
-.dash-main > *:nth-child(3) {
-  animation-delay: 0.12s;
-}
-.dash-side > *:nth-child(2) {
-  animation-delay: 0.12s;
+
+.dash-grid > * {
+  animation-delay: 0.1s;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -53,12 +55,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 28px;
+  gap: clamp(16px, 2.4vw, 28px);
   flex-wrap: wrap;
   background: var(--hh-white);
   border: 1px solid var(--hh-track);
   border-radius: 18px;
-  padding: 26px 30px;
+  padding: clamp(20px, 2.2vw, 28px) clamp(20px, 2.4vw, 30px);
   box-shadow: 0 10px 30px rgba(83, 1, 38, 0.06);
 }
 
@@ -75,13 +77,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 66px;
-  height: 66px;
+  width: clamp(50px, 4.5vw, 66px);
+  height: clamp(50px, 4.5vw, 66px);
   flex-shrink: 0;
   border-radius: 50%;
   background: radial-gradient(circle at 30% 25%, var(--hh-burgundy-light), var(--hh-burgundy) 70%);
   color: var(--hh-white);
-  font-size: 1.7rem;
+  font-size: clamp(1.25rem, 1.6vw, 1.7rem);
   font-weight: 600;
   letter-spacing: 0.02em;
   box-shadow: 0 8px 20px rgba(83, 1, 38, 0.28);
@@ -94,7 +96,7 @@
 .dash-top-text h1 {
   margin: 0;
   font-family: var(--hh-font-heading);
-  font-size: 1.85rem;
+  font-size: clamp(1.35rem, 1.05rem + 1.1vw, 1.9rem);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--hh-ink);
@@ -153,6 +155,8 @@
 
 .dash-readiness svg {
   display: block;
+  width: clamp(88px, 8vw, 118px);
+  height: auto;
 }
 
 .dash-ring-track {
@@ -189,18 +193,28 @@
 
 /* ------------------------------------------------------------ page layout */
 
+/* Two columns only when there's genuinely room for both. Below that the rail
+   goes under the main column rather than being squeezed — checked at 768px,
+   where an auto-fit version put two cramped columns side by side and wrapped
+   every person row onto two lines. */
 .dash-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
-  gap: 20px;
+  grid-template-columns: 1fr;
+  gap: clamp(14px, 1.6vw, 20px);
   align-items: start;
+}
+
+@media (min-width: 1060px) {
+  .dash-grid {
+    grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  }
 }
 
 .dash-main,
 .dash-side {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: clamp(14px, 1.6vw, 20px);
   min-width: 0;
 }
 
@@ -297,33 +311,23 @@
   background: var(--hh-cream);
 }
 
-/* Square-cornered avatars, per the mockup: burgundy for the adults, a soft
-   sand for the children, so a glance separates the two groups. */
-.dash-avatar {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: 11px;
-  background: var(--hh-burgundy);
-  color: var(--hh-white);
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.dash-avatar.is-child {
-  background: #efe0d3;
-  color: var(--hh-burgundy);
-}
-
 .dash-row-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+}
+
+/* Meter, status and chevron travel together, so they wrap as one group. */
+.dash-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--hh-ink);
+  opacity: 0.85;
 }
 
 .dash-row-name {
@@ -408,7 +412,7 @@
   position: relative;
   overflow: hidden;
   border-radius: 16px;
-  padding: 28px 30px;
+  padding: clamp(22px, 2.4vw, 30px) clamp(22px, 2.6vw, 32px);
   color: var(--hh-white);
   background: radial-gradient(circle at 88% -30%, rgba(184, 154, 90, 0.45), transparent 58%),
     linear-gradient(135deg, var(--hh-burgundy) 0%, var(--hh-burgundy-light) 100%);
@@ -429,6 +433,39 @@
   position: relative;
 }
 
+/* At a wide window the text alone left half the banner empty, so the button
+   moves out to the right and the two balance instead. */
+@media (min-width: 900px) {
+  .dash-spotlight {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "eyebrow cta"
+      "title   cta"
+      "body    cta";
+    align-items: center;
+    column-gap: 32px;
+  }
+
+  .dash-spotlight-eyebrow {
+    grid-area: eyebrow;
+  }
+
+  .dash-spotlight h2 {
+    grid-area: title;
+  }
+
+  .dash-spotlight p {
+    grid-area: body;
+  }
+
+  .dash-spotlight-cta {
+    grid-area: cta;
+    margin-top: 0;
+    white-space: nowrap;
+  }
+}
+
 .dash-spotlight-eyebrow {
   display: block;
   font-size: 0.72rem;
@@ -442,7 +479,7 @@
 .dash-spotlight h2 {
   margin: 0;
   font-family: var(--hh-font-heading);
-  font-size: 1.5rem;
+  font-size: clamp(1.2rem, 1rem + 0.7vw, 1.55rem);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -585,35 +622,60 @@
 
 /* ------------------------------------------------------------ narrow screens */
 
-@media (max-width: 1040px) {
-  .dash-grid {
-    grid-template-columns: 1fr;
+/* The segment meter is the first thing to go when space gets tight — the
+   status pill next to it already says the same thing in words. */
+@media (max-width: 680px) {
+  .dash-segments {
+    display: none;
   }
 }
 
-@media (max-width: 720px) {
-  .dash {
-    padding: 20px 18px 60px;
-  }
-
+@media (max-width: 560px) {
+  /* On a phone the header stacks: the crest sits beside the greeting at the
+     top, and the ring goes underneath rather than fighting it for width. */
   .dash-top {
-    padding: 22px 20px;
+    flex-direction: column;
+    align-items: stretch;
     gap: 18px;
   }
 
-  .dash-top-text h1 {
-    font-size: 1.45rem;
+  .dash-top-identity {
+    align-items: flex-start;
   }
 
   .dash-crest {
-    width: 54px;
-    height: 54px;
-    font-size: 1.35rem;
+    margin-top: 3px;
   }
 
-  /* The segment meter is the first thing to go when space is tight — the
-     status pill already says the same thing in words. */
-  .dash-segments {
+  .dash-readiness {
+    align-self: center;
+  }
+
+  .dash-readiness svg {
+    width: 92px;
+  }
+
+  /* The chevron is decoration once the whole row is the tap target. */
+  .dash-row-meta svg {
     display: none;
+  }
+
+  /* On a phone the name gets the whole line and the status drops underneath
+     it, indented to line up with the text. Keeping them side by side truncated
+     "Haseebunnisa Aijaz Khan" down to "Haseebunni…" to make room for a pill
+     saying "In progress" — the name is the more useful of the two. */
+  .dash-row {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  /* Full width minus the avatar and its gap, so the avatar stays on the same
+     line as the name and only the status pill drops below. */
+  .dash-row-text {
+    flex: 1 1 calc(100% - 54px);
+  }
+
+  .dash-row-meta {
+    margin-left: 54px;
   }
 }

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import PageHeader from "../components/PageHeader";
+import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import { displayNameForChild } from "../lib/completeness";
 import "./ProfilePage.css";
 
@@ -20,26 +21,14 @@ function formatDob(dob) {
   return `DOB ${d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`;
 }
 
-// Two initials for a full name, one for a single name — matches the
-// founders' own household mockup.
-function initialsFor(name, fallback) {
-  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return (fallback || "?").charAt(0).toUpperCase();
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-}
-
-// One row of the Household list — a squared avatar with initials, the name,
-// and a short second line (role, and whatever's actually known about them
-// yet). Restyled 2026-09-02 to the founders' household card: burgundy tiles
-// for the adults, sand for the children, so the two groups separate at a
-// glance.
-function HouseholdRow({ name, tag, detail, isChild }) {
+// One row of the Household list — their photo (or initials until they add
+// one), the name, and a short second line. Styled after the founders' own
+// household card: burgundy tiles for the adults, sand for the children, so the
+// two groups separate at a glance.
+function HouseholdRow({ name, tag, detail, isChild, photo }) {
   return (
     <div className="household-row">
-      <div className={"household-row-avatar" + (isChild ? " household-row-avatar-child" : "")}>
-        {initialsFor(name, tag)}
-      </div>
+      <PersonAvatar doc={photo} name={name} fallback={tag} isChild={isChild} />
       <div className="household-row-text">
         <span className="household-row-name">{name}</span>
         <span className="household-row-detail">
@@ -60,6 +49,9 @@ export default function ProfilePage() {
   const { user, data } = useApplicationData();
   const parents = data?.parents || [];
   const children = data?.children || [];
+  const documentsByOwner = data?.documentsByOwner || {};
+  const photoFor = (ownerType, ownerId) =>
+    findProfilePhoto(ownerId ? documentsByOwner[`${ownerType}:${ownerId}`] : []);
   const holder = parents.find((p) => p.user_id === user?.id) || parents[0];
   const holderRole = holder?.relationship === "Father" ? "Father" : "Mother";
   const otherRole = holderRole === "Mother" ? "Father" : "Mother";
@@ -80,7 +72,12 @@ export default function ProfilePage() {
 
       <div className="profile-page-body">
         <div className="profile-card">
-          <div className="profile-card-avatar">{(holder?.full_name || user?.email || "?").charAt(0).toUpperCase()}</div>
+          <PersonAvatar
+            doc={photoFor("parent", holder?.id)}
+            name={holder?.full_name || user?.email}
+            fallback={holderRole}
+            className="hh-avatar-lg"
+          />
           <div>
             <h2>{holder?.full_name || "Name not set yet"}</h2>
             <p>{user?.email}</p>
@@ -109,9 +106,15 @@ export default function ProfilePage() {
                 name={holder?.full_name || `${holderRole} (not named yet)`}
                 tag={`${holderRole} · primary contact`}
                 detail={holder?.phone}
+                photo={photoFor("parent", holder?.id)}
               />
               {otherParent?.full_name && (
-                <HouseholdRow name={otherParent.full_name} tag={otherRole} detail={otherParent.phone} />
+                <HouseholdRow
+                  name={otherParent.full_name}
+                  tag={otherRole}
+                  detail={otherParent.phone}
+                  photo={photoFor("parent", otherParent.id)}
+                />
               )}
               {children.map((child, i) => (
                 <HouseholdRow
@@ -120,6 +123,7 @@ export default function ProfilePage() {
                   name={displayNameForChild(child, i)}
                   tag={children.length > 1 ? `Child ${i + 1}` : "Child"}
                   detail={formatDob(child.date_of_birth) || child.year_group_applying_for}
+                  photo={photoFor("child", child.id)}
                 />
               ))}
             </div>
