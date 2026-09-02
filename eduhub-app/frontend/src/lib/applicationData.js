@@ -217,9 +217,12 @@ export async function saveApplication({
   currentSchools,
   parents,
   accountHolderRole,
-  homeAddress,
-  sameAsMotherGeneral = false,
+  sameAsPrimary = false,
 }) {
+  // Parents are stored [Mother, Father]; whichever one is filling the form is
+  // the one the other copies from (founder feedback, 2026-09-02).
+  const primaryIndex = accountHolderRole === "Father" ? 1 : 0;
+  const secondaryIndex = 1 - primaryIndex;
   // The form keeps a "same as ..." address in step live, but what actually
   // lands in the database shouldn't depend on whether that sync happened to
   // run before this save fired — re-resolving here means the picker's choice
@@ -227,7 +230,6 @@ export async function saveApplication({
   // further down.) Declared up here because the children loop below reads it
   // too, and a const can't be used above its own declaration.
   const addressSources = {
-    household: homeAddress,
     mother: parents[0]?.address || "",
     father: parents[1]?.address || "",
   };
@@ -269,9 +271,13 @@ export async function saveApplication({
     savedSchools.push(savedSchool);
   }
 
+  // families.home_address is no longer its own form field, but it's still a
+  // real column the founders' portal reads, so it's kept in step with the
+  // account holder's own address — the closest thing the family now has to
+  // "the household address."
   const { error: familyUpdateError } = await supabase
     .from("families")
-    .update({ home_address: homeAddress })
+    .update({ home_address: parents[primaryIndex]?.address || "" })
     .eq("id", familyId);
   if (familyUpdateError) throw familyUpdateError;
 
@@ -288,17 +294,17 @@ export async function saveApplication({
   // toggle looking "on" in the form while Father's nationality/religion/
   // languages saved as empty: forcing the copy here means the box being
   // checked always wins, no matter the timing.
-  const SAME_AS_MOTHER_FIELDS = ["nationality", "religion", "first_language", "second_language"];
+  const SAME_AS_PRIMARY_FIELDS = ["nationality", "religion", "first_language", "second_language"];
 
 
   const savedParents = [];
   for (let i = 0; i < parents.length; i++) {
     let parent = withResolvedAddress(parents[i]);
-    if (i === 1 && sameAsMotherGeneral) {
-      const mother = parents[0];
+    if (i === secondaryIndex && sameAsPrimary) {
+      const source = parents[primaryIndex];
       parent = { ...parent };
-      SAME_AS_MOTHER_FIELDS.forEach((f) => {
-        parent[f] = mother[f];
+      SAME_AS_PRIMARY_FIELDS.forEach((f) => {
+        parent[f] = source[f];
       });
     }
     const payload = { ...pickColumns(parent, PARENT_COLUMNS), family_id: familyId };

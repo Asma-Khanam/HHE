@@ -403,3 +403,17 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* The Mother and Father cards sit side by side — they're a pair, and stacking
+   them made the applicant's own card look like step two of a queue. */
+.card-list-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 860px) {
+  .card-list-pair {
+    grid-template-columns: 1fr;
+  }
+}

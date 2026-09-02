@@ -8,8 +8,8 @@ import "./DocumentVaultCard.css";
 // flattened into one list — styled after the "Document Vault" panel from
 // the reference screenshots (a clean row per file: label, who it belongs
 // to, a green "on file" status, View/Download). Deliberately UPLOADED
-// documents only — what's still missing already has its own card
-// (StillOutstandingCard), so this one stays single-purpose: "here's
+// documents only — what's still missing already has its own card on the
+// Dashboard, so this one stays single-purpose: "here's
 // everything you've successfully submitted, come back and grab a copy any
 // time." No search box, no staff actions — just this family's own files.
 function buildRecords({ mother, father, children, documentsByOwner, displayNameForChild }) {

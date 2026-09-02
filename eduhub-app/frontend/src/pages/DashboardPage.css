@@ -1,205 +1,324 @@
-/* Dashboard — the greeting-led "where we're up to / what needs you" page
-   the founders asked for, in the existing burgundy/cream/gold palette. */
+/* Dashboard — cream page, white cards, one accent colour doing one job.
+   Built to the founders' consultant-view mockup: a wide main column with a
+   narrower rail beside it, not one full-width stack. */
 
 .dash {
-  padding: 0 0 60px;
-}
-
-/* --- greeting -------------------------------------------------------- */
-
-.dash-greeting {
-  padding: 32px 40px 24px;
-  border-bottom: 1px solid var(--hh-track);
-  background: var(--hh-white);
-}
-
-.dash-date {
-  display: block;
-  font-size: 0.82rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--hh-ink);
-  opacity: 0.5;
-  margin-bottom: 6px;
-}
-
-.dash-greeting h1 {
-  font-family: var(--hh-font-heading);
-  font-size: 2rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--hh-ink);
-}
-
-.dash-greeting-name {
-  color: var(--hh-burgundy);
-}
-
-.dash-family-line {
-  margin: 8px 0 0;
-  font-size: 0.95rem;
-  color: var(--hh-ink);
-  opacity: 0.7;
-}
-
-.dash-status-line {
-  margin: 4px 0 0;
-  font-size: 0.95rem;
-  color: var(--hh-ink);
-  opacity: 0.7;
-  max-width: 60ch;
-}
-
-.dash-body {
-  padding: 24px 40px 0;
+  padding: 28px 36px 60px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 20px;
+  max-width: 1320px;
 }
 
-/* --- shared card + section shells ------------------------------------ */
-
-.dash-card {
-  background: var(--hh-white);
-  border-radius: var(--hh-radius);
-  box-shadow: var(--hh-shadow);
-  padding: 22px 24px;
+/* Cards arrive with a small settle rather than snapping in — enough to feel
+   considered, short enough that nobody waits for it. */
+@keyframes dash-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-.dash-section-title {
-  font-family: var(--hh-font-heading);
-  font-size: 0.82rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--hh-gold);
-  margin: 0 0 12px;
+.dash-top,
+.dash-card,
+.dash-spotlight {
+  animation: dash-rise 0.4s ease both;
 }
 
-/* --- where we're up to ----------------------------------------------- */
+.dash-main > *:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.dash-main > *:nth-child(3) {
+  animation-delay: 0.12s;
+}
+.dash-side > *:nth-child(2) {
+  animation-delay: 0.12s;
+}
 
-.dash-journey-head {
+@media (prefers-reduced-motion: reduce) {
+  .dash-top,
+  .dash-card,
+  .dash-spotlight {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------- family header */
+
+.dash-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
+  gap: 28px;
+  flex-wrap: wrap;
+  background: var(--hh-white);
+  border: 1px solid var(--hh-track);
+  border-radius: 18px;
+  padding: 26px 30px;
+  box-shadow: 0 10px 30px rgba(83, 1, 38, 0.06);
 }
 
-.dash-journey-head h2 {
-  font-family: var(--hh-font-heading);
-  font-size: 0.82rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--hh-burgundy);
-  margin: 0;
-}
-
-.dash-journey-step {
-  background: rgba(184, 154, 90, 0.18);
-  color: #7a6228;
-  font-size: 0.82rem;
-  font-weight: 600;
-  padding: 5px 14px;
-  border-radius: 999px;
-  white-space: nowrap;
-}
-
-.dash-journey-bars {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-/* Three states, three meanings, and nothing else uses these colours on this
-   page: done (green), the step you're on (gold), still ahead (track grey). */
-.dash-journey-bar {
-  height: 7px;
-  border-radius: 999px;
-  background: var(--hh-track);
-}
-
-.dash-journey-bar.is-done {
-  background: var(--hh-good);
-}
-
-.dash-journey-bar.is-active {
-  background: var(--hh-gold);
-}
-
-.dash-journey-now {
-  font-family: var(--hh-font-heading);
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--hh-ink);
-}
-
-.dash-journey-next {
-  margin: 4px 0 0;
-  font-size: 0.9rem;
-  color: var(--hh-ink);
-  opacity: 0.55;
-}
-
-/* --- needs you today -------------------------------------------------- */
-
-.dash-todo-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.dash-todo {
+.dash-top-identity {
   display: flex;
   align-items: center;
-  gap: 16px;
-  width: 100%;
-  text-align: left;
-  background: var(--hh-white);
-  border: none;
-  border-left: 4px solid var(--hh-gold);
-  border-radius: var(--hh-radius);
-  box-shadow: var(--hh-shadow);
-  padding: 18px 20px;
-  cursor: pointer;
-  color: var(--hh-ink);
-  font-family: var(--hh-font-body);
-  transition: box-shadow var(--hh-transition), transform var(--hh-transition);
+  gap: 20px;
+  min-width: 0;
 }
 
-.dash-todo:hover {
-  box-shadow: var(--hh-shadow-hover);
-  transform: translateY(-1px);
-}
-
-/* A required field is the only thing that actually holds up submitting, so
-   it's the only thing that gets the burgundy accent. Documents stay gold. */
-.dash-todo.is-urgent {
-  border-left-color: var(--hh-burgundy);
-}
-
-.dash-todo-icon {
-  display: inline-flex;
+/* The family crest — a single letter, the one purely decorative thing on the
+   page, and the reason the header reads as "this family" not "a dashboard". */
+.dash-crest {
+  display: flex;
   align-items: center;
   justify-content: center;
+  width: 66px;
+  height: 66px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, var(--hh-burgundy-light), var(--hh-burgundy) 70%);
+  color: var(--hh-white);
+  font-size: 1.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 8px 20px rgba(83, 1, 38, 0.28);
+}
+
+.dash-top-text {
+  min-width: 0;
+}
+
+.dash-top-text h1 {
+  margin: 0;
+  font-family: var(--hh-font-heading);
+  font-size: 1.85rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--hh-ink);
+}
+
+.dash-name {
+  color: var(--hh-burgundy);
+}
+
+.dash-top-family {
+  margin: 5px 0 0;
+  font-size: 0.95rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+}
+
+.dash-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dash-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: rgba(184, 154, 90, 0.18);
+  color: #7a6228;
+}
+
+.dash-chip.is-submitted {
+  background: var(--hh-good-bg);
+  color: var(--hh-good);
+}
+
+.dash-chip.is-quiet {
+  background: var(--hh-cream);
+  color: var(--hh-ink);
+  opacity: 0.65;
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------- readiness ring */
+
+.dash-readiness {
+  position: relative;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+}
+
+.dash-readiness svg {
+  display: block;
+}
+
+.dash-ring-track {
+  stroke: var(--hh-track);
+}
+
+.dash-ring-fill {
+  stroke: var(--hh-burgundy);
+  transition: stroke-dashoffset 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dash-readiness-value {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+
+.dash-readiness-value strong {
+  font-family: var(--hh-font-heading);
+  font-size: 1.5rem;
+  color: var(--hh-burgundy);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-readiness-value span {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hh-ink);
+  opacity: 0.45;
+}
+
+/* ------------------------------------------------------------ page layout */
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.dash-main,
+.dash-side {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------ card shell */
+
+.dash-card {
+  background: var(--hh-white);
+  border: 1px solid var(--hh-track);
+  border-radius: 16px;
+  padding: 6px 22px 18px;
+  box-shadow: 0 8px 24px rgba(83, 1, 38, 0.05);
+}
+
+.dash-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0 14px;
+  border-bottom: 1px solid var(--hh-track);
+  margin-bottom: 6px;
+}
+
+.dash-card-head h2 {
+  margin: 0;
+  font-family: var(--hh-font-heading);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--hh-ink);
+}
+
+.dash-card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--hh-font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--hh-burgundy);
+  cursor: pointer;
+}
+
+.dash-card-link:hover {
+  text-decoration: underline;
+}
+
+.dash-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(184, 154, 90, 0.2);
+  color: #7a6228;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------ person rows */
+
+.dash-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--hh-track);
+  padding: 14px 10px;
+  margin: 0 -10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: var(--hh-font-body);
+  color: var(--hh-ink);
+  transition: background var(--hh-transition);
+}
+
+.dash-row:last-child {
+  border-bottom: none;
+}
+
+.dash-row:hover {
+  background: var(--hh-cream);
+}
+
+/* Square-cornered avatars, per the mockup: burgundy for the adults, a soft
+   sand for the children, so a glance separates the two groups. */
+.dash-avatar {
+  display: grid;
+  place-items: center;
   width: 40px;
   height: 40px;
   flex-shrink: 0;
-  border-radius: 10px;
-  background: rgba(184, 154, 90, 0.16);
-  color: var(--hh-gold);
+  border-radius: 11px;
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
-.dash-todo.is-urgent .dash-todo-icon {
-  background: rgba(83, 1, 38, 0.09);
+.dash-avatar.is-child {
+  background: #efe0d3;
   color: var(--hh-burgundy);
 }
 
-.dash-todo-text {
+.dash-row-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -207,214 +326,294 @@
   min-width: 0;
 }
 
-.dash-todo-title {
-  font-size: 1rem;
+.dash-row-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-row-tag {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.dash-row-detail {
+  font-size: 0.79rem;
+  opacity: 0.55;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------- segment meter */
+
+.dash-segments {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.dash-segment {
+  width: 22px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--hh-track);
+}
+
+.dash-segment.is-on {
+  background: var(--hh-gold);
+}
+
+.dash-segment.is-done {
+  background: var(--hh-good);
+}
+
+/* ------------------------------------------------------------ status pills */
+
+.dash-pill {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.dash-pill.tone-done {
+  background: var(--hh-good-bg);
+  color: var(--hh-good);
+}
+
+.dash-pill.tone-progress {
+  background: rgba(184, 154, 90, 0.2);
+  color: #7a6228;
+}
+
+.dash-pill.tone-empty {
+  background: var(--hh-cream);
+  color: var(--hh-ink);
+  opacity: 0.6;
+}
+
+.dash-pill.tone-pending {
+  background: rgba(179, 38, 30, 0.09);
+  color: var(--hh-error);
+}
+
+/* ------------------------------------------------------------- spotlight */
+
+.dash-spotlight {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  padding: 28px 30px;
+  color: var(--hh-white);
+  background: radial-gradient(circle at 88% -30%, rgba(184, 154, 90, 0.45), transparent 58%),
+    linear-gradient(135deg, var(--hh-burgundy) 0%, var(--hh-burgundy-light) 100%);
+  box-shadow: 0 14px 34px rgba(83, 1, 38, 0.22);
+}
+
+.dash-spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1.5px, transparent 1.5px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(to left, black, transparent 65%);
+  pointer-events: none;
+}
+
+.dash-spotlight > * {
+  position: relative;
+}
+
+.dash-spotlight-eyebrow {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hh-gold);
+  margin-bottom: 8px;
+}
+
+.dash-spotlight h2 {
+  margin: 0;
+  font-family: var(--hh-font-heading);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.dash-spotlight p {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  opacity: 0.82;
+  max-width: 56ch;
+}
+
+.dash-spotlight-cta {
+  margin-top: 18px;
+  background: var(--hh-gold);
+  color: #3b2c0c;
+  border: none;
+  border-radius: 999px;
+  padding: 11px 24px;
+  font-family: var(--hh-font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--hh-transition), box-shadow var(--hh-transition);
+}
+
+.dash-spotlight-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+}
+
+/* ------------------------------------------------------------ plain lists */
+
+.dash-list,
+.dash-docs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dash-list button,
+.dash-docs button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--hh-track);
+  padding: 12px 10px;
+  margin: 0 -10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: var(--hh-font-body);
+  color: var(--hh-ink);
+  transition: background var(--hh-transition);
+}
+
+.dash-list li:last-child button,
+.dash-docs li:last-child button {
+  border-bottom: none;
+}
+
+.dash-list button:hover,
+.dash-docs button:hover {
+  background: var(--hh-cream);
+}
+
+.dash-list-label {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.dash-bullet {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hh-gold);
+  flex-shrink: 0;
+}
+
+.dash-doc-label {
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
-.dash-todo-detail {
-  font-size: 0.85rem;
-  opacity: 0.6;
+/* A dashed ring — "expected, not here yet", visibly different from the solid
+   green tick the Document Vault uses for a file that's actually on file. */
+.dash-doc-mark {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px dashed rgba(179, 38, 30, 0.45);
+}
+
+.dash-household {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-household-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--hh-track);
+}
+
+.dash-household-row:last-child {
+  border-bottom: none;
 }
 
 .dash-allclear {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   color: var(--hh-good);
-  background: var(--hh-good-bg);
-  box-shadow: none;
-}
-
-.dash-allclear h3 {
-  margin: 0;
-  font-size: 1rem;
-  color: var(--hh-ink);
+  padding: 14px 0 6px;
 }
 
 .dash-allclear p {
-  margin: 2px 0 0;
+  margin: 0;
   font-size: 0.88rem;
   color: var(--hh-ink);
-  opacity: 0.65;
+  opacity: 0.7;
 }
 
-/* --- readiness hero --------------------------------------------------- */
-
-.dash-hero {
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  flex-wrap: wrap;
-  position: relative;
-  overflow: hidden;
-  background: radial-gradient(circle at 85% -20%, rgba(184, 154, 90, 0.35), transparent 55%),
-    linear-gradient(135deg, var(--hh-burgundy) 0%, var(--hh-burgundy-light) 100%);
-  border-radius: var(--hh-radius);
-  box-shadow: var(--hh-shadow);
-  padding: 28px 32px;
-}
-
-.dash-hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1.5px, transparent 1.5px);
-  background-size: 18px 18px;
-  mask-image: linear-gradient(to left, black, transparent 70%);
-  pointer-events: none;
-}
-
-.dash-hero > * {
-  position: relative;
-}
-
-.dash-hero-status {
-  flex: 1;
-  min-width: 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.dash-status-badge {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.16);
-  color: var(--hh-white);
-  font-weight: 600;
-  font-size: 0.85rem;
-  padding: 6px 14px;
-  border-radius: 999px;
-}
-
-.dash-status-badge.is-submitted {
-  background: var(--hh-good);
-}
-
-.dash-hero-note {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--hh-white);
-  opacity: 0.78;
-  max-width: 60ch;
-}
-
-/* --- who's on this application ---------------------------------------- */
-
-.dash-people {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.dash-person {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  text-align: left;
-  background: var(--hh-white);
-  border: 1px solid var(--hh-track);
-  border-radius: var(--hh-radius);
-  padding: 14px 18px;
-  cursor: pointer;
-  color: var(--hh-ink);
-  font-family: var(--hh-font-body);
-  transition: border-color var(--hh-transition), box-shadow var(--hh-transition);
-}
-
-.dash-person:hover {
-  border-color: var(--hh-gold);
-  box-shadow: var(--hh-shadow);
-}
-
-.dash-person-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--hh-burgundy);
-  color: var(--hh-white);
-  font-weight: 600;
-}
-
-.dash-person-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  flex: 1;
-  min-width: 0;
-}
-
-.dash-person-name {
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-
-.dash-person-role {
+.dash-note {
+  margin: 12px 0 0;
   font-size: 0.8rem;
+  color: var(--hh-ink);
   opacity: 0.55;
 }
 
-.dash-person-progress {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
+.dash-note-soft {
+  padding-top: 10px;
+  border-top: 1px solid var(--hh-track);
 }
 
-.dash-person-bar {
-  display: block;
-  width: 110px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--hh-track);
-  overflow: hidden;
-}
+/* ------------------------------------------------------------ narrow screens */
 
-.dash-person-bar-fill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--hh-gold);
+@media (max-width: 1040px) {
+  .dash-grid {
+    grid-template-columns: 1fr;
+  }
 }
-
-.dash-person-pct {
-  font-size: 0.8rem;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.6;
-  min-width: 34px;
-  text-align: right;
-}
-
-/* --- narrow screens ---------------------------------------------------- */
 
 @media (max-width: 720px) {
-  .dash-greeting {
-    padding: 24px 20px 20px;
+  .dash {
+    padding: 20px 18px 60px;
   }
 
-  .dash-greeting h1 {
-    font-size: 1.6rem;
-  }
-
-  .dash-body {
-    padding: 20px 20px 0;
-    gap: 22px;
-  }
-
-  .dash-hero {
+  .dash-top {
     padding: 22px 20px;
-    gap: 20px;
+    gap: 18px;
   }
 
-  .dash-person-bar {
-    width: 60px;
+  .dash-top-text h1 {
+    font-size: 1.45rem;
+  }
+
+  .dash-crest {
+    width: 54px;
+    height: 54px;
+    font-size: 1.35rem;
+  }
+
+  /* The segment meter is the first thing to go when space is tight — the
+     status pill already says the same thing in words. */
+  .dash-segments {
+    display: none;
   }
 }

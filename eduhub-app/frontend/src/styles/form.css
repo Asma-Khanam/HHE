@@ -162,29 +162,43 @@
   text-decoration: underline;
 }
 
-/* DateField — Day / Month / Year dropdowns side by side, replacing the
-   native date input the founders couldn't enter a year into. Year gets the
-   most room since it's the widest label. */
-.hh-date-row {
-  display: grid;
-  grid-template-columns: 0.8fr 1.4fr 1fr;
+/* AddressBlock — the "same as ..." ticks sit directly above the box they
+   fill in, so the relationship between the two is obvious. */
+.address-ticks {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  margin-bottom: 10px;
 }
 
-.hh-date-row select {
-  min-width: 0;
+.address-tick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  padding: 7px 12px;
+  border: 1px solid var(--hh-track);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color var(--hh-transition), background var(--hh-transition);
 }
 
-@media (max-width: 520px) {
-  .hh-date-row {
-    grid-template-columns: 1fr;
-  }
+.address-tick:hover {
+  border-color: var(--hh-gold);
 }
 
-/* AddressBlock — the "same as ..." picker sits directly above the address
-   box it fills in, so the relationship between the two is obvious. */
-.address-block-source {
-  margin-bottom: 8px;
+.address-tick:has(input:checked) {
+  border-color: var(--hh-burgundy);
+  background: rgba(83, 1, 38, 0.06);
+  font-weight: 500;
+}
+
+.address-tick input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--hh-burgundy);
+  cursor: pointer;
 }
 
 .address-block-mirror {

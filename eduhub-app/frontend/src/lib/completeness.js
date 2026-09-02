@@ -13,12 +13,17 @@ import { CHILD_DOCUMENT_TYPES, PARENT_DOCUMENT_TYPES } from "../data/documentTyp
 // getOutstandingDocuments() and appear under "Outstanding documents" rather
 // than stopping the application from going in.
 
+// `address` is required for the account holder specifically. It replaced the
+// single family-wide home address on 2026-09-02 — separated parents don't
+// share one, so the address moved onto each person, and the one address we
+// genuinely can't do without is the address of whoever is applying.
 export const PARENT_REQUIRED_FIELDS = [
   { key: "full_name", label: "Full name" },
   { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
   { key: "nationality", label: "Nationality" },
   { key: "religion", label: "Religion" },
+  { key: "address", label: "Address" },
 ];
 
 // The second parent (whichever one isn't the account holder) is optional —
@@ -83,7 +88,7 @@ function expectedParentDocTypes(parent, isHolder) {
 // person actually filling out and submitting this application; only their
 // side is fully required, per the 2026-08-27 decision to keep the other
 // parent optional-but-named.
-export function getMissingItems({ parents, accountHolderRole, homeAddress, children, currentSchools }) {
+export function getMissingItems({ parents, accountHolderRole, children, currentSchools }) {
   const missing = [];
 
   (parents || []).forEach((p, i) => {
@@ -106,17 +111,6 @@ export function getMissingItems({ parents, accountHolderRole, homeAddress, child
       }
     });
   });
-
-  if (!isFilled(homeAddress)) {
-    missing.push({
-      stepKey: "home_address",
-      label: "Home address",
-      kind: "field",
-      owner: "family",
-      field: "home_address",
-      fieldKey: "family-home_address",
-    });
-  }
 
   (children || []).forEach((child, i) => {
     const childLabel = displayNameForChild(child, i);
@@ -222,7 +216,7 @@ export function getIncompleteStepKeys(missingItems) {
 // uploaded genuinely isn't finished, and a bar reading 100% in that state is
 // exactly the "dashboard out of sync with itself" problem from round 5.
 export function getTotalTrackedCount({ parents, accountHolderRole, children }) {
-  let total = 1; // home address
+  let total = 0;
   (parents || []).forEach((p) => {
     const isHolder = p?.relationship === accountHolderRole;
     total += isHolder ? PARENT_REQUIRED_FIELDS.length : NON_HOLDER_REQUIRED_FIELDS.length;
@@ -238,10 +232,10 @@ export function getTotalTrackedCount({ parents, accountHolderRole, children }) {
 
 // A single 0–100 readiness number — items done vs. items tracked, fields and
 // documents counted together.
-export function getReadinessPct({ parents, accountHolderRole, homeAddress, children, currentSchools, documentsByOwner }) {
+export function getReadinessPct({ parents, accountHolderRole, children, currentSchools, documentsByOwner }) {
   const total = getTotalTrackedCount({ parents, accountHolderRole, children });
   if (!total) return 100;
-  const missingFields = getMissingItems({ parents, accountHolderRole, homeAddress, children, currentSchools }).length;
+  const missingFields = getMissingItems({ parents, accountHolderRole, children, currentSchools }).length;
   const missingDocs = getOutstandingDocuments({ parents, accountHolderRole, children, documentsByOwner }).length;
   const done = total - missingFields - missingDocs;
   return Math.max(0, Math.min(100, Math.round((done / total) * 100)));
@@ -249,18 +243,11 @@ export function getReadinessPct({ parents, accountHolderRole, homeAddress, child
 
 // Per-card breakdown used by the card-list view's progress bars — one entry
 // per "mother" / "father" / "child-{i}" key, each { total, missingCount, pct }.
-// Built from the same two functions above (with a placeholder home address so
-// that item never gets attributed to any single card) so a card's progress
-// bar can never disagree with the Dashboard.
+// Built from the same two functions above, so a card's progress bar can never
+// disagree with the Dashboard.
 export function getStepBreakdown({ parents, accountHolderRole, children, currentSchools, documentsByOwner }) {
   const tracked = [
-    ...getMissingItems({
-      parents,
-      accountHolderRole,
-      homeAddress: "placeholder", // non-empty so home address never counts against a card
-      children,
-      currentSchools,
-    }),
+    ...getMissingItems({ parents, accountHolderRole, children, currentSchools }),
     ...getOutstandingDocuments({ parents, accountHolderRole, children, documentsByOwner }),
   ];
 

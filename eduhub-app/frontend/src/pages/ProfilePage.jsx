@@ -20,15 +20,25 @@ function formatDob(dob) {
   return `DOB ${d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`;
 }
 
-// One row of the Household list — an avatar initial + name + a short
-// second line (role, and whatever's actually known about them yet). Same
-// "circle initial + two lines" shape as the account-holder card above it,
-// just compact enough to repeat once per family member.
-function HouseholdRow({ name, tag, detail, isHolder }) {
+// Two initials for a full name, one for a single name — matches the
+// founders' own household mockup.
+function initialsFor(name, fallback) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return (fallback || "?").charAt(0).toUpperCase();
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+// One row of the Household list — a squared avatar with initials, the name,
+// and a short second line (role, and whatever's actually known about them
+// yet). Restyled 2026-09-02 to the founders' household card: burgundy tiles
+// for the adults, sand for the children, so the two groups separate at a
+// glance.
+function HouseholdRow({ name, tag, detail, isChild }) {
   return (
     <div className="household-row">
-      <div className={"household-row-avatar" + (isHolder ? " household-row-avatar-holder" : "")}>
-        {(name || "?").charAt(0).toUpperCase()}
+      <div className={"household-row-avatar" + (isChild ? " household-row-avatar-child" : "")}>
+        {initialsFor(name, tag)}
       </div>
       <div className="household-row-text">
         <span className="household-row-name">{name}</span>
@@ -96,9 +106,8 @@ export default function ProfilePage() {
           {hasHousehold ? (
             <div className="household-list">
               <HouseholdRow
-                isHolder
                 name={holder?.full_name || `${holderRole} (not named yet)`}
-                tag={`${holderRole} · account holder`}
+                tag={`${holderRole} · primary contact`}
                 detail={holder?.phone}
               />
               {otherParent?.full_name && (
@@ -107,6 +116,7 @@ export default function ProfilePage() {
               {children.map((child, i) => (
                 <HouseholdRow
                   key={child.id || i}
+                  isChild
                   name={displayNameForChild(child, i)}
                   tag={children.length > 1 ? `Child ${i + 1}` : "Child"}
                   detail={formatDob(child.date_of_birth) || child.year_group_applying_for}

@@ -120,6 +120,17 @@ function dropNulls(obj) {
   return out;
 }
 
+// Schema addendum 4 backfilled every existing parent and child with
+// address_same_as = 'household', pointing at families.home_address. That
+// household field is gone from the form now (founder feedback: the address
+// belongs to each person), so on load those rows are converted to owning the
+// address outright — the text the backfill wrote is already correct, it just
+// stops being a copy of something the family can no longer see or edit.
+function normaliseLegacyAddress(record, homeAddress) {
+  if (record?.address_same_as !== "household") return record;
+  return { ...record, address_same_as: "", address: record.address || homeAddress || "" };
+}
+
 function backfillNameParts(child) {
   if (child.first_name || child.last_name || !child.full_name) return child;
   const parts = child.full_name.trim().split(/\s+/);
@@ -201,10 +212,19 @@ function buildInitialAccountHolderRole(existingParents, userId) {
   return holder?.relationship === "Father" ? "Father" : "Mother";
 }
 
-// Which of a parent's fields the "Same as Mother" sync copies across —
-// general background info that's genuinely often shared, not anything
+// Which of a parent's fields the "Same as ..." sync copies across — general
+// background info that's genuinely often shared, not anything
 // contact/document-specific (email, phone, employer, EID stay independent).
-const SAME_AS_MOTHER_FIELDS = ["nationality", "religion", "first_language", "second_language"];
+const SAME_AS_PRIMARY_FIELDS = ["nationality", "religion", "first_language", "second_language"];
+
+// Parents are always stored as [Mother, Father], but whoever is actually
+// filling the form is shown FIRST and is the one the other parent can copy
+// from (founder feedback, 2026-09-02) — a father filling this in shouldn't
+// have to scroll past the mother's blank card to reach his own, or be the
+// only one without a "same as" shortcut.
+function primaryParentIndex(accountHolderRole) {
+  return accountHolderRole === "Father" ? 1 : 0;
+}
 
 // The database has always allowed any number of children per family
 // (children.family_id, no uniqueness constraint) — this form matches that:
@@ -217,24 +237,30 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   const navigate = useNavigate();
   const startingChildren = initialData.children?.length ? initialData.children : [{}];
 
+  const legacyHomeAddress = initialData.family?.home_address || "";
   const [children, setChildren] = useState(
-    startingChildren.map((c) => backfillNameParts({ ...emptyChild, ...dropNulls(c) }))
+    startingChildren.map((c) =>
+      normaliseLegacyAddress(backfillNameParts({ ...emptyChild, ...dropNulls(c) }), legacyHomeAddress)
+    )
   );
   const [currentSchools, setCurrentSchools] = useState(
     startingChildren.map((c) => ({ ...emptySchool, ...dropNulls(initialData.schoolsByChild?.[c.id] || {}) }))
   );
-  const [homeAddress, setHomeAddress] = useState(initialData.family?.home_address || "");
-  const [parents, setParents] = useState(() => buildInitialParents(initialData.parents));
+  const [parents, setParents] = useState(() =>
+    buildInitialParents(initialData.parents).map((p) => normaliseLegacyAddress(p, legacyHomeAddress))
+  );
   const [accountHolderRole, setAccountHolderRole] = useState(() =>
     buildInitialAccountHolderRole(initialData.parents, userId)
   );
+  const primaryIndex = primaryParentIndex(accountHolderRole);
+  const secondaryIndex = 1 - primaryIndex;
   // Father's "Same as Mother" toggle — see SAME_AS_MOTHER_FIELDS above and
   // the sync effect below. Auto-detects "on" for data that already matches
   // (e.g. right after this ships) so it doesn't look off by default for
   // families who happen to already share these answers.
-  const [sameAsMotherGeneral, setSameAsMotherGeneral] = useState(() => {
+  const [sameAsPrimaryGeneral, setSameAsPrimaryGeneral] = useState(() => {
     const initial = buildInitialParents(initialData.parents);
-    return SAME_AS_MOTHER_FIELDS.every((f) => initial[0][f] && initial[0][f] === initial[1][f]);
+    return SAME_AS_PRIMARY_FIELDS.every((f) => initial[0][f] && initial[0][f] === initial[1][f]);
   });
 
   // Documents live outside the save-everything-at-once flow (each upload
@@ -298,25 +324,31 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   // clear what Father's fields currently hold, since those are still
   // perfectly good values, just no longer tied to Mother's.
   useEffect(() => {
-    if (!sameAsMotherGeneral) return;
+    if (!sameAsPrimaryGeneral) return;
     setParents((prev) => {
-      const mother = prev[0];
-      const father = prev[1];
-      const nextFather = { ...father };
+      const source = prev[primaryIndex];
+      const target = { ...prev[secondaryIndex] };
       let changed = false;
-      SAME_AS_MOTHER_FIELDS.forEach((f) => {
-        if (nextFather[f] !== mother[f]) {
-          nextFather[f] = mother[f];
+      SAME_AS_PRIMARY_FIELDS.forEach((f) => {
+        if (target[f] !== source[f]) {
+          target[f] = source[f];
           changed = true;
         }
       });
       if (!changed) return prev;
       const next = [...prev];
-      next[1] = nextFather;
+      next[secondaryIndex] = target;
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sameAsMotherGeneral, parents[0].nationality, parents[0].religion, parents[0].first_language, parents[0].second_language]);
+  }, [
+    sameAsPrimaryGeneral,
+    primaryIndex,
+    parents[primaryIndex].nationality,
+    parents[primaryIndex].religion,
+    parents[primaryIndex].first_language,
+    parents[primaryIndex].second_language,
+  ]);
 
   // Anyone who picked "same as ..." for their address has that address kept
   // in step with its source here, exactly like the Father's "Same as Mother"
@@ -326,7 +358,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   const motherAddress = parents[0]?.address || "";
   const fatherAddress = parents[1]?.address || "";
   useEffect(() => {
-    const sources = { household: homeAddress, mother: motherAddress, father: fatherAddress };
+    const sources = { mother: motherAddress, father: fatherAddress };
     setParents((prev) => {
       let changed = false;
       const next = prev.map((p) => {
@@ -350,7 +382,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
       return changed ? next : prev;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [homeAddress, motherAddress, fatherAddress]);
+  }, [motherAddress, fatherAddress]);
 
   // Single source of truth for what's still missing, shared with Overview's
   // "What's left" card via lib/completeness.js — Submit is blocked exactly
@@ -360,8 +392,8 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   // shouldn't be locked out of applying). Anything still to upload is tracked
   // by getOutstandingDocuments() and surfaced on the Dashboard instead.
   const missingItems = useMemo(
-    () => getMissingItems({ parents, accountHolderRole, homeAddress, children, currentSchools }),
-    [parents, accountHolderRole, homeAddress, children, currentSchools]
+    () => getMissingItems({ parents, accountHolderRole, children, currentSchools }),
+    [parents, accountHolderRole, children, currentSchools]
   );
   // Per-card progress (%, missing count) for the card list — same
   // underlying numbers as missingItems, just grouped and totaled per
@@ -521,7 +553,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   const autosaveTimerRef = useRef(null);
 
   function snapshotOfEditableState() {
-    return JSON.stringify({ parents, children, currentSchools, homeAddress, accountHolderRole });
+    return JSON.stringify({ parents, children, currentSchools, accountHolderRole });
   }
 
   // Shared by Save draft, Submit, and autosave — persists whatever's
@@ -542,8 +574,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
         currentSchools,
         parents,
         accountHolderRole,
-        homeAddress,
-        sameAsMotherGeneral,
+        sameAsPrimary: sameAsPrimaryGeneral,
       });
       // Critical: write the database-assigned ids back into state, MERGED
       // onto the existing local objects rather than replacing them — saved
@@ -600,7 +631,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
 
     return () => clearTimeout(autosaveTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parents, children, currentSchools, homeAddress, accountHolderRole]);
+  }, [parents, children, currentSchools, accountHolderRole]);
 
   // "Like how my code auto-saves, but I can also hit Cmd+S" — the autosave
   // above is the automatic half; this is the deliberate half. Cmd+S on a Mac,
@@ -616,7 +647,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parents, children, currentSchools, homeAddress, accountHolderRole]);
+  }, [parents, children, currentSchools, accountHolderRole]);
 
   // After a failed Submit, jump to the first missing item's card (or stay
   // on the list, for the home address field) AND scroll straight to that
@@ -742,10 +773,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
             parents={parents}
             accountHolderRole={accountHolderRole}
             setAccountHolderRole={setAccountHolderRole}
-            homeAddress={homeAddress}
-            setHomeAddress={setHomeAddress}
-            attemptedSubmit={attemptedSubmit}
-            missingFieldKeys={missingFieldKeys}
+            primaryIndex={primaryIndex}
             children={children}
             onChildCountChange={requestChildCountChange}
             pendingRemoveChild={pendingRemoveChild}
@@ -762,37 +790,31 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
               ‹ Back to application
             </button>
 
-            {activeStep.key === "mother" && (
-              <ParentSection
-                parent={parents[0]}
-                index={0}
-                role="Mother"
-                isHolder={accountHolderRole === "Mother"}
-                onChange={(field, value) => updateParentAt(0, field, value)}
-                isFieldMissing={(field) => isFieldMissing(`parent:0:${field}`)}
-                addressOptions={["household"]}
-                userId={userId}
-                documents={docsFor("parent", parents[0].id)}
-                onDocumentsChange={(docs) => setDocsFor("parent", parents[0].id, docs)}
-              />
-            )}
-
-            {activeStep.key === "father" && (
-              <ParentSection
-                parent={parents[1]}
-                index={1}
-                role="Father"
-                isHolder={accountHolderRole === "Father"}
-                onChange={(field, value) => updateParentAt(1, field, value)}
-                isFieldMissing={(field) => isFieldMissing(`parent:1:${field}`)}
-                addressOptions={["household", "mother"]}
-                userId={userId}
-                documents={docsFor("parent", parents[1].id)}
-                onDocumentsChange={(docs) => setDocsFor("parent", parents[1].id, docs)}
-                sameAsAbove={sameAsMotherGeneral}
-                onToggleSameAsAbove={setSameAsMotherGeneral}
-              />
-            )}
+            {(activeStep.key === "mother" || activeStep.key === "father") &&
+              (() => {
+                const idx = activeStep.key === "mother" ? 0 : 1;
+                const role = idx === 0 ? "Mother" : "Father";
+                const otherRole = idx === 0 ? "Father" : "Mother";
+                const isPrimary = idx === primaryIndex;
+                return (
+                  <ParentSection
+                    parent={parents[idx]}
+                    index={idx}
+                    role={role}
+                    isHolder={isPrimary}
+                    onChange={(field, value) => updateParentAt(idx, field, value)}
+                    isFieldMissing={(field) => isFieldMissing(`parent:${idx}:${field}`)}
+                    userId={userId}
+                    documents={docsFor("parent", parents[idx].id)}
+                    onDocumentsChange={(docs) => setDocsFor("parent", parents[idx].id, docs)}
+                    // Only the parent who ISN'T filling the form gets the
+                    // copy-from shortcuts — there's nothing above them to copy.
+                    primaryRole={isPrimary ? null : otherRole}
+                    sameAsAbove={sameAsPrimaryGeneral}
+                    onToggleSameAsAbove={setSameAsPrimaryGeneral}
+                  />
+                );
+              })()}
 
             {activeStep.key.startsWith("child-") &&
               (() => {
@@ -911,11 +933,21 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                       />
                       <AddressBlock
                         label="Where does this child live?"
-                        hint="Only different from the main household address if they live somewhere else — with one parent after a separation, with family, or at a boarding school."
+                        hint="Tick whichever parent they live with, or write a different address if it's neither — with family, or at a boarding school."
                         fieldKey={`child-${i}-address`}
                         sameAs={child.address_same_as}
                         address={child.address}
-                        options={["household", "mother", "father"]}
+                        sources={
+                          primaryIndex === 1
+                            ? [
+                                { key: "father", label: "Same as Father's address" },
+                                { key: "mother", label: "Same as Mother's address" },
+                              ]
+                            : [
+                                { key: "mother", label: "Same as Mother's address" },
+                                { key: "father", label: "Same as Father's address" },
+                              ]
+                        }
                         onChangeSameAs={(v) => updateChildAt(i, "address_same_as", v)}
                         onChangeAddress={(v) => updateChildAt(i, "address", v)}
                       />
@@ -1072,8 +1104,6 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         fieldKey={`school-${i}-date_attended_last`}
                         value={school.date_attended_last}
                         onChange={(v) => updateSchoolAt(i, "date_attended_last", v)}
-                        minYear={new Date().getFullYear() - 15}
-                        maxYear={new Date().getFullYear() + 1}
                       />
                       <FormSelect
                         label="Current school curriculum"
@@ -1185,10 +1215,7 @@ function CardListView({
   parents,
   accountHolderRole,
   setAccountHolderRole,
-  homeAddress,
-  setHomeAddress,
-  attemptedSubmit,
-  missingFieldKeys,
+  primaryIndex,
   children,
   onChildCountChange,
   pendingRemoveChild,
@@ -1199,8 +1226,6 @@ function CardListView({
   stepBreakdown,
   onEditCard,
 }) {
-  const homeAddressMissing = attemptedSubmit && missingFieldKeys.has("family:home_address");
-
   return (
     <div className="card-list-view">
       <FormSection title="Parents" description="Tell us who's who, and who's actually filling this in.">
@@ -1227,36 +1252,31 @@ function CardListView({
 
       <div className="card-list-group">
         <h3 className="card-list-heading">Step 1 — Parents</h3>
-        <StepCard
-          index={1}
-          title="Mother"
-          subtitle={parents[0].full_name}
-          pct={stepBreakdown.mother?.pct ?? 0}
-          onEdit={() => onEditCard(0)}
-        />
-        <StepCard
-          index={2}
-          title="Father"
-          subtitle={parents[1].full_name}
-          pct={stepBreakdown.father?.pct ?? 0}
-          emptyHint={stepBreakdown.father?.pct === 0 ? 'Use "Same as Mother" to copy shared details.' : null}
-          onEdit={() => onEditCard(1)}
-        />
-      </div>
-
-      <FormSection
-        title="Home & family"
-        description="The main household address. Anyone who lives somewhere else — a separated parent, a child staying with one of them — gets their own address on their own card."
-      >
-        <div
-          className={"hh-field hh-field-full" + (homeAddressMissing ? " hh-field-error" : "")}
-          data-field-key="family-home_address"
-        >
-          <label>Main household address *</label>
-          <textarea rows={2} required value={homeAddress} onChange={(e) => setHomeAddress(e.target.value)} />
-          {homeAddressMissing && <span className="hh-error-text">This field is required.</span>}
+        {/* Whoever ticked "who is creating this account" is shown first — it's
+            their form, so their card shouldn't sit second. The two sit side by
+            side rather than stacked, since they're a pair. */}
+        <div className="card-list-pair">
+          {[primaryIndex, 1 - primaryIndex].map((idx, position) => {
+            const role = idx === 0 ? "Mother" : "Father";
+            const otherRole = idx === 0 ? "Father" : "Mother";
+            const stepKey = idx === 0 ? "mother" : "father";
+            const pct = stepBreakdown[stepKey]?.pct ?? 0;
+            return (
+              <StepCard
+                key={role}
+                index={position + 1}
+                title={role}
+                subtitle={parents[idx].full_name}
+                pct={pct}
+                emptyHint={
+                  position === 1 && pct === 0 ? `Use "Same as ${otherRole}" to copy shared details.` : null
+                }
+                onEdit={() => onEditCard(idx)}
+              />
+            );
+          })}
         </div>
-      </FormSection>
+      </div>
 
       <div className="card-list-group">
         <h3 className="card-list-heading">Step 2 — How many children are you enrolling?</h3>
@@ -1360,11 +1380,13 @@ function StepCard({ index, title, subtitle, pct, trailingText, emptyHint, onEdit
 // carries a required asterisk for them — everything else, uploads
 // included, is a bonus if the account holder chooses to fill it in.
 //
-// Father only: a "Same as Mother" toggle for the general-background fields
-// (nationality, religion, both languages) — ticking it copies Mother's
-// current answers across and keeps them synced live; those four fields lock
-// while it's on, since editing them independently while "synced" would just
-// be confusing about which value is the real one.
+// The parent who ISN'T filling the form gets two shortcuts, both copying from
+// the one who is: a "Same as ..." toggle for the general-background fields
+// (nationality, religion, both languages), which lock while it's on since
+// editing them independently while "synced" would be confusing about which
+// value is real; and a tick on their address. `primaryRole` is the name of the
+// parent being copied from, or null for the parent filling the form (there's
+// nothing above them to copy).
 function ParentSection({
   parent,
   index,
@@ -1376,12 +1398,12 @@ function ParentSection({
   documents,
   onDocumentsChange,
   missingDocKeys,
+  primaryRole = null,
   sameAsAbove = false,
   onToggleSameAsAbove,
-  addressOptions = ["household"],
 }) {
-  const isFather = role === "Father";
-  const synced = isFather && sameAsAbove;
+  const isSecondary = !!primaryRole;
+  const synced = isSecondary && sameAsAbove;
 
   return (
     <FormSection
@@ -1418,7 +1440,7 @@ function ParentSection({
         onChange={(v) => onChange("phone", v)}
       />
 
-      {isFather && (
+      {isSecondary && (
         <div className="hh-field-full same-as-toggle">
           <label className="hh-checkbox-label">
             <input
@@ -1426,7 +1448,7 @@ function ParentSection({
               checked={sameAsAbove}
               onChange={(e) => onToggleSameAsAbove(e.target.checked)}
             />
-            Same nationality, religion &amp; languages as Mother
+            Same nationality, religion &amp; languages as {primaryRole}
           </label>
         </div>
       )}
@@ -1480,11 +1502,17 @@ function ParentSection({
 
       <AddressBlock
         label={`${role}'s address`}
-        hint="Only worth filling in separately if they don't live at the main household address."
+        required={isHolder}
+        error={isFieldMissing("address")}
+        hint={
+          isSecondary
+            ? `Tick the box if they live at the same address as ${primaryRole}.`
+            : "The address you live at."
+        }
         fieldKey={`parent-${index}-address`}
         sameAs={parent.address_same_as}
         address={parent.address}
-        options={addressOptions}
+        sources={isSecondary ? [{ key: primaryRole.toLowerCase(), label: `Same as ${primaryRole}'s address` }] : []}
         onChangeSameAs={(v) => onChange("address_same_as", v)}
         onChangeAddress={(v) => onChange("address", v)}
       />
