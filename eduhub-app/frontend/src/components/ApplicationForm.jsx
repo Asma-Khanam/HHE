@@ -5,11 +5,13 @@ import FormField from "./FormField";
 import FormSelect from "./FormSelect";
 import YesNoSelect from "./YesNoSelect";
 import PhoneField from "./PhoneField";
+import DateField from "./DateField";
+import AddressBlock, { resolveAddress } from "./AddressBlock";
 import PageHeader from "./PageHeader";
 import DocumentChecklist from "./DocumentChecklist";
 import { saveApplication, submitApplication, deleteChild } from "../lib/applicationData";
 import { deleteDocument } from "../lib/documents";
-import { getMissingItems, getIncompleteStepKeys, getStepBreakdown } from "../lib/completeness";
+import { getMissingItems, getStepBreakdown } from "../lib/completeness";
 import {
   NATIONALITIES,
   RELIGIONS,
@@ -60,6 +62,14 @@ const emptyChild = {
   gifted_talented: "",
   has_transfer_certificate: "",
   notes: "",
+  // Separated or split households mean a child doesn't always live at the
+  // account holder's address (founder feedback, 2026-09-02). `address_same_as`
+  // records the CHOICE ("household" / "mother" / "father", or "" for an
+  // address of their own) and `address` always holds the resolved text, so
+  // anything reading the database straight — the founders' portal included —
+  // sees a real address without having to follow the reference.
+  address: "",
+  address_same_as: "",
 };
 
 const emptySchool = {
@@ -85,6 +95,8 @@ const emptyParent = {
   employer_name: "",
   occupation_designation: "",
   eid: "",
+  address: "",
+  address_same_as: "",
 };
 
 const MAX_CHILDREN = 6;
@@ -306,14 +318,51 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sameAsMotherGeneral, parents[0].nationality, parents[0].religion, parents[0].first_language, parents[0].second_language]);
 
+  // Anyone who picked "same as ..." for their address has that address kept
+  // in step with its source here, exactly like the Father's "Same as Mother"
+  // toggle above. The stored text is always the real, resolved address —
+  // never a pointer the founders' portal would have to follow — so editing
+  // the household address updates everyone who shares it, in one place.
+  const motherAddress = parents[0]?.address || "";
+  const fatherAddress = parents[1]?.address || "";
+  useEffect(() => {
+    const sources = { household: homeAddress, mother: motherAddress, father: fatherAddress };
+    setParents((prev) => {
+      let changed = false;
+      const next = prev.map((p) => {
+        if (!p.address_same_as) return p;
+        const resolved = resolveAddress(p.address_same_as, sources);
+        if (p.address === resolved) return p;
+        changed = true;
+        return { ...p, address: resolved };
+      });
+      return changed ? next : prev;
+    });
+    setChildren((prev) => {
+      let changed = false;
+      const next = prev.map((c) => {
+        if (!c.address_same_as) return c;
+        const resolved = resolveAddress(c.address_same_as, sources);
+        if (c.address === resolved) return c;
+        changed = true;
+        return { ...c, address: resolved };
+      });
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeAddress, motherAddress, fatherAddress]);
+
   // Single source of truth for what's still missing, shared with Overview's
   // "What's left" card via lib/completeness.js — Submit is blocked exactly
   // when this is non-empty, and nothing else decides that independently.
+  // Required FIELDS only — documents stopped blocking Submit on 2026-09-02
+  // (founder feedback: a family still waiting on a visa or an Emirates ID
+  // shouldn't be locked out of applying). Anything still to upload is tracked
+  // by getOutstandingDocuments() and surfaced on the Dashboard instead.
   const missingItems = useMemo(
-    () => getMissingItems({ parents, accountHolderRole, homeAddress, children, currentSchools, documentsByOwner }),
-    [parents, accountHolderRole, homeAddress, children, currentSchools, documentsByOwner]
+    () => getMissingItems({ parents, accountHolderRole, homeAddress, children, currentSchools }),
+    [parents, accountHolderRole, homeAddress, children, currentSchools]
   );
-  const incompleteStepKeys = useMemo(() => getIncompleteStepKeys(missingItems), [missingItems]);
   // Per-card progress (%, missing count) for the card list — same
   // underlying numbers as missingItems, just grouped and totaled per
   // person so each card can show its own bar instead of a plain flag.
@@ -337,22 +386,9 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
     return set;
   }, [missingItems]);
 
-  const missingDocKeysByOwner = useMemo(() => {
-    const map = {};
-    missingItems.forEach((item) => {
-      if (item.kind !== "document") return;
-      const key = item.owner === "parent" ? `parent:${item.parentIndex}` : `child:${item.childIndex}`;
-      if (!map[key]) map[key] = new Set();
-      map[key].add(item.docKey);
-    });
-    return map;
-  }, [missingItems]);
-
   function isFieldMissing(key) {
     return attemptedSubmit && missingFieldKeys.has(key);
   }
-
-  const savedChildCount = children.filter((c) => c.id).length;
 
   function openCard(index) {
     setStepIndex(index);
@@ -566,6 +602,22 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parents, children, currentSchools, homeAddress, accountHolderRole]);
 
+  // "Like how my code auto-saves, but I can also hit Cmd+S" — the autosave
+  // above is the automatic half; this is the deliberate half. Cmd+S on a Mac,
+  // Ctrl+S on Windows, saves the draft right now instead of waiting out the
+  // debounce, and preventDefault stops the browser opening its own "save this
+  // web page" dialog over the top of the form.
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "s") return;
+      e.preventDefault();
+      handleSaveDraft();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parents, children, currentSchools, homeAddress, accountHolderRole]);
+
   // After a failed Submit, jump to the first missing item's card (or stay
   // on the list, for the home address field) AND scroll straight to that
   // exact field/document once it's actually on screen — "point at what
@@ -635,7 +687,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
       }
       setScrollTarget(fieldKeyForMissingItem(first));
       setError(
-        `${missingItems.length} required item${missingItems.length > 1 ? "s are" : " is"} still missing before you can submit — they're highlighted below, or listed under "What's left" on the Overview tab.`
+        `${missingItems.length} required field${missingItems.length > 1 ? "s are" : " is"} still missing before you can submit — they're highlighted below, or listed under "What's left" on the Dashboard. Documents don't block submitting; upload those whenever you get them.`
       );
       return;
     }
@@ -650,10 +702,10 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
       await submitApplication(familyId);
       setLastAction("submit");
       onSaved?.();
-      // Once everything's saved and submitted, the dashboard is more useful
+      // Once everything's saved and submitted, the Dashboard is more useful
       // than staying on the form — it shows the result of what was just
       // filled in, rather than the same form again.
-      navigate("/app/overview");
+      navigate("/app/dashboard");
     } catch (err) {
       setError(friendlyError(err, "Something went wrong submitting your application — please try again."));
     } finally {
@@ -718,10 +770,10 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                 isHolder={accountHolderRole === "Mother"}
                 onChange={(field, value) => updateParentAt(0, field, value)}
                 isFieldMissing={(field) => isFieldMissing(`parent:0:${field}`)}
+                addressOptions={["household"]}
                 userId={userId}
                 documents={docsFor("parent", parents[0].id)}
                 onDocumentsChange={(docs) => setDocsFor("parent", parents[0].id, docs)}
-                missingDocKeys={attemptedSubmit ? missingDocKeysByOwner["parent:0"] : undefined}
               />
             )}
 
@@ -733,10 +785,10 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                 isHolder={accountHolderRole === "Father"}
                 onChange={(field, value) => updateParentAt(1, field, value)}
                 isFieldMissing={(field) => isFieldMissing(`parent:1:${field}`)}
+                addressOptions={["household", "mother"]}
                 userId={userId}
                 documents={docsFor("parent", parents[1].id)}
                 onDocumentsChange={(docs) => setDocsFor("parent", parents[1].id, docs)}
-                missingDocKeys={attemptedSubmit ? missingDocKeysByOwner["parent:1"] : undefined}
                 sameAsAbove={sameAsMotherGeneral}
                 onToggleSameAsAbove={setSameAsMotherGeneral}
               />
@@ -802,9 +854,8 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         options={["Male", "Female"]}
                         placeholder="Select an option"
                       />
-                      <FormField
+                      <DateField
                         label="Date of birth"
-                        type="date"
                         required
                         error={childMissing("date_of_birth")}
                         fieldKey={`child-${i}-date_of_birth`}
@@ -857,6 +908,16 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         onChange={(v) => updateChildAt(i, "term", v)}
                         options={TERMS}
                         placeholder="Select an option"
+                      />
+                      <AddressBlock
+                        label="Where does this child live?"
+                        hint="Only different from the main household address if they live somewhere else — with one parent after a separation, with family, or at a boarding school."
+                        fieldKey={`child-${i}-address`}
+                        sameAs={child.address_same_as}
+                        address={child.address}
+                        options={["household", "mother", "father"]}
+                        onChangeSameAs={(v) => updateChildAt(i, "address_same_as", v)}
+                        onChangeAddress={(v) => updateChildAt(i, "address", v)}
                       />
                       <div className="hh-field hh-field-full">
                         <label>Notes</label>
@@ -1005,13 +1066,14 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         options={YEAR_GROUPS}
                         placeholder="Select an option"
                       />
-                      <FormField
+                      <DateField
                         label="Current school — date attended last"
-                        type="date"
                         required
                         fieldKey={`school-${i}-date_attended_last`}
                         value={school.date_attended_last}
                         onChange={(v) => updateSchoolAt(i, "date_attended_last", v)}
+                        minYear={new Date().getFullYear() - 15}
+                        maxYear={new Date().getFullYear() + 1}
                       />
                       <FormSelect
                         label="Current school curriculum"
@@ -1079,7 +1141,6 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                           docTypes={childDocTypes}
                           documents={docsFor("child", child.id)}
                           onDocumentsChange={(docs) => setDocsFor("child", child.id, docs)}
-                          missingDocKeys={attemptedSubmit ? missingDocKeysByOwner[`child:${i}`] : undefined}
                           fieldKeyPrefix={`child-doc-${i}`}
                           personLabel={displayName}
                         />
@@ -1095,7 +1156,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
       <div className="application-form-footer">
         <span className="application-form-footer-hint">
           {missingItems.length
-            ? `${missingItems.length} required item${missingItems.length > 1 ? "s" : ""} left`
+            ? `${missingItems.length} required field${missingItems.length > 1 ? "s" : ""} left`
             : "Everything required is filled in"}
           {autosaveStatus === "saving" && " · Saving…"}
           {autosaveStatus === "saved" && " · All changes saved"}
@@ -1183,12 +1244,15 @@ function CardListView({
         />
       </div>
 
-      <FormSection title="Home & family" description="Shared across the household.">
+      <FormSection
+        title="Home & family"
+        description="The main household address. Anyone who lives somewhere else — a separated parent, a child staying with one of them — gets their own address on their own card."
+      >
         <div
           className={"hh-field hh-field-full" + (homeAddressMissing ? " hh-field-error" : "")}
           data-field-key="family-home_address"
         >
-          <label>Full residential address *</label>
+          <label>Main household address *</label>
           <textarea rows={2} required value={homeAddress} onChange={(e) => setHomeAddress(e.target.value)} />
           {homeAddressMissing && <span className="hh-error-text">This field is required.</span>}
         </div>
@@ -1282,7 +1346,7 @@ function StepCard({ index, title, subtitle, pct, trailingText, emptyHint, onEdit
         </div>
       </div>
       <button type="button" className="step-card-edit" onClick={onEdit}>
-        Edit ›
+        Add ›
       </button>
     </div>
   );
@@ -1314,6 +1378,7 @@ function ParentSection({
   missingDocKeys,
   sameAsAbove = false,
   onToggleSameAsAbove,
+  addressOptions = ["household"],
 }) {
   const isFather = role === "Father";
   const synced = isFather && sameAsAbove;
@@ -1412,6 +1477,17 @@ function ParentSection({
       />
       <FormField label="EID" hint="Once obtained." value={parent.eid} onChange={(v) => onChange("eid", v)} />
       <div />
+
+      <AddressBlock
+        label={`${role}'s address`}
+        hint="Only worth filling in separately if they don't live at the main household address."
+        fieldKey={`parent-${index}-address`}
+        sameAs={parent.address_same_as}
+        address={parent.address}
+        options={addressOptions}
+        onChangeSameAs={(v) => onChange("address_same_as", v)}
+        onChangeAddress={(v) => onChange("address", v)}
+      />
 
       <div className="hh-field-full">
         <DocumentChecklist

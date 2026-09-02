@@ -87,8 +87,17 @@
   flex-shrink: 0;
 }
 
-.app-shell-nav-logout {
+/* Profile lives down here with Log out rather than up with the two
+   application tabs — pushed to the bottom by this margin, so everything
+   below it stacks against the foot of the nav. */
+.app-shell-nav-list-footer {
   margin-top: auto;
+  margin-bottom: 10px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.app-shell-nav-logout {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -136,6 +145,15 @@
 
   .app-shell-nav-list {
     flex-direction: row;
+  }
+
+  /* On a phone the nav is a bottom bar, so "the bottom" no longer means
+     anything — Profile just sits in the row with the others. */
+  .app-shell-nav-list-footer {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    border-top: none;
   }
 
   .app-shell-nav-link span:last-child {

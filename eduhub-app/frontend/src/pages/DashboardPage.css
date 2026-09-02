@@ -1,0 +1,420 @@
+/* Dashboard — the greeting-led "where we're up to / what needs you" page
+   the founders asked for, in the existing burgundy/cream/gold palette. */
+
+.dash {
+  padding: 0 0 60px;
+}
+
+/* --- greeting -------------------------------------------------------- */
+
+.dash-greeting {
+  padding: 32px 40px 24px;
+  border-bottom: 1px solid var(--hh-track);
+  background: var(--hh-white);
+}
+
+.dash-date {
+  display: block;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hh-ink);
+  opacity: 0.5;
+  margin-bottom: 6px;
+}
+
+.dash-greeting h1 {
+  font-family: var(--hh-font-heading);
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--hh-ink);
+}
+
+.dash-greeting-name {
+  color: var(--hh-burgundy);
+}
+
+.dash-family-line {
+  margin: 8px 0 0;
+  font-size: 0.95rem;
+  color: var(--hh-ink);
+  opacity: 0.7;
+}
+
+.dash-status-line {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+  color: var(--hh-ink);
+  opacity: 0.7;
+  max-width: 60ch;
+}
+
+.dash-body {
+  padding: 24px 40px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* --- shared card + section shells ------------------------------------ */
+
+.dash-card {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 22px 24px;
+}
+
+.dash-section-title {
+  font-family: var(--hh-font-heading);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hh-gold);
+  margin: 0 0 12px;
+}
+
+/* --- where we're up to ----------------------------------------------- */
+
+.dash-journey-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.dash-journey-head h2 {
+  font-family: var(--hh-font-heading);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hh-burgundy);
+  margin: 0;
+}
+
+.dash-journey-step {
+  background: rgba(184, 154, 90, 0.18);
+  color: #7a6228;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.dash-journey-bars {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* Three states, three meanings, and nothing else uses these colours on this
+   page: done (green), the step you're on (gold), still ahead (track grey). */
+.dash-journey-bar {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--hh-track);
+}
+
+.dash-journey-bar.is-done {
+  background: var(--hh-good);
+}
+
+.dash-journey-bar.is-active {
+  background: var(--hh-gold);
+}
+
+.dash-journey-now {
+  font-family: var(--hh-font-heading);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--hh-ink);
+}
+
+.dash-journey-next {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}
+
+/* --- needs you today -------------------------------------------------- */
+
+.dash-todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dash-todo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+  background: var(--hh-white);
+  border: none;
+  border-left: 4px solid var(--hh-gold);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 18px 20px;
+  cursor: pointer;
+  color: var(--hh-ink);
+  font-family: var(--hh-font-body);
+  transition: box-shadow var(--hh-transition), transform var(--hh-transition);
+}
+
+.dash-todo:hover {
+  box-shadow: var(--hh-shadow-hover);
+  transform: translateY(-1px);
+}
+
+/* A required field is the only thing that actually holds up submitting, so
+   it's the only thing that gets the burgundy accent. Documents stay gold. */
+.dash-todo.is-urgent {
+  border-left-color: var(--hh-burgundy);
+}
+
+.dash-todo-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: rgba(184, 154, 90, 0.16);
+  color: var(--hh-gold);
+}
+
+.dash-todo.is-urgent .dash-todo-icon {
+  background: rgba(83, 1, 38, 0.09);
+  color: var(--hh-burgundy);
+}
+
+.dash-todo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-todo-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.dash-todo-detail {
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+.dash-allclear {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--hh-good);
+  background: var(--hh-good-bg);
+  box-shadow: none;
+}
+
+.dash-allclear h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--hh-ink);
+}
+
+.dash-allclear p {
+  margin: 2px 0 0;
+  font-size: 0.88rem;
+  color: var(--hh-ink);
+  opacity: 0.65;
+}
+
+/* --- readiness hero --------------------------------------------------- */
+
+.dash-hero {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  flex-wrap: wrap;
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at 85% -20%, rgba(184, 154, 90, 0.35), transparent 55%),
+    linear-gradient(135deg, var(--hh-burgundy) 0%, var(--hh-burgundy-light) 100%);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 28px 32px;
+}
+
+.dash-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1.5px, transparent 1.5px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(to left, black, transparent 70%);
+  pointer-events: none;
+}
+
+.dash-hero > * {
+  position: relative;
+}
+
+.dash-hero-status {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-status-badge {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--hh-white);
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+
+.dash-status-badge.is-submitted {
+  background: var(--hh-good);
+}
+
+.dash-hero-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--hh-white);
+  opacity: 0.78;
+  max-width: 60ch;
+}
+
+/* --- who's on this application ---------------------------------------- */
+
+.dash-people {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-person {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  background: var(--hh-white);
+  border: 1px solid var(--hh-track);
+  border-radius: var(--hh-radius);
+  padding: 14px 18px;
+  cursor: pointer;
+  color: var(--hh-ink);
+  font-family: var(--hh-font-body);
+  transition: border-color var(--hh-transition), box-shadow var(--hh-transition);
+}
+
+.dash-person:hover {
+  border-color: var(--hh-gold);
+  box-shadow: var(--hh-shadow);
+}
+
+.dash-person-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  font-weight: 600;
+}
+
+.dash-person-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-person-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.dash-person-role {
+  font-size: 0.8rem;
+  opacity: 0.55;
+}
+
+.dash-person-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.dash-person-bar {
+  display: block;
+  width: 110px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--hh-track);
+  overflow: hidden;
+}
+
+.dash-person-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--hh-gold);
+}
+
+.dash-person-pct {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+  min-width: 34px;
+  text-align: right;
+}
+
+/* --- narrow screens ---------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .dash-greeting {
+    padding: 24px 20px 20px;
+  }
+
+  .dash-greeting h1 {
+    font-size: 1.6rem;
+  }
+
+  .dash-body {
+    padding: 20px 20px 0;
+    gap: 22px;
+  }
+
+  .dash-hero {
+    padding: 22px 20px;
+    gap: 20px;
+  }
+
+  .dash-person-bar {
+    width: 60px;
+  }
+}

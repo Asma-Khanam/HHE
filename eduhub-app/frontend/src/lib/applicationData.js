@@ -33,6 +33,32 @@ const CHILD_COLUMNS = [
   "gifted_talented",
   "has_transfer_certificate",
   "notes",
+  // Added by eduhub_schema_addendum_4.sql (2026-09-02) — a child's own
+  // address, for households where they don't live at the main family
+  // address. `address` always holds the real text even when it was copied
+  // from a parent, so nothing reading this table has to resolve a reference.
+  "address",
+  "address_same_as",
+];
+
+const PARENT_COLUMNS = [
+  "id",
+  "family_id",
+  "user_id",
+  "relationship",
+  "full_name",
+  "email",
+  "phone",
+  "nationality",
+  "religion",
+  "first_language",
+  "second_language",
+  "employer_name",
+  "occupation_designation",
+  "eid",
+  // Added by eduhub_schema_addendum_4.sql (2026-09-02).
+  "address",
+  "address_same_as",
 ];
 
 const SCHOOL_COLUMNS = [
@@ -49,6 +75,46 @@ const SCHOOL_COLUMNS = [
   "curriculum",
   "reason_for_leaving",
 ];
+
+// The address columns are the newest thing here, added by schema addendum 4.
+// If that addendum hasn't been run against this Supabase project yet, sending
+// them makes Postgres reject the WHOLE row — which would mean a family
+// couldn't save anything at all, not just their address. So: try with them,
+// and if (and only if) Postgres says the column doesn't exist, drop those two
+// fields and try once more, remembering the answer so every later save skips
+// them too. Everything except the address then keeps working normally, and
+// the moment the addendum is run the app picks the columns back up on its
+// next reload with no code change.
+const ADDRESS_COLUMNS = ["address", "address_same_as"];
+let addressColumnsMissing = false;
+
+function isMissingAddressColumnError(error) {
+  const msg = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+  return msg.includes("address") && (msg.includes("does not exist") || msg.includes("could not find"));
+}
+
+function withoutAddressColumns(payload) {
+  const out = { ...payload };
+  ADDRESS_COLUMNS.forEach((c) => delete out[c]);
+  return out;
+}
+
+// Runs one insert/update, retrying without the address columns if that's what
+// Postgres objected to. `run` takes the payload and returns Supabase's
+// { data, error }.
+async function saveRow(payload, run) {
+  const first = await run(addressColumnsMissing ? withoutAddressColumns(payload) : payload);
+  if (!first.error) return first.data;
+  if (addressColumnsMissing || !isMissingAddressColumnError(first.error)) throw first.error;
+
+  console.warn(
+    "Address columns are missing from this database — run eduhub_schema_addendum_4_addresses.sql in the Supabase SQL editor. Saving everything else for now."
+  );
+  addressColumnsMissing = true;
+  const retry = await run(withoutAddressColumns(payload));
+  if (retry.error) throw retry.error;
+  return retry.data;
+}
 
 function pickColumns(obj, columns) {
   const picked = {};
@@ -154,22 +220,33 @@ export async function saveApplication({
   homeAddress,
   sameAsMotherGeneral = false,
 }) {
+  // The form keeps a "same as ..." address in step live, but what actually
+  // lands in the database shouldn't depend on whether that sync happened to
+  // run before this save fired — re-resolving here means the picker's choice
+  // always wins. (Same belt-and-braces reasoning as SAME_AS_MOTHER_FIELDS
+  // further down.) Declared up here because the children loop below reads it
+  // too, and a const can't be used above its own declaration.
+  const addressSources = {
+    household: homeAddress,
+    mother: parents[0]?.address || "",
+    father: parents[1]?.address || "",
+  };
+  function withResolvedAddress(record) {
+    if (!record?.address_same_as) return record;
+    return { ...record, address: addressSources[record.address_same_as] || "" };
+  }
+
   const savedChildren = [];
   const savedSchools = [];
 
   for (let i = 0; i < children.length; i++) {
-    const child = children[i];
+    const child = withResolvedAddress(children[i]);
     const childPayload = { ...pickColumns(nullifyEmptyDates(child, CHILD_DATE_COLUMNS), CHILD_COLUMNS), family_id: familyId };
-    let savedChild;
-    if (child.id) {
-      const { data, error } = await supabase.from("children").update(childPayload).eq("id", child.id).select().single();
-      if (error) throw error;
-      savedChild = data;
-    } else {
-      const { data, error } = await supabase.from("children").insert(childPayload).select().single();
-      if (error) throw error;
-      savedChild = data;
-    }
+    const savedChild = await saveRow(childPayload, (payload) =>
+      child.id
+        ? supabase.from("children").update(payload).eq("id", child.id).select().single()
+        : supabase.from("children").insert(payload).select().single()
+    );
     savedChildren.push(savedChild);
 
     const school = currentSchools[i] || {};
@@ -213,9 +290,10 @@ export async function saveApplication({
   // checked always wins, no matter the timing.
   const SAME_AS_MOTHER_FIELDS = ["nationality", "religion", "first_language", "second_language"];
 
+
   const savedParents = [];
   for (let i = 0; i < parents.length; i++) {
-    let parent = parents[i];
+    let parent = withResolvedAddress(parents[i]);
     if (i === 1 && sameAsMotherGeneral) {
       const mother = parents[0];
       parent = { ...parent };
@@ -223,19 +301,14 @@ export async function saveApplication({
         parent[f] = mother[f];
       });
     }
-    const payload = { ...parent, family_id: familyId };
+    const payload = { ...pickColumns(parent, PARENT_COLUMNS), family_id: familyId };
     if (parent.relationship === accountHolderRole) payload.user_id = userId;
 
-    let saved;
-    if (parent.id) {
-      const { data, error } = await supabase.from("parents").update(payload).eq("id", parent.id).select().single();
-      if (error) throw error;
-      saved = data;
-    } else {
-      const { data, error } = await supabase.from("parents").insert(payload).select().single();
-      if (error) throw error;
-      saved = data;
-    }
+    const saved = await saveRow(payload, (p) =>
+      parent.id
+        ? supabase.from("parents").update(p).eq("id", parent.id).select().single()
+        : supabase.from("parents").insert(p).select().single()
+    );
     savedParents.push(saved);
   }
 

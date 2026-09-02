@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { uploadDocument, deleteDocument, getSignedUrl, downloadDocument, cleanFileName } from "../lib/documents";
-import { ACCEPTED_FILE_EXTENSIONS, ACCEPTED_MIME_TYPES } from "../data/documentTypes";
+import { ACCEPTED_FILE_EXTENSIONS, ACCEPTED_FILES_MESSAGE, isAcceptedFile } from "../data/documentTypes";
 
 // One row per checklist slot.
 //
@@ -34,8 +34,8 @@ export default function DocumentUploadRow({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (!ACCEPTED_MIME_TYPES.includes(file.type)) {
-      setError("Only PDF, PNG, or JPEG files are accepted.");
+    if (!isAcceptedFile(file)) {
+      setError(ACCEPTED_FILES_MESSAGE);
       return;
     }
     setError("");
@@ -96,12 +96,9 @@ export default function DocumentUploadRow({
   return (
     <div className={"doc-row" + (missing ? " doc-row-missing" : "")} data-field-key={fieldKey}>
       <div className="doc-row-info">
-        <span className="doc-row-label">
-          {docType.label}
-          {docType.required && <span className="doc-row-required"> *</span>}
-        </span>
+        <span className="doc-row-label">{docType.label}</span>
         {docType.hint && <span className="doc-row-hint">{docType.hint}</span>}
-        {missing && !error && <span className="doc-row-error">Required before you can submit.</span>}
+        {missing && !error && <span className="doc-row-pending">Still needed — upload it once you have it.</span>}
         {error && <span className="doc-row-error">{error}</span>}
       </div>
 

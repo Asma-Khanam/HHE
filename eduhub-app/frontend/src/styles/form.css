@@ -161,3 +161,35 @@
 .hh-switch-line a:hover {
   text-decoration: underline;
 }
+
+/* DateField — Day / Month / Year dropdowns side by side, replacing the
+   native date input the founders couldn't enter a year into. Year gets the
+   most room since it's the widest label. */
+.hh-date-row {
+  display: grid;
+  grid-template-columns: 0.8fr 1.4fr 1fr;
+  gap: 8px;
+}
+
+.hh-date-row select {
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .hh-date-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* AddressBlock — the "same as ..." picker sits directly above the address
+   box it fills in, so the relationship between the two is obvious. */
+.address-block-source {
+  margin-bottom: 8px;
+}
+
+.address-block-mirror {
+  background: var(--hh-track);
+  color: var(--hh-ink);
+  opacity: 0.75;
+  cursor: not-allowed;
+}
