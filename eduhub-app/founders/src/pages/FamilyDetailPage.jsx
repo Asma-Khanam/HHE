@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getFamilyDetail, shortId, friendlyError } from "../lib/staffData";
-import { getMissingItems, getReadinessPct, displayNameForChild } from "../lib/completeness";
+import { getMissingItems, getOutstandingDocuments, getReadinessPct, displayNameForChild } from "../lib/completeness";
 import { stageLabel } from "../lib/workflow";
 import CaseSettingsPanel from "../components/CaseSettingsPanel";
 import ApplicationsPanel from "../components/ApplicationsPanel";
@@ -31,6 +31,7 @@ const PARENT_FIELDS = [
   { key: "employer_name", label: "Employer name" },
   { key: "occupation_designation", label: "Occupation / designation" },
   { key: "eid", label: "EID" },
+  { key: "address", label: "Their address", wide: true },
 ];
 
 const CHILD_GENERAL_FIELDS = [
@@ -50,6 +51,7 @@ const CHILD_GENERAL_FIELDS = [
   { key: "english_first_home_language", label: "English is first / home language?" },
   { key: "english_proficiency", label: "English proficiency" },
   { key: "eid", label: "EID" },
+  { key: "address", label: "Where this child lives", wide: true },
   { key: "notes", label: "Notes", wide: true },
 ];
 
@@ -204,7 +206,14 @@ export default function FamilyDetailPage() {
     currentSchools,
     documentsByOwner,
   };
-  const missing = getMissingItems(completenessArgs);
+  // Documents stopped blocking the family's Submit button on 2026-09-02, so
+  // getMissingItems() is required fields only now. Staff still need the full
+  // picture of what's outstanding, so the two lists are joined back together
+  // here — fields first (those are what hold up the application), then the
+  // documents we're still waiting on.
+  const missingFields = getMissingItems(completenessArgs);
+  const outstandingDocs = getOutstandingDocuments(completenessArgs);
+  const missing = [...missingFields, ...outstandingDocs];
   const readiness = getReadinessPct(completenessArgs);
 
   // Only parents who actually exist as a row get a record card — a family
@@ -259,7 +268,7 @@ export default function FamilyDetailPage() {
           <section className="family-detail-card">
             <h2>Home &amp; family</h2>
             <div className="rec-grid">
-              <RecordField label="Full residential address" value={family.home_address} wide />
+              <RecordField label="Main household address" value={family.home_address} wide />
             </div>
           </section>
 
@@ -353,14 +362,28 @@ export default function FamilyDetailPage() {
             {missing.length === 0 ? (
               <p className="family-detail-hint">Everything required is on file.</p>
             ) : (
-              <ul className="missing-list">
-                {missing.map((item, i) => (
-                  <li key={i} className="missing-row">
-                    <span className={"missing-dot" + (item.kind === "document" ? " is-document" : "")} />
-                    {item.label}
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="missing-list">
+                  {missing.map((item, i) => (
+                    <li key={i} className="missing-row">
+                      <span className={"missing-dot" + (item.kind === "document" ? " is-document" : "")} />
+                      {item.label}
+                    </li>
+                  ))}
+                </ul>
+                <p className="family-detail-hint">
+                  {missingFields.length
+                    ? `${missingFields.length} required field${missingFields.length === 1 ? "" : "s"} still hold${
+                        missingFields.length === 1 ? "s" : ""
+                      } up submitting. `
+                    : "Nothing is holding up submitting. "}
+                  {outstandingDocs.length
+                    ? `${outstandingDocs.length} document${
+                        outstandingDocs.length === 1 ? "" : "s"
+                      } still to come — those never block the family from submitting.`
+                    : "All documents are in."}
+                </p>
+              </>
             )}
           </section>
         </div>
