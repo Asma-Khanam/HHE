@@ -412,3 +412,241 @@
   font-size: 0.78rem;
   padding: 5px 8px;
 }
+
+/* ---------------------------------------------------------------------------
+   Case log (addendum 5) — the internal call/note timeline.
+   --------------------------------------------------------------------------- */
+
+.note-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--hh-track);
+  border-radius: 10px;
+  background: var(--hh-cream);
+}
+
+/* The kind is picked before the text is written, so it sits above it —
+   choosing "Call" first is what tells you what to type. */
+.note-kind-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.note-kind-btn {
+  border: 1px solid var(--hh-track);
+  background: var(--hh-white);
+  color: var(--hh-ink);
+  font-family: var(--hh-font-body);
+  font-size: 0.8rem;
+  padding: 5px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.note-kind-btn:hover {
+  border-color: var(--hh-gold);
+}
+
+.note-kind-btn.is-active {
+  background: var(--hh-burgundy);
+  border-color: var(--hh-burgundy);
+  color: var(--hh-white);
+  font-weight: 500;
+}
+
+.note-form textarea.panel-input {
+  width: 100%;
+  resize: vertical;
+  line-height: 1.5;
+  font-family: var(--hh-font-body);
+}
+
+.note-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.note-form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.note-form-row label span {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}
+
+.note-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.note-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.note-item {
+  display: flex;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--hh-track);
+}
+
+.note-item:last-child {
+  border-bottom: none;
+}
+
+.note-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--hh-gold);
+  color: var(--hh-burgundy);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.note-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.note-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  color: var(--hh-ink);
+  margin-bottom: 5px;
+}
+
+/* The kind is the one coloured thing in a row, so a consultant can find the
+   calls in a long log by shape rather than by reading. */
+.note-kind {
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+}
+
+.note-kind-call {
+  background: rgba(47, 107, 79, 0.12);
+  color: var(--hh-good);
+}
+
+.note-kind-school {
+  background: rgba(184, 154, 90, 0.22);
+  color: #7a6228;
+}
+
+.note-kind-decision {
+  background: rgba(179, 38, 30, 0.09);
+  color: var(--hh-error);
+}
+
+.note-when {
+  font-weight: 500;
+}
+
+.note-author,
+.note-edited {
+  opacity: 0.5;
+}
+
+.note-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--hh-track);
+  opacity: 0.75;
+}
+
+.note-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--hh-ink);
+  white-space: pre-wrap;
+}
+
+/* Deliberately quiet until hovered — deleting case history should take a
+   deliberate look, not sit there as an obvious button. */
+.note-delete {
+  margin-top: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--hh-font-body);
+  font-size: 0.76rem;
+  color: var(--hh-ink);
+  opacity: 0.35;
+  cursor: pointer;
+}
+
+.note-delete:hover {
+  opacity: 1;
+  color: var(--hh-error);
+  text-decoration: underline;
+}
+
+.note-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 0.8rem;
+}
+
+.note-confirm button {
+  background: none;
+  border: 1px solid var(--hh-track);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-family: var(--hh-font-body);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.note-confirm button.is-danger {
+  border-color: var(--hh-error);
+  color: var(--hh-error);
+}
+
+.note-actions {
+  display: flex;
+  gap: 14px;
+}
+
+.note-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.note-edit textarea.panel-input {
+  width: 100%;
+  resize: vertical;
+  line-height: 1.5;
+  font-family: var(--hh-font-body);
+}

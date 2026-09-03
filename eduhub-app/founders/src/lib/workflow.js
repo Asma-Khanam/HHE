@@ -93,3 +93,33 @@ export function isOverdue(dueDate) {
 export function isDueToday(dueDate) {
   return daysUntil(dueDate) === 0;
 }
+
+// Case-note kinds (addendum 5). Mirrors that file's CHECK constraint — adding
+// one here without adding it there means the insert just fails.
+export const NOTE_KINDS = [
+  { key: "call", label: "Call" },
+  { key: "email", label: "Email" },
+  { key: "meeting", label: "Meeting" },
+  { key: "school", label: "School" },
+  { key: "decision", label: "Decision" },
+  { key: "note", label: "Note" },
+];
+
+export function noteKindLabel(key) {
+  return NOTE_KINDS.find((k) => k.key === key)?.label || "Note";
+}
+
+// "today", "yesterday", "3 days ago", then a real date once it's far enough
+// back that a relative one stops being easier to read than the date itself.
+export function relativeDay(iso) {
+  if (!iso) return "";
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return "";
+  const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOfDay(new Date()) - startOfDay(then)) / 86400000);
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days > 1 && days < 7) return `${days} days ago`;
+  if (days < 0) return then.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  return then.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}

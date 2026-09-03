@@ -4,8 +4,10 @@ import { getFamilyDetail, shortId, friendlyError } from "../lib/staffData";
 import { getMissingItems, getOutstandingDocuments, getReadinessPct, displayNameForChild } from "../lib/completeness";
 import { stageLabel } from "../lib/workflow";
 import CaseSettingsPanel from "../components/CaseSettingsPanel";
+import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import ApplicationsPanel from "../components/ApplicationsPanel";
 import TasksPanel from "../components/TasksPanel";
+import CaseNotesPanel from "../components/CaseNotesPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
 import "./FamilyDetailPage.css";
 
@@ -126,15 +128,69 @@ function RecordFields({ fields, source }) {
   );
 }
 
+// Addresses, 2026-09-02 onwards. There is no single family address any more:
+// each parent and child has their own, because separated parents don't share
+// one and a child may live with only one of them. families.home_address still
+// exists and still mirrors the account holder's, so it stays the headline
+// here — but the case a consultant actually needs to spot is the household
+// that ISN'T all at one address, so anyone living elsewhere is called out by
+// name rather than left to be noticed further down the record.
+function AddressSummary({ family, parents, familyChildren, accountHolderRole }) {
+  const main = (family.home_address || "").trim();
+
+  const elsewhere = [
+    ...parents.map((p) => ({
+      name: p.full_name || p.relationship,
+      role: p.relationship,
+      address: (p.address || "").trim(),
+      isHolder: p.relationship === accountHolderRole,
+    })),
+    ...familyChildren.map((c, i) => ({
+      name: displayNameForChild(c, i),
+      role: "Child",
+      address: (c.address || "").trim(),
+      isHolder: false,
+    })),
+  ].filter((person) => !person.isHolder && person.address && person.address !== main);
+
+  return (
+    <section className="family-detail-card">
+      <h2>Addresses</h2>
+      <div className="rec-grid">
+        <RecordField label="Household address" value={main} wide />
+      </div>
+      {elsewhere.length > 0 ? (
+        <div className="address-split">
+          <p className="address-split-head">
+            {elsewhere.length} {elsewhere.length === 1 ? "person lives" : "people live"} at a different address
+          </p>
+          <ul>
+            {elsewhere.map((person) => (
+              <li key={`${person.role}-${person.name}`}>
+                <strong>
+                  {person.name} <span className="address-split-role">· {person.role}</span>
+                </strong>
+                <span>{person.address}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="family-detail-hint">Everyone on this application is at the same address.</p>
+      )}
+    </section>
+  );
+}
+
 // A collapsible per-person block. Open by default — a founder opening this
 // page wants to read the record, not click six times to reveal it — but
 // collapsible so a family with several children isn't an endless scroll.
-function PersonCard({ name, role, docCount, children }) {
+function PersonCard({ name, role, docCount, photo, isChild = false, children }) {
   const [open, setOpen] = useState(true);
   return (
     <section className={"person-card" + (open ? "" : " is-collapsed")}>
       <button type="button" className="person-card-head" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-        <span className="person-card-avatar">{initial(name)}</span>
+        <PersonAvatar doc={photo} name={name} fallback={role} isChild={isChild} className="person-card-avatar" />
         <span className="person-card-head-text">
           <span className="person-card-name">{name}</span>
           <span className="person-card-role">
@@ -151,7 +207,7 @@ function PersonCard({ name, role, docCount, children }) {
 
 function countDocs(documentsByOwner, ownerType, id) {
   if (!id) return 0;
-  return (documentsByOwner[`${ownerType}:${id}`] || []).length;
+  return (documentsByOwner[`${ownerType}:${id}`] || []).filter((d) => d.document_type !== "profile_photo").length;
 }
 
 export default function FamilyDetailPage() {
@@ -192,16 +248,21 @@ export default function FamilyDetailPage() {
     documentsByOwner,
     applicationsByChild,
     tasks,
+    caseNotes,
     staff,
     schoolCatalog,
     ownerName,
     displayName,
   } = detail;
 
+  // No homeAddress here on purpose. The single family-wide address was
+  // retired on 2026-09-02 — every parent and child has their own now, and
+  // families.home_address is just kept in step with the account holder's.
+  // Passing it would have this panel chase a field the family can no longer
+  // see, which is exactly what it was doing until this was synced.
   const completenessArgs = {
     parents: parentsOrdered,
     accountHolderRole,
-    homeAddress: family.home_address,
     children,
     currentSchools,
     documentsByOwner,
@@ -263,14 +324,22 @@ export default function FamilyDetailPage() {
             schoolCatalog={schoolCatalog}
           />
 
+          <CaseNotesPanel
+            familyId={family.id}
+            notes={caseNotes}
+            staff={staff}
+            familyChildren={children}
+            schoolCatalog={schoolCatalog}
+          />
+
           <h2 className="family-detail-section-title">Application record</h2>
 
-          <section className="family-detail-card">
-            <h2>Home &amp; family</h2>
-            <div className="rec-grid">
-              <RecordField label="Main household address" value={family.home_address} wide />
-            </div>
-          </section>
+          <AddressSummary
+            family={family}
+            parents={namedParents}
+            familyChildren={children}
+            accountHolderRole={accountHolderRole}
+          />
 
           {namedParents.map((parent) => (
             <PersonCard
@@ -280,6 +349,7 @@ export default function FamilyDetailPage() {
                 parent.relationship + (parent.relationship === accountHolderRole ? " · Account holder" : " · Second parent")
               }
               docCount={countDocs(documentsByOwner, "parent", parent.id)}
+              photo={findProfilePhoto(documentsByOwner[`parent:${parent.id}`])}
             >
               <RecordFields fields={PARENT_FIELDS} source={parent} />
             </PersonCard>
@@ -293,6 +363,8 @@ export default function FamilyDetailPage() {
                 child.year_group_applying_for ? ` · applying for ${child.year_group_applying_for}` : ""
               }`}
               docCount={countDocs(documentsByOwner, "child", child.id)}
+              photo={findProfilePhoto(documentsByOwner[`child:${child.id}`])}
+              isChild
             >
               <h3 className="rec-subhead">General info</h3>
               <RecordFields fields={CHILD_GENERAL_FIELDS} source={child} />
@@ -322,7 +394,11 @@ export default function FamilyDetailPage() {
                 .filter((p) => p.full_name)
                 .map((p) => (
                   <li key={p.id} className="household-row">
-                    <div className="household-row-avatar">{initial(p.full_name)}</div>
+                    <PersonAvatar
+                      doc={findProfilePhoto(documentsByOwner[`parent:${p.id}`])}
+                      name={p.full_name}
+                      fallback={p.relationship}
+                    />
                     <div className="household-row-text">
                       <div className="household-row-name">
                         {p.full_name}
@@ -338,7 +414,12 @@ export default function FamilyDetailPage() {
                 ))}
               {children.map((c, i) => (
                 <li key={c.id} className="household-row">
-                  <div className="household-row-avatar household-row-avatar-child">{initial(displayNameForChild(c, i))}</div>
+                  <PersonAvatar
+                    doc={findProfilePhoto(documentsByOwner[`child:${c.id}`])}
+                    name={displayNameForChild(c, i)}
+                    fallback="Child"
+                    isChild
+                  />
                   <div className="household-row-text">
                     <div className="household-row-name">{displayNameForChild(c, i)}</div>
                     <div className="household-row-detail">

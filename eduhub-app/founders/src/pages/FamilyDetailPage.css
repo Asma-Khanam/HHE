@@ -213,17 +213,39 @@
   background: rgba(184, 154, 90, 0.07);
 }
 
-.person-card-avatar {
-  width: 36px;
-  height: 36px;
+/* Shared avatar used by PersonAvatar — a family member's own photo once
+   they've uploaded one, their initials until then. Gold circles here rather
+   than the client app's squared burgundy tiles, to match this app's own
+   look. */
+.hh-avatar {
+  width: 34px;
+  height: 34px;
   flex-shrink: 0;
+  overflow: hidden;
   border-radius: 50%;
   background: var(--hh-gold);
   color: var(--hh-burgundy);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.hh-avatar.is-child {
+  background: rgba(83, 1, 38, 0.1);
+  color: var(--hh-burgundy);
+}
+
+.hh-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.person-card-avatar {
+  width: 36px;
+  height: 36px;
   font-size: 0.9rem;
 }
 
@@ -338,25 +360,6 @@
   border-bottom: none;
 }
 
-.household-row-avatar {
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--hh-gold);
-  color: var(--hh-burgundy);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 0.85rem;
-}
-
-.household-row-avatar-child {
-  background: rgba(83, 1, 38, 0.1);
-  color: var(--hh-burgundy);
-}
-
 .household-row-name {
   font-weight: 500;
   font-size: 0.92rem;
@@ -415,4 +418,43 @@
   .rec-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Addresses card — the split-household callout. Amber rather than red: a
+   second address is information a consultant needs to notice, not a problem
+   with the application. */
+.address-split {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(184, 154, 90, 0.1);
+  border: 1px solid rgba(184, 154, 90, 0.3);
+}
+
+.address-split-head {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #7a6228;
+}
+
+.address-split ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.address-split li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.86rem;
+}
+
+.address-split-role {
+  font-weight: 400;
+  opacity: 0.6;
 }

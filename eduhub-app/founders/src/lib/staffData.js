@@ -163,7 +163,7 @@ export async function getFamilyDetail(familyId) {
   const parentIds = (parents || []).map((p) => p.id);
 
   const empty = Promise.resolve({ data: [] });
-  const [schools, parentDocs, childDocs, applications, tasks, schoolCatalog] = await Promise.all([
+  const [schools, parentDocs, childDocs, applications, tasks, schoolCatalog, caseNotes] = await Promise.all([
     childIds.length ? supabase.from("current_schools").select("*").in("child_id", childIds).then(unwrap) : empty.then(unwrap),
     parentIds.length
       ? supabase.from("documents").select("*").eq("owner_type", "parent").in("owner_id", parentIds).then(unwrap)
@@ -176,6 +176,12 @@ export async function getFamilyDetail(familyId) {
       : empty.then(unwrap),
     supabase.from("tasks").select("*").eq("family_id", familyId).order("due_date", { nullsFirst: false }).then(unwrap),
     listSchools(),
+    supabase
+      .from("case_notes")
+      .select("*")
+      .eq("family_id", familyId)
+      .order("occurred_at", { ascending: false })
+      .then(unwrap),
   ]);
 
   const documentsByOwner = {};
@@ -205,6 +211,7 @@ export async function getFamilyDetail(familyId) {
     documentsByOwner,
     applicationsByChild,
     tasks: tasks || [],
+    caseNotes: caseNotes || [],
     staff: staff || [],
     schoolCatalog: schoolCatalog || [],
     ownerName: family.owner_staff_id ? staffName(staffById[family.owner_staff_id]) : "Unassigned",
@@ -317,6 +324,41 @@ export async function deleteTask(taskId) {
 // The Today page — one fetch for the whole dashboard.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Case notes — the internal call log / activity trail (addendum 5).
+//
+// author_id is deliberately NOT sent from here. A database trigger stamps it
+// from auth.uid() on insert and refuses to let it change on update, so the
+// log can't be written under someone else's name even by a buggy client.
+// ---------------------------------------------------------------------------
+
+export async function createCaseNote({ familyId, childId, schoolId, kind, body, occurredAt }) {
+  return unwrap(
+    await supabase
+      .from("case_notes")
+      .insert({
+        family_id: familyId,
+        child_id: childId || null,
+        school_id: schoolId || null,
+        kind: kind || "note",
+        body: body.trim(),
+        // An empty date box means "just now", not a null column.
+        occurred_at: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
+      })
+      .select()
+      .single()
+  );
+}
+
+export async function updateCaseNote(noteId, { body }) {
+  return unwrap(await supabase.from("case_notes").update({ body: body.trim() }).eq("id", noteId).select().single());
+}
+
+export async function deleteCaseNote(noteId) {
+  const { error } = await supabase.from("case_notes").delete().eq("id", noteId);
+  if (error) throw error;
+}
+
 export async function getTodayData() {
   const [tasks, families, parents, applications, parentDocs, childDocs, staff] = await Promise.all([
     supabase.from("tasks").select("*").order("due_date", { nullsFirst: false }).then(unwrap),
@@ -340,7 +382,14 @@ export async function getTodayData() {
     assigneeInitial: t.assigned_to ? staffName(staffById[t.assigned_to]).charAt(0).toUpperCase() : null,
   }));
 
-  const allDocs = [...(parentDocs || []), ...(childDocs || [])];
+  // Profile photos live in the documents table too (same polymorphic row, so
+  // they needed no schema of their own) but they are not paperwork — they're
+  // never chased, never expire, and must never land in a "documents to chase"
+  // count. The Document Vault filters by document type so a photo can't be
+  // given a status in the first place; this is the belt to that's braces.
+  const allDocs = [...(parentDocs || []), ...(childDocs || [])].filter(
+    (d) => d.document_type !== "profile_photo"
+  );
 
   return {
     tasks: decorated,
