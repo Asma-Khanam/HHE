@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { updateFamily } from "../lib/staffData";
 import { PIPELINE_STAGES } from "../lib/workflow";
+import { PACKAGES } from "../data/packages";
 import "./panels.css";
 
 // The team's own working columns on a family — stage, who owns it, where
 // they're moving from and to, what kind of client they are. None of this is
 // the family's data; it's the agency's view of the family, which is why it
 // sits in its own bar rather than inside the application record below.
-export default function CaseSettingsPanel({ family, staff }) {
+export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
   const [values, setValues] = useState({
     pipeline_stage: family.pipeline_stage || "enquiry",
     owner_staff_id: family.owner_staff_id || "",
@@ -22,7 +23,8 @@ export default function CaseSettingsPanel({ family, staff }) {
     setValues((v) => ({ ...v, ...patch }));
     setError("");
     try {
-      await updateFamily(family.id, patch);
+      const updated = await updateFamily(family.id, patch);
+      onFamilyChange?.(updated);
       setSaved(true);
       setTimeout(() => setSaved(false), 1800);
     } catch (err) {
@@ -95,8 +97,19 @@ export default function CaseSettingsPanel({ family, staff }) {
         </div>
 
         <div>
-          <label className="panel-field-label">Client type</label>
-          <input type="text" placeholder="e.g. Membership" {...textProps("membership_type")} />
+          <label className="panel-field-label">Package</label>
+          <select
+            className="panel-select"
+            value={values.membership_type}
+            onChange={(e) => save({ membership_type: e.target.value })}
+          >
+            <option value="">Not set</option>
+            {PACKAGES.map((p) => (
+              <option key={p.key} value={p.key}>
+                {p.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
     </section>

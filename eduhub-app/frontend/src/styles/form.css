@@ -60,22 +60,29 @@
   margin-top: 4px;
 }
 
+/* The country-code box used to be flex: 0 0 140px — a fixed width that
+   could never shrink, so once its column got narrower than about 140px
+   (any two-column field grid, once the window itself got small enough)
+   the whole row overflowed its box instead of shrinking with it. Both
+   sides now flex-shrink, with flex-wrap as a last resort on genuinely tiny
+   screens so the number simply drops to its own line instead of clipping. */
 .hh-phone-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .hh-phone-code {
-  flex: 0 0 140px;
-  min-width: 0;
+  flex: 1 1 110px;
+  min-width: 90px;
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
 }
 
 .hh-phone-number {
-  flex: 1;
-  min-width: 0;
+  flex: 2 1 140px;
+  min-width: 100px;
 }
 
 .hh-btn-primary {
@@ -124,6 +131,170 @@
 .hh-btn-secondary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.hh-ranking-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hh-ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(83, 1, 38, 0.15);
+  border-radius: var(--hh-radius);
+  background: #fff;
+  cursor: grab;
+}
+
+.hh-ranking-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--hh-burgundy);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.hh-ranking-label {
+  flex: 1;
+}
+
+.hh-ranking-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.hh-ranking-actions button {
+  border: 1px solid rgba(83, 1, 38, 0.2);
+  background: #fff;
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.hh-ranking-actions button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.hh-ranking-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.hh-ranking-option {
+  border: 1px solid rgba(83, 1, 38, 0.25);
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.hh-ranking-option.is-selected {
+  background: var(--hh-burgundy);
+  border-color: var(--hh-burgundy);
+  color: #fff;
+}
+
+.hh-ranking-option.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* SEN-08 (September 2026 change request): a compact grid rather than a wrap
+   of pills, for a long "select all that apply" list — one column on mobile,
+   widening to two and then three as there's room, so it never reads as an
+   intimidating wall of text. */
+.hh-multiselect-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+@media (min-width: 640px) {
+  .hh-multiselect-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 980px) {
+  .hh-multiselect-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.hh-multiselect-grid-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(83, 1, 38, 0.2);
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hh-multiselect-grid-item.is-selected {
+  background: rgba(83, 1, 38, 0.08);
+  border-color: var(--hh-burgundy);
+}
+
+.hh-multiselect-grid-check {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid rgba(83, 1, 38, 0.4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: #fff;
+  background: transparent;
+}
+
+.hh-multiselect-grid-item.is-selected .hh-multiselect-grid-check {
+  background: var(--hh-burgundy);
+  border-color: var(--hh-burgundy);
+}
+
+/* BUD-02: a read-only reminder of an answer already captured elsewhere
+   (AH-10's fee range) — visually distinct from an editable field so it
+   doesn't look like a second question being asked. */
+.hh-field input[readonly] {
+  background: var(--hh-track);
+  color: var(--hh-ink);
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.hh-form-step-indicator {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--hh-burgundy);
+  letter-spacing: 0.02em;
+  margin: 4px 0 14px;
 }
 
 .hh-form-banner {

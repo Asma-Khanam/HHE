@@ -38,6 +38,24 @@
   border-radius: 999px;
 }
 
+.panel-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--hh-cream);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.panel-copy-value {
+  font-family: monospace;
+  font-size: 0.88rem;
+  color: var(--hh-burgundy);
+  flex: 1;
+  word-break: break-all;
+}
+
 .panel-hint {
   color: var(--hh-ink);
   opacity: 0.55;
@@ -170,6 +188,14 @@
   gap: 10px;
   padding: 10px 0;
   border-bottom: 1px solid rgba(83, 1, 38, 0.06);
+  flex-wrap: wrap;
+}
+
+.task-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .task-row:last-child {
@@ -262,6 +288,7 @@
   align-items: center;
   gap: 12px;
   padding: 9px 0;
+  flex-wrap: wrap;
 }
 
 .app-row-avatar {
@@ -280,8 +307,11 @@
 }
 
 .app-row-text {
-  flex: 1;
-  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 140px;
+  min-width: 140px;
 }
 
 .app-row-school {
@@ -294,6 +324,13 @@
   font-size: 0.76rem;
   color: var(--hh-ink);
   opacity: 0.6;
+}
+
+.app-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .app-progress {
@@ -347,7 +384,8 @@
   color: var(--hh-white);
 }
 
-.doc-row-status.is-chasing {
+.doc-row-status.is-chasing,
+.doc-row-status.is-missing {
   background: rgba(179, 38, 30, 0.14);
   color: var(--hh-error);
 }
@@ -407,10 +445,10 @@
   flex-wrap: wrap;
 }
 
-.doc-row-controls .panel-select,
-.doc-row-controls .panel-input {
-  font-size: 0.78rem;
-  padding: 5px 8px;
+.doc-row-file-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* ---------------------------------------------------------------------------

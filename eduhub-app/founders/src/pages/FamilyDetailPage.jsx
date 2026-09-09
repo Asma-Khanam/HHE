@@ -4,11 +4,13 @@ import { getFamilyDetail, shortId, friendlyError } from "../lib/staffData";
 import { getMissingItems, getOutstandingDocuments, getReadinessPct, displayNameForChild } from "../lib/completeness";
 import { stageLabel } from "../lib/workflow";
 import CaseSettingsPanel from "../components/CaseSettingsPanel";
+import ApplicationEmailPanel from "../components/ApplicationEmailPanel";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import ApplicationsPanel from "../components/ApplicationsPanel";
 import TasksPanel from "../components/TasksPanel";
 import CaseNotesPanel from "../components/CaseNotesPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
+import PaymentsPanel from "../components/PaymentsPanel";
 import "./FamilyDetailPage.css";
 
 // ---------------------------------------------------------------------------
@@ -27,7 +29,6 @@ const PARENT_FIELDS = [
   { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
   { key: "nationality", label: "Nationality" },
-  { key: "religion", label: "Religion" },
   { key: "first_language", label: "First language" },
   { key: "second_language", label: "Second language" },
   { key: "employer_name", label: "Employer name" },
@@ -44,10 +45,17 @@ const CHILD_GENERAL_FIELDS = [
   { key: "gender", label: "Gender" },
   { key: "date_of_birth", label: "Date of birth", type: "date" },
   { key: "nationality", label: "Nationality" },
+  // CH-03 (September 2026 change request) — new field, no history before it.
   { key: "religion", label: "Religion" },
-  { key: "academic_year_of_entry", label: "Academic year of entry" },
+  // CH-04/CH-05: both became "select all that apply" on new array columns
+  // (academic_years_of_entry / terms) rather than the old single-value
+  // academic_year_of_entry / term — see schema addendum 25. `type:
+  // "array_join"` reads the new column and renders it as a plain
+  // comma-separated list, same idea as the "date"/"reference_status"
+  // formatters just below.
+  { key: "academic_years_of_entry", label: "Academic year(s) of entry", type: "array_join" },
   { key: "year_group_applying_for", label: "Year group applying for" },
-  { key: "term", label: "Term" },
+  { key: "terms", label: "Term(s)", type: "array_join" },
   { key: "first_language", label: "First language" },
   { key: "second_language", label: "Second language" },
   { key: "english_first_home_language", label: "English is first / home language?" },
@@ -60,25 +68,142 @@ const CHILD_GENERAL_FIELDS = [
 const CHILD_ADDITIONAL_FIELDS = [
   { key: "sports_hobbies_interests", label: "Sports, hobbies and interests", wide: true },
   { key: "sports_achievements", label: "Sports achievements", wide: true },
-  { key: "has_sen", label: "Has Special Education Needs?" },
   { key: "gifted_talented", label: "On the Gifted or Talented Register?" },
-  // Only shown when the answer above was Yes — same as the family's own form,
-  // where this textarea only appears for a "Yes".
-  { key: "sen_description", label: "Special Education Needs — description", wide: true, showIf: (c) => c?.has_sen === "Yes" },
   { key: "medical_inclusion_needs", label: "Allergies or health conditions", wide: true },
   { key: "has_transfer_certificate", label: "Has transfer / leaving certificate?" },
 ];
 
+// SEN-01 (September 2026 change request) — "SEN and inclusion" became its
+// own clearly headed section on the family's form rather than sitting
+// inside additional information, so it gets its own subheading here too,
+// replacing the old has_sen/sen_description pair above. `sen_diagnoses` is
+// an array (multi-select on the form), same array_join formatter as
+// academic_years_of_entry/terms above. The "Other" text and the concerns
+// note only ever apply to their own answer, same showIf pattern as before.
+const CHILD_SEN_FIELDS = [
+  { key: "sen_status", label: "SEN and inclusion — status" },
+  {
+    key: "sen_concerns_description",
+    label: "SEN and inclusion — concerns",
+    wide: true,
+    showIf: (c) => c?.sen_status === "No formal diagnosis, but we have concerns",
+  },
+  {
+    key: "sen_diagnoses",
+    label: "SEN and inclusion — diagnoses",
+    type: "array_join",
+    wide: true,
+    showIf: (c) => c?.sen_status === "Yes, formally identified or diagnosed",
+  },
+  {
+    key: "sen_diagnosis_other",
+    label: "SEN and inclusion — other diagnosis",
+    wide: true,
+    showIf: (c) => c?.sen_status === "Yes, formally identified or diagnosed" && (c?.sen_diagnoses || []).includes("Other, please tell us"),
+  },
+  // SEN-02 — asked of every child regardless of the SEN-01 answer, so no
+  // showIf here.
+  { key: "sen_documents_held", label: "SEN and inclusion — documents held", type: "array_join", wide: true },
+  // SEN-04 through SEN-11 (September 2026 change request).
+  { key: "sen_intervention_status", label: "SEN and inclusion — intervention or support sessions" },
+  {
+    key: "sen_intervention_types",
+    label: "SEN and inclusion — session types",
+    type: "array_join",
+    wide: true,
+    showIf: (c) => typeof c?.sen_intervention_status === "string" && c.sen_intervention_status.startsWith("Yes"),
+  },
+  {
+    key: "sen_intervention_other",
+    label: "SEN and inclusion — other session type",
+    wide: true,
+    showIf: (c) => (c?.sen_intervention_types || []).includes("Other"),
+  },
+  {
+    key: "sen_intervention_frequency",
+    label: "SEN and inclusion — session frequency",
+    showIf: (c) => (c?.sen_intervention_types || []).length > 0,
+  },
+  { key: "sen_lsa_status", label: "SEN and inclusion — Learning Support Assistant / shadow teacher" },
+  { key: "sen_descriptive_words", label: "SEN and inclusion — words used to describe child", type: "array_join", wide: true },
+  { key: "sen_outside_professionals", label: "SEN and inclusion — outside professionals", type: "array_join", wide: true },
+  {
+    key: "sen_outside_professionals_other",
+    label: "SEN and inclusion — other outside professional",
+    wide: true,
+    showIf: (c) => (c?.sen_outside_professionals || []).includes("Other"),
+  },
+  { key: "sen_additional_notes", label: "SEN and inclusion — anything else the family wants us to know", wide: true },
+];
+
+// SEN-10: "This answer must be clearly visible on the family record in the
+// admin area. It governs what our team is allowed to share with a school."
+// Deliberately its own constant, not folded into CHILD_SEN_FIELDS above —
+// it's rendered as a badge on the child's card header (see PersonCard's
+// `role` line below), not just another row in the field grid, so a
+// consultant can't miss it before ever opening a school conversation.
+const SEN_DISCLOSURE_LABELS = {
+  "Yes, disclose everything upfront. I want a school that says yes with full knowledge": "Disclose everything upfront",
+  "Yes, but let us discuss what and how first": "Disclose — discuss what/how first",
+  "I would prefer to disclose after an offer is made": "Disclose after offer only",
+  "I would rather not disclose. I would like to talk this through with you": "Prefers not to disclose — talk it through",
+};
+
+function senDisclosureBadgeLabel(child) {
+  const v = (child?.sen_disclosure_preference || "").trim();
+  return SEN_DISCLOSURE_LABELS[v] || null;
+}
+
+// DU-05 (September 2026 change request): "If 'No, please explain it' or
+// 'Roughly' is chosen, flag it on the family record so our team knows to
+// talk it through. This is where most relocating families come unstuck."
+// Same card-header-badge treatment as SEN-10's disclosure preference above.
+function needsTransferCertificateHelpBadge(child) {
+  const v = child?.transfer_certificate_understanding;
+  return v === "Roughly" || v === "No, please explain it" ? "Transfer Certificate — needs explaining" : null;
+}
+
+// A child's card can carry more than one badge at once (SEN-10's disclosure
+// preference, DU-05's Transfer Certificate flag) — collects whichever apply.
+function childCardFlags(child) {
+  return [senDisclosureBadgeLabel(child), needsTransferCertificateHelpBadge(child)].filter(Boolean);
+}
+
 const SCHOOL_FIELDS = [
   { key: "school_name", label: "Current school" },
   { key: "year_group_of_leaving", label: "Year group of leaving" },
-  { key: "date_attended_last", label: "Date attended last", type: "date" },
+  // CS-01 (September 2026 change request): "Date last attended" removed —
+  // it was never actually filled in from the family's side, so this just
+  // stops showing a permanently-blank row.
   { key: "curriculum", label: "Curriculum" },
   { key: "contact_name", label: "Contact name at school" },
   { key: "contact_email", label: "Contact email at school" },
   { key: "contact_phone", label: "Contact phone at school" },
   { key: "reference_status", label: "Confidential reference", type: "reference_status" },
   { key: "reason_for_leaving", label: "Reason for leaving", wide: true },
+  { key: "reason_for_leaving_details", label: "Reason for leaving — more detail", wide: true },
+  // CS-04/CS-05/CS-06 (September 2026 change request).
+  { key: "education_gaps_status", label: "Gaps in education?" },
+  {
+    key: "education_gaps_details",
+    label: "Gaps in education — detail",
+    wide: true,
+    showIf: (s) => s?.education_gaps_status === "Yes",
+  },
+  { key: "repeated_year_status", label: "Repeated a year, or asked to?" },
+  {
+    key: "repeated_year_details",
+    label: "Repeated a year — detail",
+    wide: true,
+    showIf: (s) => !!s?.repeated_year_status && s.repeated_year_status !== "No",
+  },
+  { key: "school_refusal_status", label: "Refused a place, or asked to leave?" },
+  {
+    key: "school_refusal_details",
+    label: "Refused a place / asked to leave — detail",
+    wide: true,
+    showIf: (s) => s?.school_refusal_status === "Yes, refused a place" || s?.school_refusal_status === "Yes, asked to leave",
+  },
 ];
 
 const REFERENCE_STATUS_LABELS = {
@@ -98,6 +223,15 @@ function initial(name) {
 
 function isFilled(value) {
   return String(value ?? "").trim().length > 0;
+}
+
+// BUD-05 (September 2026 change request): "Any answer other than 'No thank
+// you' should flag on the family record so our team follows it up." An
+// empty answer (not asked yet) isn't a follow-up — only an actual "Yes
+// please" or "Maybe later" is.
+function wantsCostGuidanceFollowup(family) {
+  const v = (family?.cost_guidance_response || "").trim();
+  return v !== "" && v !== "No thank you";
 }
 
 // One label + value row. An unanswered field deliberately still renders (as a
@@ -122,6 +256,7 @@ function RecordFields({ fields, source }) {
         let value = source?.[field.key];
         if (field.type === "date") value = formatDate(value);
         if (field.type === "reference_status") value = REFERENCE_STATUS_LABELS[value] || value;
+        if (field.type === "array_join") value = Array.isArray(value) ? value.join(", ") : value;
         return <RecordField key={field.key} label={field.label} value={value} wide={field.wide} />;
       })}
     </div>
@@ -182,17 +317,69 @@ function AddressSummary({ family, parents, familyChildren, accountHolderRole }) 
   );
 }
 
-// A collapsible per-person block. Open by default — a founder opening this
-// page wants to read the record, not click six times to reveal it — but
-// collapsible so a family with several children isn't an endless scroll.
-function PersonCard({ name, role, docCount, photo, isChild = false, children }) {
-  const [open, setOpen] = useState(true);
+// Section 3, "Budget and relocation planning" (September 2026 change
+// request) — AH-09/AH-10/AH-11 and BUD-01 through BUD-05 all live directly
+// on the families row, same as home_address, so this card reads them the
+// same way AddressSummary above reads home_address. BUD-05's flag is the
+// one thing here that needs to be seen without opening this card — anything
+// other than "No thank you" gets a visible amber badge right in the heading.
+function BudgetSummary({ family }) {
+  const priorities = Array.isArray(family.school_priorities) ? family.school_priorities : [];
+  const flagged = wantsCostGuidanceFollowup(family);
+
   return (
-    <section className={"person-card" + (open ? "" : " is-collapsed")}>
+    <section className="family-detail-card">
+      <h2>
+        Budget and relocation planning
+        {flagged && <span className="family-detail-card-flag">Wants cost guidance — follow up</span>}
+      </h2>
+      <div className="rec-grid">
+        <RecordField label="Set a budget for the move? (BUD-01)" value={family.budget_status} />
+        <RecordField label="Comfortable fee range, per child (AH-10)" value={family.comfortable_fee_range} />
+        <RecordField label="Annual housing budget (BUD-03)" value={family.housing_budget} />
+        <RecordField label="Parent work location (AH-11)" value={family.parent_work_location} />
+        <RecordField label="Where they're thinking of living (BUD-04)" value={family.preferred_living_area} wide />
+        <RecordField label="Wants cost guidance? (BUD-05)" value={family.cost_guidance_response} />
+      </div>
+      <div className="rec-field rec-field-wide">
+        <span className="rec-field-label">Top school priorities, ranked (AH-09)</span>
+        {priorities.length ? (
+          <ol className="budget-priorities-list">
+            {priorities.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ol>
+        ) : (
+          <span className="rec-field-value is-empty">—</span>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// A collapsible per-person block, used two ways: standalone (defaultOpen —
+// a founder landing on the page reads the record straight away) and nested
+// inside the Household card (defaultOpen={false} — collapsed by default so
+// the household list stays a short, scannable summary, and a founder opens
+// only the person they actually need to read into).
+function PersonCard({ name, role, docCount, photo, isChild = false, children, defaultOpen = true, nested = false, flags }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className={"person-card" + (nested ? " person-card-nested" : "") + (open ? "" : " is-collapsed")}>
       <button type="button" className="person-card-head" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
         <PersonAvatar doc={photo} name={name} fallback={role} isChild={isChild} className="person-card-avatar" />
         <span className="person-card-head-text">
-          <span className="person-card-name">{name}</span>
+          <span className="person-card-name">
+            {name}
+            {/* SEN-10/DU-05: "must be clearly visible on the family record
+                in the admin area" — right on the card header, not buried in
+                the field grid below. A child can carry more than one. */}
+            {(flags || []).map((f) => (
+              <span key={f} className="family-detail-card-flag">
+                {f}
+              </span>
+            ))}
+          </span>
           <span className="person-card-role">
             {role}
             {docCount > 0 ? ` · ${docCount} document${docCount === 1 ? "" : "s"} on file` : " · no documents yet"}
@@ -249,6 +436,7 @@ export default function FamilyDetailPage() {
     applicationsByChild,
     tasks,
     caseNotes,
+    payments,
     staff,
     schoolCatalog,
     ownerName,
@@ -266,6 +454,13 @@ export default function FamilyDetailPage() {
     children,
     currentSchools,
     documentsByOwner,
+    // AH-09/AH-10/BUD-01 (September 2026 change request) — family-level
+    // answers, synced here from frontend/src/lib/completeness.js so this
+    // page's readiness % and missing-item count agree with what the family
+    // themselves sees, rather than treating these as permanently missing.
+    schoolPriorities: family.school_priorities,
+    comfortableFeeRange: family.comfortable_fee_range,
+    budgetStatus: family.budget_status,
   };
   // Documents stopped blocking the family's Submit button on 2026-09-02, so
   // getMissingItems() is required fields only now. Staff still need the full
@@ -308,12 +503,24 @@ export default function FamilyDetailPage() {
             </span>
             <span>owner {ownerName}</span>
             <span>on file since {formatDate(family.created_at)}</span>
+            {wantsCostGuidanceFollowup(family) && (
+              <span className="family-detail-card-flag">Wants cost guidance — follow up</span>
+            )}
           </div>
         </div>
       </div>
 
       <div className="family-detail-stack">
-        <CaseSettingsPanel family={family} staff={staff} />
+        <CaseSettingsPanel
+          family={family}
+          staff={staff}
+          onFamilyChange={(updated) => setDetail((d) => ({ ...d, family: { ...d.family, ...updated } }))}
+        />
+        <ApplicationEmailPanel
+          family={family}
+          familyDisplayNameValue={displayName}
+          onFamilyChange={(updated) => setDetail((d) => ({ ...d, family: { ...d.family, ...updated } }))}
+        />
       </div>
 
       <div className="family-detail-grid">
@@ -332,8 +539,6 @@ export default function FamilyDetailPage() {
             schoolCatalog={schoolCatalog}
           />
 
-          <h2 className="family-detail-section-title">Application record</h2>
-
           <AddressSummary
             family={family}
             parents={namedParents}
@@ -341,47 +546,7 @@ export default function FamilyDetailPage() {
             accountHolderRole={accountHolderRole}
           />
 
-          {namedParents.map((parent) => (
-            <PersonCard
-              key={parent.id}
-              name={parent.full_name || parent.relationship}
-              role={
-                parent.relationship + (parent.relationship === accountHolderRole ? " · Account holder" : " · Second parent")
-              }
-              docCount={countDocs(documentsByOwner, "parent", parent.id)}
-              photo={findProfilePhoto(documentsByOwner[`parent:${parent.id}`])}
-            >
-              <RecordFields fields={PARENT_FIELDS} source={parent} />
-            </PersonCard>
-          ))}
-
-          {children.map((child, i) => (
-            <PersonCard
-              key={child.id}
-              name={displayNameForChild(child, i)}
-              role={`Child${children.length > 1 ? ` ${i + 1}` : ""}${
-                child.year_group_applying_for ? ` · applying for ${child.year_group_applying_for}` : ""
-              }`}
-              docCount={countDocs(documentsByOwner, "child", child.id)}
-              photo={findProfilePhoto(documentsByOwner[`child:${child.id}`])}
-              isChild
-            >
-              <h3 className="rec-subhead">General info</h3>
-              <RecordFields fields={CHILD_GENERAL_FIELDS} source={child} />
-
-              <h3 className="rec-subhead">Additional info</h3>
-              <RecordFields fields={CHILD_ADDITIONAL_FIELDS} source={child} />
-
-              <h3 className="rec-subhead">Current school</h3>
-              <RecordFields fields={SCHOOL_FIELDS} source={currentSchools[i] || {}} />
-            </PersonCard>
-          ))}
-
-          {namedParents.length === 0 && children.length === 0 && (
-            <section className="family-detail-card">
-              <p className="family-detail-hint">This family has signed up but hasn&apos;t filled in any of the form yet.</p>
-            </section>
-          )}
+          <BudgetSummary family={family} />
         </div>
 
         <div className="family-detail-col">
@@ -389,50 +554,77 @@ export default function FamilyDetailPage() {
 
           <section className="family-detail-card">
             <h2>Household</h2>
-            <ul className="household-list">
+            <div className="household-list">
               {parents
                 .filter((p) => p.full_name)
                 .map((p) => (
-                  <li key={p.id} className="household-row">
-                    <PersonAvatar
-                      doc={findProfilePhoto(documentsByOwner[`parent:${p.id}`])}
-                      name={p.full_name}
-                      fallback={p.relationship}
-                    />
-                    <div className="household-row-text">
-                      <div className="household-row-name">
-                        {p.full_name}
-                        {p.relationship === accountHolderRole && <span className="household-tag"> · Account holder</span>}
-                      </div>
-                      <div className="household-row-detail">
-                        {p.relationship}
-                        {p.phone ? ` · ${p.phone}` : ""}
-                        {p.email ? ` · ${p.email}` : ""}
-                      </div>
-                    </div>
-                  </li>
+                  <PersonCard
+                    key={p.id}
+                    nested
+                    defaultOpen={false}
+                    name={p.full_name}
+                    role={
+                      p.relationship +
+                      (p.relationship === accountHolderRole ? " · Account holder" : "") +
+                      (p.phone ? ` · ${p.phone}` : "") +
+                      (p.email ? ` · ${p.email}` : "")
+                    }
+                    docCount={countDocs(documentsByOwner, "parent", p.id)}
+                    photo={findProfilePhoto(documentsByOwner[`parent:${p.id}`])}
+                  >
+                    <RecordFields fields={PARENT_FIELDS} source={p} />
+                  </PersonCard>
                 ))}
               {children.map((c, i) => (
-                <li key={c.id} className="household-row">
-                  <PersonAvatar
-                    doc={findProfilePhoto(documentsByOwner[`child:${c.id}`])}
-                    name={displayNameForChild(c, i)}
-                    fallback="Child"
-                    isChild
-                  />
-                  <div className="household-row-text">
-                    <div className="household-row-name">{displayNameForChild(c, i)}</div>
-                    <div className="household-row-detail">
-                      {c.date_of_birth ? `DOB ${formatDate(c.date_of_birth)}` : "DOB not on file"}
-                      {c.year_group_applying_for ? ` · applying for ${c.year_group_applying_for}` : ""}
-                    </div>
-                  </div>
-                </li>
+                <PersonCard
+                  key={c.id}
+                  nested
+                  defaultOpen={false}
+                  isChild
+                  name={displayNameForChild(c, i)}
+                  role={
+                    (c.date_of_birth ? `DOB ${formatDate(c.date_of_birth)}` : "DOB not on file") +
+                    (c.year_group_applying_for ? ` · applying for ${c.year_group_applying_for}` : "")
+                  }
+                  docCount={countDocs(documentsByOwner, "child", c.id)}
+                  photo={findProfilePhoto(documentsByOwner[`child:${c.id}`])}
+                  flags={childCardFlags(c)}
+                >
+                  <h3 className="rec-subhead">General info</h3>
+                  <RecordFields fields={CHILD_GENERAL_FIELDS} source={c} />
+
+                  <h3 className="rec-subhead">Additional info</h3>
+                  <RecordFields fields={CHILD_ADDITIONAL_FIELDS} source={c} />
+
+                  <h3 className="rec-subhead">SEN and inclusion</h3>
+                  <RecordFields fields={CHILD_SEN_FIELDS} source={c} />
+
+                  <h3 className="rec-subhead">Current school</h3>
+                  {/* NAV-02 (September 2026 change request): the family's form
+                      copies a sibling's school once rather than linking to it
+                      live, so this reads whichever sibling was chosen at copy
+                      time and shows their CURRENT name — same as the family's
+                      own view — while the copied fields below stay frozen at
+                      whatever they were when copied. */}
+                  {(() => {
+                    const siblingId = currentSchools[i]?.same_as_sibling_child_id;
+                    if (!siblingId) return null;
+                    const siblingIdx = children.findIndex((sib) => sib.id === siblingId);
+                    if (siblingIdx === -1) return null;
+                    return (
+                      <p className="family-detail-hint">
+                        Same school as {displayNameForChild(children[siblingIdx], siblingIdx)} (copied once, not linked —
+                        editing one doesn't change the other).
+                      </p>
+                    );
+                  })()}
+                  <RecordFields fields={SCHOOL_FIELDS} source={currentSchools[i] || {}} />
+                </PersonCard>
               ))}
               {parents.every((p) => !p.full_name) && children.length === 0 && (
-                <li className="household-empty-hint">Nothing filled in yet.</li>
+                <p className="household-empty-hint">Nothing filled in yet.</p>
               )}
-            </ul>
+            </div>
           </section>
 
           <section className="family-detail-card">
@@ -471,7 +663,13 @@ export default function FamilyDetailPage() {
       </div>
 
       <div className="family-detail-stack">
-        <DocumentVaultPanel parents={parents} familyChildren={children} documentsByOwner={documentsByOwner} />
+        <DocumentVaultPanel parents={parents} familyChildren={children} documentsByOwner={documentsByOwner} accountHolderRole={accountHolderRole} />
+        <PaymentsPanel
+          familyId={family.id}
+          payments={payments}
+          membershipType={family.membership_type}
+          childCount={children.length}
+        />
       </div>
     </div>
   );

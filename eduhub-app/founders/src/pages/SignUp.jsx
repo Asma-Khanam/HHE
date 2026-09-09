@@ -6,11 +6,11 @@ import "../styles/form.css";
 
 // This ONLY creates a login (an auth.users row) — same as any family
 // signing up through the client app. It does NOT grant access to any
-// family's data. That only happens once someone with database access adds
-// a matching row to the `staff` table by hand — see
-// eduhub_schema_addendum_2_staff.sql for the exact insert to run, and
-// RequireStaff.jsx for what a login without that row sees.
+// family's data. A team admin grants that separately from the Team page's
+// "Pending signups" list (addendum 14) — see RequireStaff.jsx for what a
+// login without staff access sees in the meantime.
 export default function SignUp() {
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -33,7 +33,16 @@ export default function SignUp() {
     }
 
     setSubmitting(true);
-    const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+    // Families sign up through the client app using this same Supabase
+    // Auth project, so this login lands in the exact same auth.users table
+    // as theirs. signup_source: "founders" is the only thing that tells
+    // list_pending_signups() (addendum 15) this one was meant for staff
+    // access, not a family's own account.
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName.trim() || null, signup_source: "founders" } },
+    });
     setSubmitting(false);
 
     if (signUpError) {
@@ -58,9 +67,9 @@ export default function SignUp() {
             : "Your login is ready."}
         </div>
         <p style={{ color: "var(--hh-ink)", opacity: 0.75, lineHeight: 1.6, margin: "0 0 20px" }}>
-          This just created your sign-in — it doesn't give you access to any family's records yet. Ask whoever
-          manages Supabase for Heather Harries to add <strong>{email}</strong> to the <code>staff</code> table,
-          then log in and everything will be there.
+          This just created your sign-in — it doesn't give you access to any family's records yet. Let a team
+          admin know <strong>{email}</strong> has signed up — they'll see it under Pending signups on the Team
+          page and can grant you access from there.
         </p>
         <p className="hh-switch-line">
           <Link to="/login">Go to sign in</Link>
@@ -78,6 +87,18 @@ export default function SignUp() {
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
       <form onSubmit={handleSubmit} noValidate>
+        <div className="hh-field">
+          <label htmlFor="fullName">Full name</label>
+          <input
+            id="fullName"
+            type="text"
+            autoComplete="name"
+            required
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
+        </div>
+
         <div className="hh-field">
           <label htmlFor="email">Email address</label>
           <input

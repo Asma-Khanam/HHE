@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import DocumentVaultCard from "../components/DocumentVaultCard";
+import PaymentsCard from "../components/PaymentsCard";
+import KeyDatesCard from "../components/KeyDatesCard";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import { IconCheckCircle, IconChevronRight } from "../components/icons";
 import {
@@ -211,6 +213,7 @@ export default function DashboardPage() {
         )}
       </section>
 
+
       <div className="dash-grid">
         {/* ---------- main column ---------- */}
         <div className="dash-main">
@@ -315,6 +318,10 @@ export default function DashboardPage() {
           </section>
         </aside>
       </div>
+
+      <PaymentsCard userId={user?.id} payments={data?.payments || []} />
+
+      <KeyDatesCard events={data?.events || []} />
 
       <DocumentVaultCard
         mother={mother}

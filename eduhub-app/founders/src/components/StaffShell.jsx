@@ -18,7 +18,7 @@ export default function StaffShell() {
       if (!user) return;
       supabase
         .from("staff")
-        .select("full_name, email")
+        .select("full_name, email, role")
         .eq("user_id", user.id)
         .maybeSingle()
         .then(({ data }) => setMe(data));
@@ -47,6 +47,19 @@ export default function StaffShell() {
           <NavLink to="/staff/families" className={({ isActive }) => "staff-nav-item" + (isActive ? " is-active" : "")}>
             Caseload
           </NavLink>
+          <NavLink to="/staff/calendar" className={({ isActive }) => "staff-nav-item" + (isActive ? " is-active" : "")}>
+            Calendar
+          </NavLink>
+          {me?.role === "admin" && (
+            <NavLink to="/staff/team" className={({ isActive }) => "staff-nav-item" + (isActive ? " is-active" : "")}>
+              Team
+            </NavLink>
+          )}
+          {me?.role === "admin" && (
+            <NavLink to="/staff/settings" className={({ isActive }) => "staff-nav-item" + (isActive ? " is-active" : "")}>
+              Settings
+            </NavLink>
+          )}
         </nav>
 
         <div className="staff-sidebar-footer">

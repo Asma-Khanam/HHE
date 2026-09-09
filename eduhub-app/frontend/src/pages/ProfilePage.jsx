@@ -88,7 +88,6 @@ export default function ProfilePage() {
           <div className="profile-details-grid">
             <Row label="Phone" value={holder?.phone} />
             <Row label="Nationality" value={holder?.nationality} />
-            <Row label="Religion" value={holder?.religion} />
             <Row label="First language" value={holder?.first_language} />
             <Row label="Second language" value={holder?.second_language} />
             <Row label="Employer" value={holder?.employer_name} />

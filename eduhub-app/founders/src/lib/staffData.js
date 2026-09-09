@@ -96,6 +96,84 @@ export async function listStaff() {
   return unwrap(await supabase.from("staff").select("*").order("created_at")) || [];
 }
 
+// ---------------------------------------------------------------------------
+// Team management (addendum 13) — lets an admin add, remove, and promote or
+// demote teammates from inside the app, no Supabase access needed. All three
+// are plain RPC calls into security-definer functions that re-check
+// is_staff_admin() server-side — nothing here is trusted just because the
+// button existed on screen, same as everywhere else staff can write.
+// ---------------------------------------------------------------------------
+export async function addStaffMember({ email, fullName, role, position }) {
+  const { data, error } = await supabase.rpc("add_staff_member", {
+    p_email: email.trim(),
+    p_full_name: fullName?.trim() || null,
+    p_role: role || "member",
+    p_position: position?.trim() || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function setStaffRole(userId, role) {
+  const { data, error } = await supabase.rpc("set_staff_role", { p_user_id: userId, p_role: role });
+  if (error) throw error;
+  return data;
+}
+
+export async function setStaffPosition(userId, position) {
+  const { data, error } = await supabase.rpc("set_staff_position", { p_user_id: userId, p_position: position });
+  if (error) throw error;
+  return data;
+}
+
+export async function removeStaffMember(userId) {
+  const { error } = await supabase.rpc("remove_staff_member", { p_user_id: userId });
+  if (error) throw error;
+}
+
+// CH-06 (September 2026 change request): "please keep the cut-off date
+// editable in the admin area. It differs by curriculum and we will need to
+// adjust it." — a single settings row both apps read from
+// public.app_settings (schema addendum 26). Any signed-in user can read it
+// (the family-facing form needs it to calculate a live suggestion); only a
+// staff admin can change it, enforced by that table's own RLS policy, same
+// as every other admin-only action in this file.
+export async function getYearGroupCutoff() {
+  const { data, error } = await supabase
+    .from("app_settings")
+    .select("year_group_cutoff_month, year_group_cutoff_day")
+    .eq("id", "default")
+    .maybeSingle();
+  if (error) throw error;
+  // Falls back to the UK/UAE British-curriculum default (31 August) if the
+  // addendum hasn't been run yet, or the row is somehow missing — the same
+  // default the form used before this setting existed.
+  return {
+    month: data?.year_group_cutoff_month ?? 8,
+    day: data?.year_group_cutoff_day ?? 31,
+  };
+}
+
+export async function updateYearGroupCutoff({ month, day }) {
+  const { data, error } = await supabase
+    .from("app_settings")
+    .update({ year_group_cutoff_month: month, year_group_cutoff_day: day, updated_at: new Date().toISOString() })
+    .eq("id", "default")
+    .select("year_group_cutoff_month, year_group_cutoff_day")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Logins that exist (someone used the Sign Up page) but aren't on the team
+// yet — addendum 14. Lets the Team page show "here's who's waiting" instead
+// of an admin having to already know and type someone's exact email.
+export async function listPendingSignups() {
+  const { data, error } = await supabase.rpc("list_pending_signups");
+  if (error) throw error;
+  return data || [];
+}
+
 function staffName(staffRow) {
   return staffRow?.full_name || staffRow?.email || "Unassigned";
 }
@@ -163,7 +241,7 @@ export async function getFamilyDetail(familyId) {
   const parentIds = (parents || []).map((p) => p.id);
 
   const empty = Promise.resolve({ data: [] });
-  const [schools, parentDocs, childDocs, applications, tasks, schoolCatalog, caseNotes] = await Promise.all([
+  const [schools, parentDocs, childDocs, applications, tasks, schoolCatalog, caseNotes, payments] = await Promise.all([
     childIds.length ? supabase.from("current_schools").select("*").in("child_id", childIds).then(unwrap) : empty.then(unwrap),
     parentIds.length
       ? supabase.from("documents").select("*").eq("owner_type", "parent").in("owner_id", parentIds).then(unwrap)
@@ -182,6 +260,7 @@ export async function getFamilyDetail(familyId) {
       .eq("family_id", familyId)
       .order("occurred_at", { ascending: false })
       .then(unwrap),
+    supabase.from("payments").select("*").eq("family_id", familyId).order("due_date", { nullsFirst: false }).then(unwrap),
   ]);
 
   const documentsByOwner = {};
@@ -212,6 +291,7 @@ export async function getFamilyDetail(familyId) {
     applicationsByChild,
     tasks: tasks || [],
     caseNotes: caseNotes || [],
+    payments: payments || [],
     staff: staff || [],
     schoolCatalog: schoolCatalog || [],
     ownerName: family.owner_staff_id ? staffName(staffById[family.owner_staff_id]) : "Unassigned",
@@ -304,6 +384,18 @@ export async function createTask({ familyId, title, dueDate, assignedTo }) {
   );
 }
 
+export async function updateTask(taskId, { title, dueDate, assignedTo, familyId } = {}) {
+  const row = {};
+  if (title !== undefined) row.title = title.trim();
+  if (dueDate !== undefined) row.due_date = dueDate || null;
+  if (assignedTo !== undefined) row.assigned_to = assignedTo || null;
+  // Same reassignment gap as updateCalendarEvent above — the "Family"
+  // select on the edit form is never disabled for a task either, so it has
+  // to actually be saveable.
+  if (familyId !== undefined) row.family_id = familyId || null;
+  return unwrap(await supabase.from("tasks").update(row).eq("id", taskId).select().single());
+}
+
 export async function setTaskDone(taskId, done) {
   return unwrap(
     await supabase
@@ -318,6 +410,56 @@ export async function setTaskDone(taskId, done) {
 export async function deleteTask(taskId) {
   const { error } = await supabase.from("tasks").delete().eq("id", taskId);
   if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
+// Payments (addendum 9) — per-family fees/deposits with an amount and due
+// date. Staff-only; nothing here is client-facing.
+// ---------------------------------------------------------------------------
+
+export async function createPayment({ familyId, label, amount, currency, dueDate, notes }) {
+  return unwrap(
+    await supabase
+      .from("payments")
+      .insert({
+        family_id: familyId,
+        label,
+        amount: amount === "" || amount === null || amount === undefined ? null : Number(amount),
+        currency: currency || "AED",
+        due_date: dueDate || null,
+        notes: notes || null,
+      })
+      .select()
+      .single()
+  );
+}
+
+export async function updatePayment(paymentId, { label, amount, currency, dueDate, status, notes } = {}) {
+  const row = {};
+  if (label !== undefined) row.label = label;
+  if (amount !== undefined) row.amount = amount === "" || amount === null ? null : Number(amount);
+  if (currency !== undefined) row.currency = currency;
+  if (dueDate !== undefined) row.due_date = dueDate || null;
+  if (status !== undefined) row.status = status;
+  if (notes !== undefined) row.notes = notes;
+  return unwrap(await supabase.from("payments").update(row).eq("id", paymentId).select().single());
+}
+
+export async function deletePayment(paymentId) {
+  const { error } = await supabase.from("payments").delete().eq("id", paymentId);
+  if (error) throw error;
+}
+
+// Turns a chosen package (data/packages.js) into real payment rows for one
+// family — the package fee, plus a per-additional-child fee if there's more
+// than one child. Insert-only: never touches or removes an existing
+// payment, so re-running this (e.g. after a child is added later) only ever
+// adds what's missing, never duplicates or overwrites what a founder may
+// have already edited by hand.
+export async function createPackagePayments({ familyId, fees }) {
+  if (!fees || !fees.length) return [];
+  const created = await Promise.all(fees.map((fee) => createPayment({ familyId, label: fee.label, amount: fee.amount })));
+  return created;
 }
 
 // ---------------------------------------------------------------------------
@@ -359,8 +501,227 @@ export async function deleteCaseNote(noteId) {
   if (error) throw error;
 }
 
+// ---------------------------------------------------------------------------
+// Calendar (addendum 6) — deadlines, reminders, and team events. Staff see
+// and manage everything; visible_to_client is the one thing that decides
+// whether a given event also shows on that family's own dashboard.
+//
+// created_by is deliberately NOT sent from here, same reasoning as
+// case_notes' author_id — a trigger stamps it from auth.uid() on insert and
+// refuses to let it change on update.
+// ---------------------------------------------------------------------------
+
+// Pulls calendar_events AND tasks into one merged, calendar-shaped list.
+// Tasks are not copied anywhere — this reads the exact same `tasks` rows
+// TasksPanel and the Today page use, so a task added on the family page
+// shows up here automatically, and a "Task" added from the calendar shows
+// up on the family page automatically. Nothing here is ever written to
+// `calendar_events` for a task; the two tables stay exactly what they were.
+export async function loadCalendarEvents({ from, to } = {}) {
+  let eventsQuery = supabase.from("calendar_events").select("*").order("starts_at");
+  let tasksQuery = supabase.from("tasks").select("*").not("due_date", "is", null).order("due_date");
+  let visitsQuery = supabase.from("applications").select("*").not("visit_date", "is", null).order("visit_date");
+  if (from) {
+    eventsQuery = eventsQuery.gte("starts_at", new Date(from).toISOString());
+    tasksQuery = tasksQuery.gte("due_date", toDateOnly(from));
+    visitsQuery = visitsQuery.gte("visit_date", toDateOnly(from));
+  }
+  if (to) {
+    eventsQuery = eventsQuery.lt("starts_at", new Date(to).toISOString());
+    tasksQuery = tasksQuery.lt("due_date", toDateOnly(to));
+    visitsQuery = visitsQuery.lt("visit_date", toDateOnly(to));
+  }
+
+  const [events, tasks, visits, families, parents, staff, children, schools] = await Promise.all([
+    eventsQuery.then(unwrap),
+    tasksQuery.then(unwrap),
+    visitsQuery.then(unwrap),
+    supabase.from("families").select("*").then(unwrap),
+    supabase.from("parents").select("id, family_id, relationship, full_name, user_id").then(unwrap),
+    listStaff(),
+    supabase.from("children").select("id, family_id, full_name, preferred_name, first_name").then(unwrap),
+    listSchools(),
+  ]);
+
+  const parentsByFamily = groupBy(parents, "family_id");
+  const familyNames = Object.fromEntries(
+    (families || []).map((f) => [f.id, familyDisplayName(f, parentsByFamily[f.id] || [])])
+  );
+  const staffById = Object.fromEntries((staff || []).map((s) => [s.user_id, s]));
+  const childById = Object.fromEntries((children || []).map((c) => [c.id, c]));
+  const schoolNameById = Object.fromEntries((schools || []).map((s) => [s.id, s.name]));
+
+  const decoratedEvents = (events || []).map((e) => ({
+    ...e,
+    source: "calendar_event",
+    familyName: e.family_id ? familyNames[e.family_id] || "Unknown family" : null,
+    consultantName: e.created_by ? staffName(staffById[e.created_by]) : "Unassigned",
+  }));
+
+  const decoratedTasks = (tasks || []).map((t) => ({
+    id: t.id,
+    source: "task",
+    kind: "task",
+    title: t.title,
+    starts_at: `${t.due_date}T00:00:00`,
+    all_day: true,
+    status: t.done_at ? "done" : "upcoming",
+    visible_to_client: false,
+    family_id: t.family_id,
+    created_by: t.created_by,
+    assigned_to: t.assigned_to,
+    done_at: t.done_at,
+    familyName: t.family_id ? familyNames[t.family_id] || "Unknown family" : null,
+    consultantName: t.assigned_to ? staffName(staffById[t.assigned_to]) : "Anyone",
+  }));
+
+  // School visits — read straight off applications.visit_date, same
+  // read-merge approach as tasks. No family_id column on applications
+  // itself, so it's looked up via the child.
+  const decoratedVisits = (visits || []).map((v) => {
+    const child = childById[v.child_id];
+    const childName = child ? child.full_name || child.preferred_name || child.first_name : "Unknown child";
+    const schoolName = schoolNameById[v.school_id] || "Unknown school";
+    return {
+      id: v.id,
+      source: "application_visit",
+      kind: "school_visit",
+      title: `${schoolName} visit — ${childName}`,
+      notes: v.visit_notes || "",
+      starts_at: `${v.visit_date}T00:00:00`,
+      all_day: true,
+      status: "upcoming",
+      visible_to_client: false,
+      family_id: child ? child.family_id : null,
+      child_id: v.child_id,
+      application_id: v.id,
+      familyName: child && childById[v.child_id]
+        ? familyNames[child.family_id] || "Unknown family"
+        : null,
+      consultantName: null,
+    };
+  });
+
+  return [...decoratedEvents, ...decoratedTasks, ...decoratedVisits].sort(
+    (a, b) => new Date(a.starts_at) - new Date(b.starts_at)
+  );
+}
+
+function toDateOnly(d) {
+  const date = new Date(d);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+export async function createCalendarEvent({
+  familyId,
+  childId,
+  applicationId,
+  kind,
+  title,
+  notes,
+  startsAt,
+  endsAt,
+  allDay,
+  visibleToClient,
+}) {
+  return unwrap(
+    await supabase
+      .from("calendar_events")
+      .insert({
+        family_id: familyId || null,
+        child_id: childId || null,
+        application_id: applicationId || null,
+        kind: kind || "reminder",
+        title: title.trim(),
+        notes: notes?.trim() || null,
+        starts_at: new Date(startsAt).toISOString(),
+        ends_at: endsAt ? new Date(endsAt).toISOString() : null,
+        all_day: allDay ?? true,
+        visible_to_client: !!visibleToClient,
+      })
+      .select()
+      .single()
+  );
+}
+
+export async function updateCalendarEvent(eventId, patch) {
+  const row = {};
+  if (patch.title !== undefined) row.title = patch.title.trim();
+  if (patch.notes !== undefined) row.notes = patch.notes?.trim() || null;
+  if (patch.kind !== undefined) row.kind = patch.kind;
+  // Which family (and optionally child) an event belongs to CAN be changed
+  // after it's created — the "Family" / "Child" selects on the edit form
+  // are never disabled — so this has to accept reassignment, not just the
+  // fields above. Missing this meant re-picking a family in the edit modal
+  // looked like it saved (no error) but silently did nothing: the row kept
+  // whichever family it was first created under, which is also why it
+  // never showed up on the family you'd actually just picked.
+  if (patch.familyId !== undefined) row.family_id = patch.familyId || null;
+  if (patch.childId !== undefined) row.child_id = patch.childId || null;
+  if (patch.applicationId !== undefined) row.application_id = patch.applicationId || null;
+  if (patch.startsAt !== undefined) row.starts_at = new Date(patch.startsAt).toISOString();
+  if (patch.endsAt !== undefined) row.ends_at = patch.endsAt ? new Date(patch.endsAt).toISOString() : null;
+  if (patch.allDay !== undefined) row.all_day = patch.allDay;
+  if (patch.status !== undefined) row.status = patch.status;
+  if (patch.visibleToClient !== undefined) row.visible_to_client = !!patch.visibleToClient;
+
+  return unwrap(await supabase.from("calendar_events").update(row).eq("id", eventId).select().single());
+}
+
+export async function deleteCalendarEvent(eventId) {
+  const { error } = await supabase.from("calendar_events").delete().eq("id", eventId);
+  if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
+// Application email aliases (addendum 7) — one forwarding-only address per
+// family so the same relocate@heatherharries.com never has to be reused
+// across schools. The mail routing itself lives outside Supabase (Cloudflare
+// Email Routing + a Worker); this is just the CRM's side of it.
+// ---------------------------------------------------------------------------
+
+// A short, readable, collision-resistant slug — surname (or "family" if none
+// is on file yet) plus 4 digits. Uniqueness is enforced by the database
+// column itself; a retry with a new suffix handles the rare collision.
+function slugFor(familyDisplayNameValue) {
+  const base = (familyDisplayNameValue || "family")
+    .toLowerCase()
+    .replace(/^the\s+/, "")
+    .replace(/\s+family$/, "")
+    .replace(/[^a-z]/g, "") || "family";
+  const suffix = Math.floor(1000 + Math.random() * 9000);
+  return `${base}${suffix}`;
+}
+
+export async function generateApplicationAlias(familyId, familyDisplayNameValue) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const alias = slugFor(familyDisplayNameValue);
+    const { data, error } = await supabase
+      .from("families")
+      .update({ application_alias: alias, application_alias_status: "active" })
+      .eq("id", familyId)
+      .select()
+      .single();
+    if (!error) return data;
+    // 23505 = unique_violation — someone else already has this exact slug.
+    if (error.code !== "23505") throw error;
+  }
+  throw new Error("Couldn't find a free application address after several tries — try again.");
+}
+
+export async function setApplicationAliasStatus(familyId, status) {
+  return unwrap(
+    await supabase
+      .from("families")
+      .update({ application_alias_status: status })
+      .eq("id", familyId)
+      .select()
+      .single()
+  );
+}
+
 export async function getTodayData() {
-  const [tasks, families, parents, applications, parentDocs, childDocs, staff] = await Promise.all([
+  const [tasks, families, parents, applications, parentDocs, childDocs, staff, payments, recentNotes] = await Promise.all([
     supabase.from("tasks").select("*").order("due_date", { nullsFirst: false }).then(unwrap),
     supabase.from("families").select("*").then(unwrap),
     supabase.from("parents").select("id, family_id, relationship, full_name, user_id").then(unwrap),
@@ -368,6 +729,11 @@ export async function getTodayData() {
     supabase.from("documents").select("*").eq("owner_type", "parent").then(unwrap),
     supabase.from("documents").select("*").eq("owner_type", "child").then(unwrap),
     listStaff(),
+    supabase.from("payments").select("*").in("status", ["unpaid", "submitted"]).order("due_date", { nullsFirst: false }).then(unwrap),
+    // The "who did what" trail, surfaced somewhere it's actually seen day to
+    // day rather than only when opening one specific family. Ten is plenty
+    // for a glance — this is a feed, not a report.
+    supabase.from("case_notes").select("*").order("created_at", { ascending: false }).limit(10).then(unwrap),
   ]);
 
   const parentsByFamily = groupBy(parents, "family_id");
@@ -391,6 +757,24 @@ export async function getTodayData() {
     (d) => d.document_type !== "profile_photo"
   );
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const decoratedPayments = (payments || []).map((p) => ({
+    ...p,
+    familyName: p.family_id ? familyNames[p.family_id] || "Unknown family" : "No family",
+    isOverdue: !!p.due_date && new Date(p.due_date) < today,
+  }));
+
+  const decoratedActivity = (recentNotes || []).map((n) => ({
+    ...n,
+    familyName: familyNames[n.family_id] || "Unknown family",
+    staffName: n.author_id ? staffName(staffById[n.author_id]) : "Unknown",
+  }));
+
+  const unownedFamilies = (families || [])
+    .filter((f) => !f.owner_staff_id)
+    .map((f) => ({ id: f.id, name: familyNames[f.id] || "Unnamed family" }));
+
   return {
     tasks: decorated,
     families: families || [],
@@ -399,5 +783,10 @@ export async function getTodayData() {
     chasingDocs: allDocs.filter((d) => d.status === "chasing").length,
     expiringDocs: allDocs.filter((d) => isExpiring(d.expires_at)).length,
     documents: allDocs,
+    payments: decoratedPayments,
+    overduePayments: decoratedPayments.filter((p) => p.status === "unpaid" && p.isOverdue).length,
+    paymentsToConfirm: decoratedPayments.filter((p) => p.status === "submitted").length,
+    recentActivity: decoratedActivity,
+    unownedFamilies,
   };
 }

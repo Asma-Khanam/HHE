@@ -1,79 +1,152 @@
-.today-header {
-  margin-bottom: 24px;
+.today-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .today-header h1 {
   font-family: var(--hh-font-heading);
   color: var(--hh-burgundy);
-  font-size: 1.7rem;
+  font-size: 1.6rem;
   margin: 0 0 4px;
 }
 
 .today-subtitle {
   color: var(--hh-ink);
   opacity: 0.6;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   margin: 0;
 }
 
+/* ---- Needs-an-owner: a slim banner instead of a full card, so it reads
+   at a glance without competing with the rest of the page for space. ---- */
+.today-owner-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: rgba(179, 38, 30, 0.06);
+  border: 1px solid rgba(179, 38, 30, 0.18);
+  border-radius: var(--hh-radius);
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  color: var(--hh-ink);
+}
+
+.today-owner-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.today-owner-chip {
+  font-size: 0.8rem;
+  color: var(--hh-error);
+  background: var(--hh-white);
+  border: 1px solid rgba(179, 38, 30, 0.25);
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-decoration: none;
+}
+
+.today-owner-chip:hover {
+  background: rgba(179, 38, 30, 0.08);
+}
+
+/* ---- Stat strip: five tiles, always evenly spaced on one line down to
+   tablet width instead of wrapping an orphaned 5th tile onto its own row.
+   A colored left edge carries the tone so the row reads at a glance
+   without parsing the note text. ---- */
 .today-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 22px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .today-stat {
   background: var(--hh-white);
   border-radius: var(--hh-radius);
   box-shadow: var(--hh-shadow);
-  padding: 20px 22px;
+  border-left: 3px solid rgba(83, 1, 38, 0.15);
+  padding: 14px 16px;
+}
+
+.today-stat.is-good {
+  border-left-color: var(--hh-good);
+}
+
+.today-stat.is-bad {
+  border-left-color: var(--hh-error);
+}
+
+.today-stat.is-progress {
+  border-left-color: var(--hh-gold);
 }
 
 .today-stat-value {
   font-family: var(--hh-font-heading);
-  font-size: 2rem;
+  font-size: 1.6rem;
   font-weight: 600;
   color: var(--hh-burgundy);
   line-height: 1.1;
 }
 
 .today-stat-label {
-  font-size: 0.88rem;
-  color: var(--hh-ink);
-  opacity: 0.75;
-  margin-top: 6px;
-}
-
-.today-stat-note {
   font-size: 0.78rem;
   color: var(--hh-ink);
-  opacity: 0.55;
-  margin-top: 8px;
+  opacity: 0.7;
+  margin-top: 3px;
 }
 
-.today-stat-note.is-bad {
+.today-stat-pill {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--hh-ink);
+  opacity: 0.5;
+  margin-top: 7px;
+}
+
+.today-stat-pill.is-bad {
   color: var(--hh-error);
   opacity: 0.85;
 }
 
-.today-stat-note.is-good {
+.today-stat-pill.is-good {
   color: var(--hh-good);
   opacity: 0.85;
 }
 
-.today-grid {
+.today-stat-pill.is-progress {
+  color: #7a5c1f;
+  opacity: 0.9;
+}
+
+/* ---- Main grid: tasks on the left, a stacked pair of compact cards on
+   the right. One grid, one gap value, so nothing needs its own extra
+   margin to line up with its neighbor. ---- */
+.today-main-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 18px;
   align-items: start;
+}
+
+.today-side-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .today-card {
   background: var(--hh-white);
   border-radius: var(--hh-radius);
   box-shadow: var(--hh-shadow);
-  padding: 20px 24px 24px;
+  padding: 18px 20px 20px;
+}
+
+.today-card-compact {
+  padding: 16px 18px 18px;
 }
 
 .today-card-head {
@@ -81,12 +154,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .today-card-head h2 {
   font-family: var(--hh-font-heading);
-  font-size: 1.02rem;
+  font-size: 0.98rem;
   color: var(--hh-burgundy);
   margin: 0;
 }
@@ -95,7 +168,7 @@
   background: none;
   border: none;
   font-family: var(--hh-font-body);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 500;
   color: var(--hh-burgundy);
   opacity: 0.75;
@@ -111,12 +184,11 @@
 .today-hint {
   color: var(--hh-ink);
   opacity: 0.55;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   margin: 0;
 }
 
-.today-task-list,
-.today-deadline-list {
+.today-task-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -126,7 +198,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 0;
+  padding: 10px 0;
   border-bottom: 1px solid rgba(83, 1, 38, 0.06);
 }
 
@@ -135,14 +207,14 @@
 }
 
 .today-check {
-  width: 20px;
-  height: 20px;
+  width: 19px;
+  height: 19px;
   flex-shrink: 0;
   border-radius: 5px;
   border: 1.5px solid rgba(83, 1, 38, 0.28);
   background: var(--hh-white);
   color: var(--hh-white);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -166,7 +238,7 @@
 }
 
 .today-task-title {
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   color: var(--hh-ink);
 }
 
@@ -176,7 +248,7 @@
 }
 
 .today-task-meta {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--hh-ink);
   opacity: 0.6;
   margin-top: 2px;
@@ -192,9 +264,9 @@
 }
 
 .today-pill {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  padding: 3px 10px;
+  padding: 3px 9px;
   border-radius: 999px;
   flex-shrink: 0;
 }
@@ -209,9 +281,86 @@
   color: #7a5c1f;
 }
 
-.today-assignee {
-  width: 26px;
-  height: 26px;
+/* ---- Compact mini-list used by Payments owed / Deadlines this week ---- */
+.today-mini-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.today-mini-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.06);
+}
+
+.today-mini-row:last-child {
+  border-bottom: none;
+}
+
+.today-mini-date {
+  font-family: var(--hh-font-heading);
+  font-weight: 600;
+  font-size: 0.76rem;
+  color: var(--hh-burgundy);
+  flex-shrink: 0;
+  min-width: 44px;
+}
+
+.today-mini-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.today-mini-title {
+  font-size: 0.84rem;
+  color: var(--hh-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-mini-meta {
+  font-size: 0.74rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}
+
+.today-mini-meta a {
+  color: var(--hh-burgundy);
+  text-decoration: none;
+}
+
+.today-mini-meta a:hover {
+  text-decoration: underline;
+}
+
+/* ---- Recent activity: one line per note, snippet + relative time, not
+   the full case-note body — this is the glance view, not the case file. ---- */
+.today-activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.today-activity {
+  display: flex;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.06);
+}
+
+.today-activity:last-child {
+  border-bottom: none;
+}
+
+.today-activity-avatar {
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
   border-radius: 50%;
   background: rgba(184, 154, 90, 0.25);
@@ -219,49 +368,54 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
 }
 
-.today-deadline {
+.today-activity-text {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  gap: 14px;
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(83, 1, 38, 0.06);
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.today-deadline:last-child {
-  border-bottom: none;
+.today-activity-line {
+  font-size: 0.84rem;
+  color: var(--hh-ink);
+  opacity: 0.85;
+  overflow-wrap: anywhere;
 }
 
-.today-deadline-date {
-  font-family: var(--hh-font-heading);
-  font-weight: 600;
-  font-size: 0.85rem;
+.today-activity-line a {
   color: var(--hh-burgundy);
+}
+
+.today-activity-time {
+  font-size: 0.72rem;
+  color: var(--hh-ink);
+  opacity: 0.45;
   flex-shrink: 0;
-  min-width: 62px;
-  border-left: 3px solid var(--hh-gold);
-  padding-left: 10px;
-}
-
-.today-deadline-title {
-  font-size: 0.88rem;
-  color: var(--hh-ink);
-}
-
-.today-deadline-meta {
-  font-size: 0.78rem;
-  color: var(--hh-ink);
-  opacity: 0.6;
-  margin-top: 2px;
+  white-space: nowrap;
 }
 
 @media (max-width: 1150px) {
   .today-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .today-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .today-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .today-grid {
-    grid-template-columns: 1fr;
+  .today-activity-text {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
   }
 }

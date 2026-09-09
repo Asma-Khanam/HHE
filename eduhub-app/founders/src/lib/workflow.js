@@ -52,11 +52,12 @@ export function fitLabel(key) {
   return FIT_OPTIONS.find((f) => f.key === key)?.label || "";
 }
 
-// Document review states. 'received' is what the family's own upload writes,
-// so it means "they've given us this, nobody has checked it."
+// Document review states. 'received' is what the family's own upload
+// writes, and counts as done on its own — no separate "verified" click
+// needed. 'chasing'/'pending' are only for flagging something wrong or
+// still owed.
 export const DOCUMENT_STATUSES = [
-  { key: "received", label: "Not checked" },
-  { key: "verified", label: "Verified" },
+  { key: "received", label: "Received" },
   { key: "chasing", label: "Chasing" },
   { key: "pending", label: "Pending" },
 ];

@@ -21,17 +21,48 @@
 // certificate the family already said they don't have, SEN reports for a
 // child with no SEN) — those never appear on the outstanding list.
 
+// SEN-03 (September 2026 change request) — its own, slightly wider accepted
+// list (adds HEIC/HEIF, the format an iPhone saves photos as by default) and
+// its own 20MB-per-file limit, scoped to this one upload slot rather than
+// changed globally — nothing in the document checklist elsewhere in the app
+// asked for either of these. Declared up here, ahead of CHILD_DOCUMENT_TYPES
+// below, since that list references these constants.
+export const ACCEPTED_SEN_DOCUMENT_EXTENSIONS = ".pdf,.doc,.docx,.jpg,.jpeg,.png,.heic,.heif";
+
+const ACCEPTED_SEN_DOCUMENT_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "image/png",
+  "image/heic",
+  "image/heif",
+];
+const ACCEPTED_SEN_DOCUMENT_EXTS = ["pdf", "doc", "docx", "jpg", "jpeg", "png", "heic", "heif"];
+
+export function isAcceptedSenDocumentFile(file) {
+  if (!file) return false;
+  if (file.type && ACCEPTED_SEN_DOCUMENT_MIME_TYPES.includes(file.type)) return true;
+  const name = file.name || "";
+  const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
+  return ACCEPTED_SEN_DOCUMENT_EXTS.includes(ext);
+}
+
+export const ACCEPTED_SEN_DOCUMENT_MESSAGE = "Only PDF, Word (.doc/.docx), JPG, PNG, or HEIC files are accepted.";
+
+export const SEN_DOCUMENT_MAX_SIZE_BYTES = 20 * 1024 * 1024;
+export const SEN_DOCUMENT_MAX_SIZE_MESSAGE = "Files need to be 20MB or smaller.";
+
 export const CHILD_DOCUMENT_TYPES = [
   { key: "birth_certificate", label: "Birth certificate", expected: true },
   { key: "passport", label: "Passport copy", expected: true },
   { key: "passport_photo", label: "Passport-size photo", expected: true },
   { key: "eid", label: "Emirates ID (front and back)", expected: true, hint: "Once obtained — upload both sides.", multiple: true },
-  { key: "visa", label: "Visa copy", expected: true, hint: "Once issued." },
   { key: "vaccination_record", label: "Vaccination record", expected: true, hint: "Recommended if available." },
-  { key: "psychology_report", label: "Psychology report / EHCP", expected: false, hint: "If applicable." },
-  // achievement_certificate and sen_supporting_documents are never shown in
-  // the main checklist below (ApplicationForm.jsx filters both out) — they
-  // render inline next to "Sports achievements" and the SEN question instead.
+  // achievement_certificate, sen_supporting_documents, and
+  // sen_general_documents are never shown in the main checklist below
+  // (ApplicationForm.jsx filters all three out) — they render inline next to
+  // "Sports achievements" and inside the SEN and inclusion section instead.
   { key: "achievement_certificate", label: "Achievement certificate", expected: false, hint: "Optional." },
   {
     key: "sen_supporting_documents",
@@ -40,6 +71,24 @@ export const CHILD_DOCUMENT_TYPES = [
     conditional: true,
     multiple: true,
     hint: "Reports, assessments, or plans — optional.",
+  },
+  // SEN-03 (September 2026 change request) — "Document upload", a general,
+  // multi-file catch-all for the SEN and inclusion section. DU-03 moves the
+  // old standalone "Psychology report / EHCP" slot here (same key kept, so
+  // any file a family already uploaded under it stays exactly where it is)
+  // rather than retiring it and losing that upload.
+  {
+    key: "psychology_report",
+    label: "Please upload anything you are happy to share",
+    expected: false,
+    conditional: true,
+    multiple: true,
+    hint: "Reports more than three years old still help us. Nothing is shared with a school without your written permission.",
+    acceptExtensions: ACCEPTED_SEN_DOCUMENT_EXTENSIONS,
+    acceptCheck: isAcceptedSenDocumentFile,
+    acceptMessage: ACCEPTED_SEN_DOCUMENT_MESSAGE,
+    maxSizeBytes: SEN_DOCUMENT_MAX_SIZE_BYTES,
+    maxSizeMessage: SEN_DOCUMENT_MAX_SIZE_MESSAGE,
   },
   {
     key: "school_reports",

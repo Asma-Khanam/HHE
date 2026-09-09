@@ -1,3 +1,18 @@
+/* BUD-05 (September 2026 change request) — same amber "worth a look, not a
+   problem" treatment as the family detail page's flag, kept small enough to
+   sit next to the stage badge on the caseload table. */
+.families-flag-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(184, 154, 90, 0.18);
+  color: #7a6228;
+  vertical-align: middle;
+}
+
 .families-page-header {
   display: flex;
   align-items: flex-start;

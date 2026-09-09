@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Relocate — Document Bridge</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <header class="head">
+      <img src="icons/icon-48.png" alt="" class="head-mark" />
+      <div>
+        <h1>Document Bridge</h1>
+        <p id="head-sub">Heather Harries Relocate</p>
+      </div>
+      <button id="signout" class="linkbtn" hidden>Sign out</button>
+    </header>
+
+    <div id="error" class="banner" hidden></div>
+    <div id="notice" class="banner banner-good" hidden></div>
+
+    <!-- 1 · sign in -->
+    <section id="view-login" hidden>
+      <p class="lead">Sign in with your consultant account — the same one you use for the desk.</p>
+      <form id="login-form">
+        <label>Email<input type="email" id="email" autocomplete="username" required /></label>
+        <label>Password<input type="password" id="password" autocomplete="current-password" required /></label>
+        <button type="submit" class="primary" id="login-btn">Sign in</button>
+      </form>
+    </section>
+
+    <!-- 2 · pick a family -->
+    <section id="view-families" hidden>
+      <input type="search" id="search" placeholder="Search families or children" />
+      <ul id="family-list" class="list"></ul>
+      <p id="families-empty" class="hint" hidden>No families match that.</p>
+    </section>
+
+    <!-- 3 · that family's documents -->
+    <section id="view-docs" hidden>
+      <button id="back" class="linkbtn">‹ All families</button>
+      <h2 id="family-name"></h2>
+      <p class="hint">
+        Open the school's application form in this tab, then pick a document. If the page has more than
+        one upload field you'll be asked which.
+      </p>
+      <div id="doc-groups"></div>
+    </section>
+
+    <p id="loading" class="hint">Loading…</p>
+
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>

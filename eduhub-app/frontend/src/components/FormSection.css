@@ -35,9 +35,17 @@
   font-size: 0.9rem;
 }
 
+/* auto-fit/minmax rather than a fixed 2-column grid that only dropped to 1
+   column at exactly 720px: a hard cliff like that meant every field's
+   column kept shrinking right up until the jump, squeezing anything with
+   its own fixed-width parts (a phone field's country code, for instance)
+   into overflowing its box before the layout ever got a chance to react.
+   This way each column simply won't go narrower than 240px — the grid
+   drops to one column on its own, at whatever width that actually happens
+   to be for the content on screen, and never has to "bleed" to get there. */
 .hh-form-section-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 0 24px;
 }
 
@@ -48,9 +56,5 @@
 @media (max-width: 720px) {
   .hh-form-section {
     padding: 22px 18px;
-  }
-
-  .hh-form-section-grid {
-    grid-template-columns: 1fr;
   }
 }

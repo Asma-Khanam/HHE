@@ -1,0 +1,139 @@
+.pay-card {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 22px 26px;
+  margin-bottom: 24px;
+  transition: box-shadow var(--hh-transition);
+}
+
+.pay-card:hover {
+  box-shadow: var(--hh-shadow-hover);
+}
+
+.pay-card-header h3 {
+  margin: 0;
+  font-family: var(--hh-font-heading);
+  font-size: 1.02rem;
+  color: var(--hh-burgundy);
+}
+
+.pay-card-count {
+  color: var(--hh-ink);
+  opacity: 0.5;
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+
+.pay-card-error {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: var(--hh-error);
+}
+
+.pay-card-hint {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}
+
+.pay-card-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  border-top: 1px solid rgba(83, 1, 38, 0.1);
+}
+
+.pay-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.1);
+  flex-wrap: wrap;
+}
+
+.pay-card-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pay-card-row-label {
+  font-family: var(--hh-font-heading);
+  font-size: 0.92rem;
+  color: var(--hh-ink);
+}
+
+.pay-card-row-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pay-card-row-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+}
+
+.pay-card-row-tag-muted {
+  background: rgba(83, 1, 38, 0.04);
+  color: var(--hh-ink);
+  opacity: 0.6;
+  font-weight: 500;
+}
+
+.pay-card-row-status {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+.pay-card-row-status.is-due {
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+}
+.pay-card-row-status.is-pending {
+  background: #fff4dd;
+  color: #9a6b00;
+}
+.pay-card-row-status.is-good {
+  background: var(--hh-good-bg);
+  color: var(--hh-good);
+}
+.pay-card-row-status.is-muted {
+  background: rgba(83, 1, 38, 0.04);
+  color: var(--hh-ink);
+  opacity: 0.6;
+}
+
+.pay-card-row-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pay-card-btn {
+  border: 1px solid var(--hh-track);
+  background: var(--hh-white);
+  color: var(--hh-ink);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pay-card-btn-primary {
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  border: none;
+}

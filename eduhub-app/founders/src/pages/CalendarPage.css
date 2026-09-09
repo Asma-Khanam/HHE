@@ -1,0 +1,333 @@
+.cal-page {
+  max-width: 1200px;
+}
+
+.cal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.cal-title {
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  font-size: 1.7rem;
+  font-weight: 700;
+  margin: 0;
+}
+.cal-title span {
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+.cal-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cal-filter {
+  border: 1px solid var(--hh-track);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  background: var(--hh-white);
+  color: var(--hh-ink);
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  background: var(--hh-white);
+  border: 1px solid var(--hh-track);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.cal-nav button {
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--hh-burgundy);
+}
+.cal-nav button:hover {
+  background: var(--hh-cream);
+}
+.cal-today-btn {
+  border-left: 1px solid var(--hh-track);
+  border-right: 1px solid var(--hh-track);
+  font-size: 0.85rem !important;
+}
+
+.cal-new-btn {
+  border: none;
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--hh-transition);
+}
+.cal-new-btn:hover {
+  background: var(--hh-burgundy-light);
+}
+
+.cal-error {
+  background: #fbeceb;
+  color: var(--hh-error);
+  border-radius: var(--hh-radius);
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  margin-bottom: 14px;
+}
+
+.cal-loading {
+  text-align: center;
+  color: var(--hh-ink);
+  opacity: 0.5;
+  font-size: 0.85rem;
+  padding: 10px;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  background: var(--hh-track);
+  border: 1px solid var(--hh-track);
+  border-radius: var(--hh-radius);
+  overflow: hidden;
+  box-shadow: var(--hh-shadow);
+  gap: 1px;
+}
+
+.cal-weekday {
+  background: var(--hh-white);
+  padding: 10px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hh-burgundy);
+  opacity: 0.7;
+}
+
+.cal-cell {
+  background: var(--hh-white);
+  min-height: 108px;
+  padding: 8px;
+  cursor: pointer;
+  transition: background var(--hh-transition);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cal-cell:hover {
+  background: var(--hh-cream);
+}
+.cal-cell.is-outside {
+  background: #faf8f7;
+}
+.cal-cell.is-outside .cal-daynum {
+  opacity: 0.35;
+}
+
+.cal-daynum {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--hh-ink);
+  align-self: flex-start;
+}
+.cal-daynum.is-today {
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+}
+
+.cal-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cal-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-size: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+  color: var(--hh-white);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.cal-pill-client {
+  opacity: 0.85;
+  font-weight: 600;
+  font-size: 0.65rem;
+}
+
+.kind-task { background: var(--hh-good); }
+.kind-reminder { background: var(--hh-gold); }
+.kind-deadline { background: var(--hh-burgundy); }
+.kind-team { background: #3b5a7a; }
+.kind-other { background: #7a7a7a; }
+.kind-visit { background: #2f7a5c; }
+
+.cal-pill.is-done {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.cal-more {
+  font-size: 0.68rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+  padding-left: 3px;
+}
+
+/* Modal */
+.cal-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(42, 17, 25, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 20px;
+}
+
+.cal-modal {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow-hover);
+  padding: 26px 28px;
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cal-modal h2 {
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  margin: 0 0 4px;
+  font-size: 1.2rem;
+}
+
+.cal-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--hh-ink);
+}
+
+.cal-modal input[type="text"],
+.cal-modal input[type="date"],
+.cal-modal select,
+.cal-modal textarea {
+  border: 1px solid var(--hh-track);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 0.9rem;
+  font-family: var(--hh-font-body);
+  color: var(--hh-ink);
+  resize: vertical;
+}
+
+.cal-modal-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.cal-checkbox-row {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+}
+.cal-checkbox-row input {
+  width: auto;
+}
+
+.cal-hint {
+  margin: -8px 0 0;
+  font-size: 0.75rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}
+
+.cal-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.cal-modal-actions-right {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.cal-modal-actions button {
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--hh-track);
+  background: var(--hh-white);
+  color: var(--hh-ink);
+}
+
+.cal-save-btn {
+  background: var(--hh-burgundy) !important;
+  color: var(--hh-white) !important;
+  border: none !important;
+}
+
+.cal-delete-btn {
+  background: transparent !important;
+  color: var(--hh-error) !important;
+  border: none !important;
+}
+
+@media (max-width: 720px) {
+  .cal-modal-row {
+    grid-template-columns: 1fr;
+  }
+  .cal-cell {
+    min-height: 72px;
+  }
+}

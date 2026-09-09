@@ -23,14 +23,17 @@
   margin-bottom: 6px;
 }
 
+/* Each document slot stacks its label above its file(s)/upload control
+   rather than sitting side by side — a fixed two-column row is what used
+   to force everything to crowd up and overlap once the window narrowed, no
+   matter how many files, term/year selects, or buttons a given slot had. A
+   single column always has room to simply wrap, at any width. */
 .doc-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 0;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 0;
   border-bottom: 1px solid rgba(83, 1, 38, 0.08);
-  flex-wrap: wrap;
 }
 
 .doc-row:last-child {
@@ -41,7 +44,7 @@
   background: rgba(184, 154, 90, 0.09);
   border-bottom-color: rgba(184, 154, 90, 0.28);
   margin: 0 -14px;
-  padding: 12px 14px;
+  padding: 14px;
   border-radius: 6px;
 }
 
@@ -49,7 +52,6 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 200px;
 }
 
 .doc-row-label {
@@ -77,13 +79,15 @@
 
 .doc-row-action {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .doc-row-filename {
-  max-width: 180px;
+  flex: 1 1 140px;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -134,19 +138,55 @@
   background: rgba(179, 38, 30, 0.08);
 }
 
-/* Multi-file slots stack each uploaded file on its own line, "Add another"
-   button underneath — rather than the single label+action row a one-file
-   slot uses. */
+/* Multi-file slots stack each uploaded file in its own neat card, "Add
+   another" button underneath, left-aligned throughout — nothing here is
+   pinned to the right edge any more, so wrapping at any width just adds
+   lines rather than crowding everything into one. */
 .doc-row-action-stack {
   flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
+  align-items: stretch;
+  gap: 10px;
 }
 
 .doc-row-file {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 8px 12px;
+  background: var(--hh-cream);
+  border-radius: 8px;
+  padding: 8px 12px;
+  width: 100%;
+}
+
+/* DU-04: the term/academic-year labels shown next to each school report. */
+.doc-row-file-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.doc-row-file-labels select {
+  font-family: var(--hh-font-body);
+  font-size: 0.78rem;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(83, 1, 38, 0.25);
+  background: var(--hh-white);
+  color: var(--hh-ink);
+  max-width: 100%;
+}
+
+/* View/Download/Remove move as one unit — either they fit on the filename's
+   line, or the whole group drops to its own line together. */
+.doc-row-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.doc-row-action-stack .doc-row-btn-upload {
+  align-self: flex-start;
 }

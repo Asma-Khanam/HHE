@@ -1,0 +1,142 @@
+.team-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 780px;
+}
+
+.team-page-title {
+  font-family: var(--hh-font-heading);
+  font-size: 1.6rem;
+  color: var(--hh-burgundy);
+  margin: 0;
+}
+
+.team-page-subtitle {
+  margin: -12px 0 0;
+  color: var(--hh-ink);
+  opacity: 0.65;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.team-add-form {
+  flex-wrap: wrap;
+}
+
+.team-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.06);
+  flex-wrap: wrap;
+}
+
+.team-row:last-child {
+  border-bottom: none;
+}
+
+.team-row-avatar {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--hh-gold);
+  color: var(--hh-burgundy);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.team-row-info {
+  flex: 1;
+  min-width: 180px;
+}
+
+.team-row-name {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--hh-ink);
+}
+
+.team-row-you {
+  font-weight: 400;
+  opacity: 0.55;
+}
+
+.team-row-meta {
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+  margin-top: 2px;
+}
+
+.team-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.team-row-remove {
+  border-color: rgba(179, 38, 30, 0.35);
+  color: var(--hh-error);
+}
+
+.team-row-remove:hover:not(:disabled) {
+  background: rgba(179, 38, 30, 0.08);
+}
+
+/* ---- Pending signups ---- */
+
+.team-row-pending {
+  align-items: flex-start;
+}
+
+.team-row-avatar-pending {
+  background: rgba(184, 154, 90, 0.25);
+  color: var(--hh-burgundy);
+}
+
+.team-row-controls-pending {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.team-row-controls-pending .panel-input {
+  width: 150px;
+}
+
+/* ---- Position (job title) — shown as a plain-text tag next to the role
+   control, editable in place so it doesn't need its own dialog. ---- */
+
+.team-row-position {
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.team-row-position:hover {
+  opacity: 1;
+  background: rgba(83, 1, 38, 0.05);
+}
+
+.team-row-position-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.team-row-position-edit .panel-input {
+  width: 130px;
+}

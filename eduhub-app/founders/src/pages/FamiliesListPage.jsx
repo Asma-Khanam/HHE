@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listFamilies, shortId, getCurrentStaff, friendlyError } from "../lib/staffData";
 import { PIPELINE_STAGES, stageIndex, stageLabel, isOverdue } from "../lib/workflow";
+import { packageLabel } from "../data/packages";
 import "./FamiliesListPage.css";
 
 // The six-segment progress bar from the reference's Caseload table — filled
@@ -23,6 +24,15 @@ export function StageDots({ stage }) {
 function needsAttention(family) {
   if (family.nextTask && isOverdue(family.nextTask.due_date)) return true;
   return family.intake_status !== "submitted";
+}
+
+// BUD-05 (September 2026 change request): "Any answer other than 'No thank
+// you' should flag on the family record so our team follows it up." — kept
+// visible on the caseload table itself, not just on the family's own page,
+// so nobody has to open every record to find who asked for guidance.
+function wantsCostGuidanceFollowup(family) {
+  const v = (family.cost_guidance_response || "").trim();
+  return v !== "" && v !== "No thank you";
 }
 
 export default function FamiliesListPage() {
@@ -150,7 +160,7 @@ export default function FamiliesListPage() {
                         <span className="families-table-name">{family.displayName}</span>
                         <span className="families-cell-sub">
                           <code>{shortId(family.id)}</code>
-                          {family.membership_type ? ` · ${family.membership_type}` : ""}
+                          {family.membership_type ? ` · ${packageLabel(family.membership_type)}` : ""}
                           {family.origin ? ` · ${family.origin} → ${family.destination || "UAE"}` : ""}
                         </span>
                       </span>
@@ -181,6 +191,11 @@ export default function FamiliesListPage() {
                     <span className={"families-badge stage-" + (family.pipeline_stage || "enquiry")}>
                       {stageLabel(family.pipeline_stage)}
                     </span>
+                    {wantsCostGuidanceFollowup(family) && (
+                      <span className="families-flag-badge" title="Wants cost guidance — follow up">
+                        Cost guidance
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

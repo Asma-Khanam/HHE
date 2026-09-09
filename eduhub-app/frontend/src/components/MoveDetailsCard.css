@@ -1,0 +1,66 @@
+.move-card {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 18px 22px 20px;
+  margin-bottom: 24px;
+}
+
+.move-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.move-card-head h3 {
+  margin: 0;
+  font-family: var(--hh-font-heading);
+  font-size: 1.02rem;
+  color: var(--hh-burgundy);
+}
+
+.move-card-saved {
+  font-size: 0.76rem;
+  color: var(--hh-good);
+}
+
+.move-card-error {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: var(--hh-error);
+}
+
+.move-card-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.move-card-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--hh-ink);
+  opacity: 0.75;
+  flex: 1 1 200px;
+  min-width: 180px;
+}
+
+.move-card-row input {
+  font-family: var(--hh-font-body);
+  font-size: 0.9rem;
+  font-weight: 400;
+  padding: 9px 12px;
+  border: 1px solid rgba(83, 1, 38, 0.15);
+  border-radius: 8px;
+  color: var(--hh-ink);
+  outline: none;
+}
+
+.move-card-row input:focus {
+  border-color: var(--hh-gold);
+  box-shadow: 0 0 0 3px rgba(184, 154, 90, 0.18);
+}

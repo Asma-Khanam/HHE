@@ -93,6 +93,16 @@ export async function uploadDocument({ userId, ownerType, ownerId, documentType,
   return data;
 }
 
+// DU-04 (September 2026 change request) — edits a document row's term/
+// academic-year label in place, without touching the file itself. Used for
+// school reports, so each one can be told apart in the admin area "at a
+// glance" without opening it.
+export async function updateDocumentLabels(docId, patch) {
+  const { data, error } = await supabase.from("documents").update(patch).eq("id", docId).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function deleteDocument(doc) {
   if (doc.file_url) {
     await supabase.storage.from(BUCKET).remove([doc.file_url]);

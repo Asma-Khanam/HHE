@@ -26,14 +26,6 @@ export const NATIONALITIES = [
 // Picking "Other" (added automatically by FormSelect) reveals a text box,
 // and whatever's typed there is what gets saved — so this list never has to
 // be exhaustive.
-export const RELIGIONS = [
-  "Islam",
-  "Christianity",
-  "Hinduism",
-  "Buddhism",
-  "Sikhism",
-  "Judaism",
-];
 
 export const LANGUAGES = [
   "Amharic", "Arabic", "Bengali", "Cantonese", "Dutch", "English", "Farsi / Persian",
@@ -171,8 +163,14 @@ export const ACADEMIC_YEARS = (() => {
 // Grade always runs one behind the Year — Year 2 = Grade 1, Year 3 = Grade 2,
 // and so on up to Year 13 = Grade 12. Corrected 2026-09-02 on founder
 // feedback; the old list paired every Year with the same-numbered Grade.
+//
+// CH-06a (September 2026 change request): FS1 and FS2 each carry the name a
+// family arriving from the UK would actually search for, alongside the one
+// already used here — "families arriving from the UK look for Reception,
+// and families already here look for FS2." FS1/FS2 stay first, in that
+// order, so the youngest applicants aren't lost off the top of the list.
 export const YEAR_GROUPS = [
-  "FS1", "FS2", "Year 1", "Year 2 / Grade 1", "Year 3 / Grade 2",
+  "FS1 / Pre-KG / Nursery", "FS2 / Reception", "Year 1", "Year 2 / Grade 1", "Year 3 / Grade 2",
   "Year 4 / Grade 3", "Year 5 / Grade 4", "Year 6 / Grade 5", "Year 7 / Grade 6",
   "Year 8 / Grade 7", "Year 9 / Grade 8", "Year 10 / Grade 9", "Year 11 / Grade 10",
   "Year 12 / Grade 11", "Year 13 / Grade 12",
@@ -202,12 +200,28 @@ export const ENGLISH_PROFICIENCY_LEVELS = [
   "None yet",
 ];
 
+// CS-03 (September 2026 change request). No literal "Other" entry here —
+// FormSelect already adds its own working "Other" option to every dropdown
+// built from these lists, satisfying the document's "Other, please tell us"
+// requirement on its own. Keeping a second, hardcoded "Other" in the array
+// itself just duplicates the row: the real one (FormSelect's) reveals the
+// text box, the hardcoded one is a normal, dead-end option that looks
+// identical and does nothing when picked.
+//
+// The two "reasons that reveal a text box" (REASONS_FOR_LEAVING_WITH_DETAILS
+// below) also need a "Please tell us a little more" box underneath — unlike
+// Other, they're real, known options, so FormSelect's own text box doesn't
+// apply to them; ApplicationForm.jsx shows that box conditionally.
 export const REASONS_FOR_LEAVING = [
-  "Relocating to a new area or country",
-  "Seeking a different curriculum",
-  "Current school doesn't offer the year group needed",
-  "Family's preference for a change",
-  "Other",
+  "Relocating to a new country",
+  "Looking for a different curriculum",
+  "The school is no longer the right fit for our child",
+  "Pastoral, wellbeing or inclusion",
+];
+
+export const REASONS_FOR_LEAVING_WITH_DETAILS = [
+  "The school is no longer the right fit for our child",
+  "Pastoral, wellbeing or inclusion",
 ];
 
 // A phone number only ever stores its dial code, never which country it came

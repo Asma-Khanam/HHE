@@ -4,6 +4,9 @@ import Login from "./pages/Login";
 import TodayPage from "./pages/TodayPage";
 import FamiliesListPage from "./pages/FamiliesListPage";
 import FamilyDetailPage from "./pages/FamilyDetailPage";
+import CalendarPage from "./pages/CalendarPage";
+import TeamPage from "./pages/TeamPage";
+import SettingsPage from "./pages/SettingsPage";
 import RequireStaff from "./components/RequireStaff";
 import StaffShell from "./components/StaffShell";
 
@@ -26,6 +29,9 @@ function App() {
         <Route path="today" element={<TodayPage />} />
         <Route path="families" element={<FamiliesListPage />} />
         <Route path="families/:familyId" element={<FamilyDetailPage />} />
+        <Route path="calendar" element={<CalendarPage />} />
+        <Route path="team" element={<TeamPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   );

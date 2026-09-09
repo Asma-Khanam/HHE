@@ -6,6 +6,12 @@ import { CHILD_DOCUMENT_TYPES, PARENT_DOCUMENT_TYPES } from "../data/documentTyp
 // numbers. Everything reads from the same list so they can never disagree
 // with each other about what's still missing.
 //
+// This is a synced copy of frontend/src/lib/completeness.js — the two apps
+// share the same completeness rules but not a build, so a change on one
+// side has to be copied to the other by hand. Last synced 2026-09-09, to
+// bring in AH-09 (school priorities), AH-10 (fee range), and BUD-01
+// (budget status) — see that file's history for anything older.
+//
 // CHANGED 2026-09-02 (founder feedback): documents no longer block Submit.
 // A family waiting on a visa, an Emirates ID, or a leaving certificate the
 // school hasn't issued yet can submit today and upload the rest as it
@@ -22,7 +28,6 @@ export const PARENT_REQUIRED_FIELDS = [
   { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
   { key: "nationality", label: "Nationality" },
-  { key: "religion", label: "Religion" },
   { key: "address", label: "Address" },
 ];
 
@@ -36,7 +41,10 @@ export const CHILD_REQUIRED_FIELDS = [
   { key: "full_name", label: "Full name" },
   { key: "date_of_birth", label: "Date of birth" },
   { key: "nationality", label: "Nationality" },
-  { key: "religion", label: "Religion" },
+  // SEN-04/SEN-07 (September 2026 change request) — kept in sync with the
+  // frontend's copy of this same list.
+  { key: "sen_intervention_status", label: "Taken out of class for intervention or support?" },
+  { key: "sen_lsa_status", label: "Learning Support Assistant or shadow teacher" },
 ];
 
 // Current-school fields that are real, already-saved columns — kept
@@ -64,11 +72,22 @@ function parentStepKey(index) {
 // certificate they've already told us doesn't exist yet, or SEN paperwork
 // for a child with no SEN, isn't "outstanding" — it simply doesn't apply,
 // and listing it would just be noise on the Dashboard.
-function expectedChildDocTypes(child) {
+// SEN-01 (September 2026 change request) replaced the old has_sen Yes/No
+// question with a 5-option status question — supporting documents are only
+// worth asking for once a child actually has a diagnosis or an assessment
+// underway. Keep in sync with the frontend's copy of this same condition.
+function childSenNeedsSupportingDocs(child) {
+  return (
+    child?.sen_status === "Yes, formally identified or diagnosed" ||
+    child?.sen_status === "Yes, assessment is currently in progress"
+  );
+}
+
+export function expectedChildDocTypes(child) {
   return CHILD_DOCUMENT_TYPES.filter((d) => {
     if (!d.expected) return false;
     if (d.key === "leaving_certificate") return child?.has_transfer_certificate === "Yes";
-    if (d.key === "sen_supporting_documents") return child?.has_sen === "Yes";
+    if (d.key === "sen_supporting_documents") return childSenNeedsSupportingDocs(child);
     return true;
   });
 }
@@ -76,7 +95,7 @@ function expectedChildDocTypes(child) {
 // Parent document slots only count once that parent actually exists on the
 // application — an unnamed second parent shouldn't generate outstanding
 // document rows for a person who may not be part of this application at all.
-function expectedParentDocTypes(parent, isHolder) {
+export function expectedParentDocTypes(parent, isHolder) {
   if (!isHolder && !isFilled(parent?.full_name)) return [];
   return PARENT_DOCUMENT_TYPES.filter((d) => d.expected);
 }
@@ -88,8 +107,61 @@ function expectedParentDocTypes(parent, isHolder) {
 // person actually filling out and submitting this application; only their
 // side is fully required, per the 2026-08-27 decision to keep the other
 // parent optional-but-named.
-export function getMissingItems({ parents, accountHolderRole, children, currentSchools }) {
+export function getMissingItems({
+  parents,
+  accountHolderRole,
+  children,
+  currentSchools,
+  schoolPriorities,
+  comfortableFeeRange,
+  budgetStatus,
+}) {
   const missing = [];
+
+  // AH-09: family-level, not tied to any one person's card — exactly 5
+  // required, per the document ("the parent selects and orders exactly
+  // five"). No stepKey owns this one, same as the old family home-address
+  // check, so a missing one sends the family to the overview rather than to
+  // a specific person's card (see handleSubmitApplication in
+  // ApplicationForm.jsx on the family-facing side).
+  if ((schoolPriorities || []).length !== 5) {
+    missing.push({
+      stepKey: "family",
+      label: "Rank your top 5 school priorities",
+      kind: "field",
+      owner: "family",
+      field: "school_priorities",
+      fieldKey: "family-school_priorities",
+    });
+  }
+
+  // AH-10: same family-level shape as AH-09 — one required single-select,
+  // owned by nobody's card in particular.
+  if (!isFilled(comfortableFeeRange)) {
+    missing.push({
+      stepKey: "family",
+      label: "Comfortable annual fee range",
+      kind: "field",
+      owner: "family",
+      field: "comfortable_fee_range",
+      fieldKey: "family-comfortable_fee_range",
+    });
+  }
+
+  // BUD-01: the first question of the "Budget and relocation planning"
+  // section (Section 3) — unlike AH-09/AH-10 this one gets its own card and
+  // step on the family-facing side, so its stepKey points there directly
+  // instead of falling back to the overview.
+  if (!isFilled(budgetStatus)) {
+    missing.push({
+      stepKey: "budget",
+      label: "Have you set a budget for the move?",
+      kind: "field",
+      owner: "family",
+      field: "budget_status",
+      fieldKey: "family-budget_status",
+    });
+  }
 
   (parents || []).forEach((p, i) => {
     const isHolder = p?.relationship === accountHolderRole;
@@ -216,7 +288,7 @@ export function getIncompleteStepKeys(missingItems) {
 // uploaded genuinely isn't finished, and a bar reading 100% in that state is
 // exactly the "dashboard out of sync with itself" problem from round 5.
 export function getTotalTrackedCount({ parents, accountHolderRole, children }) {
-  let total = 0;
+  let total = 3; // AH-09's ranking question + AH-10's fee-range question + BUD-01's budget-status question
   (parents || []).forEach((p) => {
     const isHolder = p?.relationship === accountHolderRole;
     total += isHolder ? PARENT_REQUIRED_FIELDS.length : NON_HOLDER_REQUIRED_FIELDS.length;
@@ -232,10 +304,27 @@ export function getTotalTrackedCount({ parents, accountHolderRole, children }) {
 
 // A single 0–100 readiness number — items done vs. items tracked, fields and
 // documents counted together.
-export function getReadinessPct({ parents, accountHolderRole, children, currentSchools, documentsByOwner }) {
+export function getReadinessPct({
+  parents,
+  accountHolderRole,
+  children,
+  currentSchools,
+  documentsByOwner,
+  schoolPriorities,
+  comfortableFeeRange,
+  budgetStatus,
+}) {
   const total = getTotalTrackedCount({ parents, accountHolderRole, children });
   if (!total) return 100;
-  const missingFields = getMissingItems({ parents, accountHolderRole, children, currentSchools }).length;
+  const missingFields = getMissingItems({
+    parents,
+    accountHolderRole,
+    children,
+    currentSchools,
+    schoolPriorities,
+    comfortableFeeRange,
+    budgetStatus,
+  }).length;
   const missingDocs = getOutstandingDocuments({ parents, accountHolderRole, children, documentsByOwner }).length;
   const done = total - missingFields - missingDocs;
   return Math.max(0, Math.min(100, Math.round((done / total) * 100)));
@@ -245,7 +334,7 @@ export function getReadinessPct({ parents, accountHolderRole, children, currentS
 // per "mother" / "father" / "child-{i}" key, each { total, missingCount, pct }.
 // Built from the same two functions above, so a card's progress bar can never
 // disagree with the Dashboard.
-export function getStepBreakdown({ parents, accountHolderRole, children, currentSchools, documentsByOwner }) {
+export function getStepBreakdown({ parents, accountHolderRole, children, currentSchools, documentsByOwner, budgetStatus }) {
   const tracked = [
     ...getMissingItems({ parents, accountHolderRole, children, currentSchools }),
     ...getOutstandingDocuments({ parents, accountHolderRole, children, documentsByOwner }),
@@ -277,6 +366,14 @@ export function getStepBreakdown({ parents, accountHolderRole, children, current
     const pct = total ? Math.round(((total - missingCount) / total) * 100) : 100;
     breakdown[stepKey] = { total, missingCount, pct };
   });
+
+  // BUD-01 gets its own card on the family-facing side, same as a parent or
+  // a child — computed directly rather than through the shared `tracked`
+  // list above, since that list is built without schoolPriorities/
+  // comfortableFeeRange/budgetStatus and would otherwise always read as
+  // "missing" regardless of the real value.
+  const budgetMissing = isFilled(budgetStatus) ? 0 : 1;
+  breakdown.budget = { total: 1, missingCount: budgetMissing, pct: budgetMissing ? 0 : 100 };
 
   return breakdown;
 }

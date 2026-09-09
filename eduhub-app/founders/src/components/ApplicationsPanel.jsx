@@ -154,39 +154,48 @@ export default function ApplicationsPanel({ familyChildren, applicationsByChild,
                         {application.fit ? fitLabel(application.fit) : "Fit not judged yet"}
                       </span>
                     </span>
-                    <Progress status={application.status} />
-                    <select
-                      className="panel-select"
-                      value={application.fit || ""}
-                      onChange={(e) => patch(child.id, application, { fit: e.target.value || null })}
-                      title="How good a fit is this school?"
-                    >
-                      <option value="">Fit…</option>
-                      {FIT_OPTIONS.map((f) => (
-                        <option key={f.key} value={f.key}>
-                          {f.label}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="panel-select"
-                      value={application.status}
-                      onChange={(e) => patch(child.id, application, { status: e.target.value })}
-                    >
-                      {APPLICATION_STATUSES.map((s) => (
-                        <option key={s.key} value={s.key}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className="panel-btn panel-btn-quiet"
-                      onClick={() => handleRemove(child.id, application)}
-                      title="Remove this application"
-                    >
-                      ✕
-                    </button>
+                    <span className="app-row-controls">
+                      <Progress status={application.status} />
+                      <input
+                        type="date"
+                        className="panel-input"
+                        value={application.visit_date || ""}
+                        onChange={(e) => patch(child.id, application, { visit_date: e.target.value || null })}
+                        title="Visit date — also shows on the shared calendar"
+                      />
+                      <select
+                        className="panel-select"
+                        value={application.fit || ""}
+                        onChange={(e) => patch(child.id, application, { fit: e.target.value || null })}
+                        title="How good a fit is this school?"
+                      >
+                        <option value="">Fit…</option>
+                        {FIT_OPTIONS.map((f) => (
+                          <option key={f.key} value={f.key}>
+                            {f.label}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        className="panel-select"
+                        value={application.status}
+                        onChange={(e) => patch(child.id, application, { status: e.target.value })}
+                      >
+                        {APPLICATION_STATUSES.map((s) => (
+                          <option key={s.key} value={s.key}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="panel-btn panel-btn-quiet"
+                        onClick={() => handleRemove(child.id, application)}
+                        title="Remove this application"
+                      >
+                        ✕
+                      </button>
+                    </span>
                   </li>
                 ))}
               </ul>

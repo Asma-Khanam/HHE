@@ -4,18 +4,23 @@ import FormSection from "./FormSection";
 import FormField from "./FormField";
 import FormSelect from "./FormSelect";
 import YesNoSelect from "./YesNoSelect";
+import StrictSelect from "./StrictSelect";
+import RankingSelect from "./RankingSelect";
+import MultiSelect from "./MultiSelect";
 import PhoneField from "./PhoneField";
 import DateField from "./DateField";
 import AddressBlock, { resolveAddress } from "./AddressBlock";
 import AvatarUpload from "./AvatarUpload";
 import PageHeader from "./PageHeader";
+import MoveDetailsCard from "./MoveDetailsCard";
 import DocumentChecklist from "./DocumentChecklist";
 import { saveApplication, submitApplication, deleteChild } from "../lib/applicationData";
 import { deleteDocument } from "../lib/documents";
 import { getMissingItems, getStepBreakdown } from "../lib/completeness";
+import { fetchYearGroupCutoff } from "../lib/settings";
+import { fetchCustomCurricula, addCustomCurriculum } from "../lib/curriculumOptions";
 import {
   NATIONALITIES,
-  RELIGIONS,
   LANGUAGES,
   ACADEMIC_YEARS,
   YEAR_GROUPS,
@@ -23,6 +28,7 @@ import {
   CURRICULA,
   ENGLISH_PROFICIENCY_LEVELS,
   REASONS_FOR_LEAVING,
+  REASONS_FOR_LEAVING_WITH_DETAILS,
 } from "../data/formOptions";
 import { CHILD_DOCUMENT_TYPES, PARENT_DOCUMENT_TYPES } from "../data/documentTypes";
 import "../styles/form.css";
@@ -41,7 +47,6 @@ const emptyChild = {
   full_name: "",
   date_of_birth: "",
   nationality: "",
-  religion: "",
   first_language: "",
   second_language: "",
   medical_inclusion_needs: "",
@@ -53,15 +58,54 @@ const emptyChild = {
   last_name: "",
   preferred_name: "",
   gender: "",
+  // CH-04/CH-05 (September 2026 change request): both became "select all
+  // that apply" — arrays now, on their own new columns
+  // (academic_years_of_entry / terms) rather than reusing the old
+  // single-value academic_year_of_entry/term columns, so existing saved
+  // data never has to be reinterpreted as an array.
   academic_year_of_entry: "",
+  academic_years_of_entry: [],
   year_group_applying_for: "",
+  year_group_reason: "",
   term: "",
+  terms: [],
+  // CH-03: religion isn't on a child's record yet at all — same new field,
+  // same option list, as AH-03 added for a parent.
+  religion: "",
   english_first_home_language: "",
   english_proficiency: "",
+  // Superseded by Section 5's SEN-01 (September 2026 change request) — kept
+  // here only so a child saved before this section existed doesn't lose
+  // whatever was already in these two columns. Nothing in the form reads or
+  // writes them any more; see sen_status/sen_concerns_description/
+  // sen_diagnoses/sen_diagnosis_other below for the new section.
   has_sen: "",
   sen_description: "",
+  // SEN-01: the section's opening question, and its two conditional
+  // follow-ups — a free-text worry description, or a "select all that
+  // apply" list of diagnoses (plus its own "Other" text box).
+  sen_status: "",
+  sen_concerns_description: "",
+  sen_diagnoses: [],
+  sen_diagnosis_other: "",
+  // SEN-02: "select all that apply" list of documents the family already
+  // holds, with its own "None of the above" that clears (and is cleared by)
+  // every other option — see MultiSelect's exclusiveOption prop.
+  sen_documents_held: [],
+  // SEN-04 through SEN-11 — the rest of the SEN and inclusion section.
+  sen_intervention_status: "",
+  sen_intervention_types: [],
+  sen_intervention_other: "",
+  sen_intervention_frequency: "",
+  sen_lsa_status: "",
+  sen_descriptive_words: [],
+  sen_outside_professionals: [],
+  sen_outside_professionals_other: "",
+  sen_disclosure_preference: "",
+  sen_additional_notes: "",
   gifted_talented: "",
   has_transfer_certificate: "",
+  transfer_certificate_understanding: "",
   notes: "",
   // Separated or split households mean a child doesn't always live at the
   // account holder's address (founder feedback, 2026-09-02). `address_same_as`
@@ -80,13 +124,53 @@ const emptySchool = {
   contact_name: "",
   contact_phone: "",
   year_group_of_leaving: "",
-  date_attended_last: "",
+  // CS-01 (September 2026 change request): "Date last attended" is removed.
+  // It was already gone from this form (never rendered here); the column
+  // itself is untouched in the database, this just stops the app from ever
+  // reading or writing it again.
   curriculum: "",
   reason_for_leaving: "",
+  reason_for_leaving_details: "",
+  // CS-04/CS-05/CS-06 (September 2026 change request) — three new optional
+  // questions in the "Current school" section.
+  education_gaps_status: "",
+  education_gaps_details: "",
+  repeated_year_status: "",
+  repeated_year_details: "",
+  school_refusal_status: "",
+  school_refusal_details: "",
+  // NAV-02 (September 2026 change request): set once, when this child's
+  // school section is copied from a sibling's — see the copy helpers below.
+  same_as_sibling_child_id: "",
 };
+
+// NAV-02 — the fields a "same school as a sibling" copy actually carries
+// over. Deliberately NOT "id" (this child keeps its own current_schools
+// row) and NOT year_group_applying_for / academic_years_of_entry / terms
+// (those live on the CHILD record, not current_schools, so they're already
+// independent per child without any extra exclusion logic here).
+const SCHOOL_COPY_FIELDS = [
+  "school_name",
+  "school_address",
+  "contact_email",
+  "contact_name",
+  "contact_phone",
+  "year_group_of_leaving",
+  "curriculum",
+  "reason_for_leaving",
+  "reason_for_leaving_details",
+  "education_gaps_status",
+  "education_gaps_details",
+  "repeated_year_status",
+  "repeated_year_details",
+  "school_refusal_status",
+  "school_refusal_details",
+];
 
 const emptyParent = {
   full_name: "",
+  first_name: "",
+  last_name: "",
   email: "",
   phone: "",
   nationality: "",
@@ -99,6 +183,305 @@ const emptyParent = {
   address: "",
   address_same_as: "",
 };
+
+// AH-02 (September 2026 change request): "British" pinned above the rest of
+// the nationality list (Pattern B) on the account holder's own field —
+// families relocating here are disproportionately British, so it saves most
+// of them a scroll. Only applied to the parent's Nationality field for now
+// (that's what AH-02 asked for); the child's nationality field is untouched.
+const PINNED_NATIONALITIES = ["British"];
+const NATIONALITIES_UNPINNED = NATIONALITIES.filter((n) => !PINNED_NATIONALITIES.includes(n));
+
+// AH-03: religion isn't in the form yet at all — this is the option list for
+// the new field, built the same way as the other dropdowns (Pattern A's
+// "Other" comes free from FormSelect).
+const RELIGIONS = [
+  "Christianity",
+  "Islam",
+  "Hinduism",
+  "Buddhism",
+  "Sikhism",
+  "Judaism",
+  "No religion",
+  "Prefer not to say",
+];
+
+// CH-05 (September 2026 change request): "please also add 'We are flexible'
+// as a final option" — local to the child's Term field rather than added to
+// the shared TERMS list in formOptions.js, since nothing else uses TERMS.
+const TERMS_WITH_FLEXIBLE = [...TERMS, "We are flexible"];
+
+// CH-04 (September 2026 change request): academic year of entry became
+// "select all that apply" — for the year-group suggestion further down,
+// which needs a single year to work from, the earliest year a family has
+// ticked is the most useful one (the soonest they might actually arrive).
+// "YYYY/YYYY" strings sort correctly as plain strings for any reasonable
+// range of years, so no date parsing is needed here.
+function earliestAcademicYear(years) {
+  if (!years || !years.length) return "";
+  return [...years].sort()[0];
+}
+
+// SEN-01 (September 2026 change request) — Section 5, "SEN and inclusion".
+// Deliberately not a plain Yes/No any more: a family who was "told
+// something when they were younger but it was never followed up" isn't a
+// clean No or Yes, and forcing that choice was the whole reason this became
+// its own calmer, more careful section instead of one YesNoSelect buried in
+// Additional info.
+const SEN_STATUS_OPTIONS = [
+  "No, none at all",
+  "No formal diagnosis, but we have concerns",
+  "Yes, formally identified or diagnosed",
+  "Yes, assessment is currently in progress",
+  "We were told something when they were younger but it was never followed up",
+];
+
+// A child can genuinely have more than one of these at once, which is
+// exactly why this is "select all that apply" rather than a single choice —
+// see the multi-select conditional in SEN_STATUS_OPTIONS above.
+const SEN_DIAGNOSIS_OPTIONS = [
+  "Dyslexia",
+  "Dyscalculia",
+  "Dysgraphia",
+  "Dyspraxia or Developmental Coordination Disorder",
+  "ADHD or ADD",
+  "Autism Spectrum Condition",
+  "Speech, language and communication needs",
+  "Global developmental delay",
+  "Sensory processing difficulties",
+  "Hearing impairment",
+  "Visual impairment",
+  "Physical or medical need affecting access to learning",
+  "Social, emotional and mental health needs",
+  "Other, please tell us",
+];
+
+// SEN-02 (September 2026 change request) — "Do you have any of the following
+// documents?" Deliberately not gated on the SEN-01 answer: a school-issued
+// monitoring plan or a People of Determination card can exist even for a
+// family who answered "no formal diagnosis, but we have concerns" (or isn't
+// sure what to call it yet), so this is asked of every child in the section.
+const SEN_DOCUMENT_OPTIONS = [
+  "Educational psychologist report",
+  "Speech and language therapy report",
+  "Occupational therapy report",
+  "Paediatrician or developmental assessment",
+  "Individual Education Plan or Individual Learning Plan",
+  "Advanced Learning Plan, for gifted and talented",
+  "UK EHCP or the equivalent from another country",
+  "UAE People of Determination card",
+  "Behaviour support plan",
+  "School issued support or monitoring plan",
+  "None of the above",
+];
+const SEN_DOCUMENTS_NONE_OPTION = "None of the above";
+
+// CS-04 (September 2026 change request).
+const EDUCATION_GAPS_OPTIONS = ["No", "Yes", "Prefer to discuss"];
+
+// CS-05.
+const REPEATED_YEAR_OPTIONS = [
+  "No",
+  "Yes, they repeated a year",
+  "Yes, it was suggested but we did not go ahead",
+  "It is being discussed now",
+];
+function repeatedYearNeedsDetails(status) {
+  return !!status && status !== "No";
+}
+
+// CS-06.
+const SCHOOL_REFUSAL_OPTIONS = ["No", "Yes, refused a place", "Yes, asked to leave", "Prefer to discuss this with you"];
+function schoolRefusalNeedsDetails(status) {
+  return status === "Yes, refused a place" || status === "Yes, asked to leave";
+}
+
+// SEN-04 (September 2026 change request).
+const SEN_INTERVENTION_STATUS_OPTIONS = [
+  "No, never",
+  "Yes, currently",
+  "Yes, in the past",
+  "Yes, but only for a short trial period",
+  "I am not sure",
+];
+
+// SEN-05's "shown when SEN-04 is answered with any option beginning 'Yes'" —
+// the four Yes variants above all start with the word "Yes", so this is a
+// plain prefix check rather than an explicit list that would need updating
+// if a wording ever changed slightly.
+function senHasIntervention(status) {
+  return typeof status === "string" && status.startsWith("Yes");
+}
+
+const SEN_INTERVENTION_TYPE_OPTIONS = [
+  "Reading or phonics intervention",
+  "Writing or handwriting support",
+  "Maths intervention",
+  "Speech and language therapy",
+  "Occupational therapy",
+  "Social skills or friendship group",
+  "Emotional regulation or wellbeing sessions",
+  "EAL, English as an Additional Language, support",
+  "Counselling or school psychologist",
+  "Behaviour support",
+  "Extension or gifted and talented programme",
+  "Other",
+];
+const SEN_INTERVENTION_OTHER_OPTION = "Other";
+
+// SEN-06.
+const SEN_INTERVENTION_FREQUENCY_OPTIONS = [
+  "Daily",
+  "Two to three times a week",
+  "Weekly",
+  "Fortnightly or less",
+  "It varies",
+  "No longer receiving them",
+];
+
+// SEN-07 — the last option is deliberately not a dead end: choosing it shows
+// a short plain-English explanation right underneath instead of just moving
+// the parent on, since a family who doesn't recognise the term "Learning
+// Support Assistant" shouldn't have to guess at an answer.
+const SEN_LSA_OPTIONS = [
+  "Yes, full time one to one",
+  "Yes, part time or shared",
+  "Yes, but only for specific lessons or activities",
+  "No, but it has been recommended",
+  "No, but we think one may be needed",
+  "No, and none has ever been suggested",
+  "We had one previously and it was withdrawn",
+  "I am not sure what this means",
+];
+const SEN_LSA_NOT_SURE_OPTION = "I am not sure what this means";
+
+// SEN-08 — deliberately starts with nothing ticked (per the document: "so a
+// parent can scroll past and carry on without answering"), rendered as a
+// compact grid rather than the usual pill row so 20 options don't read as a
+// wall of text — see MultiSelect's layout="grid".
+const SEN_DESCRIPTIVE_WORD_OPTIONS = [
+  "Emotional regulation difficulties",
+  "Delayed or developmental delay",
+  "Coordination difficulties or clumsy",
+  "Behind, or not where they should be",
+  "Immature for their age",
+  "Easily distracted or difficult to focus",
+  "Fidgety, restless or always on the go",
+  "Sensitive or easily overwhelmed",
+  "Sensory seeking or sensory avoidant",
+  "Struggles to sit still",
+  "Slow processing, or needs extra time",
+  "Struggles with transitions or change",
+  "Quiet, withdrawn or flies under the radar",
+  "Rigid or inflexible thinking",
+  "Difficulty making or keeping friends",
+  "Speech unclear or hard to understand",
+  "Late to talk or late to walk",
+  "Anxious",
+  "Bright but underachieving",
+  "Gifted or very able",
+  "None of these",
+];
+const SEN_DESCRIPTIVE_WORDS_NONE_OPTION = "None of these";
+
+// SEN-09.
+const SEN_OUTSIDE_PROFESSIONAL_OPTIONS = [
+  "Speech and language therapist",
+  "Occupational therapist",
+  "Educational psychologist",
+  "Paediatrician or developmental paediatrician",
+  "Behavioural therapist or ABA",
+  "Counsellor or child psychologist",
+  "Private tutor",
+  "Physiotherapist",
+  "None",
+  "Other",
+];
+const SEN_OUTSIDE_PROFESSIONALS_OTHER_OPTION = "Other";
+
+// SEN-10 — deliberately shown on the family record in the founders app (see
+// FamilyDetailPage.jsx): "it governs what our team is allowed to share with
+// a school."
+const SEN_DISCLOSURE_OPTIONS = [
+  "Yes, disclose everything upfront. I want a school that says yes with full knowledge",
+  "Yes, but let us discuss what and how first",
+  "I would prefer to disclose after an offer is made",
+  "I would rather not disclose. I would like to talk this through with you",
+];
+
+// The two SEN-01 answers that mean a real diagnosis or assessment is
+// actually in play — this is what now decides whether the SEN supporting
+// documents checklist appears, replacing the old plain has_sen === "Yes"
+// check (see expectedChildDocTypes in lib/completeness.js, kept in sync
+// with this same rule).
+function senNeedsSupportingDocs(status) {
+  return status === "Yes, formally identified or diagnosed" || status === "Yes, assessment is currently in progress";
+}
+
+// AH-09: options for "What matters most to you in a school?" — family-level,
+// asked once under the account holder, not per child.
+const SCHOOL_PRIORITY_OPTIONS = [
+  "Academic results",
+  "Pastoral care and wellbeing",
+  "SEN and learning support provision",
+  "Class sizes",
+  "Quality and stability of teaching staff",
+  "Sport and PE facilities",
+  "Arts, music and drama",
+  "STEM and technology",
+  "Extracurricular breadth",
+  "Campus and facilities",
+  "Diversity of the student body",
+  "Discipline and structure",
+  "University and careers guidance",
+  "KHDA or equivalent rating",
+  "Reputation and prestige",
+  "Proximity to home",
+  "Value for money",
+  "Community feel",
+];
+
+// AH-10: options for "What is your comfortable annual fee range, per child?"
+// — fixed list, family-level, asked once under the account holder alongside
+// AH-09. No "Other" in the document's spec, so this is a StrictSelect.
+const FEE_RANGE_OPTIONS = [
+  "Up to AED 30,000",
+  "AED 30,000 to 50,000",
+  "AED 50,000 to 70,000",
+  "AED 70,000 to 90,000",
+  "AED 90,000 to 120,000",
+  "Above AED 120,000",
+  "Whatever the right school costs",
+  "I would like guidance on what is realistic",
+];
+
+// BUD-01: options for "Have you set a budget for the move?" — the first
+// question of the new "Budget and relocation planning" section (Section 3).
+// Fixed list, no "Other" in the document's spec, so this is a StrictSelect.
+const BUDGET_STATUS_OPTIONS = [
+  "Yes, we know our school fee and housing budget",
+  "We have a rough idea",
+  "No, and we would like guidance on what is realistic",
+  "Our employer is covering most of it, so we are not sure of the numbers",
+];
+
+// BUD-03: options for "What is your annual housing budget?" — family-level,
+// optional, part of the Budget and relocation planning section.
+const HOUSING_BUDGET_OPTIONS = [
+  "Up to AED 100,000",
+  "AED 100,000 to 150,000",
+  "AED 150,000 to 200,000",
+  "AED 200,000 to 300,000",
+  "AED 300,000 to 500,000",
+  "Above AED 500,000",
+  "Our housing is provided or paid for by an employer",
+  "We are not sure yet",
+];
+
+// BUD-05: options for "Would you like us to talk you through the typical
+// cost of school and family life here?" — family-level, part of the Budget
+// and relocation planning section.
+const COST_GUIDANCE_OPTIONS = ["Yes please", "No thank you", "Maybe later"];
 
 const MAX_CHILDREN = 6;
 
@@ -152,6 +535,93 @@ function displayNameForChild(child) {
   return (child?.preferred_name || child?.first_name || child?.full_name || "").trim();
 }
 
+// CH-02 (September 2026 change request): age is shown as "X years Y months",
+// worked out live against today's date rather than typed in — a parent's
+// idea of a child's age is often out of date by the time they actually apply,
+// and the school year group they're picked for depends on getting this
+// right. Recalculates automatically whenever the date of birth changes,
+// since it's derived, not stored.
+function formatAgeFromDob(dob) {
+  if (!dob) return "";
+  const birth = new Date(dob);
+  if (Number.isNaN(birth.getTime())) return "";
+  const today = new Date();
+  if (birth > today) return "";
+
+  let years = today.getFullYear() - birth.getFullYear();
+  let months = today.getMonth() - birth.getMonth();
+  if (today.getDate() < birth.getDate()) months -= 1;
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  const yearLabel = `${years} year${years === 1 ? "" : "s"}`;
+  const monthLabel = `${months} month${months === 1 ? "" : "s"}`;
+  return years <= 0 ? monthLabel : `${yearLabel} ${monthLabel}`;
+}
+
+// CH-06 (September 2026 change request): suggest a year group from the
+// child's date of birth, using a cut-off date — a child's year group is
+// decided by how old they are on the cut-off date of the academic year
+// they're joining, not by their age today. 31 August is the UK/UAE
+// British-curriculum default; other curricula use a different date, which
+// is exactly why Heather asked for this to be editable from the founders
+// app's Settings page (public.app_settings, schema addendum 26) rather than
+// fixed in code. These two constants are only the fallback used before that
+// setting has loaded, or if it can't be reached at all.
+const YEAR_GROUP_CUTOFF_MONTH = 7; // August (0-indexed, JS Date convention)
+const YEAR_GROUP_CUTOFF_DAY = 31;
+
+// `academicYearOfEntry` is the "2026/2027" string from the earliest ticked
+// Academic year of entry option (CH-04 made that field multi-select — see
+// earliestAcademicYear() at its call site) — the suggestion is worked out
+// against whichever year the family is actually applying for, not against
+// today, so a family enquiring in one year about starting the next still
+// gets the right suggestion. `cutoffMonth` is 0-indexed (JS Date
+// convention), matching YEAR_GROUP_CUTOFF_MONTH's fallback above.
+function suggestedYearGroupIndex(
+  dob,
+  academicYearOfEntry,
+  cutoffMonth = YEAR_GROUP_CUTOFF_MONTH,
+  cutoffDay = YEAR_GROUP_CUTOFF_DAY
+) {
+  if (!dob) return -1;
+  const birth = new Date(dob);
+  if (Number.isNaN(birth.getTime())) return -1;
+
+  let startYear;
+  const match = /^(\d{4})\//.exec(academicYearOfEntry || "");
+  if (match) {
+    startYear = Number(match[1]);
+  } else {
+    // No entry year chosen yet — fall back to the academic year running
+    // right now, so there's still a sensible suggestion to show.
+    const today = new Date();
+    startYear = today.getMonth() > cutoffMonth ? today.getFullYear() : today.getFullYear() - 1;
+  }
+
+  const cutoff = new Date(startYear, cutoffMonth, cutoffDay);
+  if (birth > cutoff) return -1; // not born yet as of the cut-off — no sensible suggestion
+
+  let ageAtCutoff = cutoff.getFullYear() - birth.getFullYear();
+  const monthDiff = cutoff.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && cutoff.getDate() < birth.getDate())) ageAtCutoff -= 1;
+
+  // CH-06a: FS1 (Pre-KG/Nursery) = age 3 at the cut-off, FS2/Reception =
+  // age 4, Year 1 = age 5, and so on — which lines up exactly with
+  // YEAR_GROUPS' array order, Reception included, so a child born in that
+  // window is suggested Reception rather than being left blank.
+  const index = ageAtCutoff - 3;
+  if (index < 0 || index >= YEAR_GROUPS.length) return -1;
+  return index;
+}
+
+function suggestedYearGroupLabel(dob, academicYearOfEntry, cutoffMonth, cutoffDay) {
+  const index = suggestedYearGroupIndex(dob, academicYearOfEntry, cutoffMonth, cutoffDay);
+  return index === -1 ? "" : YEAR_GROUPS[index];
+}
+
 // Card-list step keys: "mother", "father", then "child-0", "child-1"... —
 // home address isn't behind a card (see the card-list section below), so it
 // never appears in this array.
@@ -159,6 +629,10 @@ function buildSteps(children) {
   const list = [
     { key: "mother", role: "Mother" },
     { key: "father", role: "Father" },
+    // Section 3, "Budget and relocation planning" (September 2026 change
+    // request) — its own card and step, sitting after the account holder
+    // details and before the children, per the document.
+    { key: "budget" },
   ];
   children.forEach((_, i) => list.push({ key: `child-${i}`, childIndex: i }));
   return list;
@@ -216,7 +690,7 @@ function buildInitialAccountHolderRole(existingParents, userId) {
 // Which of a parent's fields the "Same as ..." sync copies across — general
 // background info that's genuinely often shared, not anything
 // contact/document-specific (email, phone, employer, EID stay independent).
-const SAME_AS_PRIMARY_FIELDS = ["nationality", "religion", "first_language", "second_language"];
+const SAME_AS_PRIMARY_FIELDS = ["nationality", "first_language", "second_language"];
 
 // Parents are always stored as [Mother, Father], but whoever is actually
 // filling the form is shown FIRST and is the one the other parent can copy
@@ -248,11 +722,81 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
     startingChildren.map((c) => ({ ...emptySchool, ...dropNulls(initialData.schoolsByChild?.[c.id] || {}) }))
   );
   const [parents, setParents] = useState(() =>
-    buildInitialParents(initialData.parents).map((p) => normaliseLegacyAddress(p, legacyHomeAddress))
+    buildInitialParents((initialData.parents || []).map(dropNulls)).map((p) =>
+      backfillNameParts(normaliseLegacyAddress(p, legacyHomeAddress))
+    )
   );
   const [accountHolderRole, setAccountHolderRole] = useState(() =>
     buildInitialAccountHolderRole(initialData.parents, userId)
   );
+  // AH-09: family-level, not per-person — an ordered list of up to 5 school
+  // priorities, position 0 being the family's first priority. Lives on
+  // families.school_priorities rather than on either parent.
+  const [schoolPriorities, setSchoolPriorities] = useState(() => initialData.family?.school_priorities || []);
+  // AH-10: family-level, same shape as AH-09 — a single fixed-option answer
+  // rather than a per-parent field. Lives on families.comfortable_fee_range.
+  const [comfortableFeeRange, setComfortableFeeRange] = useState(() => initialData.family?.comfortable_fee_range || "");
+  // AH-11: family-level, open text, optional — "where will they be based"
+  // covers either or both working parents in one answer, not one per parent.
+  // Lives on families.parent_work_location.
+  const [parentWorkLocation, setParentWorkLocation] = useState(() => initialData.family?.parent_work_location || "");
+  // BUD-01: family-level, required — the opening question of the new Budget
+  // section. Lives on families.budget_status.
+  const [budgetStatus, setBudgetStatus] = useState(() => initialData.family?.budget_status || "");
+  // BUD-03: family-level, optional. Lives on families.housing_budget.
+  const [housingBudget, setHousingBudget] = useState(() => initialData.family?.housing_budget || "");
+  // BUD-04: family-level, optional, free text — deliberately not a list of
+  // communities, since families arriving from abroad rarely know area names
+  // yet. Lives on families.preferred_living_area.
+  const [preferredLivingArea, setPreferredLivingArea] = useState(() => initialData.family?.preferred_living_area || "");
+  // BUD-05: family-level, optional. Anything other than "No thank you" is
+  // meant to flag the family record for follow-up — that part of the
+  // request lives on the founders' side (see the follow-up note flagged to
+  // Heather), but the raw answer itself is saved here either way, on
+  // families.cost_guidance_response.
+  const [costGuidance, setCostGuidance] = useState(() => initialData.family?.cost_guidance_response || "");
+
+  // CH-06: the year-group cut-off, editable from the founders app's Settings
+  // page (public.app_settings, schema addendum 26) rather than fixed in
+  // code. Stored here already converted to JS Date's 0-indexed month, so
+  // suggestedYearGroupIndex/Label never have to know the database used
+  // 1-indexed months. Starts at the same August 31st default the form used
+  // before this setting existed, so there's a sensible suggestion even
+  // before the fetch below resolves.
+  const [yearGroupCutoff, setYearGroupCutoff] = useState({
+    month: YEAR_GROUP_CUTOFF_MONTH,
+    day: YEAR_GROUP_CUTOFF_DAY,
+  });
+  useEffect(() => {
+    let cancelled = false;
+    fetchYearGroupCutoff().then(({ month, day }) => {
+      if (!cancelled) setYearGroupCutoff({ month: month - 1, day });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // CS-02 — curriculum names other families have already typed in via
+  // "Other", fetched once on load and merged onto the fixed CURRICULA list
+  // below. New ones this family adds get appended locally too (see
+  // registerCustomCurricula in persist()), so the dropdown updates
+  // immediately without waiting on a reload.
+  const [customCurricula, setCustomCurricula] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchCustomCurricula().then((names) => {
+      if (!cancelled) setCustomCurricula(names);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const curriculumOptions = useMemo(
+    () => [...CURRICULA, ...customCurricula.filter((c) => !CURRICULA.includes(c))],
+    [customCurricula]
+  );
+
   const primaryIndex = primaryParentIndex(accountHolderRole);
   const secondaryIndex = 1 - primaryIndex;
   // Father's "Same as Mother" toggle — see SAME_AS_MOTHER_FIELDS above and
@@ -291,19 +835,29 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  // What just succeeded, so the banner can say the right thing — a draft
-  // save and a real submission aren't the same event and shouldn't read
-  // like one, especially since only Submit actually locks anything in.
-  const [lastAction, setLastAction] = useState(null); // "draft" | "submit" | null
+  // What just succeeded, so the banner can say the right thing. Only ever
+  // "submit" now — the separate "Save draft" action (and its own banner)
+  // was removed once autosave became the only save mechanism besides Submit
+  // (September 2026 change request).
+  const [lastAction, setLastAction] = useState(null); // "submit" | null
   // Red inline field highlighting only appears once someone has actually
   // tried to submit — never while they're still mid-draft, since most
   // fields are expected to be empty at that point.
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   // "keeps going blank" fix, part 1: a debounced autosave so nothing typed
-  // ever depends on remembering to click "Save draft" — see the effect
-  // below. This is a quiet indicator only; the loud green banner stays
-  // reserved for an explicit Save draft / Submit click.
+  // ever depends on remembering to click a save button. This quiet indicator
+  // is now the ONLY save feedback a family sees before Submit.
   const [autosaveStatus, setAutosaveStatus] = useState("idle"); // idle | saving | saved | error
+  // NAV-02 (September 2026 change request) — which sibling (by index into
+  // `children`) a "same school as a sibling" tick was made against, keyed
+  // by the child's own index. Session-scoped: a newly-added sibling has no
+  // id yet, so this is what lets the checkbox reflect the choice right away
+  // even before the backfill effect below can persist the real child id
+  // onto currentSchools[i].same_as_sibling_child_id.
+  const [sameSchoolChoice, setSameSchoolChoice] = useState({});
+  // Which copied school sections the family has chosen to expand and edit
+  // by hand, overriding the default collapsed summary view.
+  const [expandedSchoolEdit, setExpandedSchoolEdit] = useState({});
   // Which field/document to scroll to after a failed Submit — see the
   // effect below, and fieldKeyForMissingItem() above for how it's derived.
   // Also seeded from Overview's "Still outstanding" list (initialFieldKey)
@@ -346,7 +900,6 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
     sameAsPrimaryGeneral,
     primaryIndex,
     parents[primaryIndex].nationality,
-    parents[primaryIndex].religion,
     parents[primaryIndex].first_language,
     parents[primaryIndex].second_language,
   ]);
@@ -393,15 +946,24 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   // shouldn't be locked out of applying). Anything still to upload is tracked
   // by getOutstandingDocuments() and surfaced on the Dashboard instead.
   const missingItems = useMemo(
-    () => getMissingItems({ parents, accountHolderRole, children, currentSchools }),
-    [parents, accountHolderRole, children, currentSchools]
+    () =>
+      getMissingItems({
+        parents,
+        accountHolderRole,
+        children,
+        currentSchools,
+        schoolPriorities,
+        comfortableFeeRange,
+        budgetStatus,
+      }),
+    [parents, accountHolderRole, children, currentSchools, schoolPriorities, comfortableFeeRange, budgetStatus]
   );
   // Per-card progress (%, missing count) for the card list — same
   // underlying numbers as missingItems, just grouped and totaled per
   // person so each card can show its own bar instead of a plain flag.
   const stepBreakdown = useMemo(
-    () => getStepBreakdown({ parents, accountHolderRole, children, currentSchools, documentsByOwner }),
-    [parents, accountHolderRole, children, currentSchools, documentsByOwner]
+    () => getStepBreakdown({ parents, accountHolderRole, children, currentSchools, documentsByOwner, budgetStatus }),
+    [parents, accountHolderRole, children, currentSchools, documentsByOwner, budgetStatus]
   );
 
   // Lookups so each field/document can ask "am I one of the missing ones?"
@@ -432,8 +994,22 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
     setShowingList(true);
   }
 
+  // AH-01 (September 2026 change request): First/Last replace the single
+  // "Full name" field the family types into, but full_name — the real,
+  // required, "as in passport" column everything else in the app already
+  // reads (cards, the family tree, saving) — is kept in sync underneath, the
+  // same way it already works for children.
   function updateParentAt(i, field, value) {
-    setParents((prev) => prev.map((p, idx) => (idx === i ? { ...p, [field]: value } : p)));
+    setParents((prev) =>
+      prev.map((p, idx) => {
+        if (idx !== i) return p;
+        const next = { ...p, [field]: value };
+        if (field === "first_name" || field === "last_name") {
+          next.full_name = [next.first_name, next.last_name].filter(Boolean).join(" ").trim();
+        }
+        return next;
+      })
+    );
   }
 
   // First/Middle/Last stay the fields the family actually types into, but
@@ -455,6 +1031,56 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
 
   function updateSchoolAt(i, field, value) {
     setCurrentSchools((prev) => prev.map((s, idx) => (idx === i ? { ...s, [field]: value } : s)));
+  }
+
+  // NAV-02 (September 2026 change request) — every OTHER child already in
+  // the form, as a candidate to copy a current school from. Pulls each
+  // child's actual name (falling back to "Child N") rather than a bare
+  // index, per the spec ("families are entering three and four children and
+  // the numbering becomes confusing").
+  function siblingOptionsFor(i) {
+    return children.map((c, idx) => ({ idx, name: displayNameForChild(c) || `Child ${idx + 1}` })).filter((o) => o.idx !== i);
+  }
+
+  function sameSchoolSiblingIndexFor(i) {
+    if (Object.prototype.hasOwnProperty.call(sameSchoolChoice, i)) return sameSchoolChoice[i];
+    const savedId = currentSchools[i]?.same_as_sibling_child_id;
+    if (!savedId) return -1;
+    return children.findIndex((c) => c.id === savedId);
+  }
+
+  // The actual copy — a one-time snapshot of the sibling's current school
+  // fields, not a live link. Re-ticking a different sibling, or the same
+  // one again, always re-copies from whatever that sibling's fields hold
+  // right now; after that, editing the sibling's own school never reaches
+  // back into this child's already-copied record.
+  function handleSameSchoolToggle(i, siblingIndex) {
+    setSameSchoolChoice((prev) => ({ ...prev, [i]: siblingIndex }));
+    setExpandedSchoolEdit((prev) => ({ ...prev, [i]: false }));
+    setCurrentSchools((prev) =>
+      prev.map((s, idx) => {
+        if (idx !== i) return s;
+        const sibling = prev[siblingIndex] || {};
+        const copied = {};
+        SCHOOL_COPY_FIELDS.forEach((f) => {
+          copied[f] = sibling[f] ?? "";
+        });
+        return { ...s, ...copied, same_as_sibling_child_id: children[siblingIndex]?.id || "" };
+      })
+    );
+  }
+
+  // Unticking doesn't erase what was copied — it just lets the family edit
+  // this child's school independently from here on, which is what "leave
+  // the copy in place" (the spec's own words for the sibling-edited-later
+  // case) implies for the family's own undo path too.
+  function clearSameSchoolAsSibling(i) {
+    setSameSchoolChoice((prev) => {
+      const next = { ...prev };
+      delete next[i];
+      return next;
+    });
+    setCurrentSchools((prev) => prev.map((s, idx) => (idx === i ? { ...s, same_as_sibling_child_id: "" } : s)));
   }
 
   function handleChildCountChange(nextCount) {
@@ -537,7 +1163,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
     setRemoveError("");
   }
 
-  // Guards every call to persist() below — manual Save draft, Submit, AND
+  // Guards every call to persist() below — the "Next" button, Submit, AND
   // the autosave effect all funnel through this so two saves can never run
   // at once. That matters here specifically: a family's children/parents
   // were once accidentally duplicated (2026-08-27) because a save partially
@@ -554,12 +1180,39 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   const autosaveTimerRef = useRef(null);
 
   function snapshotOfEditableState() {
-    return JSON.stringify({ parents, children, currentSchools, accountHolderRole });
+    return JSON.stringify({
+      parents,
+      children,
+      currentSchools,
+      accountHolderRole,
+      schoolPriorities,
+      comfortableFeeRange,
+      parentWorkLocation,
+      budgetStatus,
+      housingBudget,
+      preferredLivingArea,
+      costGuidance,
+    });
   }
 
-  // Shared by Save draft, Submit, and autosave — persists whatever's
+  // CS-02 — after a successful save, any school's curriculum that isn't
+  // already a known option (the fixed list or something already fetched)
+  // gets written to curriculum_options so the next family sees it too, and
+  // added to local state so it shows up in THIS family's own dropdown
+  // immediately, without waiting on a reload.
+  function registerCustomCurricula(savedSchools) {
+    const newOnes = (savedSchools || [])
+      .map((s) => (s?.curriculum || "").trim())
+      .filter((name) => name && !curriculumOptions.includes(name));
+    if (!newOnes.length) return;
+    const unique = [...new Set(newOnes)];
+    unique.forEach((name) => addCustomCurriculum(name));
+    setCustomCurricula((prev) => [...prev, ...unique.filter((name) => !prev.includes(name))]);
+  }
+
+  // Shared by the "Next" button, Submit, and autosave — persists whatever's
   // currently in state, no validation. Returns the saved rows so each caller
-  // can decide what happens next (draft/autosave stay put; submit also flips
+  // can decide what happens next (Next/autosave stay put; submit also flips
   // intake_status) — or null if another save was already in flight, in which
   // case the caller should just leave it for that save (or the next change)
   // to cover.
@@ -576,6 +1229,13 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
         parents,
         accountHolderRole,
         sameAsPrimary: sameAsPrimaryGeneral,
+        schoolPriorities,
+        comfortableFeeRange,
+        parentWorkLocation,
+        budgetStatus,
+        housingBudget,
+        preferredLivingArea,
+        costGuidance,
       });
       // Critical: write the database-assigned ids back into state, MERGED
       // onto the existing local objects rather than replacing them — saved
@@ -589,6 +1249,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
       setCurrentSchools((prev) => saved.currentSchools.map((ss, idx) => ({ ...prev[idx], ...ss })));
       if (saved.parents) setParents((prev) => saved.parents.map((sp, idx) => ({ ...prev[idx], ...sp })));
       lastSavedSnapshotRef.current = preSaveSnapshot;
+      registerCustomCurricula(saved.currentSchools);
       return saved;
     } finally {
       saveLockRef.current = false;
@@ -601,7 +1262,12 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   // itself is never treated as a change) is quietly persisted a couple of
   // seconds after they stop typing. Switching tabs, a flaky connection, or
   // even just closing the laptop can no longer lose more than a couple of
-  // seconds of typing, on top of whatever "Save draft" already covered.
+  // seconds of typing. Autosave is now the ONLY save mechanism besides
+  // Submit — the separate "Save draft" button was removed (September 2026
+  // change request: "since everything is on autosave anyways") — so this
+  // also calls onSaved() itself now, taking over the one thing the removed
+  // button used to be responsible for (refreshing the parent page's copy
+  // of the family record).
   useEffect(() => {
     if (lastSavedSnapshotRef.current === null) {
       // First run, right after mount — this IS the data that was just
@@ -618,13 +1284,14 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
       try {
         const saved = await persist();
         setAutosaveStatus(saved ? "saved" : "idle");
+        if (saved) onSaved?.();
       } catch (err) {
         // Quiet failure by design — the user hasn't asked for anything here,
-        // so no red banner; the footer note below is enough, and "Save
-        // draft" still works as an explicit fallback. Still logged (not
-        // swallowed entirely) so a real recurring cause shows up in the
-        // browser console instead of just "couldn't autosave" with no way
-        // to tell why.
+        // so no red banner; the footer note already says autosave failed,
+        // and it'll simply try again on the next change (or the next
+        // successful autosave). Still logged (not swallowed entirely) so a
+        // real recurring cause shows up in the browser console instead of
+        // just "couldn't autosave" with no way to tell why.
         console.error("Autosave failed:", err);
         setAutosaveStatus("error");
       }
@@ -634,21 +1301,24 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parents, children, currentSchools, accountHolderRole]);
 
-  // "Like how my code auto-saves, but I can also hit Cmd+S" — the autosave
-  // above is the automatic half; this is the deliberate half. Cmd+S on a Mac,
-  // Ctrl+S on Windows, saves the draft right now instead of waiting out the
-  // debounce, and preventDefault stops the browser opening its own "save this
-  // web page" dialog over the top of the form.
+  // NAV-02 — a sibling picked via handleSameSchoolToggle might not have a
+  // real database id yet (a freshly added child, not yet autosaved). Once
+  // that sibling does get one (this same autosave loop assigns it), this
+  // backfills the pointer onto the copying child's current_schools row so
+  // the choice actually persists, without the family having to touch the
+  // checkbox again.
   useEffect(() => {
-    function onKeyDown(e) {
-      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "s") return;
-      e.preventDefault();
-      handleSaveDraft();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    Object.entries(sameSchoolChoice).forEach(([iStr, siblingIndex]) => {
+      const i = Number(iStr);
+      const siblingId = children[siblingIndex]?.id;
+      if (siblingId && currentSchools[i] && currentSchools[i].same_as_sibling_child_id !== siblingId) {
+        setCurrentSchools((prev) =>
+          prev.map((s, idx) => (idx === i ? { ...s, same_as_sibling_child_id: siblingId } : s))
+        );
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parents, children, currentSchools, accountHolderRole]);
+  }, [children, sameSchoolChoice]);
 
   // After a failed Submit, jump to the first missing item's card (or stay
   // on the list, for the home address field) AND scroll straight to that
@@ -680,24 +1350,6 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
     console.error(err);
     const looksLikeRawDbError = /invalid input syntax|violates|constraint|column .* does not exist|duplicate key/i.test(msg);
     return looksLikeRawDbError || !msg ? fallback : msg;
-  }
-
-  async function handleSaveDraft() {
-    setError("");
-    setSaving(true);
-    try {
-      const saved = await persist();
-      if (!saved) {
-        setError("Still saving in the background — give it a second and try again.");
-        return;
-      }
-      setLastAction("draft");
-      onSaved?.();
-    } catch (err) {
-      setError(friendlyError(err, "Something went wrong saving your draft — please try again."));
-    } finally {
-      setSaving(false);
-    }
   }
 
   // The real "finish line" — only this validates, and only this marks the
@@ -747,8 +1399,74 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
 
   const activeStep = steps[stepIndex] || steps[0];
 
+  // AH-06 (founder feedback, 2026-09-07): the footer's primary button used to
+  // read "Submit application" on every single-person page, not just the
+  // overview — which read as if filling in the Mother's details finished the
+  // whole application. On a detail page (!showingList) it now saves and
+  // returns to the overview instead; the real, validating submit stays on
+  // the list/overview page only, since that's genuinely the end of the form.
+  async function handleFooterNext() {
+    setError("");
+    setSaving(true);
+    try {
+      const saved = await persist();
+      if (!saved) {
+        setError("Still saving in the background — give it a second and try again.");
+        return;
+      }
+      backToList();
+    } catch (err) {
+      setError(friendlyError(err, "Something went wrong saving — please try again."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // NAV-01 (September 2026 change request): "at the bottom of the child
+  // page, give two clear buttons: 'Add another child' and 'Submit'... don't
+  // rely on the parent page for this — families are missing it there." So
+  // a child's own detail page gets its own footer instead of the generic
+  // "Next" — saves what's here, adds a fresh child, and opens straight onto
+  // their new card (the last step in the freshly-grown list).
+  async function handleAddAnotherChildFromCard() {
+    setError("");
+    setSaving(true);
+    try {
+      const saved = await persist();
+      if (!saved) {
+        setError("Still saving in the background — give it a second and try again.");
+        return;
+      }
+      const newChildStepIndex = steps.length; // appended after every existing step
+      requestChildCountChange(children.length + 1);
+      setStepIndex(newChildStepIndex);
+      setShowingList(false);
+    } catch (err) {
+      setError(friendlyError(err, "Something went wrong saving — please try again."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Bug fix (September 2026): "every time I select something... it goes
+  // back to the main application page." Pressing Enter (which a native
+  // <select>'s own keyboard interaction can send) inside any form control
+  // implicitly submits the nearest <form> — and handleSubmitApplication, on
+  // finding a missing item with no owning card (e.g. a family-level field),
+  // calls setShowingList(true), which reads exactly like an unwanted jump
+  // back to the overview. A real Submit still works: the submit button
+  // itself is exempted, and Enter inside a textarea still inserts a newline
+  // instead of doing nothing.
+  function handleFormKeyDown(e) {
+    if (e.key !== "Enter") return;
+    const tag = e.target?.tagName;
+    if (tag === "TEXTAREA") return;
+    if (e.target?.type === "submit") return;
+    e.preventDefault();
+  }
+
   return (
-    <form className="application-form" onSubmit={handleSubmitApplication} noValidate>
+    <form className="application-form" onSubmit={handleSubmitApplication} onKeyDown={handleFormKeyDown} noValidate>
       <PageHeader
         title="Application"
         subtitle={
@@ -760,17 +1478,15 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
 
       <div className="application-form-body">
         {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
-        {!error && lastAction === "draft" && (
-          <div className="hh-form-banner hh-form-banner-success">
-            Draft saved. Come back any time — nothing here is required to save.
-          </div>
-        )}
         {!error && lastAction === "submit" && (
           <div className="hh-form-banner hh-form-banner-success">Submitted. You can still come back and edit.</div>
         )}
 
         {showingList ? (
           <CardListView
+            familyId={familyId}
+            family={initialData.family}
+            onFamilyChange={() => onSaved?.()}
             parents={parents}
             accountHolderRole={accountHolderRole}
             setAccountHolderRole={setAccountHolderRole}
@@ -784,12 +1500,20 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
             onCancelRemoveChild={cancelRemoveChild}
             stepBreakdown={stepBreakdown}
             onEditCard={openCard}
+            steps={steps}
           />
         ) : (
           <>
             <button type="button" className="hh-link-btn back-to-list-btn" onClick={backToList}>
               ‹ Back to application
             </button>
+            {/* NAV-03 (September 2026 change request): this form is long enough
+                that families rarely finish it in one sitting — a plain "Step X
+                of Y" against the whole application (not just this person's own
+                fields) at least tells them how much is left overall. */}
+            <div className="hh-form-step-indicator">
+              Step {stepIndex + 1} of {steps.length}
+            </div>
 
             {(activeStep.key === "mother" || activeStep.key === "father") &&
               (() => {
@@ -813,9 +1537,36 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                     primaryRole={isPrimary ? null : otherRole}
                     sameAsAbove={sameAsPrimaryGeneral}
                     onToggleSameAsAbove={setSameAsPrimaryGeneral}
+                    schoolPriorities={schoolPriorities}
+                    onSchoolPrioritiesChange={setSchoolPriorities}
+                    schoolPrioritiesError={isFieldMissing("family:school_priorities")}
+                    comfortableFeeRange={comfortableFeeRange}
+                    onComfortableFeeRangeChange={setComfortableFeeRange}
+                    comfortableFeeRangeError={isFieldMissing("family:comfortable_fee_range")}
+                    parentWorkLocation={parentWorkLocation}
+                    onParentWorkLocationChange={setParentWorkLocation}
                   />
                 );
               })()}
+
+            {activeStep.key === "budget" && (
+              <BudgetSection
+                budgetStatus={budgetStatus}
+                onChange={setBudgetStatus}
+                error={isFieldMissing("family:budget_status")}
+                comfortableFeeRange={comfortableFeeRange}
+                onGoToFeeRange={() => {
+                  openCard(primaryIndex);
+                  setScrollTarget("family-comfortable_fee_range");
+                }}
+                housingBudget={housingBudget}
+                onHousingBudgetChange={setHousingBudget}
+                preferredLivingArea={preferredLivingArea}
+                onPreferredLivingAreaChange={setPreferredLivingArea}
+                costGuidance={costGuidance}
+                onCostGuidanceChange={setCostGuidance}
+              />
+            )}
 
             {activeStep.key.startsWith("child-") &&
               (() => {
@@ -826,17 +1577,40 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                 const childMissing = (field) => isFieldMissing(`child:${i}:${field}`);
                 const schoolMissing = (field) => isFieldMissing(`school:${i}:${field}`);
 
-                const showsTransferCert = child.has_transfer_certificate !== "No";
+                // NAV-02 (September 2026 change request) — "same school as a
+                // sibling" only makes sense from child two onwards, and only
+                // once there's actually another child to point at.
+                const siblingOptions = i >= 1 ? siblingOptionsFor(i) : [];
+                const sameSchoolSiblingIndex = i >= 1 ? sameSchoolSiblingIndexFor(i) : -1;
+                const isSameAsSibling = sameSchoolSiblingIndex !== -1 && siblingOptions.some((o) => o.idx === sameSchoolSiblingIndex);
+                const sameSchoolSiblingName = isSameAsSibling
+                  ? displayNameForChild(children[sameSchoolSiblingIndex]) || `Child ${sameSchoolSiblingIndex + 1}`
+                  : "";
+                const schoolSectionCollapsed = isSameAsSibling && !expandedSchoolEdit[i];
+
                 // achievement_certificate and sen_supporting_documents render inline
                 // (next to Sports achievements / the SEN question) instead of in the
                 // main Documents checklist below — see the two DocumentChecklist
                 // instances further down in this component.
-                const INLINE_DOC_KEYS = ["achievement_certificate", "sen_supporting_documents"];
-                const childDocTypes = CHILD_DOCUMENT_TYPES.filter(
-                  (d) => (d.key !== "leaving_certificate" || showsTransferCert) && !INLINE_DOC_KEYS.includes(d.key)
-                );
+                // leaving_certificate also renders on its own, directly under the
+                // Yes/No question that governs it, rather than sitting wherever it
+                // falls in the main checklist — same reasoning as achievement
+                // certificates and SEN documents below.
+                const INLINE_DOC_KEYS = [
+                  "achievement_certificate",
+                  "sen_supporting_documents",
+                  "psychology_report",
+                  "leaving_certificate",
+                ];
+                const childDocTypes = CHILD_DOCUMENT_TYPES.filter((d) => !INLINE_DOC_KEYS.includes(d.key));
                 const achievementDocTypes = CHILD_DOCUMENT_TYPES.filter((d) => d.key === "achievement_certificate");
                 const senDocTypes = CHILD_DOCUMENT_TYPES.filter((d) => d.key === "sen_supporting_documents");
+                // SEN-03 — kept its old "psychology_report" key (DU-03 just moves
+                // where this slot renders, from the main checklist into this
+                // section), so any file a family already uploaded there is still
+                // right here, unchanged.
+                const senGeneralDocTypes = CHILD_DOCUMENT_TYPES.filter((d) => d.key === "psychology_report");
+                const leavingCertDocTypes = CHILD_DOCUMENT_TYPES.filter((d) => d.key === "leaving_certificate");
 
                 return (
                   <>
@@ -880,7 +1654,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         value={child.preferred_name}
                         onChange={(v) => updateChildAt(i, "preferred_name", v)}
                       />
-                      <FormSelect
+                      <StrictSelect
                         label="Gender"
                         required
                         fieldKey={`child-${i}-gender`}
@@ -897,6 +1671,10 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         value={child.date_of_birth}
                         onChange={(v) => updateChildAt(i, "date_of_birth", v)}
                       />
+                      <div className="hh-field">
+                        <label>Age</label>
+                        <input type="text" value={formatAgeFromDob(child.date_of_birth) || "—"} disabled readOnly />
+                      </div>
                       <FormSelect
                         label="Nationality"
                         required
@@ -909,40 +1687,69 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                       />
                       <FormSelect
                         label="Religion"
-                        required
-                        error={childMissing("religion")}
                         fieldKey={`child-${i}-religion`}
                         value={child.religion}
                         onChange={(v) => updateChildAt(i, "religion", v)}
                         options={RELIGIONS}
                         placeholder="Select religion"
                       />
-                      <FormSelect
+                      <MultiSelect
                         label="Academic year of entry"
                         required
-                        fieldKey={`child-${i}-academic_year_of_entry`}
-                        value={child.academic_year_of_entry}
-                        onChange={(v) => updateChildAt(i, "academic_year_of_entry", v)}
+                        fieldKey={`child-${i}-academic_years_of_entry`}
+                        value={child.academic_years_of_entry}
+                        onChange={(v) => updateChildAt(i, "academic_years_of_entry", v)}
                         options={ACADEMIC_YEARS}
-                        placeholder="Select an option"
+                        hint="Select every year you'd be able to move — families are often flexible about timing."
                       />
-                      <FormSelect
-                        label="Year group applying for"
-                        required
-                        fieldKey={`child-${i}-year_group_applying_for`}
-                        value={child.year_group_applying_for}
-                        onChange={(v) => updateChildAt(i, "year_group_applying_for", v)}
-                        options={YEAR_GROUPS}
-                        placeholder="Select an option"
-                      />
-                      <FormSelect
+                      {(() => {
+                        const suggestion = suggestedYearGroupLabel(
+                          child.date_of_birth,
+                          earliestAcademicYear(child.academic_years_of_entry),
+                          yearGroupCutoff.month,
+                          yearGroupCutoff.day
+                        );
+                        const mismatch =
+                          suggestion && child.year_group_applying_for && child.year_group_applying_for !== suggestion;
+                        return (
+                          <>
+                            <div className="hh-field hh-field-full">
+                              <FormSelect
+                                label="Year group applying for"
+                                required
+                                fieldKey={`child-${i}-year_group_applying_for`}
+                                value={child.year_group_applying_for}
+                                onChange={(v) => updateChildAt(i, "year_group_applying_for", v)}
+                                options={YEAR_GROUPS}
+                                placeholder="Select an option"
+                                hint={
+                                  suggestion
+                                    ? `Based on your child's date of birth, we would expect ${suggestion}.`
+                                    : "Add a date of birth and academic year of entry above for a suggestion."
+                                }
+                              />
+                            </div>
+                            {mismatch && (
+                              <div className="hh-field hh-field-full">
+                                <label>Please tell us why you are applying for this year group</label>
+                                <textarea
+                                  rows={2}
+                                  value={child.year_group_reason}
+                                  onChange={(e) => updateChildAt(i, "year_group_reason", e.target.value)}
+                                />
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                      <MultiSelect
                         label="Term"
                         required
-                        fieldKey={`child-${i}-term`}
-                        value={child.term}
-                        onChange={(v) => updateChildAt(i, "term", v)}
-                        options={TERMS}
-                        placeholder="Select an option"
+                        fieldKey={`child-${i}-terms`}
+                        value={child.terms}
+                        onChange={(v) => updateChildAt(i, "terms", v)}
+                        options={TERMS_WITH_FLEXIBLE}
+                        hint="Select every term that would work, or 'We are flexible' if any of them would."
                       />
                       <AddressBlock
                         label="Where does this child live?"
@@ -965,10 +1772,10 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         onChangeAddress={(v) => updateChildAt(i, "address", v)}
                       />
                       <div className="hh-field hh-field-full">
-                        <label>Notes</label>
+                        <label>Anything you think we should know about your child</label>
                         <textarea
                           rows={2}
-                          placeholder="Anything else worth noting about this child."
+                          placeholder="For example friendships, whether they find large crowds difficult, or family circumstances such as parents living separately. Nothing here is shared with a school without your permission."
                           value={child.notes}
                           onChange={(e) => updateChildAt(i, "notes", e.target.value)}
                         />
@@ -1009,8 +1816,6 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         options={ENGLISH_PROFICIENCY_LEVELS}
                         placeholder="Select an option"
                       />
-                      <FormField label="EID" hint="Once obtained." value={child.eid} onChange={(v) => updateChildAt(i, "eid", v)} />
-                      <div />
                       <div className="hh-field hh-field-full">
                         <label>Sports, hobbies and interests</label>
                         <textarea
@@ -1043,38 +1848,6 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                       </div>
 
                       <YesNoSelect
-                        label="Does your child have any Special Education Needs?"
-                        required
-                        fieldKey={`child-${i}-has_sen`}
-                        value={child.has_sen}
-                        onChange={(v) => updateChildAt(i, "has_sen", v)}
-                      />
-                      {child.has_sen === "Yes" && (
-                        <>
-                          <div className="hh-field hh-field-full" data-field-key={`child-${i}-sen_description`}>
-                            <label>If your child has any Special Education Needs, please describe *</label>
-                            <textarea
-                              rows={2}
-                              value={child.sen_description}
-                              onChange={(e) => updateChildAt(i, "sen_description", e.target.value)}
-                            />
-                          </div>
-                          <div className="hh-field-full">
-                            <DocumentChecklist
-                              title="Supporting documents for Special Education Needs"
-                              userId={userId}
-                              ownerType="child"
-                              ownerId={child.id}
-                              docTypes={senDocTypes}
-                              documents={docsFor("child", child.id)}
-                              onDocumentsChange={(docs) => setDocsFor("child", child.id, docs)}
-                              fieldKeyPrefix={`child-doc-${i}`}
-                              personLabel={displayName}
-                            />
-                          </div>
-                        </>
-                      )}
-                      <YesNoSelect
                         label="Is your child on the Gifted or Talented Register?"
                         required
                         fieldKey={`child-${i}-gifted_talented`}
@@ -1093,7 +1866,284 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                       </div>
                     </FormSection>
 
+                    {/* Section 5, "SEN and inclusion" (September 2026 change
+                        request) — its own clearly headed section rather than
+                        sitting inside Additional info, "so families find it
+                        calm and unhurried" per the document. SEN-01 is the
+                        first question of what will be several. */}
+                    <FormSection
+                      title="SEN and inclusion"
+                      description="These questions help us find a school that will genuinely support your child. There are no wrong answers, and nothing here is shared with a school without your written permission."
+                    >
+                      <StrictSelect
+                        label="Does your child have any identified special educational needs, learning difficulties or a diagnosis?"
+                        required
+                        fieldKey={`child-${i}-sen_status`}
+                        value={child.sen_status}
+                        onChange={(v) => updateChildAt(i, "sen_status", v)}
+                        options={SEN_STATUS_OPTIONS}
+                        placeholder="Select an option"
+                      />
+
+                      {child.sen_status === "No formal diagnosis, but we have concerns" && (
+                        <div className="hh-field hh-field-full" data-field-key={`child-${i}-sen_concerns_description`}>
+                          <label>Please tell us what has been worrying you</label>
+                          <textarea
+                            rows={2}
+                            value={child.sen_concerns_description}
+                            onChange={(e) => updateChildAt(i, "sen_concerns_description", e.target.value)}
+                          />
+                        </div>
+                      )}
+
+                      {child.sen_status === "Yes, formally identified or diagnosed" && (
+                        <>
+                          <MultiSelect
+                            label="Which of these apply?"
+                            fieldKey={`child-${i}-sen_diagnoses`}
+                            value={child.sen_diagnoses}
+                            onChange={(v) => updateChildAt(i, "sen_diagnoses", v)}
+                            options={SEN_DIAGNOSIS_OPTIONS}
+                            hint="Select every one that applies — it's common for more than one to."
+                          />
+                          {(child.sen_diagnoses || []).includes("Other, please tell us") && (
+                            <div className="hh-field hh-field-full" data-field-key={`child-${i}-sen_diagnosis_other`}>
+                              <label>Please tell us more</label>
+                              <textarea
+                                rows={2}
+                                value={child.sen_diagnosis_other}
+                                onChange={(e) => updateChildAt(i, "sen_diagnosis_other", e.target.value)}
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      <MultiSelect
+                        label="Do you have any of the following documents?"
+                        fieldKey={`child-${i}-sen_documents_held`}
+                        value={child.sen_documents_held}
+                        onChange={(v) => updateChildAt(i, "sen_documents_held", v)}
+                        options={SEN_DOCUMENT_OPTIONS}
+                        exclusiveOption={SEN_DOCUMENTS_NONE_OPTION}
+                      />
+
+                      {senNeedsSupportingDocs(child.sen_status) && (
+                        <div className="hh-field-full">
+                          <DocumentChecklist
+                            title="Supporting documents for Special Education Needs"
+                            userId={userId}
+                            ownerType="child"
+                            ownerId={child.id}
+                            docTypes={senDocTypes}
+                            documents={docsFor("child", child.id)}
+                            onDocumentsChange={(docs) => setDocsFor("child", child.id, docs)}
+                            fieldKeyPrefix={`child-doc-${i}`}
+                            personLabel={displayName}
+                          />
+                        </div>
+                      )}
+
+                      {/* SEN-03 — a general, always-available upload slot for
+                          this section, not gated on the SEN-01 answer: a
+                          family can have something worth sharing (an old
+                          report, a school letter) regardless of how they
+                          answered above. DU-03 moved this here from the main
+                          Documents checklist further down (same underlying
+                          "psychology_report" slot, so nothing already
+                          uploaded is lost). */}
+                      <div className="hh-field-full">
+                        <DocumentChecklist
+                          userId={userId}
+                          ownerType="child"
+                          ownerId={child.id}
+                          docTypes={senGeneralDocTypes}
+                          documents={docsFor("child", child.id)}
+                          onDocumentsChange={(docs) => setDocsFor("child", child.id, docs)}
+                          fieldKeyPrefix={`child-doc-${i}`}
+                          personLabel={displayName}
+                        />
+                      </div>
+
+                      <StrictSelect
+                        label="Has your child ever been taken out of class for intervention or support sessions?"
+                        required
+                        error={childMissing("sen_intervention_status")}
+                        fieldKey={`child-${i}-sen_intervention_status`}
+                        value={child.sen_intervention_status}
+                        onChange={(v) => updateChildAt(i, "sen_intervention_status", v)}
+                        options={SEN_INTERVENTION_STATUS_OPTIONS}
+                        placeholder="Select an option"
+                      />
+
+                      {senHasIntervention(child.sen_intervention_status) && (
+                        <>
+                          <MultiSelect
+                            label="If yes, what kind of sessions?"
+                            fieldKey={`child-${i}-sen_intervention_types`}
+                            value={child.sen_intervention_types}
+                            onChange={(v) => updateChildAt(i, "sen_intervention_types", v)}
+                            options={SEN_INTERVENTION_TYPE_OPTIONS}
+                          />
+                          {(child.sen_intervention_types || []).includes(SEN_INTERVENTION_OTHER_OPTION) && (
+                            <div className="hh-field hh-field-full" data-field-key={`child-${i}-sen_intervention_other`}>
+                              <label>Please tell us more</label>
+                              <textarea
+                                rows={2}
+                                value={child.sen_intervention_other}
+                                onChange={(e) => updateChildAt(i, "sen_intervention_other", e.target.value)}
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {(child.sen_intervention_types || []).length > 0 && (
+                        <StrictSelect
+                          label="How often do these sessions happen?"
+                          fieldKey={`child-${i}-sen_intervention_frequency`}
+                          value={child.sen_intervention_frequency}
+                          onChange={(v) => updateChildAt(i, "sen_intervention_frequency", v)}
+                          options={SEN_INTERVENTION_FREQUENCY_OPTIONS}
+                          placeholder="Select an option"
+                        />
+                      )}
+
+                      <StrictSelect
+                        label="Does your child require, or currently have, a Learning Support Assistant or shadow teacher?"
+                        required
+                        error={childMissing("sen_lsa_status")}
+                        fieldKey={`child-${i}-sen_lsa_status`}
+                        value={child.sen_lsa_status}
+                        onChange={(v) => updateChildAt(i, "sen_lsa_status", v)}
+                        options={SEN_LSA_OPTIONS}
+                        placeholder="Select an option"
+                      />
+                      {child.sen_lsa_status === SEN_LSA_NOT_SURE_OPTION && (
+                        <p className="hh-hint-text hh-field-full">
+                          A Learning Support Assistant, sometimes called a shadow teacher, is an adult who works
+                          alongside a child in class — either one-to-one or shared with a few children — to help
+                          them access lessons and stay included with their classmates. It is completely fine not
+                          to know whether your child needs one yet; we can help you work this out.
+                        </p>
+                      )}
+
+                      <MultiSelect
+                        label="Have any of these words or phrases ever been used to describe your child, by a teacher, doctor, therapist, family member or anyone else?"
+                        fieldKey={`child-${i}-sen_descriptive_words`}
+                        value={child.sen_descriptive_words}
+                        onChange={(v) => updateChildAt(i, "sen_descriptive_words", v)}
+                        options={SEN_DESCRIPTIVE_WORD_OPTIONS}
+                        exclusiveOption={SEN_DESCRIPTIVE_WORDS_NONE_OPTION}
+                        layout="grid"
+                        hint="Select all that apply, even if it was said casually or a long time ago."
+                      />
+
+                      <MultiSelect
+                        label="Is your child currently working with any professionals outside school?"
+                        fieldKey={`child-${i}-sen_outside_professionals`}
+                        value={child.sen_outside_professionals}
+                        onChange={(v) => updateChildAt(i, "sen_outside_professionals", v)}
+                        options={SEN_OUTSIDE_PROFESSIONAL_OPTIONS}
+                      />
+                      {(child.sen_outside_professionals || []).includes(SEN_OUTSIDE_PROFESSIONALS_OTHER_OPTION) && (
+                        <div className="hh-field hh-field-full" data-field-key={`child-${i}-sen_outside_professionals_other`}>
+                          <label>Please tell us more</label>
+                          <textarea
+                            rows={2}
+                            value={child.sen_outside_professionals_other}
+                            onChange={(e) => updateChildAt(i, "sen_outside_professionals_other", e.target.value)}
+                          />
+                        </div>
+                      )}
+
+                      <StrictSelect
+                        label="Do you want your child's support needs disclosed to schools at application stage?"
+                        fieldKey={`child-${i}-sen_disclosure_preference`}
+                        value={child.sen_disclosure_preference}
+                        onChange={(v) => updateChildAt(i, "sen_disclosure_preference", v)}
+                        options={SEN_DISCLOSURE_OPTIONS}
+                        placeholder="Select an option"
+                      />
+
+                      <div className="hh-field hh-field-full" data-field-key={`child-${i}-sen_additional_notes`}>
+                        <label>Is there anything about your child's needs you have never written down before, but want us to know?</label>
+                        <textarea
+                          rows={4}
+                          value={child.sen_additional_notes}
+                          onChange={(e) => updateChildAt(i, "sen_additional_notes", e.target.value)}
+                        />
+                      </div>
+                    </FormSection>
+
                     <FormSection title="Current school" description="Their school right now, not the one they're applying to.">
+                      {/* NAV-02 (September 2026 change request): "From child two
+                          onwards, add a tick box... Ticking it reveals a short
+                          list of the siblings already added, by name." Only one
+                          sibling on the form yet? Skip the picker and just name
+                          them. */}
+                      {i >= 1 && (
+                        <div className="hh-field-full same-as-toggle" data-field-key={`school-${i}-same_as_sibling`}>
+                          <label className="hh-checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={isSameAsSibling}
+                              disabled={siblingOptions.length === 0}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  handleSameSchoolToggle(i, siblingOptions[0].idx);
+                                } else {
+                                  clearSameSchoolAsSibling(i);
+                                }
+                              }}
+                            />
+                            Attends the same school as a sibling
+                          </label>
+
+                          {isSameAsSibling && siblingOptions.length > 1 && (
+                            <div className="hh-field same-as-sibling-picker">
+                              <select value={sameSchoolSiblingIndex} onChange={(e) => handleSameSchoolToggle(i, Number(e.target.value))}>
+                                {siblingOptions.map((opt) => (
+                                  <option key={opt.idx} value={opt.idx}>
+                                    {opt.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
+                          {isSameAsSibling && (
+                            <p className="hh-hint-text">
+                              Using {sameSchoolSiblingName}'s current school details.{" "}
+                              {schoolSectionCollapsed ? (
+                                <button
+                                  type="button"
+                                  className="hh-link-btn"
+                                  onClick={() => setExpandedSchoolEdit((prev) => ({ ...prev, [i]: true }))}
+                                >
+                                  Edit
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="hh-link-btn"
+                                  onClick={() => setExpandedSchoolEdit((prev) => ({ ...prev, [i]: false }))}
+                                >
+                                  Collapse
+                                </button>
+                              )}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {schoolSectionCollapsed ? (
+                        <p className="hh-field-full hh-hint-text">
+                          {school.school_name || "School details"} — copied from {sameSchoolSiblingName}. Year group,
+                          term and year of entry are still set separately for {displayName}.
+                        </p>
+                      ) : (
+                        <>
                       <FormField
                         label="Current school"
                         required
@@ -1111,20 +2161,13 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         options={YEAR_GROUPS}
                         placeholder="Select an option"
                       />
-                      <DateField
-                        label="Current school — date attended last"
-                        required
-                        fieldKey={`school-${i}-date_attended_last`}
-                        value={school.date_attended_last}
-                        onChange={(v) => updateSchoolAt(i, "date_attended_last", v)}
-                      />
                       <FormSelect
                         label="Current school curriculum"
                         required
                         fieldKey={`school-${i}-curriculum`}
                         value={school.curriculum}
                         onChange={(v) => updateSchoolAt(i, "curriculum", v)}
-                        options={CURRICULA}
+                        options={curriculumOptions}
                         placeholder="Select an option"
                       />
                       <FormSelect
@@ -1136,6 +2179,75 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         options={REASONS_FOR_LEAVING}
                         placeholder="Select an option"
                       />
+                      {REASONS_FOR_LEAVING_WITH_DETAILS.includes(school.reason_for_leaving) && (
+                        <div className="hh-field hh-field-full">
+                          <label>Please tell us a little more</label>
+                          <textarea
+                            rows={2}
+                            value={school.reason_for_leaving_details}
+                            onChange={(e) => updateSchoolAt(i, "reason_for_leaving_details", e.target.value)}
+                          />
+                        </div>
+                      )}
+
+                      <StrictSelect
+                        label="Has your child had any gaps in their education?"
+                        fieldKey={`school-${i}-education_gaps_status`}
+                        value={school.education_gaps_status}
+                        onChange={(v) => updateSchoolAt(i, "education_gaps_status", v)}
+                        options={EDUCATION_GAPS_OPTIONS}
+                        placeholder="Select an option"
+                      />
+                      {school.education_gaps_status === "Yes" && (
+                        <div className="hh-field hh-field-full" data-field-key={`school-${i}-education_gaps_details`}>
+                          <label>Roughly when, and for how long?</label>
+                          <textarea
+                            rows={2}
+                            value={school.education_gaps_details}
+                            onChange={(e) => updateSchoolAt(i, "education_gaps_details", e.target.value)}
+                          />
+                        </div>
+                      )}
+
+                      <StrictSelect
+                        label="Has your child ever repeated a year, or been asked to?"
+                        fieldKey={`school-${i}-repeated_year_status`}
+                        value={school.repeated_year_status}
+                        onChange={(v) => updateSchoolAt(i, "repeated_year_status", v)}
+                        options={REPEATED_YEAR_OPTIONS}
+                        placeholder="Select an option"
+                      />
+                      {repeatedYearNeedsDetails(school.repeated_year_status) && (
+                        <div className="hh-field hh-field-full" data-field-key={`school-${i}-repeated_year_details`}>
+                          <label>Please tell us a little more</label>
+                          <textarea
+                            rows={2}
+                            value={school.repeated_year_details}
+                            onChange={(e) => updateSchoolAt(i, "repeated_year_details", e.target.value)}
+                          />
+                        </div>
+                      )}
+
+                      <StrictSelect
+                        label="Has your child ever been refused a place at a school, or asked to leave one?"
+                        fieldKey={`school-${i}-school_refusal_status`}
+                        value={school.school_refusal_status}
+                        onChange={(v) => updateSchoolAt(i, "school_refusal_status", v)}
+                        options={SCHOOL_REFUSAL_OPTIONS}
+                        placeholder="Select an option"
+                        hint="This will not count against your child. Knowing early means we can approach the right schools in the right way."
+                      />
+                      {schoolRefusalNeedsDetails(school.school_refusal_status) && (
+                        <div className="hh-field hh-field-full" data-field-key={`school-${i}-school_refusal_details`}>
+                          <label>Please tell us a little more</label>
+                          <textarea
+                            rows={2}
+                            value={school.school_refusal_details}
+                            onChange={(e) => updateSchoolAt(i, "school_refusal_details", e.target.value)}
+                          />
+                        </div>
+                      )}
+
                       <FormField
                         label="Contact email at current school"
                         type="email"
@@ -1162,20 +2274,14 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                           onChange={(e) => updateSchoolAt(i, "school_address", e.target.value)}
                         />
                       </div>
+                        </>
+                      )}
                     </FormSection>
 
                     <FormSection
                       title="Documents"
                       description="Upload as soon as the application is saved once — each file uploads immediately, so nothing here is lost by navigating away."
                     >
-                      <YesNoSelect
-                        label="Do you have a transfer / leaving certificate from their current school?"
-                        hint="If not yet, that's fine — the upload below only shows once you say yes."
-                        fieldKey={`child-${i}-has_transfer_certificate`}
-                        value={child.has_transfer_certificate}
-                        onChange={(v) => updateChildAt(i, "has_transfer_certificate", v)}
-                      />
-                      <div />
                       <div className="hh-field-full">
                         <DocumentChecklist
                           userId={userId}
@@ -1188,6 +2294,35 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                           personLabel={displayName}
                         />
                       </div>
+                      <YesNoSelect
+                        label="Do you have a transfer / leaving certificate from their current school?"
+                        hint="If not yet, that's fine — the upload only appears once you say yes."
+                        fieldKey={`child-${i}-has_transfer_certificate`}
+                        value={child.has_transfer_certificate}
+                        onChange={(v) => updateChildAt(i, "has_transfer_certificate", v)}
+                      />
+                      <div />
+                      {child.has_transfer_certificate === "Yes" && (
+                        <div className="hh-field-full">
+                          <DocumentChecklist
+                            userId={userId}
+                            ownerType="child"
+                            ownerId={child.id}
+                            docTypes={leavingCertDocTypes}
+                            documents={docsFor("child", child.id)}
+                            onDocumentsChange={(docs) => setDocsFor("child", child.id, docs)}
+                            fieldKeyPrefix={`child-doc-${i}`}
+                            personLabel={displayName}
+                          />
+                        </div>
+                      )}
+                      <StrictSelect
+                        label="Do you understand the Transfer Certificate and attestation process?"
+                        fieldKey={`child-${i}-transfer_certificate_understanding`}
+                        value={child.transfer_certificate_understanding}
+                        onChange={(v) => updateChildAt(i, "transfer_certificate_understanding", v)}
+                        options={["Yes, fully", "Roughly", "No, please explain it", "Not applicable"]}
+                      />
                     </FormSection>
                   </>
                 );
@@ -1203,15 +2338,35 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
             : "Everything required is filled in"}
           {autosaveStatus === "saving" && " · Saving…"}
           {autosaveStatus === "saved" && " · All changes saved"}
-          {autosaveStatus === "error" && " · Couldn't autosave — click Save draft"}
+          {autosaveStatus === "error" && " · Couldn't autosave — it'll try again as soon as you change something else"}
         </span>
         <div className="application-form-footer-actions">
-          <button className="hh-btn-secondary" type="button" onClick={handleSaveDraft} disabled={saving || submitting}>
-            {saving ? "Saving draft..." : "Save draft"}
-          </button>
-          <button className="hh-btn-primary" type="submit" disabled={saving || submitting}>
-            {submitting ? "Submitting..." : "Submit application"}
-          </button>
+          {!showingList && activeStep.key.startsWith("child-") ? (
+            // NAV-01: a clear, standalone choice at the foot of each child
+            // page, rather than sending the family back to the overview to
+            // find "add another child" or Submit for themselves.
+            <>
+              <button
+                className="hh-btn-secondary"
+                type="button"
+                onClick={handleAddAnotherChildFromCard}
+                disabled={saving || submitting || children.length >= MAX_CHILDREN}
+              >
+                {saving ? "Saving..." : "Add another child"}
+              </button>
+              <button className="hh-btn-primary" type="submit" disabled={saving || submitting}>
+                {submitting ? "Submitting..." : "Submit application"}
+              </button>
+            </>
+          ) : !showingList ? (
+            <button className="hh-btn-primary" type="button" onClick={handleFooterNext} disabled={saving || submitting}>
+              {saving ? "Saving..." : "Next"}
+            </button>
+          ) : (
+            <button className="hh-btn-primary" type="submit" disabled={saving || submitting}>
+              {submitting ? "Submitting..." : "Submit application"}
+            </button>
+          )}
         </div>
       </div>
     </form>
@@ -1225,6 +2380,9 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
 // documents, all on the same page — nothing about documents lives
 // separately) when "Edit" is clicked.
 function CardListView({
+  familyId,
+  family,
+  onFamilyChange,
   parents,
   accountHolderRole,
   setAccountHolderRole,
@@ -1238,9 +2396,13 @@ function CardListView({
   onCancelRemoveChild,
   stepBreakdown,
   onEditCard,
+  steps,
 }) {
+  const budgetIndex = steps.findIndex((s) => s.key === "budget");
   return (
     <div className="card-list-view">
+      <MoveDetailsCard familyId={familyId} family={family} onFamilyChange={onFamilyChange} />
+
       <FormSection title="Parents" description="Tell us who's who, and who's actually filling this in.">
         <div className="hh-field-full account-holder-picker">
           <label>Who is creating this account? *</label>
@@ -1291,8 +2453,36 @@ function CardListView({
         </div>
       </div>
 
+      {/* Section 3, "Budget and relocation planning" (September 2026 change
+          request) — its own card, sitting after the account holder details
+          and before the children, per the document. */}
       <div className="card-list-group">
-        <h3 className="card-list-heading">Step 2 — How many children are you enrolling?</h3>
+        <h3 className="card-list-heading">Budget and relocation planning</h3>
+        <StepCard
+          index={3}
+          title="Budget"
+          subtitle="Money and moving plans"
+          pct={stepBreakdown.budget?.pct ?? 0}
+          onEdit={() => onEditCard(budgetIndex)}
+        />
+      </div>
+
+      {/* AH-07 (September 2026 change request): "Your children" only appears
+          once the account holder has actually entered their own name — not
+          once BOTH parents exist, since plenty of families only ever have
+          one parent to add and shouldn't be blocked from reaching this
+          section. Once any children exist (a returning family), it stays
+          visible regardless, so nobody's already-entered children vanish if
+          a name field is ever cleared by mistake. */}
+      {!(parents[primaryIndex]?.full_name?.trim() || children.length > 0) && (
+        <p className="hh-hint-text card-list-children-locked-hint">
+          Add your own name above to add children.
+        </p>
+      )}
+      {(parents[primaryIndex]?.full_name?.trim() || children.length > 0) && (
+      <>
+      <div className="card-list-group">
+        <h3 className="card-list-heading">Your children</h3>
         <div className="child-count-block">
           <p className="hh-hint-text">A block is created below for each child.</p>
           <div className="child-count-stepper">
@@ -1335,23 +2525,26 @@ function CardListView({
       </div>
 
       <div className="card-list-group">
-        <h3 className="card-list-heading">Step 3 — Children</h3>
+        <h3 className="card-list-heading">Children</h3>
         {children.map((child, i) => {
           const name = displayNameForChild(child);
           const breakdown = stepBreakdown[`child-${i}`];
+          const childStepIndex = steps.findIndex((s) => s.key === `child-${i}`);
           return (
             <StepCard
               key={i}
-              index={3 + i}
+              index={4 + i}
               title={children.length > 1 ? `Child ${i + 1}` : "Child"}
               subtitle={name}
               trailingText={child.year_group_applying_for || undefined}
               pct={breakdown?.pct ?? 0}
-              onEdit={() => onEditCard(2 + i)}
+              onEdit={() => onEditCard(childStepIndex)}
             />
           );
         })}
       </div>
+      </>
+      )}
     </div>
   );
 }
@@ -1379,7 +2572,7 @@ function StepCard({ index, title, subtitle, pct, trailingText, emptyHint, onEdit
         </div>
       </div>
       <button type="button" className="step-card-edit" onClick={onEdit}>
-        Add ›
+        {pct > 0 ? "Edit" : "Add"} ›
       </button>
     </div>
   );
@@ -1395,7 +2588,7 @@ function StepCard({ index, title, subtitle, pct, trailingText, emptyHint, onEdit
 //
 // The parent who ISN'T filling the form gets two shortcuts, both copying from
 // the one who is: a "Same as ..." toggle for the general-background fields
-// (nationality, religion, both languages), which lock while it's on since
+// (nationality, both languages), which lock while it's on since
 // editing them independently while "synced" would be confusing about which
 // value is real; and a tick on their address. `primaryRole` is the name of the
 // parent being copied from, or null for the parent filling the form (there's
@@ -1414,6 +2607,14 @@ function ParentSection({
   primaryRole = null,
   sameAsAbove = false,
   onToggleSameAsAbove,
+  schoolPriorities,
+  onSchoolPrioritiesChange,
+  schoolPrioritiesError,
+  comfortableFeeRange,
+  onComfortableFeeRangeChange,
+  comfortableFeeRangeError,
+  parentWorkLocation,
+  onParentWorkLocationChange,
 }) {
   const isSecondary = !!primaryRole;
   const synced = isSecondary && sameAsAbove;
@@ -1439,12 +2640,19 @@ function ParentSection({
         />
       </div>
       <FormField
-        label="Full name"
+        label="First name"
         required
         error={isFieldMissing("full_name")}
-        fieldKey={`parent-${index}-full_name`}
-        value={parent.full_name}
-        onChange={(v) => onChange("full_name", v)}
+        fieldKey={`parent-${index}-first_name`}
+        value={parent.first_name}
+        onChange={(v) => onChange("first_name", v)}
+      />
+      <FormField
+        label="Last name"
+        required
+        fieldKey={`parent-${index}-last_name`}
+        value={parent.last_name}
+        onChange={(v) => onChange("last_name", v)}
       />
       <FormField
         label="Email"
@@ -1472,7 +2680,7 @@ function ParentSection({
               checked={sameAsAbove}
               onChange={(e) => onToggleSameAsAbove(e.target.checked)}
             />
-            Same nationality, religion &amp; languages as {primaryRole}
+            Same nationality &amp; languages as {primaryRole}
           </label>
         </div>
       )}
@@ -1484,20 +2692,18 @@ function ParentSection({
         fieldKey={`parent-${index}-nationality`}
         value={parent.nationality}
         onChange={(v) => onChange("nationality", v)}
-        options={NATIONALITIES}
+        pinned={PINNED_NATIONALITIES}
+        options={NATIONALITIES_UNPINNED}
         placeholder="Select nationality"
         disabled={synced}
       />
       <FormSelect
         label="Religion"
-        required={isHolder}
-        error={isFieldMissing("religion")}
         fieldKey={`parent-${index}-religion`}
         value={parent.religion}
         onChange={(v) => onChange("religion", v)}
         options={RELIGIONS}
         placeholder="Select religion"
-        disabled={synced}
       />
       <FormSelect
         label="First language"
@@ -1517,12 +2723,10 @@ function ParentSection({
       />
       <FormField label="Employer name" value={parent.employer_name} onChange={(v) => onChange("employer_name", v)} />
       <FormField
-        label="Occupation / designation"
+        label="Job title"
         value={parent.occupation_designation}
         onChange={(v) => onChange("occupation_designation", v)}
       />
-      <FormField label="EID" hint="Once obtained." value={parent.eid} onChange={(v) => onChange("eid", v)} />
-      <div />
 
       <AddressBlock
         label={`${role}'s address`}
@@ -1555,6 +2759,121 @@ function ParentSection({
           personLabel={parent.full_name || role}
         />
       </div>
+
+      {/* AH-09 (September 2026 change request): asked once, under the
+          account holder, after everything else — it's about the family as a
+          whole, not this one person, which is also why it lives here rather
+          than being duplicated onto the non-holder parent's page. */}
+      {isHolder && (
+        <>
+          <RankingSelect
+            label="What matters most to you in a school? Please rank your top five."
+            required
+            error={schoolPrioritiesError}
+            fieldKey="family-school_priorities"
+            value={schoolPriorities}
+            onChange={onSchoolPrioritiesChange}
+            options={SCHOOL_PRIORITY_OPTIONS}
+            hint="We'll use this to help match your family to schools."
+          />
+          <StrictSelect
+            label="What is your comfortable annual fee range, per child?"
+            required
+            error={comfortableFeeRangeError}
+            fieldKey="family-comfortable_fee_range"
+            value={comfortableFeeRange}
+            onChange={onComfortableFeeRangeChange}
+            options={FEE_RANGE_OPTIONS}
+            placeholder="Select a fee range"
+            hint="Per child, per year, excluding transport and uniform. This helps us shortlist realistically."
+          />
+          <FormField
+            label="If one or both parents will be working, where will they be based?"
+            fieldKey="family-parent_work_location"
+            value={parentWorkLocation}
+            onChange={onParentWorkLocationChange}
+            hint="For example Dubai Media City, Abu Dhabi, or working from home. This helps us think about the school run."
+          />
+        </>
+      )}
+    </FormSection>
+  );
+}
+
+// Section 3, "Budget and relocation planning" (September 2026 change
+// request) — its own step between the account holder details and the
+// children, since money is the topic families are most nervous about and
+// the document specifically asks for it to be introduced gently, on its own,
+// rather than folded into another section.
+function BudgetSection({
+  budgetStatus,
+  onChange,
+  error,
+  comfortableFeeRange,
+  onGoToFeeRange,
+  housingBudget,
+  onHousingBudgetChange,
+  preferredLivingArea,
+  onPreferredLivingAreaChange,
+  costGuidance,
+  onCostGuidanceChange,
+}) {
+  return (
+    <FormSection
+      title="Budget and relocation planning"
+      description="These questions help us shortlist schools and areas that genuinely work for your family. If you are not sure yet, say so. Most families are not, and helping you work it out is part of what we do."
+    >
+      <StrictSelect
+        label="Have you set a budget for the move?"
+        required
+        error={error}
+        fieldKey="family-budget_status"
+        value={budgetStatus}
+        onChange={onChange}
+        options={BUDGET_STATUS_OPTIONS}
+        placeholder="Select an option"
+      />
+
+      {/* BUD-02: already asked and answered at AH-10 — this is a read-only
+          reminder of that answer, not a second question, per the document
+          ("Already captured at AH-10. Please do not ask it twice."). */}
+      <div className="hh-field" data-field-key="family-comfortable_fee_range-reminder">
+        <label>School fees budget</label>
+        <input type="text" value={comfortableFeeRange || "Not answered yet"} disabled readOnly />
+        <span className="hh-hint-text">
+          From your earlier answer.{" "}
+          <button type="button" className="hh-link-btn" onClick={onGoToFeeRange}>
+            Change it
+          </button>
+        </span>
+      </div>
+
+      <StrictSelect
+        label="What is your annual housing budget?"
+        fieldKey="family-housing_budget"
+        value={housingBudget}
+        onChange={onHousingBudgetChange}
+        options={HOUSING_BUDGET_OPTIONS}
+        placeholder="Select an option"
+        hint="Annual rent, as most homes here are paid yearly. This helps us suggest communities within reach of the schools you like."
+      />
+
+      <FormField
+        label="Where are you thinking of living?"
+        fieldKey="family-preferred_living_area"
+        value={preferredLivingArea}
+        onChange={onPreferredLivingAreaChange}
+        hint="If you already have an area or community in mind, tell us. If not, leave it blank and we will help. Where you live and where your child goes to school are the same decision here."
+      />
+
+      <StrictSelect
+        label="Would you like us to talk you through the typical cost of school and family life here?"
+        fieldKey="family-cost_guidance_response"
+        value={costGuidance}
+        onChange={onCostGuidanceChange}
+        options={COST_GUIDANCE_OPTIONS}
+        placeholder="Select an option"
+      />
     </FormSection>
   );
 }
