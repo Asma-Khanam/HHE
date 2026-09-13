@@ -7,6 +7,7 @@ import CaseSettingsPanel from "../components/CaseSettingsPanel";
 import ApplicationEmailPanel from "../components/ApplicationEmailPanel";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import ApplicationsPanel from "../components/ApplicationsPanel";
+import SchoolShortlistPanel from "../components/SchoolShortlistPanel";
 import TasksPanel from "../components/TasksPanel";
 import CaseNotesPanel from "../components/CaseNotesPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
@@ -553,6 +554,8 @@ export default function FamilyDetailPage() {
 
       <div className="family-detail-grid">
         <div className="family-detail-col">
+          <SchoolShortlistPanel familyId={family.id} familyChildren={children} />
+
           <ApplicationsPanel
             familyChildren={children}
             applicationsByChild={applicationsByChild}

@@ -995,3 +995,16 @@ export async function removeFromShortlist(shortlistId) {
   const { error } = await supabase.from("school_shortlist").delete().eq("id", shortlistId);
   if (error) throw error;
 }
+
+// Year-group availability rows for a set of schools in one query — used to
+// show each shortlisted school's per-child status on the family page
+// (matched against each child's year_group_applying_for) without a
+// round-trip per school.
+export async function listYearGroupAvailabilityForSchoolIds(schoolIds) {
+  if (!schoolIds || schoolIds.length === 0) return [];
+  return (
+    unwrap(
+      await supabase.from("school_year_group_availability").select("*").in("school_id", schoolIds)
+    ) || []
+  );
+}
