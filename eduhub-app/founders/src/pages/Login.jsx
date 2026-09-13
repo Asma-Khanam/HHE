@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
+import PasswordField from "../components/PasswordField";
 import { supabase } from "../lib/supabaseClient";
 import "../styles/form.css";
 
@@ -47,17 +48,13 @@ export default function Login() {
           />
         </div>
 
-        <div className="hh-field">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
+        <PasswordField
+          id="password"
+          label="Password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
 
         <button className="hh-btn-primary" type="submit" disabled={submitting}>
           {submitting ? "Signing in..." : "Sign in"}

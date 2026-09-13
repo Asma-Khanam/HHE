@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
+import PasswordField from "../components/PasswordField";
 import { supabase } from "../lib/supabaseClient";
 import "../styles/form.css";
 
@@ -111,30 +112,22 @@ export default function SignUp() {
           />
         </div>
 
-        <div className="hh-field">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <span className="hh-hint-text">At least 8 characters.</span>
-        </div>
+        <PasswordField
+          id="password"
+          label="Password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          hint="At least 8 characters."
+        />
 
-        <div className="hh-field">
-          <label htmlFor="confirmPassword">Confirm password</label>
-          <input
-            id="confirmPassword"
-            type="password"
-            autoComplete="new-password"
-            required
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
-        </div>
+        <PasswordField
+          id="confirmPassword"
+          label="Confirm password"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+        />
 
         <button className="hh-btn-primary" type="submit" disabled={submitting}>
           {submitting ? "Creating login..." : "Create login"}

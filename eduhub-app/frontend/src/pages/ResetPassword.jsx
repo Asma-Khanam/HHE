@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
+import PasswordField from "../components/PasswordField";
 import { supabase } from "../lib/supabaseClient";
 import "../styles/form.css";
 
@@ -75,28 +76,20 @@ export default function ResetPassword() {
     <AuthLayout eyebrow="Password reset" title="Set a new password" subtitle="At least 8 characters.">
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
       <form onSubmit={handleSubmit} noValidate>
-        <div className="hh-field">
-          <label htmlFor="password">New password</label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-        <div className="hh-field">
-          <label htmlFor="confirmPassword">Confirm new password</label>
-          <input
-            id="confirmPassword"
-            type="password"
-            autoComplete="new-password"
-            required
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
-        </div>
+        <PasswordField
+          id="password"
+          label="New password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <PasswordField
+          id="confirmPassword"
+          label="Confirm new password"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+        />
         <button className="hh-btn-primary" type="submit" disabled={submitting}>
           {submitting ? "Saving..." : "Save new password"}
         </button>

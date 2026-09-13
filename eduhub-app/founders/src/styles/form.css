@@ -57,3 +57,40 @@
   opacity: 0.6;
   font-size: 0.8rem;
 }
+
+/* Show/hide toggle on password fields (PasswordField.jsx) — a plain icon
+   button layered over the input's right edge, sized off the input's own
+   padding so it never overlaps the caret or covers typed text. */
+.hh-password-wrap {
+  position: relative;
+}
+
+.hh-password-wrap input {
+  width: 100%;
+  padding-right: 42px;
+}
+
+.hh-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--hh-ink);
+  opacity: 0.45;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.hh-password-toggle:hover {
+  opacity: 0.8;
+  background: rgba(83, 1, 38, 0.06);
+}
