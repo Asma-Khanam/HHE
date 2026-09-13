@@ -1,0 +1,38 @@
+/* RecordFieldsEditor — the editable version of FamilyDetailPage's plain
+   RecordFields grid (addendum 33, September 2026 change request). View mode
+   deliberately reuses .rec-grid/.rec-field/etc. from FamilyDetailPage.css so
+   it's visually identical to before; only edit mode adds anything new. */
+
+.rfe-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.rfe-edit-btn {
+  font-size: 0.76rem;
+  padding: 4px 12px;
+  opacity: 0.7;
+}
+
+.rfe-edit-btn:hover {
+  opacity: 1;
+}
+
+.rfe-error {
+  margin-bottom: 10px;
+}
+
+.rfe-edit-field label {
+  cursor: default;
+}
+
+.rfe-edit-field .panel-input,
+.rfe-edit-field .panel-select {
+  width: 100%;
+}
+
+.rfe-edit-field textarea.panel-input {
+  resize: vertical;
+  min-height: 44px;
+}

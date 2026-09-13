@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getFamilyDetail, shortId, friendlyError } from "../lib/staffData";
+import { getFamilyDetail, getCurrentStaff, shortId, friendlyError } from "../lib/staffData";
 import { getMissingItems, getOutstandingDocuments, getReadinessPct, displayNameForChild } from "../lib/completeness";
 import { stageLabel } from "../lib/workflow";
 import CaseSettingsPanel from "../components/CaseSettingsPanel";
@@ -11,6 +11,8 @@ import TasksPanel from "../components/TasksPanel";
 import CaseNotesPanel from "../components/CaseNotesPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
 import PaymentsPanel from "../components/PaymentsPanel";
+import RecordFieldsEditor from "../components/RecordFieldsEditor";
+import AuditHistoryPanel from "../components/AuditHistoryPanel";
 import "./FamilyDetailPage.css";
 
 // ---------------------------------------------------------------------------
@@ -248,21 +250,6 @@ function RecordField({ label, value, wide }) {
   );
 }
 
-function RecordFields({ fields, source }) {
-  return (
-    <div className="rec-grid">
-      {fields.map((field) => {
-        if (field.showIf && !field.showIf(source)) return null;
-        let value = source?.[field.key];
-        if (field.type === "date") value = formatDate(value);
-        if (field.type === "reference_status") value = REFERENCE_STATUS_LABELS[value] || value;
-        if (field.type === "array_join") value = Array.isArray(value) ? value.join(", ") : value;
-        return <RecordField key={field.key} label={field.label} value={value} wide={field.wide} />;
-      })}
-    </div>
-  );
-}
-
 // Addresses, 2026-09-02 onwards. There is no single family address any more:
 // each parent and child has their own, because separated parents don't share
 // one and a child may live with only one of them. families.home_address still
@@ -401,6 +388,8 @@ export default function FamilyDetailPage() {
   const { familyId } = useParams();
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
+  const [currentStaffName, setCurrentStaffName] = useState("");
+  const [auditVersion, setAuditVersion] = useState(0);
 
   useEffect(() => {
     setDetail(null);
@@ -409,6 +398,36 @@ export default function FamilyDetailPage() {
       .then(setDetail)
       .catch((err) => setError(friendlyError(err, "Couldn't load this family.")));
   }, [familyId]);
+
+  useEffect(() => {
+    getCurrentStaff()
+      .then((staff) => setCurrentStaffName(staff?.full_name || staff?.email || ""))
+      .catch(() => {});
+  }, []);
+
+  // Addendum 33 (September 2026 change request) — RecordFieldsEditor saves
+  // straight to Supabase itself; these just fold the saved row back into
+  // this page's own state afterwards, and bump auditVersion so
+  // AuditHistoryPanel below picks up the new log entry without a full
+  // refetch of the family.
+  function handleParentSaved(updated) {
+    setDetail((d) => ({ ...d, parents: d.parents.map((p) => (p.id === updated.id ? updated : p)) }));
+    setAuditVersion((v) => v + 1);
+  }
+  function handleChildSaved(updated) {
+    setDetail((d) => ({ ...d, children: d.children.map((c) => (c.id === updated.id ? updated : c)) }));
+    setAuditVersion((v) => v + 1);
+  }
+  function handleSchoolSaved(updated) {
+    setDetail((d) => {
+      const idx = d.children.findIndex((c) => c.id === updated.child_id);
+      if (idx === -1) return d;
+      const currentSchools = [...d.currentSchools];
+      currentSchools[idx] = updated;
+      return { ...d, currentSchools };
+    });
+    setAuditVersion((v) => v + 1);
+  }
 
   if (error) {
     return (
@@ -572,7 +591,15 @@ export default function FamilyDetailPage() {
                     docCount={countDocs(documentsByOwner, "parent", p.id)}
                     photo={findProfilePhoto(documentsByOwner[`parent:${p.id}`])}
                   >
-                    <RecordFields fields={PARENT_FIELDS} source={p} />
+                    <RecordFieldsEditor
+                      fields={PARENT_FIELDS}
+                      source={p}
+                      table="parents"
+                      recordId={p.id}
+                      familyId={family.id}
+                      currentStaffName={currentStaffName}
+                      onSaved={handleParentSaved}
+                    />
                   </PersonCard>
                 ))}
               {children.map((c, i) => (
@@ -591,13 +618,37 @@ export default function FamilyDetailPage() {
                   flags={childCardFlags(c)}
                 >
                   <h3 className="rec-subhead">General info</h3>
-                  <RecordFields fields={CHILD_GENERAL_FIELDS} source={c} />
+                  <RecordFieldsEditor
+                    fields={CHILD_GENERAL_FIELDS}
+                    source={c}
+                    table="children"
+                    recordId={c.id}
+                    familyId={family.id}
+                    currentStaffName={currentStaffName}
+                    onSaved={handleChildSaved}
+                  />
 
                   <h3 className="rec-subhead">Additional info</h3>
-                  <RecordFields fields={CHILD_ADDITIONAL_FIELDS} source={c} />
+                  <RecordFieldsEditor
+                    fields={CHILD_ADDITIONAL_FIELDS}
+                    source={c}
+                    table="children"
+                    recordId={c.id}
+                    familyId={family.id}
+                    currentStaffName={currentStaffName}
+                    onSaved={handleChildSaved}
+                  />
 
                   <h3 className="rec-subhead">SEN and inclusion</h3>
-                  <RecordFields fields={CHILD_SEN_FIELDS} source={c} />
+                  <RecordFieldsEditor
+                    fields={CHILD_SEN_FIELDS}
+                    source={c}
+                    table="children"
+                    recordId={c.id}
+                    familyId={family.id}
+                    currentStaffName={currentStaffName}
+                    onSaved={handleChildSaved}
+                  />
 
                   <h3 className="rec-subhead">Current school</h3>
                   {/* NAV-02 (September 2026 change request): the family's form
@@ -618,7 +669,16 @@ export default function FamilyDetailPage() {
                       </p>
                     );
                   })()}
-                  <RecordFields fields={SCHOOL_FIELDS} source={currentSchools[i] || {}} />
+                  <RecordFieldsEditor
+                    fields={SCHOOL_FIELDS}
+                    source={currentSchools[i] || {}}
+                    table="current_schools"
+                    recordId={currentSchools[i]?.id}
+                    insertExtra={{ child_id: c.id }}
+                    familyId={family.id}
+                    currentStaffName={currentStaffName}
+                    onSaved={handleSchoolSaved}
+                  />
                 </PersonCard>
               ))}
               {parents.every((p) => !p.full_name) && children.length === 0 && (
@@ -626,6 +686,8 @@ export default function FamilyDetailPage() {
               )}
             </div>
           </section>
+
+          <AuditHistoryPanel familyId={family.id} version={auditVersion} />
 
           <section className="family-detail-card">
             <h2>

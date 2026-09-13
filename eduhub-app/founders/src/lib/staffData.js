@@ -790,3 +790,81 @@ export async function getTodayData() {
     unownedFamilies,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Editing a family's own submitted answers, from the founders' side
+// (addendum 33, September 2026 change request) — plus the change history
+// that comes with it. Generic on purpose: RecordFieldsEditor (components/)
+// is the one place that calls these, for every editable section on
+// FamilyDetailPage (a parent, a child, a child's current school), so a new
+// editable section later is a couple of lines there, not a new pair of
+// functions here.
+// ---------------------------------------------------------------------------
+
+// Updates an existing row. `patch` is whatever changed — RecordFieldsEditor
+// only ever sends the fields it actually diffed, never the whole record.
+export async function updateRecordFields(table, recordId, patch) {
+  if (!Object.keys(patch).length) return null;
+  return unwrap(await supabase.from(table).update(patch).eq("id", recordId).select().single());
+}
+
+// For the one case a record might not exist yet — a child whose current
+// school was never started on the family's own form. `extra` carries the
+// foreign key (e.g. { child_id }) the row needs beyond the edited fields
+// themselves.
+export async function insertRecordWithFields(table, extra, patch) {
+  return unwrap(
+    await supabase
+      .from(table)
+      .insert({ ...extra, ...patch })
+      .select()
+      .single()
+  );
+}
+
+// One audit row per changed field. `changes` is [{ key, label, oldValue,
+// newValue }]; values are stringified here (arrays joined with ", ") since
+// the log is a human-readable trail, not a place anything reads structured
+// data back out of. Silently does nothing for an empty change set — saving
+// with nothing actually different shouldn't leave a "no-op" entry behind.
+function auditStringify(value) {
+  if (value === null || value === undefined) return null;
+  if (Array.isArray(value)) return value.join(", ");
+  return String(value);
+}
+
+export async function logAuditChanges({ familyId, table, recordId, changes, staffName }) {
+  if (!changes || !changes.length) return;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const rows = changes.map((c) => ({
+    family_id: familyId,
+    table_name: table,
+    record_id: recordId,
+    field_name: c.key,
+    field_label: c.label || c.key,
+    old_value: auditStringify(c.oldValue),
+    new_value: auditStringify(c.newValue),
+    changed_by: user?.id || null,
+    changed_by_name: staffName || null,
+  }));
+  const { error } = await supabase.from("record_audit_log").insert(rows);
+  if (error) throw error;
+}
+
+// Most recent edits across a whole family — every table, newest first. Used
+// by AuditHistoryPanel; capped at 200 since this is a "what changed
+// recently" view, not a full export.
+export async function listAuditLog(familyId) {
+  return (
+    unwrap(
+      await supabase
+        .from("record_audit_log")
+        .select("*")
+        .eq("family_id", familyId)
+        .order("changed_at", { ascending: false })
+        .limit(200)
+    ) || []
+  );
+}

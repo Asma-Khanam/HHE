@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import ProfilePage from "./pages/ProfilePage";
 import ApplicationPage from "./pages/ApplicationPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -30,6 +32,8 @@ function App() {
       <Route path="/" element={<Navigate to="/signup" replace />} />
       <Route path="/signup" element={<SignUp />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       {/* Old links some may still have bookmarked — send them somewhere real. */}
       <Route path="/dashboard" element={<Navigate to="/app" replace />} />
 

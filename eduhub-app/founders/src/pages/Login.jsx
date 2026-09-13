@@ -65,6 +65,9 @@ export default function Login() {
       </form>
 
       <p className="hh-switch-line">
+        <Link to="/forgot-password">Forgot password?</Link>
+      </p>
+      <p className="hh-switch-line">
         New team member? <Link to="/signup">Create your login</Link>
       </p>
     </AuthLayout>
