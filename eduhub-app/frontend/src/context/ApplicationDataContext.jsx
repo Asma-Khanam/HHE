@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { ensureFamilyExists } from "../lib/ensureFamily";
 import { fetchApplicationData } from "../lib/applicationData";
@@ -16,8 +16,30 @@ export function ApplicationDataProvider({ children }) {
   const [familyId, setFamilyId] = useState(null);
   const [data, setData] = useState(null);
 
+  // Bug fix (September 2026, take 3): "every time I choose an option from
+  // a dropdown, it goes back to the application page — without me even
+  // pressing Next." The actual cause had nothing to do with form
+  // submission — it was this reload function. Autosave calls onSaved()
+  // (this same reload) after every single field change, and reload used
+  // to flip status to "loading" every time it ran. ApplicationPage renders
+  // a bare "Loading your application..." message whenever status is
+  // "loading" — in place of ApplicationForm, not alongside it — so every
+  // autosave tick was unmounting the whole form and remounting it fresh a
+  // moment later. On that fresh mount, ApplicationForm has no memory of
+  // which step you were on (there's no url state pointing at one unless
+  // you arrived via a "missing field" deep link), so it defaulted straight
+  // back to the overview. It looked exactly like every dropdown kicking
+  // you back to the start.
+  //
+  // The loading screen is only meant to cover the very first load, before
+  // there's anything on screen to show. `hasLoadedRef` tracks that: once
+  // the first load succeeds, every later reload (autosave included) just
+  // swaps `data` in once the fetch resolves, with the form staying mounted
+  // and exactly where the family left it the whole time.
+  const hasLoadedRef = useRef(false);
+
   const reload = useCallback(async () => {
-    setStatus("loading");
+    if (!hasLoadedRef.current) setStatus("loading");
     setError("");
 
     const {
@@ -37,6 +59,7 @@ export function ApplicationDataProvider({ children }) {
       setFamilyId(family.id);
       setData(appData);
       setStatus("ready");
+      hasLoadedRef.current = true;
     } catch (err) {
       setError(err.message || "Couldn't load your application.");
       setStatus("error");
