@@ -69,6 +69,13 @@ export default function SchoolShortlistPanel({ familyId, familyChildren }) {
   const [addingSchoolId, setAddingSchoolId] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Initial load only — this is the one place the list is allowed to
+  // disappear behind "Loading…". Every mutation below updates `rows` (and
+  // `availability` where relevant) in place instead of re-running this, so
+  // picking an option in a dropdown never blanks the panel out and jumps
+  // the page — that was making the Applications panel underneath appear
+  // to jump up and grab the click, which read as "it goes back to the
+  // application page."
   async function load() {
     setLoading(true);
     setError("");
@@ -93,12 +100,19 @@ export default function SchoolShortlistPanel({ familyId, familyChildren }) {
   async function handleAdd(e) {
     e.preventDefault();
     if (!addingSchoolId) return;
+    const schoolId = addingSchoolId;
     setBusy(true);
     setError("");
     try {
-      await addToShortlist({ familyId, schoolId: addingSchoolId });
+      const created = await addToShortlist({ familyId, schoolId });
+      const school = allSchools.find((s) => s.id === schoolId) || null;
+      setRows((prev) => [{ ...created, school }, ...prev]);
       setAddingSchoolId("");
-      await load();
+      // Only this school's year-group rows are new to us — no need to
+      // refetch every shortlisted school's availability again.
+      listYearGroupAvailabilityForSchoolIds([schoolId])
+        .then((rows) => setAvailability((prev) => [...prev, ...rows]))
+        .catch(() => {});
     } catch (err) {
       setError(friendlyError(err));
     } finally {
@@ -110,8 +124,8 @@ export default function SchoolShortlistPanel({ familyId, familyChildren }) {
     setBusy(true);
     setError("");
     try {
-      await updateShortlistEntry(row.id, { availability_status: value });
-      await load();
+      const updated = await updateShortlistEntry(row.id, { availability_status: value });
+      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, ...updated, school: r.school } : r)));
     } catch (err) {
       setError(friendlyError(err));
     } finally {
@@ -124,7 +138,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren }) {
     setError("");
     try {
       await removeFromShortlist(row.id);
-      await load();
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
     } catch (err) {
       setError(friendlyError(err));
     } finally {
