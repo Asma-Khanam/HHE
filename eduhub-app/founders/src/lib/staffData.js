@@ -338,8 +338,12 @@ export async function listSchools() {
   return unwrap(await supabase.from("schools").select("*").order("name")) || [];
 }
 
-export async function createSchool({ name, location }) {
-  return unwrap(await supabase.from("schools").insert({ name, location: location || null }).select().single());
+export async function createSchool(patch) {
+  return unwrap(await supabase.from("schools").insert(patch).select().single());
+}
+
+export async function updateSchool(schoolId, patch) {
+  return unwrap(await supabase.from("schools").update(patch).eq("id", schoolId).select().single());
 }
 
 export async function createApplication({ childId, schoolId, fit, status }) {
@@ -867,4 +871,127 @@ export async function listAuditLog(familyId) {
         .limit(200)
     ) || []
   );
+}
+
+// ---------------------------------------------------------------------------
+// School visits tracker — Phase 1 (addendum 36, September 2026 change
+// request). The school catalog, year group availability, and each family's
+// shortlist. See the addendum's own comment for what's deliberately not
+// built yet (tours/feedback, the family timetable, chase-clock automation).
+// ---------------------------------------------------------------------------
+
+export async function listSchoolsWithStats() {
+  const [schools, shortlist] = await Promise.all([
+    supabase.from("schools").select("*").order("name").then(unwrap),
+    supabase.from("school_shortlist").select("id, school_id, availability_status").then(unwrap),
+  ]);
+  const bySchool = groupBy(shortlist, "school_id");
+  return (schools || []).map((s) => {
+    const entries = bySchool[s.id] || [];
+    return {
+      ...s,
+      shortlistCount: entries.length,
+      awaitingCount: entries.filter((e) => e.availability_status === "awaiting").length,
+    };
+  });
+}
+
+export async function getSchoolDetail(schoolId) {
+  const [school, availability, shortlist] = await Promise.all([
+    supabase.from("schools").select("*").eq("id", schoolId).single().then(unwrap),
+    supabase
+      .from("school_year_group_availability")
+      .select("*")
+      .eq("school_id", schoolId)
+      .order("year_group")
+      .then(unwrap),
+    supabase
+      .from("school_shortlist")
+      .select("*")
+      .eq("school_id", schoolId)
+      .order("shortlisted_at", { ascending: false })
+      .then(unwrap),
+  ]);
+
+  const familyIds = [...new Set((shortlist || []).map((row) => row.family_id))];
+  const [families, parents] = await Promise.all([
+    familyIds.length ? supabase.from("families").select("*").in("id", familyIds).then(unwrap) : Promise.resolve([]),
+    familyIds.length ? supabase.from("parents").select("*").in("family_id", familyIds).then(unwrap) : Promise.resolve([]),
+  ]);
+  const familiesById = Object.fromEntries((families || []).map((f) => [f.id, f]));
+  const parentsByFamily = groupBy(parents, "family_id");
+
+  const shortlistWithNames = (shortlist || []).map((row) => {
+    const family = familiesById[row.family_id];
+    return {
+      ...row,
+      familyName: family ? familyDisplayName(family, parentsByFamily[row.family_id]) : "Unknown family",
+    };
+  });
+
+  return { school, availability: availability || [], shortlist: shortlistWithNames };
+}
+
+export async function upsertYearGroupAvailability(schoolId, { id, yearGroup, status, lastCheckedAt }) {
+  const row = {
+    school_id: schoolId,
+    year_group: yearGroup,
+    status,
+    last_checked_at: lastCheckedAt || new Date().toISOString(),
+  };
+  if (id) {
+    return unwrap(
+      await supabase.from("school_year_group_availability").update(row).eq("id", id).select().single()
+    );
+  }
+  return unwrap(
+    await supabase
+      .from("school_year_group_availability")
+      // Re-adding a year group that already has a row (unique on
+      // school_id+year_group) updates it in place rather than erroring —
+      // one less thing staff need to remember when correcting a typo'd
+      // year group by re-entering it.
+      .upsert(row, { onConflict: "school_id,year_group" })
+      .select()
+      .single()
+  );
+}
+
+export async function deleteYearGroupAvailability(id) {
+  const { error } = await supabase.from("school_year_group_availability").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// One family's whole shortlist, newest first — used on FamilyDetailPage.
+export async function listShortlistForFamily(familyId) {
+  const [shortlist, schools] = await Promise.all([
+    supabase
+      .from("school_shortlist")
+      .select("*")
+      .eq("family_id", familyId)
+      .order("shortlisted_at", { ascending: false })
+      .then(unwrap),
+    listSchools(),
+  ]);
+  const schoolsById = Object.fromEntries((schools || []).map((s) => [s.id, s]));
+  return (shortlist || []).map((row) => ({ ...row, school: schoolsById[row.school_id] || null }));
+}
+
+export async function addToShortlist({ familyId, schoolId }) {
+  return unwrap(
+    await supabase
+      .from("school_shortlist")
+      .insert({ family_id: familyId, school_id: schoolId })
+      .select()
+      .single()
+  );
+}
+
+export async function updateShortlistEntry(shortlistId, patch) {
+  return unwrap(await supabase.from("school_shortlist").update(patch).eq("id", shortlistId).select().single());
+}
+
+export async function removeFromShortlist(shortlistId) {
+  const { error } = await supabase.from("school_shortlist").delete().eq("id", shortlistId);
+  if (error) throw error;
 }

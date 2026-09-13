@@ -1,0 +1,46 @@
+.schools-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.schools-page-header h1 {
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  font-size: 1.7rem;
+  margin: 0 0 4px;
+}
+
+.schools-page-subtitle {
+  color: var(--hh-ink);
+  opacity: 0.6;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.schools-page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.schools-add-form {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+
+.schools-add-form .panel-input {
+  flex: 1 1 200px;
+  min-width: 160px;
+}

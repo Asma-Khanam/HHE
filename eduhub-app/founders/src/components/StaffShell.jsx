@@ -55,6 +55,9 @@ export default function StaffShell() {
               Team
             </NavLink>
           )}
+          <NavLink to="/staff/schools" className={({ isActive }) => "staff-nav-item" + (isActive ? " is-active" : "")}>
+            Schools
+          </NavLink>
           {me?.role === "admin" && (
             <NavLink to="/staff/settings" className={({ isActive }) => "staff-nav-item" + (isActive ? " is-active" : "")}>
               Settings
