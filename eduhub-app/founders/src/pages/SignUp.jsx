@@ -34,6 +34,26 @@ export default function SignUp() {
     }
 
     setSubmitting(true);
+
+    // Addendum 34 (September 2026 change request) — this email might
+    // already be a family's own login on the client app. Same shared
+    // Supabase Auth project as always (see below), but the two are meant to
+    // stay separate accounts, so this is refused up front with a clear
+    // reason rather than quietly creating a second, confusing login.
+    const { data: isClient, error: checkError } = await supabase.rpc("email_is_client_account", {
+      p_email: email.trim(),
+    });
+    if (checkError) {
+      setSubmitting(false);
+      setError(checkError.message);
+      return;
+    }
+    if (isClient) {
+      setSubmitting(false);
+      setError("This email is already registered as a client account. Staff need a different email address to sign in here.");
+      return;
+    }
+
     // Families sign up through the client app using this same Supabase
     // Auth project, so this login lands in the exact same auth.users table
     // as theirs. signup_source: "founders" is the only thing that tells

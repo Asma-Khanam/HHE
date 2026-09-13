@@ -30,6 +30,24 @@ export default function SignUp() {
 
     setSubmitting(true);
 
+    // Addendum 34 (September 2026 change request) — this email might
+    // already be a staff login on the founders app. Refused up front with a
+    // clear reason, same as the founders app does in reverse, rather than
+    // quietly creating a second, confusing login on the same email.
+    const { data: isStaff, error: checkError } = await supabase.rpc("email_is_staff_account", {
+      p_email: email.trim(),
+    });
+    if (checkError) {
+      setSubmitting(false);
+      setError(checkError.message);
+      return;
+    }
+    if (isStaff) {
+      setSubmitting(false);
+      setError("This email is already registered as a staff login. Please use a different email address to sign up here.");
+      return;
+    }
+
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
