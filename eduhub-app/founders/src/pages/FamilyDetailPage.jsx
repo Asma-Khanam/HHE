@@ -391,12 +391,21 @@ export default function FamilyDetailPage() {
   const [currentStaffName, setCurrentStaffName] = useState("");
   const [auditVersion, setAuditVersion] = useState(0);
 
+  // Shared by the initial load and by DocumentVaultPanel (addendum 35) —
+  // a document upload/replace/remove is simplest to just refetch after,
+  // rather than hand-patching every possible shape that change could take
+  // (a brand-new row, an old one gone, a multi-file slot growing by one).
+  function refreshFamily() {
+    return getFamilyDetail(familyId)
+      .then(setDetail)
+      .catch((err) => setError(friendlyError(err, "Couldn't load this family.")));
+  }
+
   useEffect(() => {
     setDetail(null);
     setError("");
-    getFamilyDetail(familyId)
-      .then(setDetail)
-      .catch((err) => setError(friendlyError(err, "Couldn't load this family.")));
+    refreshFamily();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [familyId]);
 
   useEffect(() => {
@@ -725,7 +734,14 @@ export default function FamilyDetailPage() {
       </div>
 
       <div className="family-detail-stack">
-        <DocumentVaultPanel parents={parents} familyChildren={children} documentsByOwner={documentsByOwner} accountHolderRole={accountHolderRole} />
+        <DocumentVaultPanel
+          parents={parents}
+          familyChildren={children}
+          documentsByOwner={documentsByOwner}
+          accountHolderRole={accountHolderRole}
+          userId={family.account_user_id}
+          onChanged={refreshFamily}
+        />
         <PaymentsPanel
           familyId={family.id}
           payments={payments}

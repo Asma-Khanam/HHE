@@ -688,3 +688,11 @@
   line-height: 1.5;
   font-family: var(--hh-font-body);
 }
+
+/* Upload error inside DocumentVaultPanel's per-slot controls (addendum 35) —
+   forces onto its own line under the buttons rather than squeezing the flex
+   row wider. */
+.doc-row-upload-error {
+  width: 100%;
+  margin: 6px 0 0;
+}

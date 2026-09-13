@@ -1,6 +1,7 @@
+import { useRef, useState } from "react";
 import { displayNameForChild, expectedChildDocTypes, expectedParentDocTypes } from "../lib/completeness";
-import { getSignedUrl, downloadDocument, cleanFileName } from "../lib/documents";
-import { CHILD_DOCUMENT_TYPES, PARENT_DOCUMENT_TYPES } from "../data/documentTypes";
+import { getSignedUrl, downloadDocument, cleanFileName, uploadDocument, deleteDocument } from "../lib/documents";
+import { CHILD_DOCUMENT_TYPES, PARENT_DOCUMENT_TYPES, ACCEPTED_FILE_EXTENSIONS, ACCEPTED_FILES_MESSAGE, isAcceptedFile } from "../data/documentTypes";
 import "./panels.css";
 
 function formatDate(iso) {
@@ -35,6 +36,9 @@ function buildDocumentRows({ parents, children, documentsByOwner, accountHolderR
       const matches = docs.filter((d) => d.document_type === docType.key);
       rows.push({
         key: `${ownerType}-${id}-${docType.key}`,
+        ownerType,
+        ownerId: id,
+        docType,
         personName,
         personTag,
         docLabel: docType.label,
@@ -67,26 +71,130 @@ function buildDocumentRows({ parents, children, documentsByOwner, accountHolderR
   return rows;
 }
 
-export default function DocumentVaultPanel({ parents, familyChildren, documentsByOwner, accountHolderRole }) {
+// One slot's worth of upload/replace/remove controls (addendum 35,
+// September 2026 change request). A sibling of DocumentUploadRow.jsx on the
+// family's own app — same accepted-file rules, same "replace by default /
+// multiple appends" behaviour — just triggered by staff, on the family's
+// behalf, so `userId` here is always the family's own account_user_id (see
+// founders/src/lib/documents.js for why that matters).
+function VaultRowControls({ row, userId, onChanged }) {
+  const inputRef = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const docType = row.docType;
+  const acceptExtensions = docType.acceptExtensions || ACCEPTED_FILE_EXTENSIONS;
+  const acceptCheck = docType.acceptCheck || isAcceptedFile;
+  const acceptMessage = docType.acceptMessage || ACCEPTED_FILES_MESSAGE;
+  const maxSizeBytes = docType.maxSizeBytes;
+  const maxSizeMessage = docType.maxSizeMessage || "That file is too large.";
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!userId) {
+      setError("This family has no account holder on file yet — can't upload for them.");
+      return;
+    }
+    if (!acceptCheck(file)) {
+      setError(acceptMessage);
+      return;
+    }
+    if (maxSizeBytes && file.size > maxSizeBytes) {
+      setError(maxSizeMessage);
+      return;
+    }
+    setError("");
+    setBusy(true);
+    try {
+      await uploadDocument({
+        userId,
+        ownerType: row.ownerType,
+        ownerId: row.ownerId,
+        documentType: docType.key,
+        file,
+        multiple: !!docType.multiple,
+      });
+      onChanged();
+    } catch (err) {
+      setError(err.message || "Upload failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRemove(doc) {
+    setBusy(true);
+    setError("");
+    try {
+      await deleteDocument(doc);
+      onChanged();
+    } catch (err) {
+      setError(err.message || "Couldn't remove file.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="doc-row-controls">
+      {row.docs.map((doc, idx) => (
+        <span key={doc.id} className="doc-row-file-actions">
+          <button
+            type="button"
+            className="panel-btn"
+            onClick={async () => {
+              try {
+                window.open(await getSignedUrl(doc.file_url), "_blank", "noopener,noreferrer");
+              } catch (err) {
+                setError(err.message || "Couldn't open file.");
+              }
+            }}
+            disabled={busy}
+          >
+            View
+          </button>
+          <button
+            type="button"
+            className="panel-btn"
+            onClick={async () => {
+              try {
+                await downloadDocument(doc, cleanFileName(row.personName, row.docLabel, row.docs.length > 1 ? String(idx + 1) : undefined));
+              } catch (err) {
+                setError(err.message || "Couldn't download file.");
+              }
+            }}
+            disabled={busy}
+          >
+            Download
+          </button>
+          <button type="button" className="panel-btn panel-btn-quiet" onClick={() => handleRemove(doc)} disabled={busy}>
+            Remove
+          </button>
+        </span>
+      ))}
+
+      {(docType.multiple || row.docs.length === 0) && (
+        <button type="button" className="panel-btn panel-btn-primary" onClick={() => inputRef.current?.click()} disabled={busy}>
+          {busy ? "Uploading..." : row.docs.length ? "Add another" : "Upload"}
+        </button>
+      )}
+      {!docType.multiple && row.docs.length > 0 && (
+        <button type="button" className="panel-btn" onClick={() => inputRef.current?.click()} disabled={busy}>
+          {busy ? "Uploading..." : "Replace"}
+        </button>
+      )}
+      <input ref={inputRef} type="file" accept={acceptExtensions} hidden onChange={handleFile} />
+
+      {error && <div className="hh-form-banner hh-form-banner-error doc-row-upload-error">{error}</div>}
+    </div>
+  );
+}
+
+export default function DocumentVaultPanel({ parents, familyChildren, documentsByOwner, accountHolderRole, userId, onChanged }) {
   const rows = buildDocumentRows({ parents, children: familyChildren, documentsByOwner, accountHolderRole });
   const uploadedCount = rows.filter((r) => r.uploaded).length;
-
-  async function handleView(doc) {
-    try {
-      const url = await getSignedUrl(doc.file_url);
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (err) {
-      window.alert(err.message || "Couldn't open file.");
-    }
-  }
-
-  async function handleDownload(row, doc, suffix) {
-    try {
-      await downloadDocument(doc, cleanFileName(row.personName, row.docLabel, suffix));
-    } catch (err) {
-      window.alert(err.message || "Couldn't download file.");
-    }
-  }
 
   return (
     <section className="panel">
@@ -122,7 +230,7 @@ export default function DocumentVaultPanel({ parents, familyChildren, documentsB
                   <span className="doc-row-tag doc-row-tag-muted">{row.personTag}</span>
                 </div>
                 {row.uploaded ? (
-                  row.docs.map((doc, idx) => (
+                  row.docs.map((doc) => (
                     <div className="doc-row-meta" key={doc.id}>
                       {doc.original_filename}
                       {reportLabel(doc) ? ` · ${reportLabel(doc)}` : ""}
@@ -134,24 +242,7 @@ export default function DocumentVaultPanel({ parents, familyChildren, documentsB
                 )}
               </div>
 
-              {row.uploaded && (
-                <div className="doc-row-controls">
-                  {row.docs.map((doc, idx) => (
-                    <span key={doc.id} className="doc-row-file-actions">
-                      <button type="button" className="panel-btn" onClick={() => handleView(doc)}>
-                        View
-                      </button>
-                      <button
-                        type="button"
-                        className="panel-btn"
-                        onClick={() => handleDownload(row, doc, row.docs.length > 1 ? String(idx + 1) : undefined)}
-                      >
-                        Download
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
+              <VaultRowControls row={row} userId={userId} onChanged={onChanged} />
             </li>
           ))}
         </ul>

@@ -1,9 +1,17 @@
 import { supabase } from "./supabaseClient";
 
-// Trimmed down from the client app's frontend/src/lib/documents.js — this
-// app is read-only for now (view/download only), so the upload/delete
-// functions aren't copied over; only what the Document Vault view actually
-// needs. If staff ever get an editing feature, pull the rest across then.
+// Addendum 35 (September 2026 change request) — staff can now upload,
+// replace, and remove a family's documents from this side too, not just
+// view/download them. uploadDocument/deleteDocument below are pulled
+// across from the client app's frontend/src/lib/documents.js with one
+// change: `userId` here is always the FAMILY's own account_user_id, not
+// whoever's signed in — the storage path convention
+// ({account_user_id}/{owner_type}/{owner_id}/...) has to stay keyed to the
+// family regardless of who uploads, both so an existing file staff replace
+// lands in the same place a family-uploaded one would have, and so the
+// family can still manage it themselves afterwards through their own
+// per-folder storage policy. Addendum 35's staff storage policies are what
+// make writing into someone else's folder possible from here at all.
 const BUCKET = "documents";
 
 // The bucket is private, so viewing a file needs a short-lived signed URL —
@@ -40,4 +48,84 @@ export async function downloadDocument(doc, cleanName) {
   a.click();
   a.remove();
   URL.revokeObjectURL(objectUrl);
+}
+
+// Uploads a file into one checklist slot (owner_type + owner_id +
+// document_type), on the family's behalf. Same replace-by-default /
+// `multiple: true`-appends behaviour as the family's own upload — see
+// frontend/src/lib/documents.js for the full explanation.
+export async function uploadDocument({ userId, ownerType, ownerId, documentType, file, multiple = false }) {
+  const ext = file.name.includes(".") ? file.name.split(".").pop() : "";
+
+  if (!multiple) {
+    const { data: existing, error: existingError } = await supabase
+      .from("documents")
+      .select("id, file_url")
+      .eq("owner_type", ownerType)
+      .eq("owner_id", ownerId)
+      .eq("document_type", documentType);
+    if (existingError) throw existingError;
+
+    if (existing?.length) {
+      const paths = existing.map((d) => d.file_url).filter(Boolean);
+      if (paths.length) await supabase.storage.from(BUCKET).remove(paths);
+      const { error: deleteError } = await supabase
+        .from("documents")
+        .delete()
+        .in(
+          "id",
+          existing.map((d) => d.id)
+        );
+      if (deleteError) throw deleteError;
+    }
+
+    const path = `${userId}/${ownerType}/${ownerId}/${documentType}${ext ? "." + ext : ""}`;
+    const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+    if (uploadError) throw uploadError;
+
+    const { data, error } = await supabase
+      .from("documents")
+      .insert({
+        owner_type: ownerType,
+        owner_id: ownerId,
+        document_type: documentType,
+        file_url: path,
+        file_type: file.type,
+        original_filename: file.name,
+        status: "received",
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  // multiple: true — always add a new row/file, never delete an existing one.
+  const path = `${userId}/${ownerType}/${ownerId}/${documentType}-${Date.now()}${ext ? "." + ext : ""}`;
+  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file);
+  if (uploadError) throw uploadError;
+
+  const { data, error } = await supabase
+    .from("documents")
+    .insert({
+      owner_type: ownerType,
+      owner_id: ownerId,
+      document_type: documentType,
+      file_url: path,
+      file_type: file.type,
+      original_filename: file.name,
+      status: "received",
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteDocument(doc) {
+  if (doc.file_url) {
+    await supabase.storage.from(BUCKET).remove([doc.file_url]);
+  }
+  const { error } = await supabase.from("documents").delete().eq("id", doc.id);
+  if (error) throw error;
 }
