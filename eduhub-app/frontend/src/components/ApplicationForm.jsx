@@ -1356,6 +1356,24 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   // application as actually submitted.
   async function handleSubmitApplication(e) {
     e.preventDefault();
+
+    // Bug fix (September 2026, take 2): the earlier fix here only
+    // intercepted the Enter *keydown*, but a native <select>'s own OS-drawn
+    // popup swallows that keydown before it ever reaches our onKeyDown
+    // handler — so choosing an option with the keyboard (arrow keys +
+    // Enter, which is exactly how you close a dropdown you clicked open)
+    // still implicitly submitted the form once the popup closed, running
+    // straight into the "no owning card" branch below and jumping back to
+    // the overview. Checking the submit event's own `submitter` is the
+    // reliable way to tell a real Submit-button click from an implicit
+    // submission, regardless of which control (or which browser's select
+    // popup) triggered it: the browser sets `submitter` only when an actual
+    // submit button was activated, and leaves it null for every implicit
+    // path. So only a genuine button click reaches the validation below.
+    if (!e.nativeEvent?.submitter) {
+      return;
+    }
+
     setError("");
 
     if (missingItems.length) {
