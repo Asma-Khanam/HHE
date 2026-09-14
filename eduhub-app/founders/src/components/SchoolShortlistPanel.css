@@ -138,10 +138,6 @@
   background: #2f9e51;
 }
 
-.svt-dot.is-clash {
-  background: #c13c2e;
-}
-
 .svt-stage-label {
   font-size: 13px;
   font-weight: 600;
@@ -170,16 +166,6 @@
   background: #fbfafa;
   border-top: 1px solid var(--border, #eee);
   padding: 16px;
-}
-
-.svt-clash-banner {
-  background: #fbe9e7;
-  color: #a33a2e;
-  border: 1px solid #f3c9c2;
-  border-radius: 6px;
-  padding: 8px 10px;
-  font-size: 12px;
-  margin-bottom: 12px;
 }
 
 .svt-detail-grid {

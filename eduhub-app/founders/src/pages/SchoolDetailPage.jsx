@@ -99,9 +99,8 @@ export default function SchoolDetailPage() {
       name: school.name || "",
       area: school.area || "",
       address: school.address || "",
-      latitude: school.latitude ?? "",
-      longitude: school.longitude ?? "",
       curriculum: school.curriculum || "",
+      typical_tour_schedule: school.typical_tour_schedule || "",
       website_url: school.website_url || "",
       admissions_contact_name: school.admissions_contact_name || "",
       admissions_contact_email: school.admissions_contact_email || "",
@@ -129,8 +128,6 @@ export default function SchoolDetailPage() {
         ...draft,
         application_fee: draft.application_fee === "" ? null : Number(draft.application_fee),
         deposit_amount: draft.deposit_amount === "" ? null : Number(draft.deposit_amount),
-        latitude: draft.latitude === "" ? null : Number(draft.latitude),
-        longitude: draft.longitude === "" ? null : Number(draft.longitude),
       };
       const updated = await updateSchool(schoolId, patch);
       setDetail((d) => ({ ...d, school: updated }));
@@ -292,6 +289,12 @@ export default function SchoolDetailPage() {
               <span className="rec-field-label">Curriculum</span>
               <span className={"rec-field-value" + (school.curriculum ? "" : " is-empty")}>{school.curriculum || "—"}</span>
             </div>
+            <div className="rec-field rec-field-wide">
+              <span className="rec-field-label">Typical tour schedule</span>
+              <span className={"rec-field-value" + (school.typical_tour_schedule ? "" : " is-empty")}>
+                {school.typical_tour_schedule || "—"}
+              </span>
+            </div>
             <div className="rec-field">
               <span className="rec-field-label">Website</span>
               {school.website_url ? (
@@ -372,30 +375,18 @@ export default function SchoolDetailPage() {
                 <input className="panel-input" value={draft.address} onChange={(e) => setDraft((d) => ({ ...d, address: e.target.value }))} />
               </label>
               <label>
-                Latitude
-                <input
-                  type="number"
-                  step="any"
-                  className="panel-input"
-                  placeholder="e.g. 25.1122"
-                  value={draft.latitude}
-                  onChange={(e) => setDraft((d) => ({ ...d, latitude: e.target.value }))}
-                />
-              </label>
-              <label>
-                Longitude
-                <input
-                  type="number"
-                  step="any"
-                  className="panel-input"
-                  placeholder="e.g. 55.2000"
-                  value={draft.longitude}
-                  onChange={(e) => setDraft((d) => ({ ...d, longitude: e.target.value }))}
-                />
-              </label>
-              <label>
                 Curriculum
                 <input className="panel-input" value={draft.curriculum} onChange={(e) => setDraft((d) => ({ ...d, curriculum: e.target.value }))} />
+              </label>
+              <label className="school-edit-wide">
+                Typical tour schedule
+                <textarea
+                  className="panel-input"
+                  rows={2}
+                  placeholder="e.g. Reception: Tuesdays 10am; Year 1-6: Thursdays 9:30am"
+                  value={draft.typical_tour_schedule}
+                  onChange={(e) => setDraft((d) => ({ ...d, typical_tour_schedule: e.target.value }))}
+                />
               </label>
               <label>
                 Website

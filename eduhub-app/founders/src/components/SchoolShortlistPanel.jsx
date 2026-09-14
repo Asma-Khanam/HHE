@@ -10,7 +10,6 @@ import {
   upsertChildAvailability,
   updateShortlistTour,
   listOtherFeedbackForSchools,
-  findTourClashes,
   friendlyError,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
@@ -146,7 +145,8 @@ function TimelinePoint({ label, at }) {
 // it's up to" summary, each row expanding into full admissions/tour/
 // feedback detail. Phase 1 (add/remove/family-level status) is preserved
 // underneath the new Phase 2 layer (per-child availability, tours,
-// feedback, clash check) rather than replaced by it.
+// feedback) rather than replaced by it. (Addendum 44 removed the same-day
+// tour clash check that used to sit alongside these.)
 export default function SchoolShortlistPanel({ familyId, familyChildren, applicationsByChild }) {
   const [rows, setRows] = useState([]);
   const [childStatus, setChildStatus] = useState([]);
@@ -213,8 +213,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
   }, [rows, allApplications]);
 
   const tours = rows.filter((r) => r.tour_date);
-  const clashes = findTourClashes(tours);
-  const clashedIds = new Set(clashes.flatMap((c) => [c.a.id, c.b.id]));
 
   async function handleAdd(e) {
     e.preventDefault();
@@ -399,7 +397,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
             const rowChildStatuses = childStatus.filter((cs) => cs.shortlist_id === row.id);
             const applicationsForSchool = allApplications.filter((a) => a.school_id === row.school_id);
             const stage = stageInfo(row, applicationsForSchool);
-            const isClashed = clashedIds.has(row.id);
             const draft = tourDraftById[row.id];
             const feedbackRows = otherFeedback[row.school_id] || [];
             const earliestApplied = applicationsForSchool
@@ -436,7 +433,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                   <div className="svt-cell">
                     {row.tour_date ? (
                       <span className="svt-tour-chip">
-                        <span className={"svt-dot" + (isClashed ? " is-clash" : " is-ok")} />
+                        <span className="svt-dot is-ok" />
                         {formatDateTime(row.tour_date, row.tour_start_time)}
                       </span>
                     ) : (
@@ -454,12 +451,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
 
                 {expanded && (
                   <div className="svt-detail">
-                    {isClashed && (
-                      <div className="svt-clash-banner">
-                        This tour is scheduled close to another one the same day — there may not be enough time to
-                        get between them.
-                      </div>
-                    )}
                     <div className="svt-detail-grid">
                       <div className="svt-detail-col">
                         <h3 className="svt-detail-heading">Admissions</h3>
@@ -842,12 +833,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
       {tours.length > 0 && (
         <div className="svt-schedule">
           <h3 className="svt-sub-heading">Tour schedule</h3>
-          {clashes.length > 0 && (
-            <div className="svt-clash-banner">
-              {clashes.length} possible clash{clashes.length === 1 ? "" : "es"} between tours the same day — see the
-              flagged rows above.
-            </div>
-          )}
           <ul className="svt-schedule-list">
             {[...tours]
               .sort((a, b) => (a.tour_date + (a.tour_start_time || "")).localeCompare(b.tour_date + (b.tour_start_time || "")))
