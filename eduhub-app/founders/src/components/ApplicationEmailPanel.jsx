@@ -1,16 +1,90 @@
 import { useState } from "react";
-import { generateApplicationAlias, setApplicationAliasStatus } from "../lib/staffData";
+import {
+  generateApplicationAlias,
+  setApplicationAliasStatus,
+  generateParentApplicationAlias,
+  setParentApplicationAliasStatus,
+} from "../lib/staffData";
 import "./panels.css";
 
 const DOMAIN = "applications.heatherharries.com";
 
-// One forwarding-only address per family, so relocate@heatherharries.com
-// never has to be re-registered with a school that only allows one
-// family/application per email. The actual mail routing lives outside this
-// app (Cloudflare Email Routing + a Worker) — this panel only shows and
-// controls the CRM's side of it. See the calendar_events sibling addendum's
-// README note for the DNS setup this depends on.
-export default function ApplicationEmailPanel({ family, familyDisplayNameValue, onFamilyChange }) {
+// One row per parent, so Mother and Father can each get their own address
+// to register separately with a school portal (addendum 42) — this sits
+// alongside the family-wide address above it, it doesn't replace it.
+function ParentAliasRow({ parent, onParentChange, familyDisplayNameValue }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const alias = parent.application_alias;
+  const status = parent.application_alias_status;
+  const address = alias ? `${alias}@${DOMAIN}` : null;
+
+  async function handleGenerate() {
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await generateParentApplicationAlias(parent.id, familyDisplayNameValue, parent.relationship);
+      onParentChange(updated);
+    } catch (err) {
+      setError(err.message || "Couldn't create an address.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleToggle() {
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await setParentApplicationAliasStatus(parent.id, status === "active" ? "inactive" : "active");
+      onParentChange(updated);
+    } catch (err) {
+      setError(err.message || "Couldn't update that.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleCopy() {
+    navigator.clipboard?.writeText(address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <div className="parent-alias-row">
+      <span className="parent-alias-role">{parent.relationship}</span>
+      {!address ? (
+        <button type="button" className="panel-btn panel-btn-quiet" onClick={handleGenerate} disabled={busy}>
+          {busy ? "Creating…" : "+ Create address"}
+        </button>
+      ) : (
+        <>
+          <code className="panel-copy-value">{address}</code>
+          <span className={"families-badge" + (status === "active" ? " is-submitted" : "")}>
+            {status === "active" ? "Active" : "Inactive"}
+          </span>
+          <button type="button" className="panel-btn panel-btn-quiet" onClick={handleCopy}>
+            {copied ? "Copied" : "Copy"}
+          </button>
+          <button type="button" className="panel-btn panel-btn-quiet" onClick={handleToggle} disabled={busy}>
+            {busy ? "Working…" : status === "active" ? "Deactivate" : "Reactivate"}
+          </button>
+        </>
+      )}
+      {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
+    </div>
+  );
+}
+
+// The actual mail routing lives outside this app (ImprovMX catch-all
+// forwarding on applications.heatherharries.com into relocate@heatherharries.com)
+// — this panel only shows and controls the CRM's side of it: one address
+// per family (below), plus one address per parent (addendum 42) for when a
+// school wants the mother and father registered separately.
+export default function ApplicationEmailPanel({ family, familyDisplayNameValue, onFamilyChange, parents, onParentChange }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -92,6 +166,23 @@ export default function ApplicationEmailPanel({ family, familyDisplayNameValue, 
             {busy ? "Working…" : status === "active" ? "Deactivate" : "Reactivate"}
           </button>
         </>
+      )}
+
+      {(parents || []).length > 0 && (
+        <div className="parent-alias-section">
+          <p className="panel-hint">
+            Some schools want each parent registered separately rather than sharing the family address above — create
+            a second address per parent only if that comes up.
+          </p>
+          {parents.map((parent) => (
+            <ParentAliasRow
+              key={parent.id}
+              parent={parent}
+              onParentChange={onParentChange}
+              familyDisplayNameValue={familyDisplayNameValue}
+            />
+          ))}
+        </div>
       )}
     </section>
   );
