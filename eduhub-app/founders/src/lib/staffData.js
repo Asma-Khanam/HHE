@@ -768,19 +768,34 @@ export async function setApplicationAliasStatus(familyId, status) {
   );
 }
 
+// Addendum 43 follow-up — for an address that was generated before the
+// application_password column existed (or otherwise ended up without one).
+// Fills in a password without touching the address itself, since the
+// address may already be registered with a school and shouldn't change.
+export async function regenerateApplicationPassword(familyId) {
+  return unwrap(
+    await supabase
+      .from("families")
+      .update({ application_password: randomApplicationPassword() })
+      .eq("id", familyId)
+      .select()
+      .single()
+  );
+}
+
 // Addendum 42 — the same one-address-per-owner pattern as
 // generateApplicationAlias above, just scoped to a single parent row so a
 // family's Mother and Father can each get their own alias to register with
-// a school portal separately. familyDisplayNameValue seeds the slug the
-// same way; a one-letter suffix keeps a mother/father pair from a family
-// with only one word in its name (e.g. "Khan") looking identical at a
-// glance even though the random digits already make them unique.
+// a school portal separately. Seeded from THIS parent's own name — not the
+// family's display name, which is the account holder's name and would put
+// the same person's name on both the mother's and the father's address.
+// Falls back to "parent" if this row has no name yet.
 // Addendum 43 — generates the one password that goes with it, same as the
 // family-wide alias above.
-export async function generateParentApplicationAlias(parentId, familyDisplayNameValue, relationship) {
+export async function generateParentApplicationAlias(parentId, parentFullName, relationship) {
   const suffix = relationship === "Father" ? "f" : relationship === "Mother" ? "m" : "";
   for (let attempt = 0; attempt < 5; attempt++) {
-    const alias = `${slugFor(familyDisplayNameValue)}${suffix}`;
+    const alias = `${slugFor(parentFullName || "parent")}${suffix}`;
     const { data, error } = await supabase
       .from("parents")
       .update({ application_alias: alias, application_alias_status: "active", application_password: randomApplicationPassword() })
@@ -798,6 +813,17 @@ export async function setParentApplicationAliasStatus(parentId, status) {
     await supabase
       .from("parents")
       .update({ application_alias_status: status })
+      .eq("id", parentId)
+      .select()
+      .single()
+  );
+}
+
+export async function regenerateParentApplicationPassword(parentId) {
+  return unwrap(
+    await supabase
+      .from("parents")
+      .update({ application_password: randomApplicationPassword() })
       .eq("id", parentId)
       .select()
       .single()

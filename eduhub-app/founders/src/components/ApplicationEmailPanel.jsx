@@ -2,8 +2,10 @@ import { useState } from "react";
 import {
   generateApplicationAlias,
   setApplicationAliasStatus,
+  regenerateApplicationPassword,
   generateParentApplicationAlias,
   setParentApplicationAliasStatus,
+  regenerateParentApplicationPassword,
 } from "../lib/staffData";
 import "./panels.css";
 
@@ -26,15 +28,42 @@ function CopyButton({ value, label }) {
   );
 }
 
+// The email + password pair for one already-created address. Handles the
+// case where the address was generated before application_password existed
+// (addendum 42, same day, before addendum 43 added it) — those rows have no
+// password yet, so this offers to fill one in without touching the address
+// itself, since the address may already be registered with a school.
+function AddressWithPassword({ address, password, onGeneratePassword, busy }) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <>
+      <code className="panel-copy-value">{address}</code>
+      <CopyButton value={address} label="Copy email" />
+      {password ? (
+        <>
+          <code className="panel-copy-value">{revealed ? password : "••••••••••••"}</code>
+          <button type="button" className="panel-btn panel-btn-quiet" onClick={() => setRevealed((v) => !v)}>
+            {revealed ? "Hide" : "Show"}
+          </button>
+          <CopyButton value={password} label="Copy password" />
+        </>
+      ) : (
+        <button type="button" className="panel-btn panel-btn-quiet" onClick={onGeneratePassword} disabled={busy}>
+          {busy ? "Generating…" : "No password yet — generate one"}
+        </button>
+      )}
+    </>
+  );
+}
+
 // One row per parent, so Mother and Father can each get their own address +
 // password to register separately with a school portal (addendum 42) —
 // sits alongside the family-wide one above it, doesn't replace it. Same
 // password every time this address is used — addendum 43 dropped the idea
 // of a different login per school, since there isn't one in practice.
-function ParentAliasRow({ parent, onParentChange, familyDisplayNameValue }) {
+function ParentAliasRow({ parent, onParentChange }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [revealed, setRevealed] = useState(false);
 
   const alias = parent.application_alias;
   const status = parent.application_alias_status;
@@ -44,10 +73,23 @@ function ParentAliasRow({ parent, onParentChange, familyDisplayNameValue }) {
     setBusy(true);
     setError("");
     try {
-      const updated = await generateParentApplicationAlias(parent.id, familyDisplayNameValue, parent.relationship);
+      const updated = await generateParentApplicationAlias(parent.id, parent.full_name, parent.relationship);
       onParentChange(updated);
     } catch (err) {
       setError(err.message || "Couldn't create an address.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleGeneratePassword() {
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await regenerateParentApplicationPassword(parent.id);
+      onParentChange(updated);
+    } catch (err) {
+      setError(err.message || "Couldn't create a password.");
     } finally {
       setBusy(false);
     }
@@ -75,13 +117,12 @@ function ParentAliasRow({ parent, onParentChange, familyDisplayNameValue }) {
         </button>
       ) : (
         <>
-          <code className="panel-copy-value">{address}</code>
-          <CopyButton value={address} label="Copy email" />
-          <code className="panel-copy-value">{revealed ? parent.application_password : "••••••••••••"}</code>
-          <button type="button" className="panel-btn panel-btn-quiet" onClick={() => setRevealed((v) => !v)}>
-            {revealed ? "Hide" : "Show"}
-          </button>
-          <CopyButton value={parent.application_password} label="Copy password" />
+          <AddressWithPassword
+            address={address}
+            password={parent.application_password}
+            onGeneratePassword={handleGeneratePassword}
+            busy={busy}
+          />
           <span className={"families-badge" + (status === "active" ? " is-submitted" : "")}>
             {status === "active" ? "Active" : "Inactive"}
           </span>
@@ -106,7 +147,6 @@ function ParentAliasRow({ parent, onParentChange, familyDisplayNameValue }) {
 export default function ApplicationEmailPanel({ family, familyDisplayNameValue, onFamilyChange, parents, onParentChange }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [revealed, setRevealed] = useState(false);
 
   const alias = family.application_alias;
   const status = family.application_alias_status;
@@ -120,6 +160,19 @@ export default function ApplicationEmailPanel({ family, familyDisplayNameValue, 
       onFamilyChange(updated);
     } catch (err) {
       setError(err.message || "Couldn't create an address.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleGeneratePassword() {
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await regenerateApplicationPassword(family.id);
+      onFamilyChange(updated);
+    } catch (err) {
+      setError(err.message || "Couldn't create a password.");
     } finally {
       setBusy(false);
     }
@@ -166,15 +219,12 @@ export default function ApplicationEmailPanel({ family, familyDisplayNameValue, 
       ) : (
         <>
           <div className="panel-copy-row">
-            <code className="panel-copy-value">{address}</code>
-            <CopyButton value={address} label="Copy email" />
-          </div>
-          <div className="panel-copy-row">
-            <code className="panel-copy-value">{revealed ? family.application_password : "••••••••••••"}</code>
-            <button type="button" className="panel-btn panel-btn-quiet" onClick={() => setRevealed((v) => !v)}>
-              {revealed ? "Hide" : "Show"}
-            </button>
-            <CopyButton value={family.application_password} label="Copy password" />
+            <AddressWithPassword
+              address={address}
+              password={family.application_password}
+              onGeneratePassword={handleGeneratePassword}
+              busy={busy}
+            />
           </div>
           <p className="panel-hint">
             {status === "active"
@@ -194,12 +244,7 @@ export default function ApplicationEmailPanel({ family, familyDisplayNameValue, 
             a second address (with its own password) per parent only if that comes up.
           </p>
           {parents.map((parent) => (
-            <ParentAliasRow
-              key={parent.id}
-              parent={parent}
-              onParentChange={onParentChange}
-              familyDisplayNameValue={familyDisplayNameValue}
-            />
+            <ParentAliasRow key={parent.id} parent={parent} onParentChange={onParentChange} />
           ))}
         </div>
       )}
