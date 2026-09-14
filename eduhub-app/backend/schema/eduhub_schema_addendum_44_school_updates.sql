@@ -38,12 +38,19 @@
 
 insert into public.schools (name, area, curriculum, website_url, notes) values
   ('Harrow International School Dubai', 'Dubai South', 'British',
-   null,
-   'Added Sept 2026 per founders'' WhatsApp request. Opened by Taaleem, Dubai South — confirm admissions contact, address, fees and its own website URL directly with the school before relying on this record.'),
+   'https://harrowdubai.ae/',
+   'Added Sept 2026 per founders'' WhatsApp request. Opened by Taaleem, Dubai South — confirm admissions contact, address and fees directly with the school before relying on this record.'),
   ('The Arbor School', 'Al Furjan', 'British',
    'https://thearborschool.ae/',
    'Added Sept 2026 per founders'' WhatsApp request -- confirm admissions contact, address and fees directly with the school.')
 on conflict (name) do nothing;
+
+-- Covers the case where this addendum already ran once with Harrow's
+-- website left null (its own URL wasn't confirmed yet at the time) —
+-- fills it in now without touching a value staff may have already edited.
+update public.schools
+set website_url = 'https://harrowdubai.ae/'
+where name = 'Harrow International School Dubai' and website_url is null;
 
 update public.schools
 set website_url = 'https://dubaibritishschooljumeira.ae/'
