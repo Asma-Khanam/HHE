@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import PersonAvatar, { findProfilePhoto } from "./PersonAvatar";
-import { IconClipboard, IconGrid, IconLogout } from "./icons";
+import { IconClipboard, IconGrid, IconLogout, IconSchool } from "./icons";
 import logo from "../assets/brand/logo-vertical-burgundy.png";
 import "./AppShell.css";
 
@@ -14,6 +14,7 @@ import "./AppShell.css";
 const NAV_ITEMS = [
   { to: "/app/dashboard", label: "Dashboard", Icon: IconGrid },
   { to: "/app/form", label: "Application", Icon: IconClipboard },
+  { to: "/app/timetable", label: "School visits", Icon: IconSchool },
 ];
 
 // The whole logged-in app lives inside this shell: content on the right,

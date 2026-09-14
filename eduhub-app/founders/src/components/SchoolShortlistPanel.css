@@ -7,14 +7,28 @@
 
 .school-shortlist-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--border, #e3e3e3);
   border-radius: 8px;
   background: #fff;
+}
+
+.school-shortlist-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.school-shortlist-summary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .school-shortlist-main {
@@ -96,6 +110,35 @@
   color: #666;
 }
 
+.school-shortlist-tour-chip {
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: #f2f2f2;
+  color: #666;
+}
+
+.school-shortlist-tour-chip.is-offered {
+  background: #eef2fb;
+  color: #35508c;
+}
+
+.school-shortlist-tour-chip.is-confirmed {
+  background: #e6f4ea;
+  color: #1e7a34;
+}
+
+.school-shortlist-tour-chip.is-completed {
+  background: #f2f2f2;
+  color: #555;
+}
+
+.school-shortlist-tour-chip.is-cancelled {
+  background: #fbe9e7;
+  color: #a33a2e;
+}
+
 .school-shortlist-replied {
   font-size: 11px;
   color: var(--text-muted, #888);
@@ -104,4 +147,180 @@
 
 .school-shortlist-error {
   color: #a33a2e;
+}
+
+.school-shortlist-caret {
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  margin-left: 4px;
+  user-select: none;
+}
+
+.school-shortlist-detail {
+  border-top: 1px solid var(--border, #eee);
+  padding-top: 10px;
+}
+
+.school-shortlist-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 720px) {
+  .school-shortlist-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.school-shortlist-detail-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.school-shortlist-child-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.school-shortlist-child-name {
+  font-size: 13px;
+  color: #444;
+}
+
+.school-shortlist-remove {
+  align-self: flex-start;
+}
+
+.school-shortlist-tour-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.school-shortlist-tour-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.school-shortlist-tour-wide {
+  grid-column: 1 / -1;
+}
+
+.school-shortlist-tour-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.school-shortlist-tour-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.school-shortlist-tour-details {
+  font-size: 12px;
+  color: var(--text-muted, #777);
+  line-height: 1.6;
+}
+
+.school-shortlist-feedback-heading {
+  font-weight: 600;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.school-shortlist-feedback-input {
+  width: 100%;
+  min-height: 60px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.school-shortlist-feedback-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.school-shortlist-stars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.school-shortlist-star {
+  cursor: pointer;
+  font-size: 18px;
+  color: #d8d8d8;
+  line-height: 1;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.school-shortlist-star.is-filled {
+  color: #d9a441;
+}
+
+.school-shortlist-saved-note {
+  font-size: 12px;
+  color: #1e7a34;
+}
+
+.school-shortlist-clash {
+  background: #fbe9e7;
+  color: #a33a2e;
+  border: 1px solid #f3c9c2;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.school-shortlist-tour-schedule {
+  margin-top: 16px;
+  border-top: 1px solid var(--border, #eee);
+  padding-top: 12px;
+}
+
+.school-shortlist-tour-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.school-shortlist-tour-list-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border, #eee);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.school-shortlist-tour-list-when {
+  font-weight: 600;
+  color: #444;
+}
+
+.school-shortlist-tour-list-school {
+  color: var(--text-muted, #777);
 }

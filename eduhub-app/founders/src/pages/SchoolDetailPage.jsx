@@ -92,13 +92,15 @@ export default function SchoolDetailPage() {
 
   if (!detail) return <div className="family-detail-page">Loading…</div>;
 
-  const { school, availability, shortlist } = detail;
+  const { school, availability, shortlist, stats } = detail;
 
   function startEdit() {
     setDraft({
       name: school.name || "",
       area: school.area || "",
       address: school.address || "",
+      latitude: school.latitude ?? "",
+      longitude: school.longitude ?? "",
       curriculum: school.curriculum || "",
       admissions_contact_name: school.admissions_contact_name || "",
       admissions_contact_email: school.admissions_contact_email || "",
@@ -126,6 +128,8 @@ export default function SchoolDetailPage() {
         ...draft,
         application_fee: draft.application_fee === "" ? null : Number(draft.application_fee),
         deposit_amount: draft.deposit_amount === "" ? null : Number(draft.deposit_amount),
+        latitude: draft.latitude === "" ? null : Number(draft.latitude),
+        longitude: draft.longitude === "" ? null : Number(draft.longitude),
       };
       const updated = await updateSchool(schoolId, patch);
       setDetail((d) => ({ ...d, school: updated }));
@@ -236,6 +240,31 @@ export default function SchoolDetailPage() {
         </div>
       </div>
 
+      {stats && (
+        <div className="school-stats-row">
+          <div className="school-stat">
+            <span className="school-stat-value">{stats.toursBooked}</span>
+            <span className="school-stat-label">tours booked</span>
+          </div>
+          <div className="school-stat">
+            <span className="school-stat-value">{stats.toured}</span>
+            <span className="school-stat-label">toured</span>
+          </div>
+          <div className="school-stat">
+            <span className="school-stat-value">{stats.applications}</span>
+            <span className="school-stat-label">applications</span>
+          </div>
+          <div className="school-stat">
+            <span className="school-stat-value">{stats.assessments}</span>
+            <span className="school-stat-label">assessments</span>
+          </div>
+          <div className="school-stat">
+            <span className="school-stat-value">{stats.offers}</span>
+            <span className="school-stat-label">offers</span>
+          </div>
+        </div>
+      )}
+
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
       <section className="family-detail-card">
@@ -330,6 +359,28 @@ export default function SchoolDetailPage() {
               <label className="school-edit-wide">
                 Address
                 <input className="panel-input" value={draft.address} onChange={(e) => setDraft((d) => ({ ...d, address: e.target.value }))} />
+              </label>
+              <label>
+                Latitude
+                <input
+                  type="number"
+                  step="any"
+                  className="panel-input"
+                  placeholder="e.g. 25.1122"
+                  value={draft.latitude}
+                  onChange={(e) => setDraft((d) => ({ ...d, latitude: e.target.value }))}
+                />
+              </label>
+              <label>
+                Longitude
+                <input
+                  type="number"
+                  step="any"
+                  className="panel-input"
+                  placeholder="e.g. 55.2000"
+                  value={draft.longitude}
+                  onChange={(e) => setDraft((d) => ({ ...d, longitude: e.target.value }))}
+                />
               </label>
               <label>
                 Curriculum

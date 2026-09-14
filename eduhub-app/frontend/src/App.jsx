@@ -6,6 +6,7 @@ import ResetPassword from "./pages/ResetPassword";
 import ProfilePage from "./pages/ProfilePage";
 import ApplicationPage from "./pages/ApplicationPage";
 import DashboardPage from "./pages/DashboardPage";
+import TimetablePage from "./pages/TimetablePage";
 import RequireAuth from "./components/RequireAuth";
 import AppShell from "./components/AppShell";
 import { ApplicationDataProvider, useApplicationData } from "./context/ApplicationDataContext";
@@ -49,6 +50,7 @@ function App() {
       >
         <Route index element={<AppLanding />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="timetable" element={<TimetablePage />} />
         <Route path="form" element={<ApplicationPage />} />
         <Route path="profile" element={<ProfilePage />} />
         {/* The Dashboard replaced the Overview tab on 2026-09-02. */}

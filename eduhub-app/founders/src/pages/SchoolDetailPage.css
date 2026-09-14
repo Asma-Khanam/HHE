@@ -96,3 +96,33 @@
   font-size: 12px;
   color: var(--text-muted, #777);
 }
+
+.school-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 4px 0 18px;
+}
+
+.school-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 84px;
+  padding: 10px 14px;
+  border: 1px solid var(--border, #e3e3e3);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.school-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.school-stat-label {
+  font-size: 11px;
+  color: var(--text-muted, #777);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}

@@ -909,7 +909,29 @@ export async function getSchoolDetail(schoolId) {
     };
   });
 
-  return { school, availability: availability || [], shortlist: shortlistWithNames };
+  // Derived counts for the school record (Phase 4 of the build note):
+  // tours/toured come straight off school_shortlist's own tour_status;
+  // applications/assessments/offers are read from the existing
+  // `applications` table (per-child, per-school — already built and in
+  // daily use on FamilyDetailPage's Applications panel) rather than
+  // duplicating a second, parallel "application status" on the shortlist
+  // row, which would just give staff two different answers to "has this
+  // family applied here yet?" There's no "accepted" concept anywhere in
+  // the schema yet (no field marks which single school a family ultimately
+  // accepted) — reported as null rather than a fabricated number.
+  const applications = unwrap(
+    await supabase.from("applications").select("status").eq("school_id", schoolId)
+  ) || [];
+  const stats = {
+    toursBooked: shortlistWithNames.filter((r) => ["offered", "confirmed", "completed"].includes(r.tour_status)).length,
+    toured: shortlistWithNames.filter((r) => r.tour_status === "completed").length,
+    applications: applications.filter((a) => a.status !== "draft" && a.status !== "withdrawn").length,
+    assessments: applications.filter((a) => ["reference_requested", "under_review"].includes(a.status)).length,
+    offers: applications.filter((a) => a.status === "offer").length,
+    accepted: null,
+  };
+
+  return { school, availability: availability || [], shortlist: shortlistWithNames, stats };
 }
 
 export async function upsertYearGroupAvailability(schoolId, { id, yearGroup, status, lastCheckedAt }) {
@@ -987,4 +1009,112 @@ export async function listYearGroupAvailabilityForSchoolIds(schoolIds) {
       await supabase.from("school_year_group_availability").select("*").in("school_id", schoolIds)
     ) || []
   );
+}
+
+// ---------------------------------------------------------------------------
+// School Visits Tracker, Phase 2 & 3 (addendum 38) — per-child availability,
+// tours, feedback, and the clash check's distance estimate.
+// ---------------------------------------------------------------------------
+
+// Per-child availability rows for a set of shortlist entries in one query —
+// same "batch, not one call per row" shape as listYearGroupAvailabilityForSchoolIds.
+export async function listChildAvailabilityForShortlistIds(shortlistIds) {
+  if (!shortlistIds || shortlistIds.length === 0) return [];
+  return (
+    unwrap(
+      await supabase.from("school_shortlist_child_status").select("*").in("shortlist_id", shortlistIds)
+    ) || []
+  );
+}
+
+// Upsert-by-natural-key, same convention as upsertYearGroupAvailability —
+// re-answering for a child that already has a row updates it in place.
+export async function upsertChildAvailability(shortlistId, childId, availabilityStatus) {
+  return unwrap(
+    await supabase
+      .from("school_shortlist_child_status")
+      .upsert(
+        { shortlist_id: shortlistId, child_id: childId, availability_status: availabilityStatus },
+        { onConflict: "shortlist_id,child_id" }
+      )
+      .select()
+      .single()
+  );
+}
+
+// Tour details and feedback both live as columns on the same school_shortlist
+// row (see addendum 38) — one function covers both since the UI edits them
+// in the same panel and there's no reason to make two round trips.
+export async function updateShortlistTour(shortlistId, patch) {
+  return unwrap(await supabase.from("school_shortlist").update(patch).eq("id", shortlistId).select().single());
+}
+
+// Every shortlist row for a family that has a tour date set, across every
+// shortlisted school — this is what both the "Tour schedule" list and the
+// same-day clash check are built from. Schools come back with lat/lng
+// (already selected via listSchools()'s select("*")) so the clash estimate
+// can run client-side without a second round trip per pair.
+export async function listToursForFamily(familyId) {
+  const shortlist = await listShortlistForFamily(familyId);
+  return shortlist.filter((row) => row.tour_date);
+}
+
+// Haversine straight-line distance -> a flat 30 km/h estimate, mirroring
+// estimate_drive_minutes() in addendum 38 exactly (same formula, same
+// caveat: not a real routing ETA, just "is there obviously not enough time
+// between these two tours"). Kept in JS too so the family page can flag a
+// clash the moment staff enter a second tour time, without waiting on a
+// database round trip.
+export function estimateDriveMinutes(lat1, lng1, lat2, lng2) {
+  if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) return null;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  const km = 2 * R * Math.asin(Math.sqrt(a));
+  return (km / 30) * 60;
+}
+
+// Compares every pair of same-day tours in a family's tour list and flags
+// any pair where the gap between one tour ending and the next starting is
+// shorter than the estimated drive time plus a 20-minute buffer -- the
+// clash check from Heather's build note. Returns [{ a, b, gapMinutes,
+// driveMinutes }] for clashing pairs only; a tour missing a time, or a
+// school missing coordinates, is silently excluded rather than flagged as
+// a false clash.
+export function findTourClashes(tours) {
+  const timed = tours.filter(
+    (t) => t.tour_date && t.tour_start_time && t.tour_end_time && t.school?.latitude != null && t.school?.longitude != null
+  );
+  const clashes = [];
+  for (let i = 0; i < timed.length; i++) {
+    for (let j = i + 1; j < timed.length; j++) {
+      let first = null;
+      let second = null;
+      if (timed[i].tour_date === timed[j].tour_date && timed[i].tour_start_time <= timed[j].tour_start_time) {
+        first = timed[i];
+        second = timed[j];
+      } else if (timed[j].tour_date === timed[i].tour_date && timed[j].tour_start_time <= timed[i].tour_start_time) {
+        first = timed[j];
+        second = timed[i];
+      }
+      if (!first) continue;
+      const driveMinutes = estimateDriveMinutes(
+        first.school.latitude,
+        first.school.longitude,
+        second.school.latitude,
+        second.school.longitude
+      );
+      if (driveMinutes == null) continue;
+      const [eh, em] = first.tour_end_time.split(":").map(Number);
+      const [sh, sm] = second.tour_start_time.split(":").map(Number);
+      const gapMinutes = sh * 60 + sm - (eh * 60 + em);
+      if (gapMinutes < driveMinutes + 20) {
+        clashes.push({ a: first, b: second, gapMinutes, driveMinutes: Math.round(driveMinutes) });
+      }
+    }
+  }
+  return clashes;
 }
