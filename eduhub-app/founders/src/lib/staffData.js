@@ -187,7 +187,17 @@ function staffName(staffRow) {
 // next open task — everything the table shows, without a query per row.
 export async function listFamilies() {
   const [families, parents, children, tasks, staff] = await Promise.all([
-    supabase.from("families").select("*").order("created_at", { ascending: false }).then(unwrap),
+    // Most recently opened/edited family first (addendum 37 — "every time I
+    // open a caseload or edit something in it, that should go up"); a
+    // family nobody's touched yet (last_staff_activity_at is null) sorts
+    // after every family that has been, then falls back to newest-first
+    // among those so it isn't an arbitrary order.
+    supabase
+      .from("families")
+      .select("*")
+      .order("last_staff_activity_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .then(unwrap),
     supabase.from("parents").select("id, family_id, relationship, full_name, user_id").then(unwrap),
     supabase
       .from("children")
@@ -311,6 +321,22 @@ export async function updateFamily(familyId, patch) {
   });
   if (!Object.keys(payload).length) return null;
   return unwrap(await supabase.from("families").update(payload).eq("id", familyId).select().single());
+}
+
+// Addendum 37 (September 2026 change request) — stamps the moment staff
+// open a family's record or save a change to it, which is what the
+// Caseload list's default sort (most recently touched first) is built on.
+// Deliberately fire-and-forget: a family bubbling up the Caseload list a
+// few seconds late because this failed once is a non-event, and nothing
+// staff are looking at should ever block or show an error over this alone.
+export function touchFamilyActivity(familyId) {
+  supabase
+    .from("families")
+    .update({ last_staff_activity_at: new Date().toISOString() })
+    .eq("id", familyId)
+    .then(({ error }) => {
+      if (error) console.error("touchFamilyActivity failed:", error);
+    });
 }
 
 // ---------------------------------------------------------------------------

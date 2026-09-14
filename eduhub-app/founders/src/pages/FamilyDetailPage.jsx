@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getFamilyDetail, getCurrentStaff, shortId, friendlyError } from "../lib/staffData";
+import { getFamilyDetail, getCurrentStaff, shortId, friendlyError, touchFamilyActivity } from "../lib/staffData";
 import { getMissingItems, getOutstandingDocuments, getReadinessPct, displayNameForChild } from "../lib/completeness";
 import { stageLabel } from "../lib/workflow";
 import CaseSettingsPanel from "../components/CaseSettingsPanel";
@@ -402,10 +402,25 @@ export default function FamilyDetailPage() {
       .catch((err) => setError(friendlyError(err, "Couldn't load this family.")));
   }
 
+  // Passed to DocumentVaultPanel as onChanged and CaseSettingsPanel /
+  // ApplicationEmailPanel as onFamilyChange — every one of those is staff
+  // editing this family, so it counts the same as a RecordFieldsEditor save.
+  function refreshFamilyAndTouch() {
+    touchFamilyActivity(familyId);
+    return refreshFamily();
+  }
+  function handleFamilyFieldChange(updated) {
+    setDetail((d) => ({ ...d, family: { ...d.family, ...updated } }));
+    touchFamilyActivity(familyId);
+  }
+
   useEffect(() => {
     setDetail(null);
     setError("");
     refreshFamily();
+    // Addendum 37 — opening a family's record is itself the "she opens a
+    // caseload" half of "that should go up [the Caseload list]."
+    touchFamilyActivity(familyId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [familyId]);
 
@@ -423,10 +438,12 @@ export default function FamilyDetailPage() {
   function handleParentSaved(updated) {
     setDetail((d) => ({ ...d, parents: d.parents.map((p) => (p.id === updated.id ? updated : p)) }));
     setAuditVersion((v) => v + 1);
+    touchFamilyActivity(familyId);
   }
   function handleChildSaved(updated) {
     setDetail((d) => ({ ...d, children: d.children.map((c) => (c.id === updated.id ? updated : c)) }));
     setAuditVersion((v) => v + 1);
+    touchFamilyActivity(familyId);
   }
   function handleSchoolSaved(updated) {
     setDetail((d) => {
@@ -437,6 +454,7 @@ export default function FamilyDetailPage() {
       return { ...d, currentSchools };
     });
     setAuditVersion((v) => v + 1);
+    touchFamilyActivity(familyId);
   }
 
   if (error) {
@@ -543,12 +561,12 @@ export default function FamilyDetailPage() {
         <CaseSettingsPanel
           family={family}
           staff={staff}
-          onFamilyChange={(updated) => setDetail((d) => ({ ...d, family: { ...d.family, ...updated } }))}
+          onFamilyChange={handleFamilyFieldChange}
         />
         <ApplicationEmailPanel
           family={family}
           familyDisplayNameValue={displayName}
-          onFamilyChange={(updated) => setDetail((d) => ({ ...d, family: { ...d.family, ...updated } }))}
+          onFamilyChange={handleFamilyFieldChange}
         />
       </div>
 
@@ -743,7 +761,7 @@ export default function FamilyDetailPage() {
           documentsByOwner={documentsByOwner}
           accountHolderRole={accountHolderRole}
           userId={family.account_user_id}
-          onChanged={refreshFamily}
+          onChanged={refreshFamilyAndTouch}
         />
         <PaymentsPanel
           familyId={family.id}
