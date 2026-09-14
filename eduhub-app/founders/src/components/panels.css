@@ -697,8 +697,8 @@
   margin: 6px 0 0;
 }
 
-/* Addendum 42 — per-parent application aliases (ApplicationEmailPanel) and
-   school portal credential storage (PortalCredentialsPanel). */
+/* Addendum 42/43 — per-parent application aliases, each with its own
+   generated password (ApplicationEmailPanel). */
 
 .parent-alias-section {
   margin-top: 16px;
@@ -724,79 +724,4 @@
   font-size: 0.85rem;
   color: var(--hh-burgundy);
   min-width: 56px;
-}
-
-.portal-credential-list {
-  list-style: none;
-  margin: 0 0 14px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.portal-credential-item {
-  background: var(--hh-cream);
-  border-radius: 8px;
-  padding: 12px 14px;
-}
-
-.portal-credential-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.portal-credential-school {
-  font-weight: 600;
-  color: var(--hh-burgundy);
-  font-size: 0.92rem;
-}
-
-.portal-credential-tag {
-  font-size: 0.76rem;
-  opacity: 0.6;
-}
-
-.portal-credential-fields {
-  margin-top: 8px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 6px 16px;
-  font-size: 0.86rem;
-}
-
-.portal-credential-field-label {
-  opacity: 0.55;
-  margin-right: 6px;
-}
-
-.portal-credential-actions {
-  margin-top: 10px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.portal-credential-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.portal-credential-form-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
-}
-
-.portal-credential-form-row label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.82rem;
-  opacity: 0.75;
 }

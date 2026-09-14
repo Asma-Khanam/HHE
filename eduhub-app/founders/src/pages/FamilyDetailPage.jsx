@@ -5,7 +5,6 @@ import { getMissingItems, getOutstandingDocuments, getReadinessPct, displayNameF
 import { stageLabel } from "../lib/workflow";
 import CaseSettingsPanel from "../components/CaseSettingsPanel";
 import ApplicationEmailPanel from "../components/ApplicationEmailPanel";
-import PortalCredentialsPanel from "../components/PortalCredentialsPanel";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import ApplicationsPanel from "../components/ApplicationsPanel";
 import SchoolShortlistPanel from "../components/SchoolShortlistPanel";
@@ -440,15 +439,6 @@ export default function FamilyDetailPage() {
     setDetail((d) => ({ ...d, children: d.children.map((c) => (c.id === updated.id ? updated : c)) }));
     touchFamilyActivity(familyId);
   }
-  // Addendum 42 — PortalCredentialsPanel passes a list-updater function
-  // (same shape as setDetail's own updater) rather than the new list itself,
-  // so add/edit/delete can each express themselves as a simple array
-  // transform without needing to know the rest of detail's shape.
-  function handlePortalCredentialsChange(updater) {
-    setDetail((d) => ({ ...d, portalCredentials: updater(d.portalCredentials || []) }));
-    touchFamilyActivity(familyId);
-  }
-
   function handleSchoolSaved(updated) {
     setDetail((d) => {
       const idx = d.children.findIndex((c) => c.id === updated.child_id);
@@ -572,12 +562,6 @@ export default function FamilyDetailPage() {
           onFamilyChange={handleFamilyFieldChange}
           parents={namedParents}
           onParentChange={handleParentSaved}
-        />
-        <PortalCredentialsPanel
-          familyId={family.id}
-          parents={namedParents}
-          credentials={detail.portalCredentials || []}
-          onChange={handlePortalCredentialsChange}
         />
       </div>
 

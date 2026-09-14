@@ -251,7 +251,7 @@ export async function getFamilyDetail(familyId) {
   const parentIds = (parents || []).map((p) => p.id);
 
   const empty = Promise.resolve({ data: [] });
-  const [schools, parentDocs, childDocs, applications, tasks, schoolCatalog, caseNotes, payments, portalCredentials] = await Promise.all([
+  const [schools, parentDocs, childDocs, applications, tasks, schoolCatalog, caseNotes, payments] = await Promise.all([
     childIds.length ? supabase.from("current_schools").select("*").in("child_id", childIds).then(unwrap) : empty.then(unwrap),
     parentIds.length
       ? supabase.from("documents").select("*").eq("owner_type", "parent").in("owner_id", parentIds).then(unwrap)
@@ -271,14 +271,6 @@ export async function getFamilyDetail(familyId) {
       .order("occurred_at", { ascending: false })
       .then(unwrap),
     supabase.from("payments").select("*").eq("family_id", familyId).order("due_date", { nullsFirst: false }).then(unwrap),
-    // Addendum 42 — school portal logins tied to this family (and/or a
-    // specific parent's own alias). Staff-only table, RLS enforces that.
-    supabase
-      .from("application_portal_credentials")
-      .select("*")
-      .eq("family_id", familyId)
-      .order("created_at", { ascending: false })
-      .then(unwrap),
   ]);
 
   const documentsByOwner = {};
@@ -312,7 +304,6 @@ export async function getFamilyDetail(familyId) {
     payments: payments || [],
     staff: staff || [],
     schoolCatalog: schoolCatalog || [],
-    portalCredentials: portalCredentials || [],
     ownerName: family.owner_staff_id ? staffName(staffById[family.owner_staff_id]) : "Unassigned",
     displayName: familyDisplayName(family, parents),
   };
@@ -732,12 +723,30 @@ function slugFor(familyDisplayNameValue) {
   return `${base}${suffix}`;
 }
 
+// Addendum 43 — one password generated alongside the alias itself, reused
+// as-is for every school that address gets registered with. 12 characters,
+// upper/lower/digit/symbol guaranteed so it clears a typical portal's
+// complexity rule without staff having to think about it, and skips
+// visually ambiguous characters (0/O, 1/l/I) since this gets read off a
+// screen and typed into someone else's site by hand more than once.
+function randomApplicationPassword() {
+  const letters = "abcdefghjkmnpqrstuvwxyz";
+  const upper = letters.toUpperCase();
+  const digits = "23456789";
+  const symbols = "!@#$%";
+  const all = letters + upper + digits + symbols;
+  const pick = (set) => set[Math.floor(Math.random() * set.length)];
+  const required = [pick(letters), pick(upper), pick(digits), pick(symbols)];
+  const rest = Array.from({ length: 8 }, () => pick(all));
+  return [...required, ...rest].sort(() => Math.random() - 0.5).join("");
+}
+
 export async function generateApplicationAlias(familyId, familyDisplayNameValue) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const alias = slugFor(familyDisplayNameValue);
     const { data, error } = await supabase
       .from("families")
-      .update({ application_alias: alias, application_alias_status: "active" })
+      .update({ application_alias: alias, application_alias_status: "active", application_password: randomApplicationPassword() })
       .eq("id", familyId)
       .select()
       .single();
@@ -766,13 +775,15 @@ export async function setApplicationAliasStatus(familyId, status) {
 // same way; a one-letter suffix keeps a mother/father pair from a family
 // with only one word in its name (e.g. "Khan") looking identical at a
 // glance even though the random digits already make them unique.
+// Addendum 43 — generates the one password that goes with it, same as the
+// family-wide alias above.
 export async function generateParentApplicationAlias(parentId, familyDisplayNameValue, relationship) {
   const suffix = relationship === "Father" ? "f" : relationship === "Mother" ? "m" : "";
   for (let attempt = 0; attempt < 5; attempt++) {
     const alias = `${slugFor(familyDisplayNameValue)}${suffix}`;
     const { data, error } = await supabase
       .from("parents")
-      .update({ application_alias: alias, application_alias_status: "active" })
+      .update({ application_alias: alias, application_alias_status: "active", application_password: randomApplicationPassword() })
       .eq("id", parentId)
       .select()
       .single();
@@ -791,25 +802,6 @@ export async function setParentApplicationAliasStatus(parentId, status) {
       .select()
       .single()
   );
-}
-
-// Addendum 42 — school portal login storage. One row per school a
-// family/parent alias got registered with; staff add, edit, and remove
-// these from the family's caseload, never the family themselves (the table
-// is staff-only end to end — see the RLS policy in the addendum's SQL).
-export async function addPortalCredential(payload) {
-  return unwrap(await supabase.from("application_portal_credentials").insert(payload).select().single());
-}
-
-export async function updatePortalCredential(id, patch) {
-  return unwrap(
-    await supabase.from("application_portal_credentials").update(patch).eq("id", id).select().single()
-  );
-}
-
-export async function deletePortalCredential(id) {
-  const { error } = await supabase.from("application_portal_credentials").delete().eq("id", id);
-  if (error) throw error;
 }
 
 export async function getTodayData() {
