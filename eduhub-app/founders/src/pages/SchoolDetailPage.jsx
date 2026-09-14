@@ -102,6 +102,7 @@ export default function SchoolDetailPage() {
       latitude: school.latitude ?? "",
       longitude: school.longitude ?? "",
       curriculum: school.curriculum || "",
+      website_url: school.website_url || "",
       admissions_contact_name: school.admissions_contact_name || "",
       admissions_contact_email: school.admissions_contact_email || "",
       admissions_contact_phone: school.admissions_contact_phone || "",
@@ -292,6 +293,16 @@ export default function SchoolDetailPage() {
               <span className={"rec-field-value" + (school.curriculum ? "" : " is-empty")}>{school.curriculum || "—"}</span>
             </div>
             <div className="rec-field">
+              <span className="rec-field-label">Website</span>
+              {school.website_url ? (
+                <a className="rec-field-value" href={school.website_url} target="_blank" rel="noreferrer">
+                  {school.website_url}
+                </a>
+              ) : (
+                <span className="rec-field-value is-empty">—</span>
+              )}
+            </div>
+            <div className="rec-field">
               <span className="rec-field-label">Admissions contact</span>
               <span className="rec-field-value">
                 {[school.admissions_contact_name, school.admissions_contact_email, school.admissions_contact_phone]
@@ -385,6 +396,10 @@ export default function SchoolDetailPage() {
               <label>
                 Curriculum
                 <input className="panel-input" value={draft.curriculum} onChange={(e) => setDraft((d) => ({ ...d, curriculum: e.target.value }))} />
+              </label>
+              <label>
+                Website
+                <input className="panel-input" value={draft.website_url} onChange={(e) => setDraft((d) => ({ ...d, website_url: e.target.value }))} />
               </label>
               <label>
                 Admissions contact name

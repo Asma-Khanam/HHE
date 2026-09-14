@@ -488,9 +488,24 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                               <dd>{row.school.address}</dd>
                             </>
                           )}
+                          {row.school?.website_url && (
+                            <>
+                              <dt>Website</dt>
+                              <dd>
+                                <a href={row.school.website_url} target="_blank" rel="noreferrer">
+                                  {row.school.website_url}
+                                </a>
+                              </dd>
+                            </>
+                          )}
                         </dl>
 
                         <div className="svt-btn-row">
+                          {row.school?.website_url && (
+                            <a className="panel-btn" href={row.school.website_url} target="_blank" rel="noreferrer">
+                              Website
+                            </a>
+                          )}
                           {row.school?.admissions_contact_email && (
                             <a className="panel-btn" href={`mailto:${row.school.admissions_contact_email}`}>
                               Email admissions
