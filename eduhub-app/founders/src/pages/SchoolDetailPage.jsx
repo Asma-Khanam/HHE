@@ -265,6 +265,7 @@ export default function SchoolDetailPage() {
 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
+      <div className="family-detail-stack">
       <section className="family-detail-card">
         <div className="panel-head">
           <h2>School record</h2>
@@ -623,6 +624,7 @@ export default function SchoolDetailPage() {
           </form>
         )}
       </section>
+      </div>
     </div>
   );
 }
