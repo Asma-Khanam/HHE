@@ -566,12 +566,12 @@ export default function SchoolDetailPage() {
         {shortlist.length === 0 ? (
           <p className="family-detail-hint">No family has shortlisted this school yet.</p>
         ) : (
-          <ul className="panel-list school-shortlist-list">
+          <ul className="panel-list schooldetail-shortlist-list">
             {shortlist.map((entry) => {
               const waitingDays = entry.availability_status === "awaiting" ? daysSince(entry.shortlisted_at) : null;
               return (
-                <li key={entry.id} className="school-shortlist-row">
-                  <Link to={`/staff/families/${entry.family_id}`} className="school-shortlist-family">
+                <li key={entry.id} className="schooldetail-shortlist-row">
+                  <Link to={`/staff/families/${entry.family_id}`} className="schooldetail-shortlist-family">
                     {entry.familyName}
                   </Link>
                   <select
@@ -585,7 +585,7 @@ export default function SchoolDetailPage() {
                       </option>
                     ))}
                   </select>
-                  <span className="school-shortlist-meta">
+                  <span className="schooldetail-shortlist-meta">
                     Shortlisted {formatDate(entry.shortlisted_at)}
                     {entry.availability_replied_at && ` · replied ${formatDate(entry.availability_replied_at)}`}
                     {waitingDays !== null && waitingDays >= 3 && (

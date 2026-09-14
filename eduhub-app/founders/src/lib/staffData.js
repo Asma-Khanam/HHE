@@ -979,6 +979,42 @@ export async function listShortlistForFamily(familyId) {
   return (shortlist || []).map((row) => ({ ...row, school: schoolsById[row.school_id] || null }));
 }
 
+// Other families' own feedback on the same schools -- the "Other families
+// on this school" panel on the redesigned School shortlist view. Batched
+// across every school on the current family's shortlist in one query
+// rather than one round trip per row. Never returns this family's own
+// feedback (that's already shown in its own row) or a row with no
+// feedback text yet.
+export async function listOtherFeedbackForSchools(schoolIds, excludeFamilyId) {
+  if (!schoolIds || schoolIds.length === 0) return {};
+  const rows =
+    unwrap(
+      await supabase
+        .from("school_shortlist")
+        .select("id, school_id, family_id, feedback_text, feedback_rating, feedback_at")
+        .in("school_id", schoolIds)
+        .not("feedback_text", "is", null)
+        .neq("family_id", excludeFamilyId)
+        .order("feedback_at", { ascending: false })
+    ) || [];
+
+  const familyIds = [...new Set(rows.map((r) => r.family_id))];
+  const [families, parents] = await Promise.all([
+    familyIds.length ? supabase.from("families").select("*").in("id", familyIds).then(unwrap) : Promise.resolve([]),
+    familyIds.length ? supabase.from("parents").select("*").in("family_id", familyIds).then(unwrap) : Promise.resolve([]),
+  ]);
+  const familiesById = Object.fromEntries((families || []).map((f) => [f.id, f]));
+  const parentsByFamily = groupBy(parents, "family_id");
+
+  const withNames = rows.map((r) => ({
+    ...r,
+    familyName: familiesById[r.family_id]
+      ? familyDisplayName(familiesById[r.family_id], parentsByFamily[r.family_id])
+      : "Another family",
+  }));
+  return groupBy(withNames, "school_id");
+}
+
 export async function addToShortlist({ familyId, schoolId }) {
   return unwrap(
     await supabase

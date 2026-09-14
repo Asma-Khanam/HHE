@@ -565,7 +565,7 @@ export default function FamilyDetailPage() {
 
       <div className="family-detail-grid">
         <div className="family-detail-col">
-          <SchoolShortlistPanel familyId={family.id} familyChildren={children} />
+          <SchoolShortlistPanel familyId={family.id} familyChildren={children} applicationsByChild={applicationsByChild} />
 
           <ApplicationsPanel
             familyChildren={children}
