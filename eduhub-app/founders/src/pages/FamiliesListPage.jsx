@@ -18,14 +18,6 @@ export function StageDots({ stage }) {
   );
 }
 
-// A family "needs attention" if something is actually late, or if they've
-// been signed up a while without finishing their own form. Deliberately a
-// narrow, explainable rule rather than a vague score.
-function needsAttention(family) {
-  if (family.nextTask && isOverdue(family.nextTask.due_date)) return true;
-  return family.intake_status !== "submitted";
-}
-
 // BUD-05 (September 2026 change request): "Any answer other than 'No thank
 // you' should flag on the family record so our team follows it up." — kept
 // visible on the caseload table itself, not just on the family's own page,
@@ -55,7 +47,6 @@ export default function FamiliesListPage() {
     return {
       all: list.length,
       mine: list.filter((f) => me && f.owner_staff_id === me.user_id).length,
-      attention: list.filter(needsAttention).length,
       placed: list.filter((f) => f.pipeline_stage === "placed").length,
     };
   }, [families, me]);
@@ -64,7 +55,6 @@ export default function FamiliesListPage() {
     if (!families) return [];
     let list = families;
     if (tab === "mine") list = list.filter((f) => me && f.owner_staff_id === me.user_id);
-    if (tab === "attention") list = list.filter(needsAttention);
     if (tab === "placed") list = list.filter((f) => f.pipeline_stage === "placed");
 
     const q = search.trim().toLowerCase();
@@ -81,7 +71,6 @@ export default function FamiliesListPage() {
   const TABS = [
     { key: "all", label: `All families (${counts.all})` },
     { key: "mine", label: `Mine (${counts.mine})` },
-    { key: "attention", label: `Needs attention (${counts.attention})` },
     { key: "placed", label: `Placed (${counts.placed})` },
   ];
 
@@ -123,10 +112,6 @@ export default function FamiliesListPage() {
           Stage: {PIPELINE_STAGES.map((s) => s.label).join(" → ")}
         </div>
       </div>
-
-      {tab === "attention" && (
-        <p className="families-tab-note">Showing families with an overdue task, or who haven&apos;t submitted their form yet.</p>
-      )}
 
       {families && families.length === 0 && !error && (
         <p className="families-empty-hint">No families have signed up yet — this fills in the moment one does.</p>

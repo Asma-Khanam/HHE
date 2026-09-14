@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { updateRecordFields, insertRecordWithFields, logAuditChanges } from "../lib/staffData";
+import { updateRecordFields, insertRecordWithFields } from "../lib/staffData";
 import "./RecordFieldsEditor.css";
 
 // The editable version of FamilyDetailPage's RecordFields — same `fields` +
@@ -172,13 +172,11 @@ export default function RecordFieldsEditor({
     setError("");
     try {
       const patch = {};
-      const changes = [];
       fields.forEach((f) => {
         const newVal = fromInputValue(f, draft[f.key]);
         const oldVal = record[f.key] ?? null;
         if (!valuesEqual(f, oldVal, newVal)) {
           patch[f.key] = newVal;
-          changes.push({ key: f.key, label: f.label, oldValue: oldVal, newValue: newVal });
         }
       });
 
@@ -191,14 +189,6 @@ export default function RecordFieldsEditor({
       const saved = recordId
         ? await updateRecordFields(table, recordId, patch)
         : await insertRecordWithFields(table, insertExtra || {}, patch);
-
-      await logAuditChanges({
-        familyId,
-        table,
-        recordId: saved.id,
-        changes,
-        staffName: currentStaffName,
-      });
 
       onSaved?.(saved);
       setEditing(false);

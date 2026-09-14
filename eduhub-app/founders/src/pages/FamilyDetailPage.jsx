@@ -13,7 +13,6 @@ import CaseNotesPanel from "../components/CaseNotesPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
 import PaymentsPanel from "../components/PaymentsPanel";
 import RecordFieldsEditor from "../components/RecordFieldsEditor";
-import AuditHistoryPanel from "../components/AuditHistoryPanel";
 import "./FamilyDetailPage.css";
 
 // ---------------------------------------------------------------------------
@@ -390,7 +389,6 @@ export default function FamilyDetailPage() {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
   const [currentStaffName, setCurrentStaffName] = useState("");
-  const [auditVersion, setAuditVersion] = useState(0);
 
   // Shared by the initial load and by DocumentVaultPanel (addendum 35) —
   // a document upload/replace/remove is simplest to just refetch after,
@@ -432,17 +430,13 @@ export default function FamilyDetailPage() {
 
   // Addendum 33 (September 2026 change request) — RecordFieldsEditor saves
   // straight to Supabase itself; these just fold the saved row back into
-  // this page's own state afterwards, and bump auditVersion so
-  // AuditHistoryPanel below picks up the new log entry without a full
-  // refetch of the family.
+  // this page's own state afterwards.
   function handleParentSaved(updated) {
     setDetail((d) => ({ ...d, parents: d.parents.map((p) => (p.id === updated.id ? updated : p)) }));
-    setAuditVersion((v) => v + 1);
     touchFamilyActivity(familyId);
   }
   function handleChildSaved(updated) {
     setDetail((d) => ({ ...d, children: d.children.map((c) => (c.id === updated.id ? updated : c)) }));
-    setAuditVersion((v) => v + 1);
     touchFamilyActivity(familyId);
   }
   function handleSchoolSaved(updated) {
@@ -453,7 +447,6 @@ export default function FamilyDetailPage() {
       currentSchools[idx] = updated;
       return { ...d, currentSchools };
     });
-    setAuditVersion((v) => v + 1);
     touchFamilyActivity(familyId);
   }
 
@@ -717,7 +710,6 @@ export default function FamilyDetailPage() {
             </div>
           </section>
 
-          <AuditHistoryPanel familyId={family.id} version={auditVersion} />
 
           <section className="family-detail-card">
             <h2>
