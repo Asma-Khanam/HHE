@@ -19,14 +19,21 @@
 }
 
 /* Tab bar (September 2026 change request) — the growing pile of sections
-   below the header (case settings, school visits, applications, household,
-   documents, invoices...) reorganised into one tab per area, same content
-   as before, just one area visible at a time instead of one long scroll. */
+   below the header (school visits, applications, household, documents,
+   invoices...) reorganised into one tab per area, same content as before,
+   just one area visible at a time instead of one long scroll. Styled as a
+   single rounded pill (segmented-control look, per the founders' reference
+   mockup) rather than an underlined tab strip — the active tab gets its own
+   white pill inside the bar instead of just an underline. */
 .family-detail-tabs {
-  display: flex;
-  gap: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
   overflow-x: auto;
-  border-bottom: 1px solid rgba(83, 1, 38, 0.15);
+  background: rgba(83, 1, 38, 0.06);
+  border-radius: 999px;
+  padding: 4px;
   margin-bottom: 24px;
 }
 
@@ -34,14 +41,15 @@
   flex: 0 0 auto;
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-radius: 999px;
   font-family: var(--hh-font-heading);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   color: var(--hh-ink);
   opacity: 0.6;
-  padding: 10px 16px;
+  padding: 8px 18px;
   cursor: pointer;
   white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
 .family-detail-tab:hover {
@@ -50,9 +58,10 @@
 
 .family-detail-tab.is-active {
   opacity: 1;
+  background: var(--hh-white);
   color: var(--hh-burgundy);
-  border-bottom-color: var(--hh-burgundy);
   font-weight: 600;
+  box-shadow: 0 1px 4px rgba(83, 1, 38, 0.18);
 }
 
 .family-detail-avatar {

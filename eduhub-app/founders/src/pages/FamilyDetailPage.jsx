@@ -551,6 +551,12 @@ export default function FamilyDetailPage() {
         </div>
       </div>
 
+      <CaseSettingsPanel
+        family={family}
+        staff={staff}
+        onFamilyChange={handleFamilyFieldChange}
+      />
+
       <div className="family-detail-tabs" role="tablist">
         {[
           ["details", "Family details"],
@@ -574,21 +580,6 @@ export default function FamilyDetailPage() {
 
       {activeTab === "details" && (
         <>
-      <div className="family-detail-stack">
-        <CaseSettingsPanel
-          family={family}
-          staff={staff}
-          onFamilyChange={handleFamilyFieldChange}
-        />
-        <ApplicationEmailPanel
-          family={family}
-          familyDisplayNameValue={displayName}
-          onFamilyChange={handleFamilyFieldChange}
-          parents={namedParents}
-          onParentChange={handleParentSaved}
-        />
-      </div>
-
       <div className="family-detail-grid">
         <div className="family-detail-col">
           <AddressSummary
@@ -650,6 +641,15 @@ export default function FamilyDetailPage() {
                   photo={findProfilePhoto(documentsByOwner[`child:${c.id}`])}
                   flags={childCardFlags(c)}
                 >
+                  {/* Household address, read-only here — it's the family's
+                      own field (families.home_address), edited from the
+                      Household address card in Family details, not
+                      per-child. Shown on every child's card too so staff
+                      don't have to leave the child's profile to see it. */}
+                  <div className="rec-grid">
+                    <RecordField label="Family address" value={family.home_address} wide />
+                  </div>
+
                   <h3 className="rec-subhead">General info</h3>
                   <RecordFieldsEditor
                     fields={CHILD_GENERAL_FIELDS}
@@ -778,6 +778,14 @@ export default function FamilyDetailPage() {
             familyChildren={children}
             applicationsByChild={applicationsByChild}
             schoolCatalog={schoolCatalog}
+          />
+
+          <ApplicationEmailPanel
+            family={family}
+            familyDisplayNameValue={displayName}
+            onFamilyChange={handleFamilyFieldChange}
+            parents={namedParents}
+            onParentChange={handleParentSaved}
           />
         </div>
       )}

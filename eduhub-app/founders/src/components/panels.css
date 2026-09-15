@@ -11,6 +11,19 @@
   padding: 20px 24px 22px;
 }
 
+/* CaseSettingsPanel sits above the family record's tabs (FamilyDetailPage,
+   September 2026 change request), not inside them — these are the team's
+   own working columns on a family (stage/owner/origin/destination/package),
+   not part of the application record, so it gets a visibly different
+   treatment (tinted bar, no shadow) instead of looking like just another
+   white card in the stack. */
+.case-settings {
+  background: linear-gradient(135deg, rgba(83, 1, 38, 0.08), rgba(83, 1, 38, 0.02));
+  border: 1px solid rgba(83, 1, 38, 0.16);
+  box-shadow: none;
+  margin-bottom: 20px;
+}
+
 .panel-head {
   display: flex;
   align-items: center;
