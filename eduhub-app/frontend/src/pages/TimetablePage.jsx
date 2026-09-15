@@ -175,18 +175,19 @@ export default function TimetablePage() {
         )}
       </section>
 
-      <section className="tt-shortlist-section">
+      <section className="tt-card">
         <div className="tt-card-head">
           <h2>Your shortlist</h2>
         </div>
         {rows.length === 0 ? (
           <p className="tt-empty">No schools on your shortlist yet.</p>
         ) : (
-          <ul className="tt-shortlist-list">
-            {rows.map((row) => {
+          <ol className="tt-shortlist-list">
+            {rows.map((row, index) => {
               const rowChildStatuses = childStatus.filter((cs) => cs.shortlist_id === row.id);
               return (
-                <li key={row.id} className="tt-shortlist-card">
+                <li key={row.id} className="tt-shortlist-row">
+                  <span className="tt-shortlist-number">{index + 1}.</span>
                   <div className="tt-shortlist-main">
                     <div className="tt-shortlist-name">{row.school?.name || "School"}</div>
                     {row.school?.area && <div className="tt-shortlist-area">{row.school.area}</div>}
@@ -214,7 +215,7 @@ export default function TimetablePage() {
                 </li>
               );
             })}
-          </ul>
+          </ol>
         )}
       </section>
     </div>
