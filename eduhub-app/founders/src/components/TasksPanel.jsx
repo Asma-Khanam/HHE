@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createTask, setTaskDone, deleteTask } from "../lib/staffData";
 import { daysUntil, isOverdue } from "../lib/workflow";
 import "./panels.css";
+import { TasksIcon } from "./icons";
 
 function dueLabel(dueDate) {
   const d = daysUntil(dueDate);
@@ -97,6 +98,7 @@ export default function TasksPanel({ familyId, tasks: initialTasks, staff }) {
     <section className="panel">
       <div className="panel-head">
         <h2>
+          <TasksIcon />
           Tasks
           {open.length > 0 && <span className="panel-count">{open.length}</span>}
         </h2>

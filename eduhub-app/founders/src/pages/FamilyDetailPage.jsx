@@ -13,6 +13,7 @@ import CaseNotesPanel from "../components/CaseNotesPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
 import PaymentsPanel from "../components/PaymentsPanel";
 import RecordFieldsEditor from "../components/RecordFieldsEditor";
+import { AddressIcon, BudgetIcon, HouseholdIcon } from "../components/icons";
 import "./FamilyDetailPage.css";
 
 // ---------------------------------------------------------------------------
@@ -167,8 +168,16 @@ function needsTransferCertificateHelpBadge(child) {
 
 // A child's card can carry more than one badge at once (SEN-10's disclosure
 // preference, DU-05's Transfer Certificate flag) — collects whichever apply.
+// `warn: true` marks a flag as something that needs following up (amber),
+// vs. a plain preference that's just informational (neutral) — so the two
+// don't read as equally urgent at a glance.
 function childCardFlags(child) {
-  return [senDisclosureBadgeLabel(child), needsTransferCertificateHelpBadge(child)].filter(Boolean);
+  const flags = [];
+  const disclosure = senDisclosureBadgeLabel(child);
+  if (disclosure) flags.push({ label: disclosure, warn: false });
+  const transferHelp = needsTransferCertificateHelpBadge(child);
+  if (transferHelp) flags.push({ label: transferHelp, warn: true });
+  return flags;
 }
 
 const SCHOOL_FIELDS = [
@@ -277,7 +286,10 @@ function AddressSummary({ family, parents, familyChildren, accountHolderRole }) 
 
   return (
     <section className="family-detail-card">
-      <h2>Addresses</h2>
+      <h2>
+        <AddressIcon />
+        Addresses
+      </h2>
       <div className="rec-grid">
         <RecordField label="Household address" value={main} wide />
       </div>
@@ -317,8 +329,9 @@ function BudgetSummary({ family }) {
   return (
     <section className="family-detail-card">
       <h2>
+        <BudgetIcon />
         Budget and relocation planning
-        {flagged && <span className="family-detail-card-flag">Wants cost guidance — follow up</span>}
+        {flagged && <span className="family-detail-card-flag is-warn">Wants cost guidance — follow up</span>}
       </h2>
       <div className="rec-grid">
         <RecordField label="Set a budget for the move? (BUD-01)" value={family.budget_status} />
@@ -327,18 +340,22 @@ function BudgetSummary({ family }) {
         <RecordField label="Parent work location (AH-11)" value={family.parent_work_location} />
         <RecordField label="Where they're thinking of living (BUD-04)" value={family.preferred_living_area} wide />
         <RecordField label="Wants cost guidance? (BUD-05)" value={family.cost_guidance_response} />
-      </div>
-      <div className="rec-field rec-field-wide">
-        <span className="rec-field-label">Top school priorities, ranked (AH-09)</span>
-        {priorities.length ? (
-          <ol className="budget-priorities-list">
-            {priorities.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ol>
-        ) : (
-          <span className="rec-field-value is-empty">—</span>
-        )}
+        {/* This was previously its own div sitting after (not inside) the
+            rec-grid, so "rec-field-wide"'s column-span had no grid to span
+            across and it rendered narrower than the card. Moved inside the
+            grid so it actually spans full width like the other wide fields. */}
+        <div className="rec-field rec-field-wide">
+          <span className="rec-field-label">Top school priorities, ranked (AH-09)</span>
+          {priorities.length ? (
+            <ol className="budget-priorities-list">
+              {priorities.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ol>
+          ) : (
+            <span className="rec-field-value is-empty">—</span>
+          )}
+        </div>
       </div>
     </section>
   );
@@ -362,8 +379,8 @@ function PersonCard({ name, role, docCount, photo, isChild = false, children, de
                 in the admin area" — right on the card header, not buried in
                 the field grid below. A child can carry more than one. */}
             {(flags || []).map((f) => (
-              <span key={f} className="family-detail-card-flag">
-                {f}
+              <span key={f.label} className={"family-detail-card-flag" + (f.warn ? " is-warn" : "")}>
+                {f.label}
               </span>
             ))}
           </span>
@@ -545,7 +562,7 @@ export default function FamilyDetailPage() {
             <span>owner {ownerName}</span>
             <span>on file since {formatDate(family.created_at)}</span>
             {wantsCostGuidanceFollowup(family) && (
-              <span className="family-detail-card-flag">Wants cost guidance — follow up</span>
+              <span className="family-detail-card-flag is-warn">Wants cost guidance — follow up</span>
             )}
           </div>
         </div>
@@ -596,7 +613,10 @@ export default function FamilyDetailPage() {
           <TasksPanel familyId={family.id} tasks={tasks} staff={staff} />
 
           <section className="family-detail-card">
-            <h2>Household</h2>
+            <h2>
+              <HouseholdIcon />
+              Household
+            </h2>
             <div className="household-list">
               {parents
                 .filter((p) => p.full_name)

@@ -3,6 +3,7 @@ import { updateFamily } from "../lib/staffData";
 import { PIPELINE_STAGES } from "../lib/workflow";
 import { PACKAGES } from "../data/packages";
 import "./panels.css";
+import { CaseIcon } from "./icons";
 
 // The team's own working columns on a family — stage, who owns it, where
 // they're moving from and to, what kind of client they are. None of this is
@@ -48,7 +49,10 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
   return (
     <section className="panel case-settings">
       <div className="panel-head">
-        <h2>Case</h2>
+        <h2>
+          <CaseIcon />
+          Case
+        </h2>
         {saved && <span className="panel-saved-note">Saved</span>}
       </div>
 

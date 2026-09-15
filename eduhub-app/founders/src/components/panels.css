@@ -42,6 +42,14 @@
   gap: 8px;
 }
 
+/* Small heading icons (Case, Tasks, and the family-detail-card headings in
+   FamilyDetailPage.css) — sit a touch lighter than the heading text itself
+   so they read as a scanning aid, not competing content. */
+.family-detail-card-icon {
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
 .panel-count {
   font-size: 0.78rem;
   font-weight: 600;

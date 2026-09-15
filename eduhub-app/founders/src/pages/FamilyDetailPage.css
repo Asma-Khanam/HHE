@@ -486,9 +486,13 @@
   }
 }
 
-/* Budget and relocation planning card — BUD-05's "wants cost guidance" flag,
-   same amber-not-red treatment as the address-split callout below: this is
-   something to follow up on, not a problem with the application. */
+/* Card-header flags. Two kinds, visually distinguished (September 2026
+   change request — "shouldn't read as equally urgent"): a plain preference
+   (SEN-10's disclosure preference) is neutral, same tint as the other
+   badges in this app (families-badge above); something that actually needs
+   following up (BUD-05's cost guidance, DU-05's Transfer Certificate flag)
+   gets the amber ".is-warn" treatment instead, same as the address-split
+   callout below. */
 .family-detail-card-flag {
   display: inline-flex;
   align-items: center;
@@ -499,9 +503,14 @@
   font-weight: 600;
   text-transform: none;
   letter-spacing: normal;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+  vertical-align: middle;
+}
+
+.family-detail-card-flag.is-warn {
   background: rgba(184, 154, 90, 0.18);
   color: #7a6228;
-  vertical-align: middle;
 }
 
 .budget-priorities-list {
