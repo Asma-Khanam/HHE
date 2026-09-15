@@ -334,18 +334,18 @@ function BudgetSummary({ family }) {
         {flagged && <span className="family-detail-card-flag is-warn">Wants cost guidance — follow up</span>}
       </h2>
       <div className="rec-grid">
-        <RecordField label="Set a budget for the move? (BUD-01)" value={family.budget_status} />
-        <RecordField label="Comfortable fee range, per child (AH-10)" value={family.comfortable_fee_range} />
-        <RecordField label="Annual housing budget (BUD-03)" value={family.housing_budget} />
-        <RecordField label="Parent work location (AH-11)" value={family.parent_work_location} />
-        <RecordField label="Where they're thinking of living (BUD-04)" value={family.preferred_living_area} wide />
-        <RecordField label="Wants cost guidance? (BUD-05)" value={family.cost_guidance_response} />
+        <RecordField label="Set a budget for the move?" value={family.budget_status} />
+        <RecordField label="Comfortable fee range, per child" value={family.comfortable_fee_range} />
+        <RecordField label="Annual housing budget" value={family.housing_budget} />
+        <RecordField label="Parent work location" value={family.parent_work_location} />
+        <RecordField label="Where they're thinking of living" value={family.preferred_living_area} wide />
+        <RecordField label="Wants cost guidance?" value={family.cost_guidance_response} />
         {/* This was previously its own div sitting after (not inside) the
             rec-grid, so "rec-field-wide"'s column-span had no grid to span
             across and it rendered narrower than the card. Moved inside the
             grid so it actually spans full width like the other wide fields. */}
         <div className="rec-field rec-field-wide">
-          <span className="rec-field-label">Top school priorities, ranked (AH-09)</span>
+          <span className="rec-field-label">Top school priorities, ranked</span>
           {priorities.length ? (
             <ol className="budget-priorities-list">
               {priorities.map((p) => (

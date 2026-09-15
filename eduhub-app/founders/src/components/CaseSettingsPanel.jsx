@@ -77,9 +77,6 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
               submits their form, so staff mostly won't need to touch it —
               except to mark Placed, which stays a manual call since nothing
               in the schema can tell us a family actually accepted. */}
-          <p className="panel-hint case-settings-stage-hint">
-            Moves forward on its own as applications progress. Set Placed manually once a family accepts.
-          </p>
         </div>
 
         <div>

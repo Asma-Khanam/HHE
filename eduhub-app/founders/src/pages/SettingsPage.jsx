@@ -73,7 +73,7 @@ export default function SettingsPage() {
           <h2>Year group cut-off date</h2>
         </div>
         <p className="panel-hint">
-          Used to suggest a year group from a child's date of birth (CH-06) — a child's year group is worked out from
+          Used to suggest a year group from a child's date of birth — a child's year group is worked out from
           how old they are on this date, not from their age today. 31 August is the UK/UAE British-curriculum
           default; other curricula use a different date, which is exactly why this needed to be editable rather than
           fixed in the code.
