@@ -389,6 +389,7 @@ export default function FamilyDetailPage() {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
   const [currentStaffName, setCurrentStaffName] = useState("");
+  const [activeTab, setActiveTab] = useState("details");
 
   // Shared by the initial load and by DocumentVaultPanel (addendum 35) —
   // a document upload/replace/remove is simplest to just refetch after,
@@ -550,6 +551,29 @@ export default function FamilyDetailPage() {
         </div>
       </div>
 
+      <div className="family-detail-tabs" role="tablist">
+        {[
+          ["details", "Family details"],
+          ["documents", "Documents"],
+          ["visits", "School visits"],
+          ["applications", "Applications"],
+          ["invoices", "Invoices"],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === key}
+            className={"family-detail-tab" + (activeTab === key ? " is-active" : "")}
+            onClick={() => setActiveTab(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "details" && (
+        <>
       <div className="family-detail-stack">
         <CaseSettingsPanel
           family={family}
@@ -567,22 +591,6 @@ export default function FamilyDetailPage() {
 
       <div className="family-detail-grid">
         <div className="family-detail-col">
-          <SchoolShortlistPanel familyId={family.id} familyChildren={children} applicationsByChild={applicationsByChild} />
-
-          <ApplicationsPanel
-            familyChildren={children}
-            applicationsByChild={applicationsByChild}
-            schoolCatalog={schoolCatalog}
-          />
-
-          <CaseNotesPanel
-            familyId={family.id}
-            notes={caseNotes}
-            staff={staff}
-            familyChildren={children}
-            schoolCatalog={schoolCatalog}
-          />
-
           <AddressSummary
             family={family}
             parents={namedParents}
@@ -747,23 +755,56 @@ export default function FamilyDetailPage() {
           </section>
         </div>
       </div>
+        </>
+      )}
 
-      <div className="family-detail-stack">
-        <DocumentVaultPanel
-          parents={parents}
-          familyChildren={children}
-          documentsByOwner={documentsByOwner}
-          accountHolderRole={accountHolderRole}
-          userId={family.account_user_id}
-          onChanged={refreshFamilyAndTouch}
-        />
-        <PaymentsPanel
-          familyId={family.id}
-          payments={payments}
-          membershipType={family.membership_type}
-          childCount={children.length}
-        />
-      </div>
+      {activeTab === "visits" && (
+        <div className="family-detail-stack">
+          <SchoolShortlistPanel familyId={family.id} familyChildren={children} applicationsByChild={applicationsByChild} />
+
+          <CaseNotesPanel
+            familyId={family.id}
+            notes={caseNotes}
+            staff={staff}
+            familyChildren={children}
+            schoolCatalog={schoolCatalog}
+          />
+        </div>
+      )}
+
+      {activeTab === "applications" && (
+        <div className="family-detail-stack">
+          <ApplicationsPanel
+            familyChildren={children}
+            applicationsByChild={applicationsByChild}
+            schoolCatalog={schoolCatalog}
+          />
+        </div>
+      )}
+
+      {activeTab === "documents" && (
+        <div className="family-detail-stack">
+          <DocumentVaultPanel
+            parents={parents}
+            familyChildren={children}
+            documentsByOwner={documentsByOwner}
+            accountHolderRole={accountHolderRole}
+            userId={family.account_user_id}
+            onChanged={refreshFamilyAndTouch}
+          />
+        </div>
+      )}
+
+      {activeTab === "invoices" && (
+        <div className="family-detail-stack">
+          <PaymentsPanel
+            familyId={family.id}
+            payments={payments}
+            membershipType={family.membership_type}
+            childCount={children.length}
+          />
+        </div>
+      )}
     </div>
   );
 }
