@@ -1,4 +1,10 @@
+/* Every other page in this app gives its content real page padding
+   (Dashboard's .dash, Application's PageHeader + .application-form-body) --
+   this page never had any, so it sat flush against the nav and the top
+   edge. Matching Dashboard's scaling convention rather than a fixed
+   value so it still looks right at narrower widths. */
 .tt {
+  padding: clamp(16px, 2.2vw, 32px) clamp(16px, 2.6vw, 40px) 60px;
   display: flex;
   flex-direction: column;
   gap: 20px;
