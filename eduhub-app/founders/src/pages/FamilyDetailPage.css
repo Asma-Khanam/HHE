@@ -22,9 +22,9 @@
    below the header (school visits, applications, household, documents,
    invoices...) reorganised into one tab per area, same content as before,
    just one area visible at a time instead of one long scroll. Styled as a
-   single rounded pill (segmented-control look, per the founders' reference
-   mockup) rather than an underlined tab strip — the active tab gets its own
-   white pill inside the bar instead of just an underline. */
+   segmented control per the founders' reference mockup ("Tabs Variants",
+   style 8) — a softly-rounded rectangle bar, not a full pill, with the
+   active tab getting its own smaller rounded-rect highlight inside it. */
 .family-detail-tabs {
   display: inline-flex;
   align-items: center;
@@ -32,7 +32,7 @@
   max-width: 100%;
   overflow-x: auto;
   background: rgba(83, 1, 38, 0.06);
-  border-radius: 999px;
+  border-radius: 10px;
   padding: 4px;
   margin-bottom: 24px;
 }
@@ -41,7 +41,7 @@
   flex: 0 0 auto;
   background: none;
   border: none;
-  border-radius: 999px;
+  border-radius: 7px;
   font-family: var(--hh-font-heading);
   font-size: 0.88rem;
   color: var(--hh-ink);
