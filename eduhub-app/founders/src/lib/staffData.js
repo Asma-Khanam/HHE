@@ -504,7 +504,7 @@ export async function createPackagePayments({ familyId, fees }) {
 // log can't be written under someone else's name even by a buggy client.
 // ---------------------------------------------------------------------------
 
-export async function createCaseNote({ familyId, childId, schoolId, kind, body, occurredAt }) {
+export async function createCaseNote({ familyId, childId, schoolId, kind, body, occurredAt, subject, direction }) {
   return unwrap(
     await supabase
       .from("case_notes")
@@ -514,6 +514,11 @@ export async function createCaseNote({ familyId, childId, schoolId, kind, body, 
         school_id: schoolId || null,
         kind: kind || "note",
         body: body.trim(),
+        // subject/direction only mean anything for kind="email" (addendum 7)
+        // -- null for every other kind, same as an inbound row the Worker
+        // never touched.
+        subject: subject || null,
+        direction: direction || null,
         // An empty date box means "just now", not a null column.
         occurred_at: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
       })

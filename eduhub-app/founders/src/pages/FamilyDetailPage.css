@@ -238,6 +238,36 @@
   margin: 0;
 }
 
+/* What's needed becomes a click-to-open dropdown (September 2026 change
+   request) rather than always showing its list — the count badge in the
+   heading is still visible either way, so nothing important is hidden. */
+.family-detail-card-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.family-detail-card-toggle h2 {
+  margin: 0;
+}
+
+.is-collapsed-card .family-detail-card-toggle {
+  margin-bottom: 0;
+}
+
+.family-detail-card:not(.is-collapsed-card) .family-detail-card-toggle {
+  margin-bottom: 14px;
+}
+
 /* ------------------------------------------------------------------------
    Per-person record cards — one per parent, one per child, each holding
    every field that person's side of the form collects.

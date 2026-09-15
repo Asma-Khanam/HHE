@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getFamilyDetail, getCurrentStaff, shortId, friendlyError, touchFamilyActivity } from "../lib/staffData";
-import { getMissingItems, getOutstandingDocuments, getReadinessPct, displayNameForChild } from "../lib/completeness";
-import { stageLabel } from "../lib/workflow";
+import { getMissingItems, getOutstandingDocuments, displayNameForChild } from "../lib/completeness";
 import CaseSettingsPanel from "../components/CaseSettingsPanel";
 import ApplicationEmailPanel from "../components/ApplicationEmailPanel";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
@@ -13,6 +12,8 @@ import CaseNotesPanel from "../components/CaseNotesPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
 import PaymentsPanel from "../components/PaymentsPanel";
 import RecordFieldsEditor from "../components/RecordFieldsEditor";
+import OverviewPanel from "../components/OverviewPanel";
+import EmailsPanel from "../components/EmailsPanel";
 import { AddressIcon, BudgetIcon, HouseholdIcon } from "../components/icons";
 import "./FamilyDetailPage.css";
 
@@ -423,6 +424,7 @@ export default function FamilyDetailPage() {
   const [currentStaffName, setCurrentStaffName] = useState("");
   const [activeTab, setActiveTab] = useState("details");
   const [activeHouseholdKey, setActiveHouseholdKey] = useState(null);
+  const [whatsNeededOpen, setWhatsNeededOpen] = useState(false);
 
   // Shared by the initial load and by DocumentVaultPanel (addendum 35) —
   // a document upload/replace/remove is simplest to just refetch after,
@@ -544,7 +546,6 @@ export default function FamilyDetailPage() {
   const missingFields = getMissingItems(completenessArgs);
   const outstandingDocs = getOutstandingDocuments(completenessArgs);
   const missing = [...missingFields, ...outstandingDocs];
-  const readiness = getReadinessPct(completenessArgs);
 
   // Only parents who actually exist as a row get a record card — a family
   // that only ever filled in one side shouldn't get a ghost "Father" card
@@ -583,13 +584,6 @@ export default function FamilyDetailPage() {
           <h1>{displayName}</h1>
           <div className="family-detail-meta">
             <code>{shortId(family.id)}</code>
-            <span className={"families-badge stage-" + (family.pipeline_stage || "enquiry")}>
-              {stageLabel(family.pipeline_stage)}
-            </span>
-            <span className={"families-badge" + (family.intake_status === "submitted" ? " is-submitted" : "")}>
-              {family.intake_status === "submitted" ? "Form submitted" : "Form in draft"}
-            </span>
-            <span>{readiness}% complete</span>
             <span>
               {children.length} {children.length === 1 ? "child" : "children"}
             </span>
@@ -610,10 +604,12 @@ export default function FamilyDetailPage() {
 
       <div className="family-detail-tabs" role="tablist">
         {[
+          ["overview", "Overview"],
           ["details", "Family details"],
           ["documents", "Documents"],
           ["visits", "School visits"],
           ["applications", "Applications"],
+          ["emails", "Emails"],
           ["invoices", "Invoices"],
         ].map(([key, label]) => (
           <button
@@ -628,6 +624,10 @@ export default function FamilyDetailPage() {
           </button>
         ))}
       </div>
+
+      {activeTab === "overview" && (
+        <OverviewPanel family={family} displayName={displayName} namedParents={namedParents} familyChildren={children} />
+      )}
 
       {activeTab === "details" && (
         <div className="family-detail-tab-stack">
@@ -646,37 +646,46 @@ export default function FamilyDetailPage() {
         <div className="family-detail-col">
           <TasksPanel familyId={family.id} tasks={tasks} staff={staff} />
 
-          <section className="family-detail-card">
-            <h2>
-              What&apos;s needed
-              {missing.length > 0 && <span className="family-detail-card-count">{missing.length}</span>}
-            </h2>
-            {missing.length === 0 ? (
-              <p className="family-detail-hint">Everything required is on file.</p>
-            ) : (
-              <>
-                <ul className="missing-list">
-                  {missing.map((item, i) => (
-                    <li key={i} className="missing-row">
-                      <span className={"missing-dot" + (item.kind === "document" ? " is-document" : "")} />
-                      {item.label}
-                    </li>
-                  ))}
-                </ul>
-                <p className="family-detail-hint">
-                  {missingFields.length
-                    ? `${missingFields.length} required field${missingFields.length === 1 ? "" : "s"} still hold${
-                        missingFields.length === 1 ? "s" : ""
-                      } up submitting. `
-                    : "Nothing is holding up submitting. "}
-                  {outstandingDocs.length
-                    ? `${outstandingDocs.length} document${
-                        outstandingDocs.length === 1 ? "" : "s"
-                      } still to come — those never block the family from submitting.`
-                    : "All documents are in."}
-                </p>
-              </>
-            )}
+          <section className={"family-detail-card" + (whatsNeededOpen ? "" : " is-collapsed-card")}>
+            <button
+              type="button"
+              className="family-detail-card-toggle"
+              onClick={() => setWhatsNeededOpen((v) => !v)}
+              aria-expanded={whatsNeededOpen}
+            >
+              <h2>
+                What&apos;s needed
+                {missing.length > 0 && <span className="family-detail-card-count">{missing.length}</span>}
+              </h2>
+              <span className="person-card-chevron">{whatsNeededOpen ? "▾" : "▸"}</span>
+            </button>
+            {whatsNeededOpen &&
+              (missing.length === 0 ? (
+                <p className="family-detail-hint">Everything required is on file.</p>
+              ) : (
+                <>
+                  <ul className="missing-list">
+                    {missing.map((item, i) => (
+                      <li key={i} className="missing-row">
+                        <span className={"missing-dot" + (item.kind === "document" ? " is-document" : "")} />
+                        {item.label}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="family-detail-hint">
+                    {missingFields.length
+                      ? `${missingFields.length} required field${missingFields.length === 1 ? "" : "s"} still hold${
+                          missingFields.length === 1 ? "s" : ""
+                        } up submitting. `
+                      : "Nothing is holding up submitting. "}
+                    {outstandingDocs.length
+                      ? `${outstandingDocs.length} document${
+                          outstandingDocs.length === 1 ? "" : "s"
+                        } still to come — those never block the family from submitting.`
+                      : "All documents are in."}
+                  </p>
+                </>
+              ))}
           </section>
         </div>
       </div>
@@ -865,6 +874,8 @@ export default function FamilyDetailPage() {
           />
         </div>
       )}
+
+      {activeTab === "emails" && <EmailsPanel familyId={family.id} notes={caseNotes} />}
 
       {activeTab === "documents" && (
         <div className="family-detail-stack">
