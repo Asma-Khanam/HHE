@@ -315,6 +315,28 @@
   grid-column: 1 / -1;
 }
 
+.svt-tour-defaults {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface-muted, #f2f2f2);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.svt-tour-defaults-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-muted, #999);
+}
+
+.svt-tour-defaults-value {
+  margin: 0;
+  font-size: 13px;
+  color: #777;
+}
+
 .svt-tour-actions {
   display: flex;
   gap: 8px;

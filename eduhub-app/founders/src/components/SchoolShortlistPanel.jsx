@@ -280,11 +280,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
         tour_start_time: row.tour_start_time || "",
         tour_end_time: row.tour_end_time || "",
         tour_status: row.tour_status || "offered",
-        tour_gate: row.tour_gate || "",
-        tour_building: row.tour_building || "",
-        tour_parking: row.tour_parking || "",
-        tour_ask_for: row.tour_ask_for || "",
-        tour_bring: row.tour_bring || "",
         feedback_text: row.feedback_text || "",
         feedback_rating: row.feedback_rating || 0,
       },
@@ -310,11 +305,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
         tour_start_time: draft.tour_start_time || null,
         tour_end_time: draft.tour_end_time || null,
         tour_status: draft.tour_date ? draft.tour_status : null,
-        tour_gate: draft.tour_gate || null,
-        tour_building: draft.tour_building || null,
-        tour_parking: draft.tour_parking || null,
-        tour_ask_for: draft.tour_ask_for || null,
-        tour_bring: draft.tour_bring || null,
         feedback_text: draft.feedback_text || null,
         feedback_rating: draft.feedback_rating || null,
         feedback_by: draft.feedback_text || draft.feedback_rating ? "staff" : null,
@@ -602,14 +592,14 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                                 </p>
                                 <p className="svt-on-the-day">
                                   {[
-                                    row.tour_gate && `Gate: ${row.tour_gate}`,
-                                    row.tour_building && `Building: ${row.tour_building}`,
-                                    row.tour_parking && `Parking: ${row.tour_parking}`,
-                                    row.tour_ask_for && `Ask for: ${row.tour_ask_for}`,
-                                    row.tour_bring && `Bring: ${row.tour_bring}`,
+                                    row.school?.default_tour_gate && `Gate: ${row.school.default_tour_gate}`,
+                                    row.school?.default_tour_building && `Building: ${row.school.default_tour_building}`,
+                                    row.school?.default_tour_parking && `Parking: ${row.school.default_tour_parking}`,
+                                    row.school?.default_tour_ask_for && `Ask for: ${row.school.default_tour_ask_for}`,
+                                    row.school?.default_tour_bring && `Bring: ${row.school.default_tour_bring}`,
                                   ]
                                     .filter(Boolean)
-                                    .join(". ") || "No on-the-day details added yet."}
+                                    .join(". ") || "No on-the-day details set on the school record yet."}
                                 </p>
                               </>
                             ) : (
@@ -677,46 +667,22 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                                   onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_end_time: e.target.value } }))}
                                 />
                               </label>
-                              <label>
-                                Gate
-                                <input
-                                  className="panel-input"
-                                  value={draft.tour_gate}
-                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_gate: e.target.value } }))}
-                                />
-                              </label>
-                              <label>
-                                Building
-                                <input
-                                  className="panel-input"
-                                  value={draft.tour_building}
-                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_building: e.target.value } }))}
-                                />
-                              </label>
-                              <label>
-                                Parking
-                                <input
-                                  className="panel-input"
-                                  value={draft.tour_parking}
-                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_parking: e.target.value } }))}
-                                />
-                              </label>
-                              <label>
-                                Ask for
-                                <input
-                                  className="panel-input"
-                                  value={draft.tour_ask_for}
-                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_ask_for: e.target.value } }))}
-                                />
-                              </label>
-                              <label className="svt-tour-wide">
-                                Bring
-                                <input
-                                  className="panel-input"
-                                  value={draft.tour_bring}
-                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_bring: e.target.value } }))}
-                                />
-                              </label>
+                              <div className="svt-tour-wide svt-tour-defaults">
+                                <span className="svt-tour-defaults-label">
+                                  On-the-day details (set on the school record)
+                                </span>
+                                <p className="svt-tour-defaults-value">
+                                  {[
+                                    row.school?.default_tour_gate && `Gate: ${row.school.default_tour_gate}`,
+                                    row.school?.default_tour_building && `Building: ${row.school.default_tour_building}`,
+                                    row.school?.default_tour_parking && `Parking: ${row.school.default_tour_parking}`,
+                                    row.school?.default_tour_ask_for && `Ask for: ${row.school.default_tour_ask_for}`,
+                                    row.school?.default_tour_bring && `Bring: ${row.school.default_tour_bring}`,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(". ") || "Not set yet — add these on the school's record."}
+                                </p>
+                              </div>
                             </div>
                             <div className="svt-tour-actions">
                               <button type="submit" className="panel-btn panel-btn-primary" disabled={busy}>

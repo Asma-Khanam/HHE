@@ -3,8 +3,6 @@ import { Link, useParams } from "react-router-dom";
 import {
   getSchoolDetail,
   updateSchool,
-  upsertYearGroupAvailability,
-  deleteYearGroupAvailability,
   addToShortlist,
   updateShortlistEntry,
   removeFromShortlist,
@@ -45,12 +43,6 @@ function childChipClass(value) {
 
 const TOUR_STATUS_LABEL = { offered: "Offered", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
 
-const YEAR_GROUP_STATUS_LABELS = {
-  open: "Open",
-  waitlist: "Waitlist",
-  full: "Full",
-};
-
 function formatDate(iso) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -86,7 +78,7 @@ function familyStageLabel(row, applicationsForFamily) {
   return "Awaiting reply";
 }
 
-// One school's full record, its year group availability, and every
+// One school's full record and every
 // family that has it shortlisted — the school-side view that complements
 // SchoolVisitsPanel on FamilyDetailPage (Phase 1 of the School visits
 // tracker; see eduhub_schema_addendum_36_school_visits_tracker.sql).
@@ -97,9 +89,6 @@ export default function SchoolDetailPage() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
-
-  const [newYearGroup, setNewYearGroup] = useState("");
-  const [newYearGroupStatus, setNewYearGroupStatus] = useState("open");
 
   const [families, setFamilies] = useState(null);
   const [addFamilyId, setAddFamilyId] = useState("");
@@ -139,7 +128,7 @@ export default function SchoolDetailPage() {
 
   if (!detail) return <div className="family-detail-page">Loading…</div>;
 
-  const { school, availability, shortlist, stats } = detail;
+  const { school, shortlist, stats } = detail;
 
   function startEdit() {
     setDraft({
@@ -148,6 +137,11 @@ export default function SchoolDetailPage() {
       address: school.address || "",
       curriculum: school.curriculum || "",
       typical_tour_schedule: school.typical_tour_schedule || "",
+      default_tour_gate: school.default_tour_gate || "",
+      default_tour_building: school.default_tour_building || "",
+      default_tour_parking: school.default_tour_parking || "",
+      default_tour_ask_for: school.default_tour_ask_for || "",
+      default_tour_bring: school.default_tour_bring || "",
       website_url: school.website_url || "",
       admissions_contact_name: school.admissions_contact_name || "",
       admissions_contact_email: school.admissions_contact_email || "",
@@ -183,45 +177,6 @@ export default function SchoolDetailPage() {
       setError(friendlyError(err, "Couldn't save that."));
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function handleAddYearGroup(e) {
-    e.preventDefault();
-    if (!newYearGroup.trim()) return;
-    try {
-      const row = await upsertYearGroupAvailability(schoolId, {
-        yearGroup: newYearGroup.trim(),
-        status: newYearGroupStatus,
-      });
-      setDetail((d) => ({
-        ...d,
-        availability: [...d.availability.filter((a) => a.id !== row.id), row].sort((a, b) =>
-          a.year_group.localeCompare(b.year_group)
-        ),
-      }));
-      setNewYearGroup("");
-      setNewYearGroupStatus("open");
-    } catch (err) {
-      setError(friendlyError(err, "Couldn't add that year group."));
-    }
-  }
-
-  async function handleYearGroupStatusChange(row, status) {
-    try {
-      const updated = await upsertYearGroupAvailability(schoolId, { id: row.id, yearGroup: row.year_group, status });
-      setDetail((d) => ({ ...d, availability: d.availability.map((a) => (a.id === row.id ? updated : a)) }));
-    } catch (err) {
-      setError(friendlyError(err, "Couldn't update that."));
-    }
-  }
-
-  async function handleRemoveYearGroup(row) {
-    try {
-      await deleteYearGroupAvailability(row.id);
-      setDetail((d) => ({ ...d, availability: d.availability.filter((a) => a.id !== row.id) }));
-    } catch (err) {
-      setError(friendlyError(err, "Couldn't remove that."));
     }
   }
 
@@ -359,6 +314,20 @@ export default function SchoolDetailPage() {
                 {school.typical_tour_schedule || "—"}
               </span>
             </div>
+            <div className="rec-field rec-field-wide">
+              <span className="rec-field-label">On-the-day details</span>
+              <span className="rec-field-value">
+                {[
+                  school.default_tour_gate && `Gate: ${school.default_tour_gate}`,
+                  school.default_tour_building && `Building: ${school.default_tour_building}`,
+                  school.default_tour_parking && `Parking: ${school.default_tour_parking}`,
+                  school.default_tour_ask_for && `Ask for: ${school.default_tour_ask_for}`,
+                  school.default_tour_bring && `Bring: ${school.default_tour_bring}`,
+                ]
+                  .filter(Boolean)
+                  .join(". ") || <span className="is-empty">—</span>}
+              </span>
+            </div>
             <div className="rec-field">
               <span className="rec-field-label">Website</span>
               {school.website_url ? (
@@ -450,6 +419,46 @@ export default function SchoolDetailPage() {
                   placeholder="e.g. Reception: Tuesdays 10am; Year 1-6: Thursdays 9:30am"
                   value={draft.typical_tour_schedule}
                   onChange={(e) => setDraft((d) => ({ ...d, typical_tour_schedule: e.target.value }))}
+                />
+              </label>
+              <label>
+                On-the-day: Gate
+                <input
+                  className="panel-input"
+                  value={draft.default_tour_gate}
+                  onChange={(e) => setDraft((d) => ({ ...d, default_tour_gate: e.target.value }))}
+                />
+              </label>
+              <label>
+                On-the-day: Building
+                <input
+                  className="panel-input"
+                  value={draft.default_tour_building}
+                  onChange={(e) => setDraft((d) => ({ ...d, default_tour_building: e.target.value }))}
+                />
+              </label>
+              <label>
+                On-the-day: Parking
+                <input
+                  className="panel-input"
+                  value={draft.default_tour_parking}
+                  onChange={(e) => setDraft((d) => ({ ...d, default_tour_parking: e.target.value }))}
+                />
+              </label>
+              <label>
+                On-the-day: Ask for
+                <input
+                  className="panel-input"
+                  value={draft.default_tour_ask_for}
+                  onChange={(e) => setDraft((d) => ({ ...d, default_tour_ask_for: e.target.value }))}
+                />
+              </label>
+              <label className="school-edit-wide">
+                On-the-day: Bring
+                <input
+                  className="panel-input"
+                  value={draft.default_tour_bring}
+                  onChange={(e) => setDraft((d) => ({ ...d, default_tour_bring: e.target.value }))}
                 />
               </label>
               <label>
@@ -575,57 +584,6 @@ export default function SchoolDetailPage() {
             </div>
           </form>
         )}
-      </section>
-
-      <section className="family-detail-card">
-        <h2>Year group availability</h2>
-        {availability.length === 0 ? (
-          <p className="family-detail-hint">No year groups added yet.</p>
-        ) : (
-          <ul className="panel-list school-year-group-list">
-            {availability.map((row) => (
-              <li key={row.id} className="school-year-group-row">
-                <span className="school-year-group-name">{row.year_group}</span>
-                <select
-                  className="panel-select"
-                  value={row.status}
-                  onChange={(e) => handleYearGroupStatusChange(row, e.target.value)}
-                >
-                  {Object.entries(YEAR_GROUP_STATUS_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-                <span className="school-year-group-checked">
-                  {row.last_checked_at ? `Checked ${formatDate(row.last_checked_at)}` : "Not checked yet"}
-                </span>
-                <button type="button" className="panel-btn panel-btn-quiet" onClick={() => handleRemoveYearGroup(row)}>
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <form className="school-year-group-add" onSubmit={handleAddYearGroup}>
-          <input
-            type="text"
-            className="panel-input"
-            placeholder="Year group (e.g. Year 4)"
-            value={newYearGroup}
-            onChange={(e) => setNewYearGroup(e.target.value)}
-          />
-          <select className="panel-select" value={newYearGroupStatus} onChange={(e) => setNewYearGroupStatus(e.target.value)}>
-            {Object.entries(YEAR_GROUP_STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <button type="submit" className="panel-btn" disabled={!newYearGroup.trim()}>
-            Add year group
-          </button>
-        </form>
       </section>
 
       <section className="family-detail-card">
