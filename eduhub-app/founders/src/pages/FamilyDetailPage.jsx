@@ -361,37 +361,52 @@ function BudgetSummary({ family }) {
   );
 }
 
-// A collapsible per-person block, used two ways: standalone (defaultOpen —
-// a founder landing on the page reads the record straight away) and nested
-// inside the Household card (defaultOpen={false} — collapsed by default so
-// the household list stays a short, scannable summary, and a founder opens
-// only the person they actually need to read into).
-function PersonCard({ name, role, docCount, photo, isChild = false, children, defaultOpen = true, nested = false, flags }) {
+// A person's profile block. Collapsible by default (defaultOpen — a founder
+// landing on the page reads the record straight away); `flat` (September
+// 2026 change request) drops the collapse/expand entirely for the
+// Household section below, where a tab bar picks which one person is shown
+// and it's always fully open.
+function PersonCard({ name, role, docCount, photo, isChild = false, children, defaultOpen = true, flags, flat = false }) {
   const [open, setOpen] = useState(defaultOpen);
+  const isOpen = flat ? true : open;
+  const headText = (
+    <span className="person-card-head-text">
+      <span className="person-card-name">
+        {name}
+        {/* SEN-10/DU-05: "must be clearly visible on the family record
+            in the admin area" — right on the card header, not buried in
+            the field grid below. A child can carry more than one. */}
+        {(flags || []).map((f) => (
+          <span key={f.label} className={"family-detail-card-flag" + (f.warn ? " is-warn" : "")}>
+            {f.label}
+          </span>
+        ))}
+      </span>
+      <span className="person-card-role">
+        {role}
+        {docCount > 0 ? ` · ${docCount} document${docCount === 1 ? "" : "s"} on file` : " · no documents yet"}
+      </span>
+    </span>
+  );
   return (
-    <section className={"person-card" + (nested ? " person-card-nested" : "") + (open ? "" : " is-collapsed")}>
-      <button type="button" className="person-card-head" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-        <PersonAvatar doc={photo} name={name} fallback={role} isChild={isChild} className="person-card-avatar" />
-        <span className="person-card-head-text">
-          <span className="person-card-name">
-            {name}
-            {/* SEN-10/DU-05: "must be clearly visible on the family record
-                in the admin area" — right on the card header, not buried in
-                the field grid below. A child can carry more than one. */}
-            {(flags || []).map((f) => (
-              <span key={f.label} className={"family-detail-card-flag" + (f.warn ? " is-warn" : "")}>
-                {f.label}
-              </span>
-            ))}
-          </span>
-          <span className="person-card-role">
-            {role}
-            {docCount > 0 ? ` · ${docCount} document${docCount === 1 ? "" : "s"} on file` : " · no documents yet"}
-          </span>
-        </span>
-        <span className="person-card-chevron">{open ? "▾" : "▸"}</span>
-      </button>
-      {open && <div className="person-card-body">{children}</div>}
+    <section className={"person-card" + (flat ? " person-card-flat" : "") + (isOpen ? "" : " is-collapsed")}>
+      {/* flat: used for the Household section (September 2026 change
+          request) — one member selected via a tab bar above, shown fully
+          open with no collapse/expand of its own, so the header is a plain
+          div rather than a toggle button. */}
+      {flat ? (
+        <div className="person-card-head person-card-head-static">
+          <PersonAvatar doc={photo} name={name} fallback={role} isChild={isChild} className="person-card-avatar" />
+          {headText}
+        </div>
+      ) : (
+        <button type="button" className="person-card-head" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+          <PersonAvatar doc={photo} name={name} fallback={role} isChild={isChild} className="person-card-avatar" />
+          {headText}
+          <span className="person-card-chevron">{open ? "▾" : "▸"}</span>
+        </button>
+      )}
+      {isOpen && <div className="person-card-body">{children}</div>}
     </section>
   );
 }
@@ -407,6 +422,7 @@ export default function FamilyDetailPage() {
   const [error, setError] = useState("");
   const [currentStaffName, setCurrentStaffName] = useState("");
   const [activeTab, setActiveTab] = useState("details");
+  const [activeHouseholdKey, setActiveHouseholdKey] = useState(null);
 
   // Shared by the initial load and by DocumentVaultPanel (addendum 35) —
   // a document upload/replace/remove is simplest to just refetch after,
@@ -537,6 +553,24 @@ export default function FamilyDetailPage() {
     .map((role) => (parents || []).find((p) => p.relationship === role))
     .filter(Boolean);
 
+  // Household section (September 2026 change request) — one member picked
+  // via a tab bar, matching the page's own tabs above, rather than showing
+  // everyone in a list or a grid at once.
+  const householdMembers = [
+    ...(parents || [])
+      .filter((p) => p.full_name)
+      .map((p) => ({ key: `parent-${p.id}`, type: "parent", name: p.full_name, data: p })),
+    ...children.map((c, i) => ({
+      key: `child-${c.id}`,
+      type: "child",
+      name: displayNameForChild(c, i),
+      data: c,
+      currentSchool: currentSchools[i] || null,
+    })),
+  ];
+  const activeHouseholdMember =
+    householdMembers.find((m) => m.key === activeHouseholdKey) || householdMembers[0] || null;
+
   return (
     <div className="family-detail-page">
       <Link to="/staff/families" className="hh-link-btn">
@@ -652,127 +686,149 @@ export default function FamilyDetailPage() {
             <HouseholdIcon />
             Household
           </h2>
-          <div className="household-list">
-            {parents
-              .filter((p) => p.full_name)
-              .map((p) => (
+          {/* September 2026 change request: this used to list every member
+              at once (a masonry grid before that, a flat collapsible list
+              before that) — the founders wanted it to work like the page's
+              own tabs above instead: pick a person, see their whole profile
+              open at full width, nothing else in the way. */}
+          {householdMembers.length === 0 ? (
+            <p className="household-empty-hint">Nothing filled in yet.</p>
+          ) : (
+            <>
+              <div className="family-detail-tabs household-tabs" role="tablist">
+                {householdMembers.map((m) => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeHouseholdMember.key === m.key}
+                    className={"family-detail-tab" + (activeHouseholdMember.key === m.key ? " is-active" : "")}
+                    onClick={() => setActiveHouseholdKey(m.key)}
+                  >
+                    {m.name}
+                  </button>
+                ))}
+              </div>
+
+              {activeHouseholdMember.type === "parent" && (
                 <PersonCard
-                  key={p.id}
-                  nested
-                  defaultOpen={false}
-                  name={p.full_name}
+                  key={activeHouseholdMember.key}
+                  flat
+                  name={activeHouseholdMember.data.full_name}
                   role={
-                    p.relationship +
-                    (p.relationship === accountHolderRole ? " · Account holder" : "") +
-                    (p.phone ? ` · ${p.phone}` : "") +
-                    (p.email ? ` · ${p.email}` : "")
+                    activeHouseholdMember.data.relationship +
+                    (activeHouseholdMember.data.relationship === accountHolderRole ? " · Account holder" : "") +
+                    (activeHouseholdMember.data.phone ? ` · ${activeHouseholdMember.data.phone}` : "") +
+                    (activeHouseholdMember.data.email ? ` · ${activeHouseholdMember.data.email}` : "")
                   }
-                  docCount={countDocs(documentsByOwner, "parent", p.id)}
-                  photo={findProfilePhoto(documentsByOwner[`parent:${p.id}`])}
+                  docCount={countDocs(documentsByOwner, "parent", activeHouseholdMember.data.id)}
+                  photo={findProfilePhoto(documentsByOwner[`parent:${activeHouseholdMember.data.id}`])}
                 >
                   <RecordFieldsEditor
                     fields={PARENT_FIELDS}
-                    source={p}
+                    source={activeHouseholdMember.data}
                     table="parents"
-                    recordId={p.id}
+                    recordId={activeHouseholdMember.data.id}
                     familyId={family.id}
                     currentStaffName={currentStaffName}
                     onSaved={handleParentSaved}
                   />
                 </PersonCard>
-              ))}
-            {children.map((c, i) => (
-              <PersonCard
-                key={c.id}
-                nested
-                defaultOpen={false}
-                isChild
-                name={displayNameForChild(c, i)}
-                role={
-                  (c.date_of_birth ? `DOB ${formatDate(c.date_of_birth)}` : "DOB not on file") +
-                  (c.year_group_applying_for ? ` · applying for ${c.year_group_applying_for}` : "")
-                }
-                docCount={countDocs(documentsByOwner, "child", c.id)}
-                photo={findProfilePhoto(documentsByOwner[`child:${c.id}`])}
-                flags={childCardFlags(c)}
-              >
-                {/* Household address, read-only here — it's the family's
-                    own field (families.home_address), edited from the
-                    Household address card in Family details, not
-                    per-child. Shown on every child's card too so staff
-                    don't have to leave the child's profile to see it. */}
-                <div className="rec-grid">
-                  <RecordField label="Family address" value={family.home_address} wide />
-                </div>
+              )}
 
-                <h3 className="rec-subhead">General info</h3>
-                <RecordFieldsEditor
-                  fields={CHILD_GENERAL_FIELDS}
-                  source={c}
-                  table="children"
-                  recordId={c.id}
-                  familyId={family.id}
-                  currentStaffName={currentStaffName}
-                  onSaved={handleChildSaved}
-                />
+              {activeHouseholdMember.type === "child" && (
+                <PersonCard
+                  key={activeHouseholdMember.key}
+                  flat
+                  isChild
+                  name={activeHouseholdMember.name}
+                  role={
+                    (activeHouseholdMember.data.date_of_birth
+                      ? `DOB ${formatDate(activeHouseholdMember.data.date_of_birth)}`
+                      : "DOB not on file") +
+                    (activeHouseholdMember.data.year_group_applying_for
+                      ? ` · applying for ${activeHouseholdMember.data.year_group_applying_for}`
+                      : "")
+                  }
+                  docCount={countDocs(documentsByOwner, "child", activeHouseholdMember.data.id)}
+                  photo={findProfilePhoto(documentsByOwner[`child:${activeHouseholdMember.data.id}`])}
+                  flags={childCardFlags(activeHouseholdMember.data)}
+                >
+                  {/* Household address, read-only here — it's the family's
+                      own field (families.home_address), edited from the
+                      Household address card in Family details, not
+                      per-child. Shown on every child's card too so staff
+                      don't have to leave the child's profile to see it. */}
+                  <div className="rec-grid">
+                    <RecordField label="Family address" value={family.home_address} wide />
+                  </div>
 
-                <h3 className="rec-subhead">Additional info</h3>
-                <RecordFieldsEditor
-                  fields={CHILD_ADDITIONAL_FIELDS}
-                  source={c}
-                  table="children"
-                  recordId={c.id}
-                  familyId={family.id}
-                  currentStaffName={currentStaffName}
-                  onSaved={handleChildSaved}
-                />
+                  <h3 className="rec-subhead">General info</h3>
+                  <RecordFieldsEditor
+                    fields={CHILD_GENERAL_FIELDS}
+                    source={activeHouseholdMember.data}
+                    table="children"
+                    recordId={activeHouseholdMember.data.id}
+                    familyId={family.id}
+                    currentStaffName={currentStaffName}
+                    onSaved={handleChildSaved}
+                  />
 
-                <h3 className="rec-subhead">SEN and inclusion</h3>
-                <RecordFieldsEditor
-                  fields={CHILD_SEN_FIELDS}
-                  source={c}
-                  table="children"
-                  recordId={c.id}
-                  familyId={family.id}
-                  currentStaffName={currentStaffName}
-                  onSaved={handleChildSaved}
-                />
+                  <h3 className="rec-subhead">Additional info</h3>
+                  <RecordFieldsEditor
+                    fields={CHILD_ADDITIONAL_FIELDS}
+                    source={activeHouseholdMember.data}
+                    table="children"
+                    recordId={activeHouseholdMember.data.id}
+                    familyId={family.id}
+                    currentStaffName={currentStaffName}
+                    onSaved={handleChildSaved}
+                  />
 
-                <h3 className="rec-subhead">Current school</h3>
-                {/* NAV-02 (September 2026 change request): the family's form
-                    copies a sibling's school once rather than linking to it
-                    live, so this reads whichever sibling was chosen at copy
-                    time and shows their CURRENT name — same as the family's
-                    own view — while the copied fields below stay frozen at
-                    whatever they were when copied. */}
-                {(() => {
-                  const siblingId = currentSchools[i]?.same_as_sibling_child_id;
-                  if (!siblingId) return null;
-                  const siblingIdx = children.findIndex((sib) => sib.id === siblingId);
-                  if (siblingIdx === -1) return null;
-                  return (
-                    <p className="family-detail-hint">
-                      Same school as {displayNameForChild(children[siblingIdx], siblingIdx)} (copied once, not linked —
-                      editing one doesn't change the other).
-                    </p>
-                  );
-                })()}
-                <RecordFieldsEditor
-                  fields={SCHOOL_FIELDS}
-                  source={currentSchools[i] || {}}
-                  table="current_schools"
-                  recordId={currentSchools[i]?.id}
-                  insertExtra={{ child_id: c.id }}
-                  familyId={family.id}
-                  currentStaffName={currentStaffName}
-                  onSaved={handleSchoolSaved}
-                />
-              </PersonCard>
-            ))}
-            {parents.every((p) => !p.full_name) && children.length === 0 && (
-              <p className="household-empty-hint">Nothing filled in yet.</p>
-            )}
-          </div>
+                  <h3 className="rec-subhead">SEN and inclusion</h3>
+                  <RecordFieldsEditor
+                    fields={CHILD_SEN_FIELDS}
+                    source={activeHouseholdMember.data}
+                    table="children"
+                    recordId={activeHouseholdMember.data.id}
+                    familyId={family.id}
+                    currentStaffName={currentStaffName}
+                    onSaved={handleChildSaved}
+                  />
+
+                  <h3 className="rec-subhead">Current school</h3>
+                  {/* NAV-02 (September 2026 change request): the family's form
+                      copies a sibling's school once rather than linking to it
+                      live, so this reads whichever sibling was chosen at copy
+                      time and shows their CURRENT name — same as the family's
+                      own view — while the copied fields below stay frozen at
+                      whatever they were when copied. */}
+                  {(() => {
+                    const siblingId = activeHouseholdMember.currentSchool?.same_as_sibling_child_id;
+                    if (!siblingId) return null;
+                    const siblingIdx = children.findIndex((sib) => sib.id === siblingId);
+                    if (siblingIdx === -1) return null;
+                    return (
+                      <p className="family-detail-hint">
+                        Same school as {displayNameForChild(children[siblingIdx], siblingIdx)} (copied once, not linked —
+                        editing one doesn't change the other).
+                      </p>
+                    );
+                  })()}
+                  <RecordFieldsEditor
+                    fields={SCHOOL_FIELDS}
+                    source={activeHouseholdMember.currentSchool || {}}
+                    table="current_schools"
+                    recordId={activeHouseholdMember.currentSchool?.id}
+                    insertExtra={{ child_id: activeHouseholdMember.data.id }}
+                    familyId={family.id}
+                    currentStaffName={currentStaffName}
+                    onSaved={handleSchoolSaved}
+                  />
+                </PersonCard>
+              )}
+            </>
+          )}
         </section>
         </>
       )}

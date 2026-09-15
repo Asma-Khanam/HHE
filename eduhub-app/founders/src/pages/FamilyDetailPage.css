@@ -343,38 +343,30 @@
   padding: 20px 24px 24px;
 }
 
-/* Nested variant: used inside the Household section. Used to be a plain
-   flat row (no shadow, border-bottom only) in a single vertical list — the
-   problem the founders flagged was that opening any one person pushed
-   everyone below it down the page, so reading a later person meant
-   scrolling past everyone before them. Household is now a masonry-style
-   grid (see .household-list below, CSS multi-column — the same trick
-   behind a Pinterest-style layout: each card packs into whichever column
-   has room, instead of one long single-file list), so each person needs to
-   look like its own self-contained card again rather than a row in a list. */
-.person-card-nested {
-  box-shadow: var(--hh-shadow);
-  border-radius: var(--hh-radius);
-  border-bottom: none;
-  break-inside: avoid;
-  display: inline-block;
-  width: 100%;
-  vertical-align: top;
-  margin-bottom: 20px;
+/* Flat variant (September 2026 change request): used only inside the
+   Household section below, where a tab bar (household-tabs) picks one
+   family member at a time and that person's profile is shown fully open,
+   full width — no card-within-a-card chrome, no collapse toggle, since
+   there's only ever one visible and the outer family-detail-card already
+   provides the boundary. Two earlier attempts at Household (a flat
+   collapsible list, then a masonry grid of every member at once) both got
+   replaced by this because reading anyone but the very first person meant
+   either scrolling past everyone above them or hunting through a grid. */
+.person-card-flat {
+  box-shadow: none;
+  border-radius: 0;
+  background: none;
 }
 
-.person-card-nested .person-card-head {
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(83, 1, 38, 0.08);
+.person-card-flat .person-card-head-static {
+  padding: 0 0 16px;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.1);
+  margin-bottom: 16px;
+  cursor: default;
 }
 
-.person-card-nested.is-collapsed .person-card-head {
-  padding: 16px 20px;
-  border-bottom: none;
-}
-
-.person-card-nested .person-card-body {
-  padding: 16px 20px 20px;
+.person-card-flat .person-card-body {
+  padding: 0;
 }
 
 .rec-subhead {
@@ -443,19 +435,12 @@
   padding: 0;
 }
 
-/* Household now holds the same collapsible per-person cards as everywhere
-   else (see .person-card below) rather than a plain, non-expandable list —
-   .person-card-nested strips their own background/shadow/radius so they
-   read as rows inside the Household card instead of cards-within-a-card. */
-/* Masonry layout (CSS multi-column — the same technique behind a
-   Pinterest-style grid): the browser packs each person's card into
-   whichever column currently has the least content, instead of stacking
-   every member in one single-file list. Opening one person's details only
-   grows their own column, so the rest of the household stays put instead
-   of sliding down the page. */
-.household-list {
-  columns: 3 280px;
-  column-gap: 20px;
+/* Household's own member-picker tab bar reuses .family-detail-tabs/
+   .family-detail-tab exactly (same rounded-rectangle segmented-control
+   look as the page's main tabs above) — .household-tabs only adds a little
+   breathing room underneath before the selected person's profile. */
+.household-tabs {
+  margin-bottom: 20px;
 }
 
 .household-empty-hint {
