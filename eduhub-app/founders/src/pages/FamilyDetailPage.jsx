@@ -614,135 +614,6 @@ export default function FamilyDetailPage() {
 
           <section className="family-detail-card">
             <h2>
-              <HouseholdIcon />
-              Household
-            </h2>
-            <div className="household-list">
-              {parents
-                .filter((p) => p.full_name)
-                .map((p) => (
-                  <PersonCard
-                    key={p.id}
-                    nested
-                    defaultOpen={false}
-                    name={p.full_name}
-                    role={
-                      p.relationship +
-                      (p.relationship === accountHolderRole ? " · Account holder" : "") +
-                      (p.phone ? ` · ${p.phone}` : "") +
-                      (p.email ? ` · ${p.email}` : "")
-                    }
-                    docCount={countDocs(documentsByOwner, "parent", p.id)}
-                    photo={findProfilePhoto(documentsByOwner[`parent:${p.id}`])}
-                  >
-                    <RecordFieldsEditor
-                      fields={PARENT_FIELDS}
-                      source={p}
-                      table="parents"
-                      recordId={p.id}
-                      familyId={family.id}
-                      currentStaffName={currentStaffName}
-                      onSaved={handleParentSaved}
-                    />
-                  </PersonCard>
-                ))}
-              {children.map((c, i) => (
-                <PersonCard
-                  key={c.id}
-                  nested
-                  defaultOpen={false}
-                  isChild
-                  name={displayNameForChild(c, i)}
-                  role={
-                    (c.date_of_birth ? `DOB ${formatDate(c.date_of_birth)}` : "DOB not on file") +
-                    (c.year_group_applying_for ? ` · applying for ${c.year_group_applying_for}` : "")
-                  }
-                  docCount={countDocs(documentsByOwner, "child", c.id)}
-                  photo={findProfilePhoto(documentsByOwner[`child:${c.id}`])}
-                  flags={childCardFlags(c)}
-                >
-                  {/* Household address, read-only here — it's the family's
-                      own field (families.home_address), edited from the
-                      Household address card in Family details, not
-                      per-child. Shown on every child's card too so staff
-                      don't have to leave the child's profile to see it. */}
-                  <div className="rec-grid">
-                    <RecordField label="Family address" value={family.home_address} wide />
-                  </div>
-
-                  <h3 className="rec-subhead">General info</h3>
-                  <RecordFieldsEditor
-                    fields={CHILD_GENERAL_FIELDS}
-                    source={c}
-                    table="children"
-                    recordId={c.id}
-                    familyId={family.id}
-                    currentStaffName={currentStaffName}
-                    onSaved={handleChildSaved}
-                  />
-
-                  <h3 className="rec-subhead">Additional info</h3>
-                  <RecordFieldsEditor
-                    fields={CHILD_ADDITIONAL_FIELDS}
-                    source={c}
-                    table="children"
-                    recordId={c.id}
-                    familyId={family.id}
-                    currentStaffName={currentStaffName}
-                    onSaved={handleChildSaved}
-                  />
-
-                  <h3 className="rec-subhead">SEN and inclusion</h3>
-                  <RecordFieldsEditor
-                    fields={CHILD_SEN_FIELDS}
-                    source={c}
-                    table="children"
-                    recordId={c.id}
-                    familyId={family.id}
-                    currentStaffName={currentStaffName}
-                    onSaved={handleChildSaved}
-                  />
-
-                  <h3 className="rec-subhead">Current school</h3>
-                  {/* NAV-02 (September 2026 change request): the family's form
-                      copies a sibling's school once rather than linking to it
-                      live, so this reads whichever sibling was chosen at copy
-                      time and shows their CURRENT name — same as the family's
-                      own view — while the copied fields below stay frozen at
-                      whatever they were when copied. */}
-                  {(() => {
-                    const siblingId = currentSchools[i]?.same_as_sibling_child_id;
-                    if (!siblingId) return null;
-                    const siblingIdx = children.findIndex((sib) => sib.id === siblingId);
-                    if (siblingIdx === -1) return null;
-                    return (
-                      <p className="family-detail-hint">
-                        Same school as {displayNameForChild(children[siblingIdx], siblingIdx)} (copied once, not linked —
-                        editing one doesn't change the other).
-                      </p>
-                    );
-                  })()}
-                  <RecordFieldsEditor
-                    fields={SCHOOL_FIELDS}
-                    source={currentSchools[i] || {}}
-                    table="current_schools"
-                    recordId={currentSchools[i]?.id}
-                    insertExtra={{ child_id: c.id }}
-                    familyId={family.id}
-                    currentStaffName={currentStaffName}
-                    onSaved={handleSchoolSaved}
-                  />
-                </PersonCard>
-              ))}
-              {parents.every((p) => !p.full_name) && children.length === 0 && (
-                <p className="household-empty-hint">Nothing filled in yet.</p>
-              )}
-            </div>
-          </section>
-
-
-          <section className="family-detail-card">
-            <h2>
               What&apos;s needed
               {missing.length > 0 && <span className="family-detail-card-count">{missing.length}</span>}
             </h2>
@@ -775,6 +646,134 @@ export default function FamilyDetailPage() {
           </section>
         </div>
       </div>
+
+        <section className="family-detail-card">
+          <h2>
+            <HouseholdIcon />
+            Household
+          </h2>
+          <div className="household-list">
+            {parents
+              .filter((p) => p.full_name)
+              .map((p) => (
+                <PersonCard
+                  key={p.id}
+                  nested
+                  defaultOpen={false}
+                  name={p.full_name}
+                  role={
+                    p.relationship +
+                    (p.relationship === accountHolderRole ? " · Account holder" : "") +
+                    (p.phone ? ` · ${p.phone}` : "") +
+                    (p.email ? ` · ${p.email}` : "")
+                  }
+                  docCount={countDocs(documentsByOwner, "parent", p.id)}
+                  photo={findProfilePhoto(documentsByOwner[`parent:${p.id}`])}
+                >
+                  <RecordFieldsEditor
+                    fields={PARENT_FIELDS}
+                    source={p}
+                    table="parents"
+                    recordId={p.id}
+                    familyId={family.id}
+                    currentStaffName={currentStaffName}
+                    onSaved={handleParentSaved}
+                  />
+                </PersonCard>
+              ))}
+            {children.map((c, i) => (
+              <PersonCard
+                key={c.id}
+                nested
+                defaultOpen={false}
+                isChild
+                name={displayNameForChild(c, i)}
+                role={
+                  (c.date_of_birth ? `DOB ${formatDate(c.date_of_birth)}` : "DOB not on file") +
+                  (c.year_group_applying_for ? ` · applying for ${c.year_group_applying_for}` : "")
+                }
+                docCount={countDocs(documentsByOwner, "child", c.id)}
+                photo={findProfilePhoto(documentsByOwner[`child:${c.id}`])}
+                flags={childCardFlags(c)}
+              >
+                {/* Household address, read-only here — it's the family's
+                    own field (families.home_address), edited from the
+                    Household address card in Family details, not
+                    per-child. Shown on every child's card too so staff
+                    don't have to leave the child's profile to see it. */}
+                <div className="rec-grid">
+                  <RecordField label="Family address" value={family.home_address} wide />
+                </div>
+
+                <h3 className="rec-subhead">General info</h3>
+                <RecordFieldsEditor
+                  fields={CHILD_GENERAL_FIELDS}
+                  source={c}
+                  table="children"
+                  recordId={c.id}
+                  familyId={family.id}
+                  currentStaffName={currentStaffName}
+                  onSaved={handleChildSaved}
+                />
+
+                <h3 className="rec-subhead">Additional info</h3>
+                <RecordFieldsEditor
+                  fields={CHILD_ADDITIONAL_FIELDS}
+                  source={c}
+                  table="children"
+                  recordId={c.id}
+                  familyId={family.id}
+                  currentStaffName={currentStaffName}
+                  onSaved={handleChildSaved}
+                />
+
+                <h3 className="rec-subhead">SEN and inclusion</h3>
+                <RecordFieldsEditor
+                  fields={CHILD_SEN_FIELDS}
+                  source={c}
+                  table="children"
+                  recordId={c.id}
+                  familyId={family.id}
+                  currentStaffName={currentStaffName}
+                  onSaved={handleChildSaved}
+                />
+
+                <h3 className="rec-subhead">Current school</h3>
+                {/* NAV-02 (September 2026 change request): the family's form
+                    copies a sibling's school once rather than linking to it
+                    live, so this reads whichever sibling was chosen at copy
+                    time and shows their CURRENT name — same as the family's
+                    own view — while the copied fields below stay frozen at
+                    whatever they were when copied. */}
+                {(() => {
+                  const siblingId = currentSchools[i]?.same_as_sibling_child_id;
+                  if (!siblingId) return null;
+                  const siblingIdx = children.findIndex((sib) => sib.id === siblingId);
+                  if (siblingIdx === -1) return null;
+                  return (
+                    <p className="family-detail-hint">
+                      Same school as {displayNameForChild(children[siblingIdx], siblingIdx)} (copied once, not linked —
+                      editing one doesn't change the other).
+                    </p>
+                  );
+                })()}
+                <RecordFieldsEditor
+                  fields={SCHOOL_FIELDS}
+                  source={currentSchools[i] || {}}
+                  table="current_schools"
+                  recordId={currentSchools[i]?.id}
+                  insertExtra={{ child_id: c.id }}
+                  familyId={family.id}
+                  currentStaffName={currentStaffName}
+                  onSaved={handleSchoolSaved}
+                />
+              </PersonCard>
+            ))}
+            {parents.every((p) => !p.full_name) && children.length === 0 && (
+              <p className="household-empty-hint">Nothing filled in yet.</p>
+            )}
+          </div>
+        </section>
         </>
       )}
 

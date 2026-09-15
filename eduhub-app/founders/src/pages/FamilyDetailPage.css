@@ -343,30 +343,38 @@
   padding: 20px 24px 24px;
 }
 
-/* Nested variant: used inside the Household card so each person is a plain
-   row with its own expand/collapse, not a second elevated card stacked
-   inside the first. */
+/* Nested variant: used inside the Household section. Used to be a plain
+   flat row (no shadow, border-bottom only) in a single vertical list — the
+   problem the founders flagged was that opening any one person pushed
+   everyone below it down the page, so reading a later person meant
+   scrolling past everyone before them. Household is now a masonry-style
+   grid (see .household-list below, CSS multi-column — the same trick
+   behind a Pinterest-style layout: each card packs into whichever column
+   has room, instead of one long single-file list), so each person needs to
+   look like its own self-contained card again rather than a row in a list. */
 .person-card-nested {
-  box-shadow: none;
-  border-radius: 0;
-  border-bottom: 1px solid rgba(83, 1, 38, 0.08);
-}
-
-.person-card-nested:last-child {
+  box-shadow: var(--hh-shadow);
+  border-radius: var(--hh-radius);
   border-bottom: none;
+  break-inside: avoid;
+  display: inline-block;
+  width: 100%;
+  vertical-align: top;
+  margin-bottom: 20px;
 }
 
 .person-card-nested .person-card-head {
-  padding: 12px 0;
-  border-bottom: none;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.08);
 }
 
 .person-card-nested.is-collapsed .person-card-head {
-  padding: 12px 0;
+  padding: 16px 20px;
+  border-bottom: none;
 }
 
 .person-card-nested .person-card-body {
-  padding: 4px 0 16px;
+  padding: 16px 20px 20px;
 }
 
 .rec-subhead {
@@ -439,9 +447,15 @@
    else (see .person-card below) rather than a plain, non-expandable list —
    .person-card-nested strips their own background/shadow/radius so they
    read as rows inside the Household card instead of cards-within-a-card. */
+/* Masonry layout (CSS multi-column — the same technique behind a
+   Pinterest-style grid): the browser packs each person's card into
+   whichever column currently has the least content, instead of stacking
+   every member in one single-file list. Opening one person's details only
+   grows their own column, so the rest of the household stays put instead
+   of sliding down the page. */
 .household-list {
-  display: flex;
-  flex-direction: column;
+  columns: 3 280px;
+  column-gap: 20px;
 }
 
 .household-empty-hint {
