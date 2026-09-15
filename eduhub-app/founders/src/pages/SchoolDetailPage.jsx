@@ -8,9 +8,11 @@ import {
   addToShortlist,
   updateShortlistEntry,
   removeFromShortlist,
+  upsertChildAvailability,
   listFamilies,
   friendlyError,
 } from "../lib/staffData";
+import { displayNameForChild } from "../lib/completeness";
 import "../components/panels.css";
 import "./FamilyDetailPage.css";
 import "./SchoolDetailPage.css";
@@ -23,6 +25,26 @@ const AVAILABILITY_LABELS = {
   some_year_groups: "Some year groups",
 };
 
+// Short per-child chip labels -- same wording/colour convention as the
+// family-facing School shortlist panel (SchoolShortlistPanel.jsx), just
+// duplicated here rather than shared since that file doesn't export them.
+const CHILD_CHIP_LABEL = {
+  awaiting: "Awaiting",
+  yes: "Place",
+  no: "No place",
+  waitlist: "Waitlist",
+  some_year_groups: "Some yrs",
+};
+
+function childChipClass(value) {
+  if (value === "yes") return "is-yes";
+  if (value === "no") return "is-no";
+  if (value === "waitlist" || value === "some_year_groups") return "is-partial";
+  return "is-awaiting";
+}
+
+const TOUR_STATUS_LABEL = { offered: "Offered", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
+
 const YEAR_GROUP_STATUS_LABELS = {
   open: "Open",
   waitlist: "Waitlist",
@@ -34,9 +56,34 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
+function formatDateTime(dateStr, timeStr) {
+  if (!dateStr) return "";
+  const d = formatDate(dateStr + "T00:00:00");
+  if (!timeStr) return d;
+  const [h, m] = timeStr.split(":");
+  const hour = Number(h);
+  const suffix = hour >= 12 ? "pm" : "am";
+  const hour12 = ((hour + 11) % 12) + 1;
+  return `${d}, ${hour12}${m && m !== "00" ? ":" + m : ""}${suffix}`;
+}
+
 function daysSince(iso) {
   if (!iso) return null;
   return Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
+}
+
+// "Where it's up to" for one family at this school -- same precedence as
+// SchoolShortlistPanel's stageInfo (offer > applied > toured > tour booked
+// > awaiting reply), collapsed to a label only since this view doesn't
+// need the relative-time detail the family-facing panel shows.
+function familyStageLabel(row, applicationsForFamily) {
+  if (applicationsForFamily.some((a) => a.status === "offer")) return "Offer received";
+  if (applicationsForFamily.some((a) => a.status !== "draft" && a.status !== "withdrawn")) return "Applied";
+  if (row.tour_status === "completed") return row.feedback_text || row.feedback_rating ? "Toured, feedback in" : "Toured, feedback pending";
+  if (row.tour_status === "cancelled") return "Tour cancelled";
+  if (row.tour_date) return "Tour booked";
+  if (row.availability_status !== "awaiting") return "Awaiting tour date";
+  return "Awaiting reply";
 }
 
 // One school's full record, its year group availability, and every
@@ -184,6 +231,22 @@ export default function SchoolDetailPage() {
       setDetail((d) => ({
         ...d,
         shortlist: d.shortlist.map((s) => (s.id === entry.id ? { ...s, ...updated } : s)),
+      }));
+    } catch (err) {
+      setError(friendlyError(err, "Couldn't update that."));
+    }
+  }
+
+  async function handleChildAvailabilityChange(entry, childId, availability_status) {
+    try {
+      await upsertChildAvailability(entry.id, childId, availability_status);
+      setDetail((d) => ({
+        ...d,
+        shortlist: d.shortlist.map((s) =>
+          s.id === entry.id
+            ? { ...s, children: s.children.map((c) => (c.id === childId ? { ...c, availability_status } : c)) }
+            : s
+        ),
       }));
     } catch (err) {
       setError(friendlyError(err, "Couldn't update that."));
@@ -576,32 +639,70 @@ export default function SchoolDetailPage() {
           <ul className="panel-list schooldetail-shortlist-list">
             {shortlist.map((entry) => {
               const waitingDays = entry.availability_status === "awaiting" ? daysSince(entry.shortlisted_at) : null;
+              const stageLabel = familyStageLabel(entry, (entry.children || []).flatMap((c) => c.applications || []));
               return (
-                <li key={entry.id} className="schooldetail-shortlist-row">
-                  <Link to={`/staff/families/${entry.family_id}`} className="schooldetail-shortlist-family">
-                    {entry.familyName}
-                  </Link>
-                  <select
-                    className="panel-select"
-                    value={entry.availability_status}
-                    onChange={(e) => handleAvailabilityChange(entry, e.target.value)}
-                  >
-                    {Object.entries(AVAILABILITY_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="schooldetail-shortlist-meta">
-                    Shortlisted {formatDate(entry.shortlisted_at)}
-                    {entry.availability_replied_at && ` · replied ${formatDate(entry.availability_replied_at)}`}
-                    {waitingDays !== null && waitingDays >= 3 && (
-                      <span className="is-overdue"> · {waitingDays} days, no reply</span>
-                    )}
-                  </span>
-                  <button type="button" className="panel-btn panel-btn-quiet" onClick={() => handleRemoveShortlistEntry(entry)}>
-                    Remove
-                  </button>
+                <li key={entry.id} className="schooldetail-shortlist-card">
+                  <div className="schooldetail-shortlist-cardtop">
+                    <Link to={`/staff/families/${entry.family_id}`} className="schooldetail-shortlist-family">
+                      {entry.familyName}
+                    </Link>
+                    <span className="schooldetail-shortlist-stage">{stageLabel}</span>
+                    <button type="button" className="panel-btn panel-btn-quiet" onClick={() => handleRemoveShortlistEntry(entry)}>
+                      Remove
+                    </button>
+                  </div>
+
+                  {entry.children && entry.children.length > 0 && (
+                    <div className="schooldetail-shortlist-children">
+                      {entry.children.map((child, index) => (
+                        <span key={child.id} className="schooldetail-child-chip-group">
+                          <span className="schooldetail-child-name">
+                            {displayNameForChild(child, index)}
+                            {child.year_group_applying_for ? ` · ${child.year_group_applying_for}` : ""}
+                          </span>
+                          <select
+                            className={"schooldetail-child-chip-select " + childChipClass(child.availability_status)}
+                            value={child.availability_status}
+                            onChange={(e) => handleChildAvailabilityChange(entry, child.id, e.target.value)}
+                          >
+                            {Object.entries(CHILD_CHIP_LABEL).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="schooldetail-shortlist-bottom">
+                    <span className="schooldetail-shortlist-tour">
+                      {entry.tour_date
+                        ? `Tour: ${formatDateTime(entry.tour_date, entry.tour_start_time)}${
+                            entry.tour_status ? ` · ${TOUR_STATUS_LABEL[entry.tour_status]}` : ""
+                          }`
+                        : "No tour scheduled yet"}
+                    </span>
+                    <select
+                      className="panel-select"
+                      value={entry.availability_status}
+                      onChange={(e) => handleAvailabilityChange(entry, e.target.value)}
+                    >
+                      {Object.entries(AVAILABILITY_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="schooldetail-shortlist-meta">
+                      Shortlisted {formatDate(entry.shortlisted_at)}
+                      {entry.availability_replied_at && ` · replied ${formatDate(entry.availability_replied_at)}`}
+                      {waitingDays !== null && waitingDays >= 3 && (
+                        <span className="is-overdue"> · {waitingDays} days, no reply</span>
+                      )}
+                    </span>
+                  </div>
                 </li>
               );
             })}

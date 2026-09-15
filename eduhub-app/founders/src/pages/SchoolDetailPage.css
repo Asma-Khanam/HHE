@@ -74,28 +74,107 @@
 .schooldetail-shortlist-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 12px;
 }
 
-.schooldetail-shortlist-row {
+.schooldetail-shortlist-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
   border: 1px solid var(--border, #e3e3e3);
   border-radius: 8px;
   background: #fff;
+}
+
+.schooldetail-shortlist-cardtop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .schooldetail-shortlist-family {
   font-weight: 600;
 }
 
+.schooldetail-shortlist-stage {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted, #555);
+  background: #f2f2f2;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.schooldetail-shortlist-cardtop .panel-btn {
+  margin-left: auto;
+}
+
+.schooldetail-shortlist-children {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.schooldetail-child-chip-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.schooldetail-child-name {
+  color: var(--text-muted, #555);
+}
+
+.schooldetail-child-chip-select {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.schooldetail-child-chip-select.is-yes {
+  background: #e6f4ea;
+  color: #1e7a34;
+}
+
+.schooldetail-child-chip-select.is-no {
+  background: #fbe9e7;
+  color: #a33a2e;
+}
+
+.schooldetail-child-chip-select.is-partial {
+  background: #fdf1dc;
+  color: #92640b;
+}
+
+.schooldetail-child-chip-select.is-awaiting {
+  background: #f2f2f2;
+  color: #888;
+}
+
+.schooldetail-shortlist-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border, #f0f0f0);
+}
+
+.schooldetail-shortlist-tour {
+  font-size: 12px;
+  color: var(--text-muted, #555);
+}
+
 .schooldetail-shortlist-meta {
   font-size: 12px;
   color: var(--text-muted, #777);
+  margin-left: auto;
 }
 
 .school-stats-row {

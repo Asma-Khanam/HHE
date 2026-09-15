@@ -974,18 +974,49 @@ export async function getSchoolDetail(schoolId) {
   ]);
 
   const familyIds = [...new Set((shortlist || []).map((row) => row.family_id))];
-  const [families, parents] = await Promise.all([
+  const [families, parents, children] = await Promise.all([
     familyIds.length ? supabase.from("families").select("*").in("id", familyIds).then(unwrap) : Promise.resolve([]),
     familyIds.length ? supabase.from("parents").select("*").in("family_id", familyIds).then(unwrap) : Promise.resolve([]),
+    familyIds.length
+      ? supabase.from("children").select("*").in("family_id", familyIds).order("created_at").then(unwrap)
+      : Promise.resolve([]),
   ]);
   const familiesById = Object.fromEntries((families || []).map((f) => [f.id, f]));
   const parentsByFamily = groupBy(parents, "family_id");
+  const childrenByFamily = groupBy(children, "family_id");
+
+  // Per-child availability answers and per-child applications at this
+  // school -- so the "Shortlisted families" section can show every
+  // shortlisted family's children individually (per-child availability
+  // chip, plus whether that child has an application in at this school),
+  // mirroring the founders' own "School visits tracker" mockup but
+  // inverted: one school, many families/children instead of one family,
+  // many schools.
+  const shortlistIds = (shortlist || []).map((row) => row.id);
+  const childIds = (children || []).map((c) => c.id);
+  const [childStatus, childApplications] = await Promise.all([
+    listChildAvailabilityForShortlistIds(shortlistIds),
+    childIds.length
+      ? supabase.from("applications").select("*").eq("school_id", schoolId).in("child_id", childIds).then(unwrap)
+      : Promise.resolve([]),
+  ]);
+  const childStatusByShortlist = groupBy(childStatus, "shortlist_id");
+  const applicationsByChild = groupBy(childApplications || [], "child_id");
 
   const shortlistWithNames = (shortlist || []).map((row) => {
     const family = familiesById[row.family_id];
+    const familyChildren = childrenByFamily[row.family_id] || [];
+    const statusByChildId = Object.fromEntries(
+      (childStatusByShortlist[row.id] || []).map((s) => [s.child_id, s.availability_status])
+    );
     return {
       ...row,
       familyName: family ? familyDisplayName(family, parentsByFamily[row.family_id]) : "Unknown family",
+      children: familyChildren.map((child) => ({
+        ...child,
+        availability_status: statusByChildId[child.id] || "awaiting",
+        applications: applicationsByChild[child.id] || [],
+      })),
     };
   });
 
@@ -999,15 +1030,15 @@ export async function getSchoolDetail(schoolId) {
   // family applied here yet?" There's no "accepted" concept anywhere in
   // the schema yet (no field marks which single school a family ultimately
   // accepted) — reported as null rather than a fabricated number.
-  const applications = unwrap(
+  const allApplicationStatuses = unwrap(
     await supabase.from("applications").select("status").eq("school_id", schoolId)
   ) || [];
   const stats = {
     toursBooked: shortlistWithNames.filter((r) => ["offered", "confirmed", "completed"].includes(r.tour_status)).length,
     toured: shortlistWithNames.filter((r) => r.tour_status === "completed").length,
-    applications: applications.filter((a) => a.status !== "draft" && a.status !== "withdrawn").length,
-    assessments: applications.filter((a) => ["reference_requested", "under_review"].includes(a.status)).length,
-    offers: applications.filter((a) => a.status === "offer").length,
+    applications: allApplicationStatuses.filter((a) => a.status !== "draft" && a.status !== "withdrawn").length,
+    assessments: allApplicationStatuses.filter((a) => ["reference_requested", "under_review"].includes(a.status)).length,
+    offers: allApplicationStatuses.filter((a) => a.status === "offer").length,
     accepted: null,
   };
 
