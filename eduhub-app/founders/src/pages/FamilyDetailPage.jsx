@@ -630,7 +630,7 @@ export default function FamilyDetailPage() {
       </div>
 
       {activeTab === "details" && (
-        <>
+        <div className="family-detail-tab-stack">
       <div className="family-detail-grid">
         <div className="family-detail-col">
           <AddressSummary
@@ -831,7 +831,7 @@ export default function FamilyDetailPage() {
             </>
           )}
         </section>
-        </>
+        </div>
       )}
 
       {activeTab === "visits" && (

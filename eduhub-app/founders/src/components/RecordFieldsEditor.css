@@ -27,7 +27,7 @@
    .rfe-title reuses that class inline with the Edit button instead of
    FamilyDetailPage rendering a separate <h3> above this component. */
 .rfe-titled {
-  margin-top: 26px;
+  margin-top: 22px;
 }
 
 .rfe-titled:first-child {

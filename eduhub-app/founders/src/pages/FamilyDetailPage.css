@@ -176,12 +176,17 @@
   grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
-  /* Fix: Household (a plain full-width .family-detail-card, not a
-     .family-detail-stack) used to butt straight up against the grid above
-     it with zero gap — their box-shadows touched and read as an overlap.
-     A bottom margin here covers whatever follows the grid, not just the
-     .family-detail-stack case below. */
-  margin-bottom: 20px;
+}
+
+/* Wraps the whole "details" tab (the two-column grid plus whatever full-width
+   cards follow it, e.g. Household) so spacing between them comes from a
+   single flex gap rather than margins that can collapse or get swallowed —
+   the margin-bottom approach above didn't reliably show a gap before
+   Household. */
+.family-detail-tab-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .family-detail-col {
@@ -377,12 +382,13 @@
 
 .rec-subhead {
   font-family: var(--hh-font-heading);
-  font-size: 0.82rem;
+  font-size: 0.98rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--hh-burgundy);
-  opacity: 0.65;
-  margin: 26px 0 12px;
+  opacity: 0.9;
+  margin: 22px 0 10px;
 }
 
 .rec-subhead:first-child {
@@ -392,7 +398,7 @@
 .rec-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px 22px;
+  gap: 10px 20px;
 }
 
 .rec-field {
