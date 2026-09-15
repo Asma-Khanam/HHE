@@ -5,8 +5,33 @@
 
 .rfe-bar {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   margin-bottom: 8px;
+}
+
+.rfe-bar-titled {
+  justify-content: space-between;
+}
+
+.rfe-bar .rfe-title {
+  margin: 0;
+}
+
+.rfe-bar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Matches .rec-subhead's own top spacing (FamilyDetailPage.css) since
+   .rfe-title reuses that class inline with the Edit button instead of
+   FamilyDetailPage rendering a separate <h3> above this component. */
+.rfe-titled {
+  margin-top: 26px;
+}
+
+.rfe-titled:first-child {
+  margin-top: 0;
 }
 
 .rfe-edit-btn {

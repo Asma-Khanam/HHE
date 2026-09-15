@@ -176,6 +176,12 @@
   grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
+  /* Fix: Household (a plain full-width .family-detail-card, not a
+     .family-detail-stack) used to butt straight up against the grid above
+     it with zero gap — their box-shadows touched and read as an overlap.
+     A bottom margin here covers whatever follows the grid, not just the
+     .family-detail-stack case below. */
+  margin-bottom: 20px;
 }
 
 .family-detail-col {

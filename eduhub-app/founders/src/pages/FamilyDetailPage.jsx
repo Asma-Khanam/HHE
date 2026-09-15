@@ -725,6 +725,7 @@ export default function FamilyDetailPage() {
                   photo={findProfilePhoto(documentsByOwner[`parent:${activeHouseholdMember.data.id}`])}
                 >
                   <RecordFieldsEditor
+                    title="Parent details"
                     fields={PARENT_FIELDS}
                     source={activeHouseholdMember.data}
                     table="parents"
@@ -763,8 +764,8 @@ export default function FamilyDetailPage() {
                     <RecordField label="Family address" value={family.home_address} wide />
                   </div>
 
-                  <h3 className="rec-subhead">General info</h3>
                   <RecordFieldsEditor
+                    title="General info"
                     fields={CHILD_GENERAL_FIELDS}
                     source={activeHouseholdMember.data}
                     table="children"
@@ -774,8 +775,8 @@ export default function FamilyDetailPage() {
                     onSaved={handleChildSaved}
                   />
 
-                  <h3 className="rec-subhead">Additional info</h3>
                   <RecordFieldsEditor
+                    title="Additional info"
                     fields={CHILD_ADDITIONAL_FIELDS}
                     source={activeHouseholdMember.data}
                     table="children"
@@ -785,8 +786,8 @@ export default function FamilyDetailPage() {
                     onSaved={handleChildSaved}
                   />
 
-                  <h3 className="rec-subhead">SEN and inclusion</h3>
                   <RecordFieldsEditor
+                    title="SEN and inclusion"
                     fields={CHILD_SEN_FIELDS}
                     source={activeHouseholdMember.data}
                     table="children"

@@ -130,6 +130,7 @@ export default function RecordFieldsEditor({
   familyId,
   currentStaffName,
   onSaved,
+  title,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(null);
@@ -203,17 +204,24 @@ export default function RecordFieldsEditor({
   const shown = liveRecord();
 
   return (
-    <div className="rfe">
-      <div className="rfe-bar">
+    <div className={"rfe" + (title ? " rfe-titled" : "")}>
+      {/* September 2026 change request: the Edit button used to float on
+          its own row above the fields, disconnected from the "General
+          info"/"Additional info"/etc. heading FamilyDetailPage rendered
+          separately just above it. Passing `title` here puts the heading
+          and its Edit button on one row instead — same information, one
+          less orphaned control to visually parse. */}
+      <div className={"rfe-bar" + (title ? " rfe-bar-titled" : "")}>
+        {title && <h3 className="rec-subhead rfe-title">{title}</h3>}
         {editing ? (
-          <>
+          <div className="rfe-bar-actions">
             <button type="button" className="panel-btn panel-btn-primary" onClick={save} disabled={saving}>
               {saving ? "Saving..." : "Save"}
             </button>
             <button type="button" className="panel-btn panel-btn-quiet" onClick={cancel} disabled={saving}>
               Cancel
             </button>
-          </>
+          </div>
         ) : (
           <button type="button" className="panel-btn rfe-edit-btn" onClick={startEdit}>
             Edit
