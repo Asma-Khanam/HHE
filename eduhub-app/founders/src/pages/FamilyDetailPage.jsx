@@ -14,6 +14,7 @@ import PaymentsPanel from "../components/PaymentsPanel";
 import RecordFieldsEditor from "../components/RecordFieldsEditor";
 import OverviewPanel from "../components/OverviewPanel";
 import EmailsPanel from "../components/EmailsPanel";
+import MeetingsPanel from "../components/MeetingsPanel";
 import { AddressIcon, BudgetIcon, HouseholdIcon } from "../components/icons";
 import { NATIONALITIES, LANGUAGES, RELIGIONS, ENGLISH_PROFICIENCY_LEVELS, GENDERS } from "../data/formOptions";
 import "./FamilyDetailPage.css";
@@ -613,6 +614,7 @@ export default function FamilyDetailPage() {
           ["visits", "School visits"],
           ["applications", "Applications"],
           ["emails", "Emails"],
+          ["meetings", "Meetings"],
           ["invoices", "Invoices"],
           ["documents", "Documents"],
         ].map(([key, label]) => (
@@ -886,6 +888,8 @@ export default function FamilyDetailPage() {
       )}
 
       {activeTab === "emails" && <EmailsPanel familyId={family.id} notes={caseNotes} />}
+
+      {activeTab === "meetings" && <MeetingsPanel familyId={family.id} notes={caseNotes} />}
 
       {activeTab === "documents" && (
         <div className="family-detail-stack">
