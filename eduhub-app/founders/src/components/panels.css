@@ -911,3 +911,22 @@
   color: var(--hh-burgundy);
   margin-bottom: 4px;
 }
+
+.app-row-reason {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 44px;
+  margin-top: -4px;
+}
+
+.app-row-reason-chip {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.76rem;
+  color: var(--hh-burgundy);
+  text-decoration: underline;
+  cursor: pointer;
+}

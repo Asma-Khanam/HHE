@@ -1207,6 +1207,36 @@ export async function updateShortlistTour(shortlistId, patch) {
   return unwrap(await supabase.from("school_shortlist").update(patch).eq("id", shortlistId).select().single());
 }
 
+// The founders' request: once a tour's date has passed, it should flip to
+// "Completed" on its own rather than someone remembering to change it by
+// hand. Dates are compared in Asia/Dubai (where the schools and tours
+// actually are), not the browser's own timezone. Shared between the School
+// visits tab and the Overview pipeline widget so a tour completes the same
+// way regardless of which one happens to load first.
+export function todayInDubai() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" }); // YYYY-MM-DD
+}
+
+// Only ever moves forward (never touches "Cancelled", and never
+// un-completes anything).
+export async function autoCompletePastTours(shortlist) {
+  const today = todayInDubai();
+  const due = shortlist.filter(
+    (r) => r.tour_date && r.tour_date < today && (r.tour_status === "offered" || r.tour_status === "confirmed")
+  );
+  if (due.length === 0) return shortlist;
+
+  const updates = await Promise.all(
+    due.map((r) =>
+      updateShortlistTour(r.id, { tour_status: "completed", tour_completed_at: new Date().toISOString() }).catch(
+        () => null
+      )
+    )
+  );
+  const updatedById = Object.fromEntries(updates.filter(Boolean).map((u) => [u.id, u]));
+  return shortlist.map((r) => (updatedById[r.id] ? { ...r, ...updatedById[r.id] } : r));
+}
+
 // Every shortlist row for a family that has a tour date set, across every
 // shortlisted school — what the "Tour schedule" list is built from.
 // Addendum 44 dropped the same-day clash check (and the schools.latitude/

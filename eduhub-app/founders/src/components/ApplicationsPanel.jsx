@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createApplication, updateApplication, deleteApplication, createSchool, listShortlistForFamily } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
-import { APPLICATION_STATUSES, APPLICATION_PROGRESS_STEPS, applicationStatus, FIT_OPTIONS, fitLabel } from "../lib/workflow";
+import { APPLICATION_STATUSES, APPLICATION_PROGRESS_STEPS, applicationStatus, FIT_OPTIONS, fitLabel, REJECTION_REASONS } from "../lib/workflow";
 import "./panels.css";
 
 function formatShortDate(iso) {
@@ -63,6 +63,12 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
     };
   }, [familyId]);
   const [addingFor, setAddingFor] = useState(null); // child id
+  // Reason capture for a rejection -- opens right after staff pick
+  // "Rejected" on an application that doesn't have one recorded yet, so
+  // the reason lands at the moment it's freshest in mind, not as a
+  // separate step someone has to remember to go back for.
+  const [reasonEditingId, setReasonEditingId] = useState(null);
+  const [reasonDraft, setReasonDraft] = useState("");
   const [schoolId, setSchoolId] = useState("");
   const [newSchoolName, setNewSchoolName] = useState("");
   const [fit, setFit] = useState("");
@@ -121,6 +127,14 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
     }
   }
 
+  function saveRejectionReason(childId, application) {
+    const reason = reasonDraft.trim();
+    setReasonEditingId(null);
+    setReasonDraft("");
+    if (reason === (application.rejected_reason || "")) return;
+    patch(childId, application, { rejected_reason: reason || null });
+  }
+
   async function handleRemove(childId, application) {
     const previous = apps;
     setApps((map) => ({ ...map, [childId]: (map[childId] || []).filter((a) => a.id !== application.id) }));
@@ -148,6 +162,12 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
       <div className="panel-head">
         <h2>Applications</h2>
       </div>
+
+      <datalist id="rejection-reason-options">
+        {REJECTION_REASONS.map((r) => (
+          <option key={r} value={r} />
+        ))}
+      </datalist>
 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
@@ -215,7 +235,14 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
                       <select
                         className="panel-select"
                         value={application.status}
-                        onChange={(e) => patch(child.id, application, { status: e.target.value })}
+                        onChange={(e) => {
+                          const nextStatus = e.target.value;
+                          patch(child.id, application, { status: nextStatus });
+                          if (nextStatus === "rejected" && !application.rejected_reason) {
+                            setReasonDraft("");
+                            setReasonEditingId(application.id);
+                          }
+                        }}
                       >
                         {APPLICATION_STATUSES.map((s) => (
                           <option key={s.key} value={s.key}>
@@ -232,6 +259,48 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
                         ✕
                       </button>
                     </span>
+                    {application.status === "rejected" && (
+                      <div className="app-row-reason" onClick={(e) => e.stopPropagation()}>
+                        {reasonEditingId === application.id ? (
+                          <>
+                            <input
+                              type="text"
+                              className="panel-input"
+                              list="rejection-reason-options"
+                              placeholder="Why? (no space, fees, etc.)"
+                              value={reasonDraft}
+                              autoFocus
+                              onChange={(e) => setReasonDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveRejectionReason(child.id, application);
+                                if (e.key === "Escape") {
+                                  setReasonEditingId(null);
+                                  setReasonDraft("");
+                                }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="panel-btn panel-btn-quiet"
+                              onClick={() => saveRejectionReason(child.id, application)}
+                            >
+                              Save
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className="app-row-reason-chip"
+                            onClick={() => {
+                              setReasonDraft(application.rejected_reason || "");
+                              setReasonEditingId(application.id);
+                            }}
+                          >
+                            {application.rejected_reason ? `Reason: ${application.rejected_reason}` : "+ Add reason"}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -12,6 +12,7 @@ import {
   listOtherFeedbackForSchools,
   createApplication,
   friendlyError,
+  autoCompletePastTours,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import "./panels.css";
@@ -57,14 +58,6 @@ function formatDateTime(dateStr, timeStr) {
   const suffix = hour >= 12 ? "pm" : "am";
   const hour12 = ((hour + 11) % 12) + 1;
   return `${d}, ${hour12}${m && m !== "00" ? ":" + m : ""}${suffix}`;
-}
-
-// The founders' request: once a tour's date has passed, it should flip to
-// "Completed" on its own rather than someone remembering to change it by
-// hand. Dates are compared in Asia/Dubai (where the schools and tours
-// actually are), not the browser's own timezone.
-function todayInDubai() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" }); // YYYY-MM-DD
 }
 
 function daysBetween(a, b) {
@@ -128,28 +121,6 @@ function admissionsProcessText(school) {
 // underneath the new Phase 2 layer (per-child availability, tours,
 // feedback) rather than replaced by it. (Addendum 44 removed the same-day
 // tour clash check that used to sit alongside these.)
-// A tour still marked "Offered"/"Confirmed" whose date is now in the past
-// gets bumped to "Completed" automatically, right after loading -- staff no
-// longer have to remember to do this by hand. Only ever moves forward
-// (never touches "Cancelled", and never un-completes anything).
-async function autoCompletePastTours(shortlist) {
-  const today = todayInDubai();
-  const due = shortlist.filter(
-    (r) => r.tour_date && r.tour_date < today && (r.tour_status === "offered" || r.tour_status === "confirmed")
-  );
-  if (due.length === 0) return shortlist;
-
-  const updates = await Promise.all(
-    due.map((r) =>
-      updateShortlistTour(r.id, { tour_status: "completed", tour_completed_at: new Date().toISOString() }).catch(
-        () => null
-      )
-    )
-  );
-  const updatedById = Object.fromEntries(updates.filter(Boolean).map((u) => [u.id, u]));
-  return shortlist.map((r) => (updatedById[r.id] ? { ...r, ...updatedById[r.id] } : r));
-}
-
 export default function SchoolShortlistPanel({ familyId, familyChildren, applicationsByChild, onFamilyRefresh, onGoToApplications }) {
   const [rows, setRows] = useState([]);
   const [childStatus, setChildStatus] = useState([]);

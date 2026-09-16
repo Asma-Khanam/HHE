@@ -1,63 +1,26 @@
-import { useEffect, useState } from "react";
-import { listShortlistForFamily } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import { packageLabel } from "../data/packages";
-import { applicationStatus } from "../lib/workflow";
-import { TourIcon, ApplicationIcon } from "./icons";
+import SchoolPipelinePanel from "./SchoolPipelinePanel";
 import "./panels.css";
 
-const TOUR_STATUS_LABEL = { offered: "Offered", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
-
-function formatTourDate(dateStr) {
-  if (!dateStr) return "";
-  return new Date(dateStr + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-}
-
-// The Overview tab (September 2026 change request). Originally one plain
-// list of everything; split back into three cards per a follow-up request
-// -- the family/contact basics in one card, and Tours/Applications each in
-// their own card so they read as their own topic (and have room to grow --
-// e.g. a "family declined" note -- without crowding the contact details).
-// Tours are fetched here rather than passed down, since nothing else on
-// this page already loads the shortlist.
-export default function OverviewPanel({ family, displayName, namedParents, familyChildren, applicationsByChild }) {
-  const [tours, setTours] = useState([]);
-  const [toursLoaded, setToursLoaded] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    listShortlistForFamily(family.id)
-      .then((rows) => {
-        if (cancelled) return;
-        setTours((rows || []).filter((r) => r.tour_date).sort((a, b) => a.tour_date.localeCompare(b.tour_date)));
-      })
-      .catch(() => {
-        if (!cancelled) setTours([]);
-      })
-      .finally(() => {
-        if (!cancelled) setToursLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [family.id]);
-
+// The Overview tab (September 2026 change request, then revised again).
+// The family/contact basics stay a plain card; the two things that used to
+// be Tours and Applications fields here are now the one live School
+// pipeline widget below -- same shortlist and applications data the School
+// visits and Applications tabs manage, just read as "where's each school up
+// to" instead of two separate lists someone has to keep in sync by eye.
+export default function OverviewPanel({
+  family,
+  displayName,
+  namedParents,
+  familyChildren,
+  applicationsByChild,
+  onFamilyRefresh,
+  onGoToVisits,
+  onGoToApplications,
+}) {
   const [mother, father] = namedParents;
   const childNames = familyChildren.map((c, i) => displayNameForChild(c, i));
-
-  // One line per application, across every child -- "made application"
-  // should show up here without anyone having to go dig through the
-  // Applications tab.
-  const multipleChildren = familyChildren.length > 1;
-  const applications = familyChildren.flatMap((child, i) => {
-    const childName = displayNameForChild(child, i);
-    return (applicationsByChild?.[child.id] || [])
-      .filter((a) => a.status !== "withdrawn")
-      .map((a) => {
-        const line = `${a.schoolName || "Unknown school"} — ${applicationStatus(a.status).label}`;
-        return multipleChildren ? `${childName}: ${line}` : line;
-      });
-  });
 
   return (
     <div className="family-detail-tab-stack">
@@ -107,46 +70,14 @@ export default function OverviewPanel({ family, displayName, namedParents, famil
         </div>
       </section>
 
-      <section className="family-detail-card">
-        <h2>
-          <TourIcon />
-          School tours
-        </h2>
-        <div className="rec-grid">
-          <div className="rec-field rec-field-wide">
-            {!toursLoaded ? (
-              <span className="rec-field-value is-empty">Loading…</span>
-            ) : tours.length === 0 ? (
-              <span className="rec-field-value is-empty">None booked yet</span>
-            ) : (
-              <span className="rec-field-value">
-                {tours
-                  .map(
-                    (t) =>
-                      `${t.school?.name || "Unknown school"} — ${formatTourDate(t.tour_date)}` +
-                      (t.tour_status ? ` · ${TOUR_STATUS_LABEL[t.tour_status] || t.tour_status}` : "") +
-                      (t.family_decision === "declined" ? " · Family declined" : "")
-                  )
-                  .join("\n")}
-              </span>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="family-detail-card">
-        <h2>
-          <ApplicationIcon />
-          Applications
-        </h2>
-        <div className="rec-grid">
-          <div className="rec-field rec-field-wide">
-            <span className={"rec-field-value" + (applications.length ? "" : " is-empty")}>
-              {applications.length ? applications.join("\n") : "None made yet"}
-            </span>
-          </div>
-        </div>
-      </section>
+      <SchoolPipelinePanel
+        familyId={family.id}
+        familyChildren={familyChildren}
+        applicationsByChild={applicationsByChild}
+        onFamilyRefresh={onFamilyRefresh}
+        onGoToVisits={onGoToVisits}
+        onGoToApplications={onGoToApplications}
+      />
     </div>
   );
 }

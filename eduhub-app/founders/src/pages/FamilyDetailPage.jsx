@@ -638,6 +638,9 @@ export default function FamilyDetailPage() {
           namedParents={namedParents}
           familyChildren={children}
           applicationsByChild={applicationsByChild}
+          onFamilyRefresh={refreshFamily}
+          onGoToVisits={() => setActiveTab("visits")}
+          onGoToApplications={() => setActiveTab("applications")}
         />
       )}
 

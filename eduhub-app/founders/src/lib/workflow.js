@@ -42,6 +42,48 @@ export function applicationStatus(key) {
   return APPLICATION_STATUSES.find((s) => s.key === key) || APPLICATION_STATUSES[0];
 }
 
+// Suggested (not enforced) reasons for a "rejected" application -- a
+// datalist on the free-text rejected_reason column, not a fixed list, since
+// schools reject for reasons nobody can fully anticipate.
+export const REJECTION_REASONS = [
+  "No space this year",
+  "Fees too high",
+  "Didn't meet entry requirements",
+  "Waitlisted elsewhere",
+  "Other",
+];
+
+// One school, for one family, reduced to a single stage in the Overview
+// pipeline widget -- the same underlying school_shortlist + applications
+// rows the School visits and Applications tabs already show, just read as
+// "where is this school up to" instead of two separate lists. Order matters:
+// this is checked top to bottom, most-final outcome first.
+export const SCHOOL_PIPELINE_STAGES = [
+  { key: "shortlisted", label: "Shortlisted" },
+  { key: "tour_scheduled", label: "Tour scheduled" },
+  { key: "awaiting_decision", label: "Toured — awaiting decision" },
+  { key: "application_started", label: "Application started" },
+  { key: "application_progress", label: "Application in progress" },
+  { key: "decision", label: "Decision" },
+  { key: "declined", label: "Declined" },
+];
+
+export function pipelineStage(row, applicationsForSchool) {
+  const apps = (applicationsForSchool || []).filter((a) => a.status !== "withdrawn");
+  const finalApp = apps.find((a) => a.status === "offer" || a.status === "rejected");
+  if (finalApp) return "decision";
+
+  if (row.family_decision === "declined" && apps.length === 0) return "declined";
+
+  const activeApp = apps.find((a) => a.status !== "draft");
+  if (activeApp) return "application_progress";
+  if (apps.length > 0) return "application_started";
+
+  if (row.tour_status === "completed") return "awaiting_decision";
+  if (row.tour_date || row.tour_status) return "tour_scheduled";
+  return "shortlisted";
+}
+
 export const FIT_OPTIONS = [
   { key: "best_fit", label: "Best fit" },
   { key: "stretch", label: "Stretch" },
