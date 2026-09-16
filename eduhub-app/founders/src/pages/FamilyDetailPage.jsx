@@ -857,7 +857,13 @@ export default function FamilyDetailPage() {
 
       {activeTab === "visits" && (
         <div className="family-detail-stack">
-          <SchoolShortlistPanel familyId={family.id} familyChildren={children} applicationsByChild={applicationsByChild} />
+          <SchoolShortlistPanel
+            familyId={family.id}
+            familyChildren={children}
+            applicationsByChild={applicationsByChild}
+            onFamilyRefresh={refreshFamily}
+            onGoToApplications={() => setActiveTab("applications")}
+          />
 
           <CaseNotesPanel
             familyId={family.id}
@@ -872,6 +878,7 @@ export default function FamilyDetailPage() {
       {activeTab === "applications" && (
         <div className="family-detail-stack">
           <ApplicationsPanel
+            familyId={family.id}
             familyChildren={children}
             applicationsByChild={applicationsByChild}
             schoolCatalog={schoolCatalog}

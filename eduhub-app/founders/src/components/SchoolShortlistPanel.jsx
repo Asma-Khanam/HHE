@@ -10,6 +10,7 @@ import {
   upsertChildAvailability,
   updateShortlistTour,
   listOtherFeedbackForSchools,
+  createApplication,
   friendlyError,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
@@ -149,7 +150,7 @@ async function autoCompletePastTours(shortlist) {
   return shortlist.map((r) => (updatedById[r.id] ? { ...r, ...updatedById[r.id] } : r));
 }
 
-export default function SchoolShortlistPanel({ familyId, familyChildren, applicationsByChild }) {
+export default function SchoolShortlistPanel({ familyId, familyChildren, applicationsByChild, onFamilyRefresh, onGoToApplications }) {
   const [rows, setRows] = useState([]);
   const [childStatus, setChildStatus] = useState([]);
   const [otherFeedback, setOtherFeedback] = useState({});
@@ -193,6 +194,37 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
   }, [familyId]);
 
   const allApplications = useMemo(() => Object.values(applicationsByChild || {}).flat(), [applicationsByChild]);
+
+  // The interconnection the founders asked for: once a tour is done and the
+  // family wants to move forward with a school, this is the one click that
+  // should exist -- no separately remembering to go create the application
+  // on a different tab. Creates a draft application for whichever of the
+  // family's children don't already have one at this school, then jumps to
+  // the Applications tab so staff can see it land (and take it from there --
+  // fit, submitting it, etc. still happen normally on that tab).
+  async function handleReadyToApply(row) {
+    setBusy(true);
+    setError("");
+    try {
+      const applicationsForSchool = allApplications.filter((a) => a.school_id === row.school_id);
+      const childrenNeedingApplication = children.filter(
+        (c) => !applicationsForSchool.some((a) => a.child_id === c.id)
+      );
+      if (childrenNeedingApplication.length > 0) {
+        await Promise.all(
+          childrenNeedingApplication.map((c) =>
+            createApplication({ childId: c.id, schoolId: row.school_id, status: "draft" })
+          )
+        );
+        if (onFamilyRefresh) await onFamilyRefresh();
+      }
+      onGoToApplications?.();
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const stats = useMemo(() => {
     const replied = rows.filter((r) => r.availability_status !== "awaiting").length;
@@ -712,6 +744,34 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                           )}
                           {savedNoteId === row.id && <span className="svt-saved-note">Saved</span>}
                         </div>
+
+                        {row.tour_status === "completed" && (() => {
+                          const stillNeeded = children.filter(
+                            (c) => !applicationsForSchool.some((a) => a.child_id === c.id)
+                          ).length;
+                          return (
+                            <div className="svt-ready-to-apply">
+                              <button
+                                type="button"
+                                className="panel-btn panel-btn-primary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReadyToApply(row);
+                                }}
+                                disabled={busy}
+                              >
+                                {stillNeeded > 0 ? "Family wants to proceed → start application" : "View application →"}
+                              </button>
+                              {stillNeeded > 0 && (
+                                <p className="svt-ready-to-apply-hint">
+                                  Creates a draft application at this school for{" "}
+                                  {stillNeeded > 1 ? "each child who doesn't have one yet" : "this child"}, and takes
+                                  you to Applications.
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {feedbackRows.length > 0 && (
                           <>

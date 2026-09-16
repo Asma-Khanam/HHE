@@ -410,3 +410,15 @@
   color: #666;
   margin-left: auto;
 }
+
+.svt-ready-to-apply {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #e3e3e3);
+}
+
+.svt-ready-to-apply-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-muted, #777);
+}

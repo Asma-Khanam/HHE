@@ -1,8 +1,15 @@
-import { useState } from "react";
-import { createApplication, updateApplication, deleteApplication, createSchool } from "../lib/staffData";
+import { useEffect, useState } from "react";
+import { createApplication, updateApplication, deleteApplication, createSchool, listShortlistForFamily } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import { APPLICATION_STATUSES, APPLICATION_PROGRESS_STEPS, applicationStatus, FIT_OPTIONS, fitLabel } from "../lib/workflow";
 import "./panels.css";
+
+function formatShortDate(iso) {
+  if (!iso) return "";
+  return new Date(iso + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
+const TOUR_STATUS_LABEL = { offered: "Tour booked", confirmed: "Tour booked", completed: "Toured", cancelled: "Tour cancelled" };
 
 function schoolInitials(name) {
   return (name || "?")
@@ -27,9 +34,34 @@ function Progress({ status }) {
 // Where each child has actually applied. This is the first thing in the app
 // to use the `applications` and `schools` tables, which have existed since
 // the original schema and sat empty until now.
-export default function ApplicationsPanel({ familyChildren, applicationsByChild, schoolCatalog }) {
+export default function ApplicationsPanel({ familyId, familyChildren, applicationsByChild, schoolCatalog }) {
   const [apps, setApps] = useState(applicationsByChild || {});
   const [schools, setSchools] = useState(schoolCatalog || []);
+  // Read-only lookup of this family's own tour history, keyed by school --
+  // so an application shows "Toured 15 Sept" without staff having to flip
+  // over to the School visits tab to check. Fetched separately since the
+  // shortlist isn't otherwise loaded on this tab.
+  const [tourBySchool, setTourBySchool] = useState({});
+
+  useEffect(() => {
+    if (!familyId) return;
+    let cancelled = false;
+    listShortlistForFamily(familyId)
+      .then((rows) => {
+        if (cancelled) return;
+        const map = {};
+        (rows || []).forEach((r) => {
+          if (r.tour_date) map[r.school_id] = { date: r.tour_date, status: r.tour_status };
+        });
+        setTourBySchool(map);
+      })
+      .catch(() => {
+        if (!cancelled) setTourBySchool({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [familyId]);
   const [addingFor, setAddingFor] = useState(null); // child id
   const [schoolId, setSchoolId] = useState("");
   const [newSchoolName, setNewSchoolName] = useState("");
@@ -152,6 +184,10 @@ export default function ApplicationsPanel({ familyChildren, applicationsByChild,
                       <span className="app-row-school">{application.schoolName}</span>
                       <span className="app-row-fit">
                         {application.fit ? fitLabel(application.fit) : "Fit not judged yet"}
+                        {tourBySchool[application.school_id] && (
+                          <> · {TOUR_STATUS_LABEL[tourBySchool[application.school_id].status] || "Tour booked"}{" "}
+                          {formatShortDate(tourBySchool[application.school_id].date)}</>
+                        )}
                       </span>
                     </span>
                     <span className="app-row-controls">

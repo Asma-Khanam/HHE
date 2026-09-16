@@ -903,3 +903,11 @@
   white-space: pre-wrap;
   margin: 0;
 }
+
+.meeting-zoom-link {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--hh-burgundy);
+  margin-bottom: 4px;
+}

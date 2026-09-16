@@ -8,12 +8,20 @@ import "./panels.css";
 // filtered to kind="meeting" case_notes rows.
 //
 // This is the manual version: staff write up (or paste) what was discussed
-// after a call, with when it happened. An automatic version -- Zoom posts a
-// meeting's transcript/summary here on its own -- is a real possibility but
-// depends on which Zoom plan the founders are on (cloud recording + AI
-// Companion summaries are Zoom features gated by plan) and needs a Zoom app
-// + webhook wired up, same shape as the application-email webhook. Worth
-// doing once that's confirmed; this manual version works today regardless.
+// after a call, with when it happened, and can optionally attach the Zoom
+// join link. An automatic version -- Zoom posts a meeting's own AI Companion
+// summary here on its own once a call ends -- is confirmed possible on the
+// founders' Zoom plan (Pro, with auto-transcription + AI Companion already
+// on) but needs its own Zoom app + webhook + a way to match a Zoom meeting
+// back to a family, which is a separate, larger piece of work than this UI.
+// This manual version, including the Zoom link field, works today regardless
+// and doesn't need to change when that automatic version arrives -- it'll
+// just mean rows start appearing here without anyone typing them.
+//
+// The Zoom link isn't its own database column (no schema change needed for
+// what's still a manual field) -- it's folded into the note body as its own
+// line and split back out for display, same trick EmailsPanel uses for the
+// "From:" line on an inbound email.
 
 function relativeDay(iso) {
   if (!iso) return "";
@@ -24,6 +32,14 @@ function relativeDay(iso) {
   if (dayDiff === 1) return "Yesterday";
   if (dayDiff > 1 && dayDiff < 7) return `${dayDiff} days ago`;
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+const ZOOM_LINK_MARKER = "\n\nZoom link: ";
+
+function splitZoomLink(body) {
+  const idx = body?.lastIndexOf(ZOOM_LINK_MARKER) ?? -1;
+  if (idx === -1) return { text: body || "", zoomLink: null };
+  return { text: body.slice(0, idx), zoomLink: body.slice(idx + ZOOM_LINK_MARKER.length) };
 }
 
 function formatWhen(iso) {
@@ -41,13 +57,19 @@ function toLocalInputValue(date) {
 }
 
 function MeetingRow({ note }) {
+  const { text, zoomLink } = splitZoomLink(note.body);
   return (
     <li className="meeting-row">
       <div className="meeting-row-top">
         <span className="meeting-subject">{note.subject || "Meeting"}</span>
         <span className="meeting-row-date">{formatWhen(note.occurred_at)}</span>
       </div>
-      <p className="meeting-notes-text">{note.body}</p>
+      {zoomLink && (
+        <a className="meeting-zoom-link" href={zoomLink} target="_blank" rel="noreferrer">
+          Join Zoom call
+        </a>
+      )}
+      <p className="meeting-notes-text">{text}</p>
     </li>
   );
 }
@@ -58,6 +80,7 @@ export default function MeetingsPanel({ familyId, notes: allNotes }) {
   const [subject, setSubject] = useState("");
   const [occurredAt, setOccurredAt] = useState(() => toLocalInputValue(new Date()));
   const [body, setBody] = useState("");
+  const [zoomLink, setZoomLink] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -71,12 +94,13 @@ export default function MeetingsPanel({ familyId, notes: allNotes }) {
         familyId,
         kind: "meeting",
         subject: subject.trim(),
-        body,
+        body: zoomLink.trim() ? `${body}${ZOOM_LINK_MARKER}${zoomLink.trim()}` : body,
         occurredAt,
       });
       setNotes((prev) => [note, ...prev].sort((a, b) => (b.occurred_at || "").localeCompare(a.occurred_at || "")));
       setSubject("");
       setBody("");
+      setZoomLink("");
       setOccurredAt(toLocalInputValue(new Date()));
       setComposing(false);
     } catch (err) {
@@ -111,6 +135,13 @@ export default function MeetingsPanel({ familyId, notes: allNotes }) {
             className="panel-input"
             value={occurredAt}
             onChange={(e) => setOccurredAt(e.target.value)}
+          />
+          <input
+            type="url"
+            className="panel-input"
+            placeholder="Zoom link (optional)"
+            value={zoomLink}
+            onChange={(e) => setZoomLink(e.target.value)}
           />
           <textarea
             className="panel-input"
