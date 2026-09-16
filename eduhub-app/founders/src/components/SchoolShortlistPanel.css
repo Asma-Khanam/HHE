@@ -78,6 +78,24 @@
   background: #fbfafa;
 }
 
+.svt-row-wrap.is-declined .svt-row {
+  background: #f5f4f3;
+  color: #999;
+}
+
+.svt-row-wrap.is-declined .svt-row:hover {
+  background: #efeeed;
+}
+
+.svt-row-wrap.is-declined .svt-school-name,
+.svt-row-wrap.is-declined .svt-school-area {
+  color: #999;
+}
+
+.svt-row-wrap.is-declined .svt-chip {
+  opacity: 0.6;
+}
+
 .svt-cell {
   min-width: 0;
 }

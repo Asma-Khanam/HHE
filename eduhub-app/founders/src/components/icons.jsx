@@ -66,3 +66,23 @@ export function TasksIcon() {
     </svg>
   );
 }
+
+export function TourIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m15 9-2 6-6 2 2-6 6-2Z" />
+    </svg>
+  );
+}
+
+export function ApplicationIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+      <path d="M14 3v4h4" />
+      <path d="M9 13h6" />
+      <path d="M9 17h4" />
+    </svg>
+  );
+}

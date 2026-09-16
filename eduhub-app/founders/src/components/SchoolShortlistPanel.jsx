@@ -406,6 +406,16 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
     }
   }
 
+  // Once a family has said no to a school, that tour is done being
+  // actionable -- greyed out and pushed to the bottom so the schools
+  // still awaiting a decision stay at the top of the list. Array.sort is
+  // stable, so this only reorders declined rows; everything else keeps
+  // its existing order.
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => (a.family_decision === "declined" ? 1 : 0) - (b.family_decision === "declined" ? 1 : 0)),
+    [rows]
+  );
+
   const shortlistedIds = new Set(rows.map((r) => r.school_id));
   const addableSchools = allSchools.filter((s) => !shortlistedIds.has(s.id));
 
@@ -467,7 +477,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
             <span />
           </div>
 
-          {rows.map((row) => {
+          {sortedRows.map((row) => {
             const expanded = expandedId === row.id;
             const rowChildStatuses = childStatus.filter((cs) => cs.shortlist_id === row.id);
             const applicationsForSchool = allApplications.filter((a) => a.school_id === row.school_id);
@@ -476,8 +486,10 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
             const feedbackRows = otherFeedback[row.school_id] || [];
             const process = admissionsProcessText(row.school || {});
 
+            const declined = row.family_decision === "declined";
+
             return (
-              <div key={row.id} className="svt-row-wrap">
+              <div key={row.id} className={"svt-row-wrap" + (declined ? " is-declined" : "")}>
                 <div
                   className="svt-row"
                   style={{ gridTemplateColumns: svtColumns(children.length) }}
