@@ -839,21 +839,3 @@
   margin: 0;
 }
 
-/* -------------------------------------------------------------- overview */
-
-.overview-contact-line {
-  font-size: 0.8rem;
-  color: var(--hh-ink);
-  opacity: 0.6;
-}
-
-.overview-plain-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 0.9rem;
-  color: var(--hh-ink);
-}
