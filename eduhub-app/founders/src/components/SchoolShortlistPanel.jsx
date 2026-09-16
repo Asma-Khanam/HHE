@@ -249,6 +249,31 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
     }
   }
 
+  // Founders' request: some way to flag the family's actual top choice
+  // versus schools that are just backups. Only one "primary" is meant to
+  // exist per family at a time -- setting a new one clears whichever school
+  // held it before, in the same round trip.
+  async function handleSetPriority(row, priority) {
+    setBusy(true);
+    setError("");
+    try {
+      const jobs = [];
+      if (priority === "primary") {
+        rows
+          .filter((r) => r.id !== row.id && r.priority === "primary")
+          .forEach((r) => jobs.push(updateShortlistTour(r.id, { priority: null })));
+      }
+      jobs.push(updateShortlistTour(row.id, { priority: priority || null }));
+      const updates = await Promise.all(jobs);
+      const byId = Object.fromEntries(updates.map((u) => [u.id, u]));
+      setRows((prev) => prev.map((r) => (byId[r.id] ? { ...r, ...byId[r.id] } : r)));
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const stats = useMemo(() => {
     const replied = rows.filter((r) => r.availability_status !== "awaiting").length;
     const toursBooked = rows.filter((r) => r.tour_date).length;
@@ -377,15 +402,17 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
     }
   }
 
-  // Once a family has said no to a school, that tour is done being
-  // actionable -- greyed out and pushed to the bottom so the schools
-  // still awaiting a decision stay at the top of the list. Array.sort is
-  // stable, so this only reorders declined rows; everything else keeps
-  // its existing order.
-  const sortedRows = useMemo(
-    () => [...rows].sort((a, b) => (a.family_decision === "declined" ? 1 : 0) - (b.family_decision === "declined" ? 1 : 0)),
-    [rows]
-  );
+  // The family's primary choice floats to the top, a declined school
+  // sinks to the bottom, everything else keeps its existing order in
+  // between -- Array.sort is stable, so this only moves those two groups.
+  const sortedRows = useMemo(() => {
+    const rank = (row) => {
+      if (row.family_decision === "declined") return 2;
+      if (row.priority === "primary") return 0;
+      return 1;
+    };
+    return [...rows].sort((a, b) => rank(a) - rank(b));
+  }, [rows]);
 
   const shortlistedIds = new Set(rows.map((r) => r.school_id));
   const addableSchools = allSchools.filter((s) => !shortlistedIds.has(s.id));
@@ -469,6 +496,20 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                   <div className="svt-cell svt-cell-school">
                     <div className="svt-school-name">{row.school?.name || "Unknown school"}</div>
                     {row.school?.area && <div className="svt-school-area">{row.school.area}</div>}
+                    <select
+                      className={"svt-priority-select" + (row.priority ? " is-" + row.priority : "")}
+                      value={row.priority || ""}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleSetPriority(row, e.target.value);
+                      }}
+                      disabled={busy}
+                    >
+                      <option value="">Not ranked</option>
+                      <option value="primary">★ Primary choice</option>
+                      <option value="secondary">Backup option</option>
+                    </select>
                   </div>
                   {children.map((c) => {
                     const cs = rowChildStatuses.find((r) => r.child_id === c.id);

@@ -207,3 +207,16 @@
   color: var(--hh-ink);
   overflow-wrap: break-word;
 }
+
+.sp-priority-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--hh-burgundy);
+  background: #fbf6e9;
+  border: 1px solid var(--hh-gold);
+  border-radius: 999px;
+  padding: 1px 7px;
+  vertical-align: middle;
+}

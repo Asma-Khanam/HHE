@@ -110,6 +110,30 @@
   margin-top: 2px;
 }
 
+.svt-priority-select {
+  margin-top: 4px;
+  font-size: 11px;
+  border: 1px solid var(--border, #e3e3e3);
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: #fff;
+  color: var(--text-muted, #888);
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.svt-priority-select.is-primary {
+  border-color: var(--hh-gold, #b89a5a);
+  background: #fbf6e9;
+  color: var(--hh-burgundy, #530126);
+  font-weight: 600;
+}
+
+.svt-priority-select.is-secondary {
+  border-color: var(--border, #e3e3e3);
+  color: var(--text-muted, #888);
+}
+
 .svt-chip {
   font-size: 11px;
   padding: 3px 9px;

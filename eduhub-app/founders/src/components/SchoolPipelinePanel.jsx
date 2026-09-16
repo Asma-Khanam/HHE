@@ -88,6 +88,10 @@ export default function SchoolPipelinePanel({
       const stage = pipelineStage(row, appsForSchool);
       (byStage[stage] || (byStage[stage] = [])).push({ row, apps: appsForSchool });
     });
+    // Within each column, the family's primary choice floats to the top.
+    Object.values(byStage).forEach((items) => {
+      items.sort((a, b) => (b.row.priority === "primary" ? 1 : 0) - (a.row.priority === "primary" ? 1 : 0));
+    });
     return byStage;
   }, [rows, allApplications]);
 
@@ -313,7 +317,10 @@ function SchoolCard({
 
   return (
     <article className={`sp-card sp-card--${tone}` + (stage === "declined" ? " is-declined" : "")}>
-      <div className="sp-card-school">{row.school?.name || "Unknown school"}</div>
+      <div className="sp-card-school">
+        {row.school?.name || "Unknown school"}
+        {row.priority === "primary" && <span className="sp-priority-badge">★ Primary</span>}
+      </div>
 
       {stage === "declined" && (
         <>
