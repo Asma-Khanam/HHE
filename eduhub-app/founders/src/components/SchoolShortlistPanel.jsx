@@ -4,7 +4,6 @@ import {
   listShortlistForFamily,
   listSchools,
   addToShortlist,
-  updateShortlistEntry,
   removeFromShortlist,
   listChildAvailabilityForShortlistIds,
   upsertChildAvailability,
@@ -20,10 +19,10 @@ import "./SchoolShortlistPanel.css";
 
 const AVAILABILITY_OPTIONS = [
   { value: "awaiting", label: "Awaiting reply" },
-  { value: "yes", label: "Yes — place available" },
+  { value: "yes", label: "Yes, place available" },
   { value: "some_year_groups", label: "Some year groups only" },
   { value: "waitlist", label: "Waitlist" },
-  { value: "no", label: "No — full" },
+  { value: "no", label: "No, full" },
 ];
 
 const CHIP_LABEL = {
@@ -313,19 +312,11 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
     }
   }
 
-  async function handleStatusChange(row, value) {
-    setBusy(true);
-    setError("");
-    try {
-      const updated = await updateShortlistEntry(row.id, { availability_status: value });
-      setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, ...updated } : r)));
-    } catch (err) {
-      setError(friendlyError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
+  // Row-level availability_status (the old "Overall" field) is still set
+  // and used for the replied/days-since-brief stats -- it's just no longer
+  // hand-edited from here, per-child names are what staff actually look at
+  // on a family's own page. It's still editable from the school's own
+  // record (SchoolDetailPage.jsx's per-family availability dropdown).
   async function handleChildStatusChange(row, childId, value) {
     setBusy(true);
     setError("");
@@ -407,9 +398,10 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
   // between -- Array.sort is stable, so this only moves those two groups.
   const sortedRows = useMemo(() => {
     const rank = (row) => {
-      if (row.family_decision === "declined") return 2;
+      if (row.family_decision === "declined") return 3;
       if (row.priority === "primary") return 0;
-      return 1;
+      if (row.priority === "secondary") return 1;
+      return 2;
     };
     return [...rows].sort((a, b) => rank(a) - rank(b));
   }, [rows]);
@@ -496,20 +488,26 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                   <div className="svt-cell svt-cell-school">
                     <div className="svt-school-name">{row.school?.name || "Unknown school"}</div>
                     {row.school?.area && <div className="svt-school-area">{row.school.area}</div>}
-                    <select
-                      className={"svt-priority-select" + (row.priority ? " is-" + row.priority : "")}
-                      value={row.priority || ""}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        handleSetPriority(row, e.target.value);
-                      }}
-                      disabled={busy}
-                    >
-                      <option value="">Not ranked</option>
-                      <option value="primary">★ Primary choice</option>
-                      <option value="secondary">Backup option</option>
-                    </select>
+                    <div className="svt-priority-toggle" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className={"svt-priority-btn" + (row.priority === "primary" ? " is-primary" : "")}
+                        onClick={() => handleSetPriority(row, row.priority === "primary" ? "" : "primary")}
+                        disabled={busy}
+                        title="Primary choice"
+                      >
+                        ★ Primary
+                      </button>
+                      <button
+                        type="button"
+                        className={"svt-priority-btn" + (row.priority === "secondary" ? " is-secondary" : "")}
+                        onClick={() => handleSetPriority(row, row.priority === "secondary" ? "" : "secondary")}
+                        disabled={busy}
+                        title="Backup option"
+                      >
+                        Backup
+                      </button>
+                    </div>
                   </div>
                   {children.map((c) => {
                     const cs = rowChildStatuses.find((r) => r.child_id === c.id);
@@ -569,16 +567,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                               <dd>{row.school.address}</dd>
                             </>
                           )}
-                          {row.school?.website_url && (
-                            <>
-                              <dt>Website</dt>
-                              <dd>
-                                <a href={row.school.website_url} target="_blank" rel="noreferrer">
-                                  {row.school.website_url}
-                                </a>
-                              </dd>
-                            </>
-                          )}
                         </dl>
 
                         <div className="svt-btn-row">
@@ -609,24 +597,8 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                           </>
                         )}
 
-                        <h4 className="svt-sub-heading">Overall status &amp; per-child availability</h4>
+                        <h4 className="svt-sub-heading">Availability</h4>
                         <div className="svt-availability-list">
-                          <div className="svt-availability-row">
-                            <span className="svt-availability-name">Overall</span>
-                            <select
-                              className="panel-select"
-                              value={row.availability_status}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => handleStatusChange(row, e.target.value)}
-                              disabled={busy}
-                            >
-                              {AVAILABILITY_OPTIONS.map((o) => (
-                                <option key={o.value} value={o.value}>
-                                  {o.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
                           {children.map((c, i) => {
                             const cs = rowChildStatuses.find((r) => r.child_id === c.id);
                             const value = cs?.availability_status || "awaiting";
@@ -670,29 +642,45 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                           <>
                             {row.tour_date ? (
                               <>
-                                <p className="svt-on-the-day">
-                                  {formatDateTime(row.tour_date, row.tour_start_time)}
-                                  {row.tour_end_time ? ` – ${row.tour_end_time}` : ""}
-                                  {row.tour_status && ` · ${TOUR_STATUS_LABEL[row.tour_status]}`}
-                                </p>
-                                <p className="svt-on-the-day">
-                                  {[
-                                    row.school?.default_tour_gate && `Gate: ${row.school.default_tour_gate}`,
-                                    row.school?.default_tour_building && `Building: ${row.school.default_tour_building}`,
-                                    row.school?.default_tour_parking && `Parking: ${row.school.default_tour_parking}`,
-                                    row.school?.default_tour_ask_for && `Ask for: ${row.school.default_tour_ask_for}`,
-                                    row.school?.default_tour_bring && `Bring: ${row.school.default_tour_bring}`,
-                                  ]
-                                    .filter(Boolean)
-                                    .join(". ") || "No on-the-day details set on the school record yet."}
-                                </p>
+                                <div className="svt-onday-top">
+                                  <span className="svt-onday-datetime">
+                                    {formatDateTime(row.tour_date, row.tour_start_time)}
+                                    {row.tour_end_time ? `–${row.tour_end_time}` : ""}
+                                  </span>
+                                  {row.tour_status && (
+                                    <span className={"svt-tour-status-badge is-" + row.tour_status}>
+                                      {TOUR_STATUS_LABEL[row.tour_status]}
+                                    </span>
+                                  )}
+                                </div>
+                                {(() => {
+                                  const facts = [
+                                    row.school?.default_tour_gate && ["Gate", row.school.default_tour_gate],
+                                    row.school?.default_tour_building && ["Building", row.school.default_tour_building],
+                                    row.school?.default_tour_parking && ["Parking", row.school.default_tour_parking],
+                                    row.school?.default_tour_ask_for && ["Ask for", row.school.default_tour_ask_for],
+                                    row.school?.default_tour_bring && ["Bring", row.school.default_tour_bring],
+                                  ].filter(Boolean);
+                                  return facts.length > 0 ? (
+                                    <div className="svt-onday-facts">
+                                      {facts.map(([label, value]) => (
+                                        <div className="svt-onday-fact" key={label}>
+                                          <span className="svt-onday-fact-label">{label}</span>
+                                          <span className="svt-onday-fact-value">{value}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="svt-muted">No on-the-day details on the school's record yet.</p>
+                                  );
+                                })()}
                               </>
                             ) : (
                               <p className="svt-muted">No tour booked yet.</p>
                             )}
                             <button
                               type="button"
-                              className="panel-btn"
+                              className="panel-btn svt-onday-edit"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 startTourEdit(row);
@@ -765,7 +753,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                                     row.school?.default_tour_bring && `Bring: ${row.school.default_tour_bring}`,
                                   ]
                                     .filter(Boolean)
-                                    .join(". ") || "Not set yet — add these on the school's record."}
+                                    .join(", ") || "Not set yet, add these on the school's record."}
                                 </p>
                               </div>
                             </div>
@@ -957,7 +945,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
             {addableSchools.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
-                {s.area ? ` — ${s.area}` : ""}
+                {s.area ? `, ${s.area}` : ""}
               </option>
             ))}
           </select>

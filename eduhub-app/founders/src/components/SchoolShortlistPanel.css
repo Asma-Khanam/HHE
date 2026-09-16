@@ -502,3 +502,104 @@
 .svt-decline-input {
   width: 100%;
 }
+
+/* Primary/backup as small tick-style toggle buttons instead of a dropdown
+   -- easier to hit and reads at a glance, per Heather's team's feedback
+   that the select felt fiddly for a two-option choice. */
+.svt-priority-toggle {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.svt-priority-btn {
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--border, #e3e3e3);
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: #fff;
+  color: var(--text-muted, #888);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.svt-priority-btn.is-primary {
+  border-color: var(--hh-gold, #b89a5a);
+  background: #fbf6e9;
+  color: var(--hh-burgundy, #530126);
+  font-weight: 600;
+}
+
+.svt-priority-btn.is-secondary {
+  border-color: var(--hh-burgundy-light, #8a4a63);
+  background: #f6eef1;
+  color: var(--hh-burgundy, #530126);
+}
+
+/* On-the-day, view mode -- a datetime + status badge line, then a tight
+   label/value grid instead of two run-on sentences (Heather's team: "on
+   the day section looks very cluttered"). */
+.svt-onday-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.svt-onday-datetime {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.svt-tour-status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f2f2f2;
+  color: var(--text-muted, #777);
+}
+
+.svt-tour-status-badge.is-confirmed {
+  background: #fbf6e9;
+  color: var(--hh-gold, #8a6d1f);
+}
+
+.svt-tour-status-badge.is-completed {
+  background: var(--hh-good-bg, #e6f4ea);
+  color: var(--hh-good, #1e7a3c);
+}
+
+.svt-tour-status-badge.is-cancelled {
+  background: #f6e9ec;
+  color: var(--hh-error, #a3273f);
+}
+
+.svt-onday-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px 12px;
+  margin-bottom: 10px;
+}
+
+.svt-onday-fact {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+}
+
+.svt-onday-fact-label {
+  color: var(--text-muted, #888);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.svt-onday-fact-value {
+  font-weight: 500;
+}
+
+.svt-onday-edit {
+  margin-top: 4px;
+}
