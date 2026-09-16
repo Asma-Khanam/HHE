@@ -1,6 +1,7 @@
 import { displayNameForChild } from "../lib/completeness";
 import { packageLabel } from "../data/packages";
 import SchoolPipelinePanel from "./SchoolPipelinePanel";
+import GenericDocumentsPanel from "./GenericDocumentsPanel";
 import "./panels.css";
 
 // The Overview tab (September 2026 change request, then revised again).
@@ -78,6 +79,21 @@ export default function OverviewPanel({
         onGoToVisits={onGoToVisits}
         onGoToApplications={onGoToApplications}
       />
+
+      {/* Addendum 55 (Heather, September 2026 via WhatsApp): "Can we add a
+          document upload on the family overview please? I create a
+          timetable of visits for the family." Generic, not a checklist
+          slot -- staff label each upload themselves (a tour schedule, or
+          anything else worth attaching at the family level). */}
+      <section className="family-detail-card">
+        <GenericDocumentsPanel
+          ownerType="family"
+          ownerId={family.id}
+          uploadUserId={family.account_user_id}
+          title="Documents"
+          uploadHint="For anything that doesn't belong to one specific person -- a tour schedule, a general note, etc."
+        />
+      </section>
     </div>
   );
 }

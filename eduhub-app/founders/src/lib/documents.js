@@ -129,3 +129,35 @@ export async function deleteDocument(doc) {
   const { error } = await supabase.from("documents").delete().eq("id", doc.id);
   if (error) throw error;
 }
+
+// Generic documents (addendum 55) -- family-overview and school-record
+// uploads that aren't part of a fixed checklist. document_type doubles as
+// a free-text label here (see slugifyLabel/labelFromSlug below), and
+// these always use uploadDocument's multiple:true path, so uploading
+// again never replaces a previous file, it just adds another one.
+export async function listDocuments(ownerType, ownerId) {
+  const { data, error } = await supabase
+    .from("documents")
+    .select("*")
+    .eq("owner_type", ownerType)
+    .eq("owner_id", ownerId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+// document_type ends up in the storage path (see uploadDocument above), so
+// a staff-typed label has to be made path-safe -- same underscore
+// convention cleanFileName already uses for filenames elsewhere in this
+// file, just applied to a label instead of a person+doc-type pair.
+export function slugifyLabel(label) {
+  const slug = (label || "").trim().replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "");
+  return slug || "document";
+}
+
+// The inverse, for display -- not a perfect round-trip (original spacing/
+// casing/punctuation isn't preserved), but close enough to read back what
+// staff typed, same tradeoff the app already makes with cleanFileName.
+export function labelFromSlug(slug) {
+  return (slug || "Document").replace(/_/g, " ");
+}

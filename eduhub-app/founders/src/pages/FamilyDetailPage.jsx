@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { getFamilyDetail, getCurrentStaff, shortId, friendlyError, touchFamilyActivity } from "../lib/staffData";
 import { getMissingItems, getOutstandingDocuments, displayNameForChild } from "../lib/completeness";
 import CaseSettingsPanel from "../components/CaseSettingsPanel";
@@ -422,12 +422,30 @@ function countDocs(documentsByOwner, ownerType, id) {
   return (documentsByOwner[`${ownerType}:${id}`] || []).filter((d) => d.document_type !== "profile_photo").length;
 }
 
+const FAMILY_DETAIL_TAB_KEYS = [
+  "overview",
+  "details",
+  "visits",
+  "applications",
+  "emails",
+  "meetings",
+  "invoices",
+  "documents",
+];
+
 export default function FamilyDetailPage() {
   const { familyId } = useParams();
+  const [searchParams] = useSearchParams();
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
   const [currentStaffName, setCurrentStaffName] = useState("");
-  const [activeTab, setActiveTab] = useState("details");
+  // Supports deep-linking straight to a tab (e.g. from the school record's
+  // "start application" handoff, which lands here on ?tab=applications)
+  // instead of always opening on Family details.
+  const [activeTab, setActiveTab] = useState(() => {
+    const requested = searchParams.get("tab");
+    return FAMILY_DETAIL_TAB_KEYS.includes(requested) ? requested : "details";
+  });
   const [activeHouseholdKey, setActiveHouseholdKey] = useState(null);
   const [whatsNeededOpen, setWhatsNeededOpen] = useState(false);
 

@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   getSchoolDetail,
   updateSchool,
   addToShortlist,
   updateShortlistEntry,
+  updateShortlistTour,
   removeFromShortlist,
   upsertChildAvailability,
   listFamilies,
+  createApplication,
   friendlyError,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
+import GenericDocumentsPanel from "../components/GenericDocumentsPanel";
 import "../components/panels.css";
 import "./FamilyDetailPage.css";
 import "./SchoolDetailPage.css";
@@ -84,6 +87,7 @@ function familyStageLabel(row, applicationsForFamily) {
 // tracker; see eduhub_schema_addendum_36_school_visits_tracker.sql).
 export default function SchoolDetailPage() {
   const { schoolId } = useParams();
+  const navigate = useNavigate();
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
@@ -93,6 +97,12 @@ export default function SchoolDetailPage() {
   const [families, setFamilies] = useState(null);
   const [addFamilyId, setAddFamilyId] = useState("");
   const [addingFamily, setAddingFamily] = useState(false);
+
+  // Tour -> application handoff, mirroring the same action on the family's
+  // own School visits tab (SchoolShortlistPanel.jsx) -- see handleReadyToApply.
+  const [decliningId, setDecliningId] = useState(null);
+  const [declineNote, setDeclineNote] = useState("");
+  const [applyingId, setApplyingId] = useState(null);
 
   function load() {
     return getSchoolDetail(schoolId)
@@ -215,6 +225,80 @@ export default function SchoolDetailPage() {
       setDetail((d) => ({ ...d, shortlist: d.shortlist.filter((s) => s.id !== entry.id) }));
     } catch (err) {
       setError(friendlyError(err, "Couldn't remove that."));
+    }
+  }
+
+  // Mirrors the family-page School visits tab's tour -> application handoff
+  // (SchoolShortlistPanel.jsx's handleReadyToApply), so the same "family
+  // wants to proceed" action exists from a school's own record too -- a
+  // founder working a specific school (scanning through everyone shortlisted
+  // for it) shouldn't have to go find the right family page first just to
+  // start an application once a tour is done.
+  async function handleReadyToApply(entry) {
+    setApplyingId(entry.id);
+    setError("");
+    try {
+      const childrenNeedingApplication = (entry.children || []).filter((c) => !(c.applications || []).length);
+      if (childrenNeedingApplication.length > 0) {
+        await Promise.all(
+          childrenNeedingApplication.map((c) => createApplication({ childId: c.id, schoolId, status: "draft" }))
+        );
+      }
+      if (entry.family_decision !== "proceeding") {
+        await updateShortlistTour(entry.id, {
+          family_decision: "proceeding",
+          family_decision_at: new Date().toISOString(),
+        });
+      }
+      navigate(`/staff/families/${entry.family_id}?tab=applications`);
+    } catch (err) {
+      setError(friendlyError(err, "Couldn't start that application."));
+      setApplyingId(null);
+    }
+  }
+
+  // The other half of that handoff: the family toured this school and
+  // decided not to apply. Recorded on the tour itself, same as the
+  // family-page version.
+  async function handleDeclineFamily(entry) {
+    setApplyingId(entry.id);
+    setError("");
+    try {
+      const updated = await updateShortlistTour(entry.id, {
+        family_decision: "declined",
+        family_decision_note: declineNote.trim() || null,
+        family_decision_at: new Date().toISOString(),
+      });
+      setDetail((d) => ({
+        ...d,
+        shortlist: d.shortlist.map((s) => (s.id === entry.id ? { ...s, ...updated } : s)),
+      }));
+      setDecliningId(null);
+      setDeclineNote("");
+    } catch (err) {
+      setError(friendlyError(err, "Couldn't record that."));
+    } finally {
+      setApplyingId(null);
+    }
+  }
+
+  async function handleUndoDecision(entry) {
+    setApplyingId(entry.id);
+    setError("");
+    try {
+      const updated = await updateShortlistTour(entry.id, {
+        family_decision: null,
+        family_decision_note: null,
+        family_decision_at: null,
+      });
+      setDetail((d) => ({
+        ...d,
+        shortlist: d.shortlist.map((s) => (s.id === entry.id ? { ...s, ...updated } : s)),
+      }));
+    } catch (err) {
+      setError(friendlyError(err, "Couldn't undo that."));
+    } finally {
+      setApplyingId(null);
     }
   }
 
@@ -780,6 +864,96 @@ export default function SchoolDetailPage() {
                       )}
                     </span>
                   </div>
+
+                  {entry.tour_status === "completed" && (() => {
+                    const stillNeeded = (entry.children || []).filter((c) => !(c.applications || []).length).length;
+                    const busy = applyingId === entry.id;
+
+                    if (entry.family_decision === "declined") {
+                      return (
+                        <div className="schooldetail-ready-to-apply schooldetail-family-declined">
+                          <p className="schooldetail-family-declined-text">
+                            Family decided not to proceed with this school
+                            {entry.family_decision_note ? `: "${entry.family_decision_note}"` : "."}
+                          </p>
+                          <button
+                            type="button"
+                            className="panel-btn panel-btn-quiet"
+                            onClick={() => handleUndoDecision(entry)}
+                            disabled={busy}
+                          >
+                            Undo
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="schooldetail-ready-to-apply">
+                        <button
+                          type="button"
+                          className="panel-btn panel-btn-primary"
+                          onClick={() => handleReadyToApply(entry)}
+                          disabled={busy}
+                        >
+                          {stillNeeded > 0 ? "Family wants to proceed → start application" : "View application →"}
+                        </button>
+                        {stillNeeded > 0 && (
+                          <>
+                            <p className="schooldetail-ready-to-apply-hint">
+                              Creates a draft application at this school for{" "}
+                              {stillNeeded > 1 ? "each child who doesn't have one yet" : "this child"}, and takes
+                              you to that family's Applications tab.
+                            </p>
+                            {decliningId === entry.id ? (
+                              <div className="schooldetail-decline-form">
+                                <input
+                                  type="text"
+                                  className="panel-input schooldetail-decline-input"
+                                  placeholder="Reason (optional)"
+                                  value={declineNote}
+                                  onChange={(e) => setDeclineNote(e.target.value)}
+                                />
+                                <div className="schooldetail-decline-actions">
+                                  <button
+                                    type="button"
+                                    className="panel-btn panel-btn-quiet"
+                                    onClick={() => handleDeclineFamily(entry)}
+                                    disabled={busy}
+                                  >
+                                    Confirm decline
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="panel-btn panel-btn-quiet"
+                                    onClick={() => {
+                                      setDecliningId(null);
+                                      setDeclineNote("");
+                                    }}
+                                    disabled={busy}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="panel-btn panel-btn-quiet schooldetail-decline-trigger"
+                                onClick={() => {
+                                  setDecliningId(entry.id);
+                                  setDeclineNote("");
+                                }}
+                                disabled={busy}
+                              >
+                                Family isn't proceeding
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </li>
               );
             })}
@@ -801,6 +975,21 @@ export default function SchoolDetailPage() {
             </button>
           </form>
         )}
+      </section>
+
+      {/* Addendum 55 (Heather, September 2026 via WhatsApp): "Can we also
+          have a document upload available in the schools section so we can
+          upload A Level/ GCSE option booklets?" Generic, no fixed
+          checklist -- "staff" stands in for a per-user storage folder here
+          since a school isn't owned by any one family/account. */}
+      <section className="family-detail-card">
+        <GenericDocumentsPanel
+          ownerType="school"
+          ownerId={schoolId}
+          uploadUserId="staff"
+          title="Documents"
+          uploadHint="A-Level/GCSE option booklets, or anything else worth keeping on this school's own record."
+        />
       </section>
       </div>
     </div>
