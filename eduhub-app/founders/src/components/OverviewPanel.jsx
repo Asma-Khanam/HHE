@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { listShortlistForFamily } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import { packageLabel } from "../data/packages";
+import { applicationStatus } from "../lib/workflow";
 import "./panels.css";
 
 const TOUR_STATUS_LABEL = { offered: "Offered", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
@@ -14,7 +15,7 @@ function formatTourDate(dateStr) {
 // The Overview tab (September 2026 change request) -- one plain list of the
 // basics, no card-per-topic sectioning. Tours are fetched here rather than
 // passed down, since nothing else on this page already loads the shortlist.
-export default function OverviewPanel({ family, displayName, namedParents, familyChildren }) {
+export default function OverviewPanel({ family, displayName, namedParents, familyChildren, applicationsByChild }) {
   const [tours, setTours] = useState([]);
   const [toursLoaded, setToursLoaded] = useState(false);
 
@@ -38,6 +39,20 @@ export default function OverviewPanel({ family, displayName, namedParents, famil
 
   const [mother, father] = namedParents;
   const childNames = familyChildren.map((c, i) => displayNameForChild(c, i));
+
+  // One line per application, across every child -- "made application"
+  // should show up here without anyone having to go dig through the
+  // Applications tab.
+  const multipleChildren = familyChildren.length > 1;
+  const applications = familyChildren.flatMap((child, i) => {
+    const childName = displayNameForChild(child, i);
+    return (applicationsByChild?.[child.id] || [])
+      .filter((a) => a.status !== "withdrawn")
+      .map((a) => {
+        const line = `${a.schoolName || "Unknown school"} \u2014 ${applicationStatus(a.status).label}`;
+        return multipleChildren ? `${childName}: ${line}` : line;
+      });
+  });
 
   return (
     <section className="family-detail-card">
@@ -81,6 +96,13 @@ export default function OverviewPanel({ family, displayName, namedParents, famil
           <span className="rec-field-label">Household address</span>
           <span className={"rec-field-value" + (family.home_address ? "" : " is-empty")}>
             {family.home_address || "Not on file"}
+          </span>
+        </div>
+
+        <div className="rec-field rec-field-wide">
+          <span className="rec-field-label">Applications</span>
+          <span className={"rec-field-value" + (applications.length ? "" : " is-empty")}>
+            {applications.length ? applications.join("\n") : "None made yet"}
           </span>
         </div>
 

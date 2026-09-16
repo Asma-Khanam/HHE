@@ -606,11 +606,11 @@ export default function FamilyDetailPage() {
         {[
           ["overview", "Overview"],
           ["details", "Family details"],
-          ["documents", "Documents"],
           ["visits", "School visits"],
           ["applications", "Applications"],
           ["emails", "Emails"],
           ["invoices", "Invoices"],
+          ["documents", "Documents"],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -626,7 +626,13 @@ export default function FamilyDetailPage() {
       </div>
 
       {activeTab === "overview" && (
-        <OverviewPanel family={family} displayName={displayName} namedParents={namedParents} familyChildren={children} />
+        <OverviewPanel
+          family={family}
+          displayName={displayName}
+          namedParents={namedParents}
+          familyChildren={children}
+          applicationsByChild={applicationsByChild}
+        />
       )}
 
       {activeTab === "details" && (

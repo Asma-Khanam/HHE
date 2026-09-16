@@ -155,6 +155,7 @@ export default function SchoolDetailPage() {
       application_fee: school.application_fee ?? "",
       deposit_amount: school.deposit_amount ?? "",
       documents_required: school.documents_required || "",
+      admissions_process_notes: school.admissions_process_notes || "",
       notes: school.notes || "",
     });
     setEditing(true);
@@ -382,6 +383,12 @@ export default function SchoolDetailPage() {
               </span>
             </div>
             <div className="rec-field rec-field-wide">
+              <span className="rec-field-label">Admissions process notes</span>
+              <span className={"rec-field-value" + (school.admissions_process_notes ? "" : " is-empty")}>
+                {school.admissions_process_notes || "—"}
+              </span>
+            </div>
+            <div className="rec-field rec-field-wide">
               <span className="rec-field-label">Documents required</span>
               <span className={"rec-field-value" + (school.documents_required ? "" : " is-empty")}>
                 {school.documents_required || "—"}
@@ -560,6 +567,16 @@ export default function SchoolDetailPage() {
                   Taster day
                 </label>
               </div>
+              <label className="school-edit-wide">
+                Admissions process notes
+                <textarea
+                  className="panel-input"
+                  rows={3}
+                  placeholder="e.g. Round 1 interview, then CAT4, offer usually within 2 weeks"
+                  value={draft.admissions_process_notes}
+                  onChange={(e) => setDraft((d) => ({ ...d, admissions_process_notes: e.target.value }))}
+                />
+              </label>
               <label className="school-edit-wide">
                 Documents required
                 <textarea

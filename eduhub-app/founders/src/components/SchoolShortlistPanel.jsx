@@ -58,6 +58,14 @@ function formatDateTime(dateStr, timeStr) {
   return `${d}, ${hour12}${m && m !== "00" ? ":" + m : ""}${suffix}`;
 }
 
+// The founders' request: once a tour's date has passed, it should flip to
+// "Completed" on its own rather than someone remembering to change it by
+// hand. Dates are compared in Asia/Dubai (where the schools and tours
+// actually are), not the browser's own timezone.
+function todayInDubai() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" }); // YYYY-MM-DD
+}
+
 function daysBetween(a, b) {
   return Math.round((new Date(b).getTime() - new Date(a).getTime()) / (1000 * 60 * 60 * 24));
 }
@@ -131,15 +139,6 @@ function StarsInput({ value, onChange, readOnly }) {
   );
 }
 
-function TimelinePoint({ label, at }) {
-  return (
-    <div className={"svt-timeline-point" + (at ? " is-done" : "")}>
-      <span className="svt-timeline-date">{at ? formatDate(at) : "—"}</span>
-      <span className="svt-timeline-label">{label}</span>
-    </div>
-  );
-}
-
 // The family-facing "School shortlist" panel — redesigned per Heather's own
 // mockup: a table with one column per child, a tour column, and a "where
 // it's up to" summary, each row expanding into full admissions/tour/
@@ -147,6 +146,28 @@ function TimelinePoint({ label, at }) {
 // underneath the new Phase 2 layer (per-child availability, tours,
 // feedback) rather than replaced by it. (Addendum 44 removed the same-day
 // tour clash check that used to sit alongside these.)
+// A tour still marked "Offered"/"Confirmed" whose date is now in the past
+// gets bumped to "Completed" automatically, right after loading -- staff no
+// longer have to remember to do this by hand. Only ever moves forward
+// (never touches "Cancelled", and never un-completes anything).
+async function autoCompletePastTours(shortlist) {
+  const today = todayInDubai();
+  const due = shortlist.filter(
+    (r) => r.tour_date && r.tour_date < today && (r.tour_status === "offered" || r.tour_status === "confirmed")
+  );
+  if (due.length === 0) return shortlist;
+
+  const updates = await Promise.all(
+    due.map((r) =>
+      updateShortlistTour(r.id, { tour_status: "completed", tour_completed_at: new Date().toISOString() }).catch(
+        () => null
+      )
+    )
+  );
+  const updatedById = Object.fromEntries(updates.filter(Boolean).map((u) => [u.id, u]));
+  return shortlist.map((r) => (updatedById[r.id] ? { ...r, ...updatedById[r.id] } : r));
+}
+
 export default function SchoolShortlistPanel({ familyId, familyChildren, applicationsByChild }) {
   const [rows, setRows] = useState([]);
   const [childStatus, setChildStatus] = useState([]);
@@ -167,7 +188,8 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
     setError("");
     try {
       const [shortlist, schools] = await Promise.all([listShortlistForFamily(familyId), listSchools()]);
-      setRows(shortlist);
+      const shortlistWithAutoCompletedTours = await autoCompletePastTours(shortlist);
+      setRows(shortlistWithAutoCompletedTours);
       setAllSchools(schools);
       const shortlistIds = shortlist.map((r) => r.id);
       const schoolIds = [...new Set(shortlist.map((r) => r.school_id))];
@@ -389,15 +411,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
             const stage = stageInfo(row, applicationsForSchool);
             const draft = tourDraftById[row.id];
             const feedbackRows = otherFeedback[row.school_id] || [];
-            const earliestApplied = applicationsForSchool
-              .filter((a) => a.status !== "draft" && a.status !== "withdrawn")
-              .reduce((min, a) => (a.submitted_at && (!min || a.submitted_at < min) ? a.submitted_at : min), null);
-            const earliestOffer = applicationsForSchool
-              .filter((a) => a.status === "offer")
-              .reduce((min, a) => {
-                const at = a.offer_at || a.submitted_at;
-                return at && (!min || at < min) ? at : min;
-              }, null);
             const process = admissionsProcessText(row.school || {});
 
             return (
@@ -487,11 +500,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                               Website
                             </a>
                           )}
-                          {row.school?.admissions_contact_email && (
-                            <a className="panel-btn" href={`mailto:${row.school.admissions_contact_email}`}>
-                              Email admissions
-                            </a>
-                          )}
                           {row.school?.tour_booking_url && (
                             <a className="panel-btn" href={row.school.tour_booking_url} target="_blank" rel="noreferrer">
                               Book a tour
@@ -513,16 +521,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                             <p className="svt-process-text">{process}</p>
                           </>
                         )}
-
-                        <h4 className="svt-sub-heading">Timeline</h4>
-                        <div className="svt-timeline">
-                          <TimelinePoint label="Enquiry sent" at={row.shortlisted_at} />
-                          <TimelinePoint label="Replied" at={row.availability_replied_at} />
-                          <TimelinePoint label="Tour booked" at={row.tour_booked_at} />
-                          <TimelinePoint label="Toured" at={row.tour_completed_at} />
-                          <TimelinePoint label="Applied" at={earliestApplied} />
-                          <TimelinePoint label="Offer" at={earliestOffer} />
-                        </div>
 
                         <h4 className="svt-sub-heading">Overall status &amp; per-child availability</h4>
                         <div className="svt-availability-list">

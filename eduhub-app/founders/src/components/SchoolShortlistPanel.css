@@ -235,33 +235,6 @@
   margin: 0;
 }
 
-.svt-timeline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-}
-
-.svt-timeline-point {
-  display: flex;
-  flex-direction: column;
-  min-width: 70px;
-}
-
-.svt-timeline-date {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted, #999);
-}
-
-.svt-timeline-point.is-done .svt-timeline-date {
-  color: #92640b;
-}
-
-.svt-timeline-label {
-  font-size: 11px;
-  color: var(--text-muted, #888);
-}
-
 .svt-availability-list {
   display: flex;
   flex-direction: column;
