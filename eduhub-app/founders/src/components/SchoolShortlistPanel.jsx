@@ -94,7 +94,7 @@ function stageInfo(row, applicationsForSchool) {
   }
 
   if (row.tour_status === "completed") {
-    return row.feedback_text || row.feedback_rating
+    return row.feedback_text
       ? { label: "Toured, feedback in", when: relativeToNow(row.feedback_at || row.tour_completed_at) }
       : { label: "Toured, feedback pending", when: relativeToNow(row.tour_completed_at) };
   }
@@ -117,25 +117,6 @@ function admissionsProcessText(school) {
     ]
       .filter(Boolean)
       .join(" · ") || null
-  );
-}
-
-function StarsInput({ value, onChange, readOnly }) {
-  return (
-    <span className="svt-stars">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button
-          key={n}
-          type="button"
-          className={"svt-star" + (n <= (value || 0) ? " is-filled" : "")}
-          onClick={readOnly ? undefined : () => onChange(n === value ? 0 : n)}
-          disabled={readOnly}
-          aria-label={`${n} star${n === 1 ? "" : "s"}`}
-        >
-          ★
-        </button>
-      ))}
-    </span>
   );
 }
 
@@ -303,7 +284,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
         tour_end_time: row.tour_end_time || "",
         tour_status: row.tour_status || "offered",
         feedback_text: row.feedback_text || "",
-        feedback_rating: row.feedback_rating || 0,
       },
     }));
   }
@@ -328,8 +308,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
         tour_end_time: draft.tour_end_time || null,
         tour_status: draft.tour_date ? draft.tour_status : null,
         feedback_text: draft.feedback_text || null,
-        feedback_rating: draft.feedback_rating || null,
-        feedback_by: draft.feedback_text || draft.feedback_rating ? "staff" : null,
+        feedback_by: draft.feedback_text ? "staff" : null,
       };
       const updated = await updateShortlistTour(row.id, patch);
       setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, ...updated } : r)));
@@ -698,11 +677,11 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                           </form>
                         )}
 
-                        <h3 className="svt-detail-heading svt-feedback-heading">Feedback</h3>
+                        <h3 className="svt-detail-heading svt-feedback-heading">Feedback &amp; notes</h3>
                         <textarea
                           className="svt-feedback-input"
                           rows={3}
-                          placeholder="How did the tour go?"
+                          placeholder="How did the tour go? Anything worth noting for the family record."
                           value={draft ? draft.feedback_text : row.feedback_text || ""}
                           onClick={(e) => e.stopPropagation()}
                           onChange={(e) => {
@@ -718,17 +697,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                           }}
                         />
                         <div className="svt-feedback-actions">
-                          <StarsInput
-                            value={draft ? draft.feedback_rating : row.feedback_rating}
-                            onChange={(n) => {
-                              if (draft) {
-                                setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], feedback_rating: n } }));
-                              } else {
-                                startTourEdit(row);
-                                setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], feedback_rating: n } }));
-                              }
-                            }}
-                          />
                           {draft && (
                             <button
                               type="button"
@@ -751,7 +719,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                             <div className="svt-other-feedback">
                               {feedbackRows.slice(0, 3).map((f) => (
                                 <blockquote key={f.id} className="svt-other-feedback-item">
-                                  {f.feedback_rating ? <StarsInput value={f.feedback_rating} readOnly /> : null}
                                   <p>{f.feedback_text}</p>
                                   <cite>
                                     {f.familyName}
