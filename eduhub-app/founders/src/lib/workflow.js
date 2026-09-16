@@ -59,13 +59,13 @@ export const REJECTION_REASONS = [
 // "where is this school up to" instead of two separate lists. Order matters:
 // this is checked top to bottom, most-final outcome first.
 export const SCHOOL_PIPELINE_STAGES = [
-  { key: "shortlisted", label: "Shortlisted" },
-  { key: "tour_scheduled", label: "Tour scheduled" },
-  { key: "awaiting_decision", label: "Toured — awaiting decision" },
-  { key: "application_started", label: "Application started" },
-  { key: "application_progress", label: "Application in progress" },
-  { key: "decision", label: "Decision" },
-  { key: "declined", label: "Declined" },
+  { key: "shortlisted", label: "Shortlisted", hint: "Shortlisted, nothing booked yet" },
+  { key: "tour_scheduled", label: "Tour scheduled", hint: "Tour booked, not yet happened" },
+  { key: "awaiting_decision", label: "Awaiting decision", hint: "Toured — no decision recorded yet" },
+  { key: "application_started", label: "Application started", hint: "Application drafted, not yet submitted" },
+  { key: "application_progress", label: "In progress", hint: "Application submitted, working through the school's process" },
+  { key: "decision", label: "Decision", hint: "Offer or rejection received" },
+  { key: "declined", label: "Declined", hint: "Family decided not to proceed with this school" },
 ];
 
 export function pipelineStage(row, applicationsForSchool) {

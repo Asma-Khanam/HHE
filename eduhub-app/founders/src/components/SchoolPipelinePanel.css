@@ -2,14 +2,29 @@
   color: var(--hh-error);
 }
 
+/* Fixed column width, not 1fr -- inside an overflow-x:auto grid, 1fr has no
+   bounded space to distribute and column headers/cards were rendering too
+   narrow, wrapping to two lines and pushing button text past the card edge.
+   A fixed width plus real horizontal scroll is the reliable version of this. */
 .sp-board {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(190px, 1fr);
-  gap: 12px;
+  grid-auto-columns: 220px;
+  gap: 14px;
   overflow-x: auto;
-  padding-bottom: 6px;
+  padding-bottom: 10px;
   margin-top: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--hh-track) transparent;
+}
+
+.sp-board::-webkit-scrollbar {
+  height: 7px;
+}
+
+.sp-board::-webkit-scrollbar-thumb {
+  background: var(--hh-track);
+  border-radius: 999px;
 }
 
 .sp-column {
@@ -23,6 +38,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding-bottom: 6px;
   border-bottom: 2px solid var(--hh-track);
 }
@@ -33,17 +49,22 @@
 
 .sp-column-head h3 {
   font-family: var(--hh-font-heading);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--hh-ink);
   opacity: 0.7;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sp-column-count {
+  flex-shrink: 0;
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
   color: var(--hh-ink);
   opacity: 0.55;
   background: var(--hh-track);
@@ -63,31 +84,53 @@
   padding: 12px 8px;
   text-align: center;
   color: var(--hh-ink);
-  opacity: 0.4;
+  opacity: 0.35;
   font-size: 12px;
 }
 
+/* Cards: white by default with a coloured left rail (the "some colour"
+   ask) -- burgundy while a school is still moving through the ordinary
+   steps, and a tinted background as well as the rail once something
+   actually needs a look or has an outcome. All four colours are existing
+   brand tokens, nothing invented for this widget. */
 .sp-card {
   background: var(--hh-white);
   border: 1px solid var(--hh-track);
+  border-left: 4px solid var(--hh-burgundy-light);
   border-radius: 10px;
   padding: 11px 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   box-shadow: 0 1px 2px rgba(83, 1, 38, 0.05);
+  min-width: 0;
+}
+
+.sp-card--attention {
+  border-left-color: var(--hh-gold);
+  background: #fbf6e9;
+}
+
+.sp-card--good {
+  border-left-color: var(--hh-good);
+  background: var(--hh-good-bg);
+}
+
+.sp-card--bad {
+  border-left-color: var(--hh-error);
+  background: #fbeceb;
 }
 
 .sp-card.is-declined {
-  opacity: 0.6;
-  background: var(--hh-cream);
+  opacity: 0.62;
 }
 
 .sp-card-school {
   font-weight: 600;
   font-size: 13.5px;
   color: var(--hh-ink);
-  line-height: 1.25;
+  line-height: 1.3;
+  overflow-wrap: break-word;
 }
 
 .sp-card-note {
@@ -96,12 +139,24 @@
   opacity: 0.7;
   margin: 0;
   line-height: 1.4;
+  overflow-wrap: break-word;
 }
 
 .sp-card-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* The panel-btn default is white-space:nowrap (fine for short buttons
+   elsewhere in the app) -- inside a 220px card, "Family's proceeding →"
+   and "Manage on School visits →" need to wrap instead of forcing the
+   card wider than its column, which is what was bleeding past the edge. */
+.sp-card .panel-btn {
+  white-space: normal;
+  text-align: left;
+  max-width: 100%;
+  line-height: 1.3;
 }
 
 .sp-decline-trigger {
@@ -119,10 +174,17 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+}
+
+.sp-inline-form .panel-input {
+  width: 100%;
+  max-width: 100%;
 }
 
 .sp-inline-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -132,6 +194,7 @@
   gap: 6px;
   padding-top: 6px;
   border-top: 1px solid var(--hh-track);
+  min-width: 0;
 }
 
 .sp-app-row:first-of-type {
@@ -142,4 +205,5 @@
 .sp-app-child {
   font-size: 12px;
   color: var(--hh-ink);
+  overflow-wrap: break-word;
 }

@@ -18,6 +18,20 @@ function formatDate(iso) {
   return new Date(iso + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
+// A quiet colour cue per card, using only the app's own brand tokens --
+// gold for "needs a decision", green/red for a school's own offer or
+// rejection, red (muted) for a family decline, burgundy for everything
+// still in motion. Never a colour invented just for this widget.
+function cardTone(stage, apps) {
+  if (stage === "declined") return "bad";
+  if (stage === "awaiting_decision") return "attention";
+  if (stage === "decision") {
+    if (apps.some((a) => a.status === "offer")) return "good";
+    if (apps.some((a) => a.status === "rejected")) return "bad";
+  }
+  return "neutral";
+}
+
 // The Overview tab's school pipeline -- the same school_shortlist and
 // applications rows the School visits and Applications tabs manage, reduced
 // to "where is this school up to" and laid out so it moves itself left to
@@ -206,7 +220,7 @@ export default function SchoolPipelinePanel({
             const items = grouped[stage.key] || [];
             return (
               <div className="sp-column" key={stage.key} data-stage={stage.key}>
-                <div className="sp-column-head">
+                <div className="sp-column-head" title={stage.hint}>
                   <h3>{stage.label}</h3>
                   <span className="sp-column-count">{items.length}</span>
                 </div>
@@ -295,8 +309,10 @@ function SchoolCard({
     return i === -1 ? "" : displayNameForChild(familyChildren[i], i);
   };
 
+  const tone = cardTone(stage, apps);
+
   return (
-    <article className={"sp-card" + (stage === "declined" ? " is-declined" : "")}>
+    <article className={`sp-card sp-card--${tone}` + (stage === "declined" ? " is-declined" : "")}>
       <div className="sp-card-school">{row.school?.name || "Unknown school"}</div>
 
       {stage === "declined" && (
