@@ -162,6 +162,8 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
   const [expandedId, setExpandedId] = useState(null);
   const [tourDraftById, setTourDraftById] = useState({});
   const [savedNoteId, setSavedNoteId] = useState(null);
+  const [decliningId, setDecliningId] = useState(null);
+  const [declineNote, setDeclineNote] = useState("");
 
   const children = familyChildren || [];
 
@@ -218,7 +220,57 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
         );
         if (onFamilyRefresh) await onFamilyRefresh();
       }
+      if (row.family_decision !== "proceeding") {
+        const updated = await updateShortlistTour(row.id, {
+          family_decision: "proceeding",
+          family_decision_at: new Date().toISOString(),
+        });
+        setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, ...updated } : r)));
+      }
       onGoToApplications?.();
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // The other half of that same handoff: the family toured a school and
+  // decided NOT to apply there. Recorded on the tour itself (not the
+  // applications table -- no application exists yet at this point), so a
+  // "no answer yet" tour and a "family said no" tour don't look identical.
+  async function handleDeclineFamily(row) {
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await updateShortlistTour(row.id, {
+        family_decision: "declined",
+        family_decision_note: declineNote.trim() || null,
+        family_decision_at: new Date().toISOString(),
+      });
+      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, ...updated } : r)));
+      setDecliningId(null);
+      setDeclineNote("");
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // In case staff logged a decline by mistake, or the family changes their
+  // mind later -- clears the decision back to "no answer yet" so the normal
+  // proceed/decline choice reappears.
+  async function handleUndoDecision(row) {
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await updateShortlistTour(row.id, {
+        family_decision: null,
+        family_decision_note: null,
+        family_decision_at: null,
+      });
+      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, ...updated } : r)));
     } catch (err) {
       setError(friendlyError(err));
     } finally {
@@ -749,6 +801,29 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                           const stillNeeded = children.filter(
                             (c) => !applicationsForSchool.some((a) => a.child_id === c.id)
                           ).length;
+
+                          if (row.family_decision === "declined") {
+                            return (
+                              <div className="svt-ready-to-apply svt-family-declined">
+                                <p className="svt-family-declined-text">
+                                  Family decided not to proceed with this school
+                                  {row.family_decision_note ? `: "${row.family_decision_note}"` : "."}
+                                </p>
+                                <button
+                                  type="button"
+                                  className="panel-btn panel-btn-quiet"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUndoDecision(row);
+                                  }}
+                                  disabled={busy}
+                                >
+                                  Undo
+                                </button>
+                              </div>
+                            );
+                          }
+
                           return (
                             <div className="svt-ready-to-apply">
                               <button
@@ -763,11 +838,58 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                                 {stillNeeded > 0 ? "Family wants to proceed → start application" : "View application →"}
                               </button>
                               {stillNeeded > 0 && (
-                                <p className="svt-ready-to-apply-hint">
-                                  Creates a draft application at this school for{" "}
-                                  {stillNeeded > 1 ? "each child who doesn't have one yet" : "this child"}, and takes
-                                  you to Applications.
-                                </p>
+                                <>
+                                  <p className="svt-ready-to-apply-hint">
+                                    Creates a draft application at this school for{" "}
+                                    {stillNeeded > 1 ? "each child who doesn't have one yet" : "this child"}, and
+                                    takes you to Applications.
+                                  </p>
+                                  {decliningId === row.id ? (
+                                    <div className="svt-decline-form" onClick={(e) => e.stopPropagation()}>
+                                      <input
+                                        type="text"
+                                        className="panel-input svt-decline-input"
+                                        placeholder="Reason (optional)"
+                                        value={declineNote}
+                                        onChange={(e) => setDeclineNote(e.target.value)}
+                                      />
+                                      <div className="svt-tour-actions">
+                                        <button
+                                          type="button"
+                                          className="panel-btn panel-btn-quiet"
+                                          onClick={() => handleDeclineFamily(row)}
+                                          disabled={busy}
+                                        >
+                                          Confirm decline
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="panel-btn panel-btn-quiet"
+                                          onClick={() => {
+                                            setDecliningId(null);
+                                            setDeclineNote("");
+                                          }}
+                                          disabled={busy}
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="panel-btn panel-btn-quiet svt-decline-trigger"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDecliningId(row.id);
+                                        setDeclineNote("");
+                                      }}
+                                      disabled={busy}
+                                    >
+                                      Family isn't proceeding
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </div>
                           );
