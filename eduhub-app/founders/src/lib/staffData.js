@@ -27,12 +27,17 @@ function unwrap({ data, error }) {
 
 // Every page's catch block runs its error through this. The one failure
 // that's actually likely in practice — and the most confusing to read raw —
-// is opening the app before addendum 3 has been run, where Postgres just
-// says a relation or column doesn't exist. Say what to do about it.
+// is a table/column Postgres says doesn't exist, because whichever addendum
+// added it hasn't been run yet. This used to always name addendum 3
+// specifically, which was right the day it was written but actively
+// misleading once later addenda started adding their own new columns (e.g.
+// addendum 50's schools.admissions_process_notes) -- pointing someone at
+// the wrong file wastes more time than a generic pointer would. Say what to
+// do about it without guessing which file it is.
 export function friendlyError(err, fallback = "Something went wrong.") {
   const message = err?.message || fallback;
   if (/does not exist|schema cache|Could not find/i.test(message)) {
-    return `${message} — this usually means eduhub_schema_addendum_3_staff_workflow.sql hasn't been run in the Supabase SQL editor yet.`;
+    return `${message} — this usually means a backend/schema/eduhub_schema_addendum_*.sql file hasn't been run in the Supabase SQL editor yet. Check the most recently added one first.`;
   }
   return message;
 }
