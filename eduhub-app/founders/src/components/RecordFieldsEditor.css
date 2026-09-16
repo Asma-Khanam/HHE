@@ -61,3 +61,20 @@
   resize: vertical;
   min-height: 44px;
 }
+
+.rfe-other-back {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.74rem;
+  text-decoration: underline;
+  color: var(--hh-ink);
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.rfe-other-back:hover {
+  opacity: 1;
+}

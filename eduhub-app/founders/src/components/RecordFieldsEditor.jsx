@@ -84,18 +84,47 @@ function ViewField({ field, value }) {
 
 // One editable row. Textareas for "wide" free-text fields (that's where the
 // long answers live), a date input, a select for the one enum this page
-// already knew the options for, plain text otherwise — everything else on
-// the family's form uses its own closed option lists (nationality, gender,
-// curriculum and so on) that live in the frontend app's data files, not
-// here, so for now those save as free text too rather than duplicating
-// every list. Good enough to fix a typo or update an answer by hand; a
-// locked dropdown to match the family's own form is a fair follow-up.
+// already knew the options for, plain text otherwise.
+//
+// September 2026 change request: fields with a closed option list on the
+// family's own form (nationality, first/second language, religion, gender)
+// were saving as free text here, so the same family could end up "British"
+// on one record and "UK" on another. `field.options` (from founders/src/
+// data/formOptions.js, a hand-kept copy of the family form's own lists) now
+// drives a real dropdown for those. `field.strict` matches the family's
+// StrictSelect fields (gender) which offer no escape hatch; everything else
+// gets an "Other" choice that reveals a text box, same as the family's own
+// FormSelect, so staff are never blocked by a value that isn't listed and a
+// value already on file that isn't on the list still displays correctly.
 function EditField({ field, value, onChange }) {
   const commonProps = {
     id: `edit-${field.key}`,
     value,
     onChange: (e) => onChange(e.target.value),
   };
+
+  if (field.type === "select" && field.strict) {
+    return (
+      <div className={"rec-field rfe-edit-field" + (field.wide ? " rec-field-wide" : "")}>
+        <label className="rec-field-label" htmlFor={commonProps.id}>
+          {field.label}
+        </label>
+        <select {...commonProps} className="panel-select">
+          <option value="">—</option>
+          {field.options.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  if (field.type === "select") {
+    return <OpenSelectField field={field} value={value} onChange={onChange} inputId={commonProps.id} />;
+  }
+
   return (
     <div className={"rec-field rfe-edit-field" + (field.wide ? " rec-field-wide" : "")}>
       <label className="rec-field-label" htmlFor={commonProps.id}>
@@ -116,6 +145,61 @@ function EditField({ field, value, onChange }) {
         <textarea {...commonProps} className="panel-input" rows={3} />
       ) : (
         <input {...commonProps} type="text" className="panel-input" />
+      )}
+    </div>
+  );
+}
+
+// A dropdown with an "Other" escape hatch, split out from EditField so it
+// can hold its own bit of local state (whether "Other" is showing) without
+// EditField's other branches needing it. Starts in "Other" mode if the
+// value already on file isn't one of the listed options, so an existing
+// answer is never silently hidden.
+function OpenSelectField({ field, value, onChange, inputId }) {
+  const valueOnList = isFilled(value) ? field.options.includes(value) : true;
+  const [showOther, setShowOther] = useState(!valueOnList);
+
+  return (
+    <div className={"rec-field rfe-edit-field" + (field.wide ? " rec-field-wide" : "")}>
+      <label className="rec-field-label" htmlFor={inputId}>
+        {field.label}
+      </label>
+      {showOther ? (
+        <input
+          id={inputId}
+          type="text"
+          className="panel-input"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Type a value"
+        />
+      ) : (
+        <select
+          id={inputId}
+          className="panel-select"
+          value={valueOnList ? value : ""}
+          onChange={(e) => {
+            if (e.target.value === "__other__") {
+              setShowOther(true);
+              onChange("");
+            } else {
+              onChange(e.target.value);
+            }
+          }}
+        >
+          <option value="">—</option>
+          {field.options.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+          <option value="__other__">Other…</option>
+        </select>
+      )}
+      {showOther && (
+        <button type="button" className="rfe-other-back" onClick={() => setShowOther(false)}>
+          Choose from list instead
+        </button>
       )}
     </div>
   );

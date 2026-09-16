@@ -15,6 +15,7 @@ import RecordFieldsEditor from "../components/RecordFieldsEditor";
 import OverviewPanel from "../components/OverviewPanel";
 import EmailsPanel from "../components/EmailsPanel";
 import { AddressIcon, BudgetIcon, HouseholdIcon } from "../components/icons";
+import { NATIONALITIES, LANGUAGES, RELIGIONS, ENGLISH_PROFICIENCY_LEVELS, GENDERS } from "../data/formOptions";
 import "./FamilyDetailPage.css";
 
 // ---------------------------------------------------------------------------
@@ -32,9 +33,12 @@ const PARENT_FIELDS = [
   { key: "full_name", label: "Full name" },
   { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
-  { key: "nationality", label: "Nationality" },
-  { key: "first_language", label: "First language" },
-  { key: "second_language", label: "Second language" },
+  { key: "nationality", label: "Nationality", type: "select", options: NATIONALITIES },
+  // Was already collected on the family's own form (parents.religion has
+  // existed in the schema from the start) but never shown or editable here.
+  { key: "religion", label: "Religion", type: "select", options: RELIGIONS },
+  { key: "first_language", label: "First language", type: "select", options: LANGUAGES },
+  { key: "second_language", label: "Second language", type: "select", options: LANGUAGES },
   { key: "employer_name", label: "Employer name" },
   { key: "occupation_designation", label: "Occupation / designation" },
   { key: "eid", label: "EID" },
@@ -46,11 +50,11 @@ const CHILD_GENERAL_FIELDS = [
   { key: "middle_name", label: "Middle name (as in passport)" },
   { key: "last_name", label: "Last name (as in passport)" },
   { key: "preferred_name", label: "Preferred name" },
-  { key: "gender", label: "Gender" },
+  { key: "gender", label: "Gender", type: "select", strict: true, options: GENDERS },
   { key: "date_of_birth", label: "Date of birth", type: "date" },
-  { key: "nationality", label: "Nationality" },
+  { key: "nationality", label: "Nationality", type: "select", options: NATIONALITIES },
   // CH-03 (September 2026 change request) — new field, no history before it.
-  { key: "religion", label: "Religion" },
+  { key: "religion", label: "Religion", type: "select", options: RELIGIONS },
   // CH-04/CH-05: both became "select all that apply" on new array columns
   // (academic_years_of_entry / terms) rather than the old single-value
   // academic_year_of_entry / term — see schema addendum 25. `type:
@@ -60,10 +64,10 @@ const CHILD_GENERAL_FIELDS = [
   { key: "academic_years_of_entry", label: "Academic year(s) of entry", type: "array_join" },
   { key: "year_group_applying_for", label: "Year group applying for" },
   { key: "terms", label: "Term(s)", type: "array_join" },
-  { key: "first_language", label: "First language" },
-  { key: "second_language", label: "Second language" },
+  { key: "first_language", label: "First language", type: "select", options: LANGUAGES },
+  { key: "second_language", label: "Second language", type: "select", options: LANGUAGES },
   { key: "english_first_home_language", label: "English is first / home language?" },
-  { key: "english_proficiency", label: "English proficiency" },
+  { key: "english_proficiency", label: "English proficiency", type: "select", options: ENGLISH_PROFICIENCY_LEVELS },
   { key: "eid", label: "EID" },
   { key: "address", label: "Where this child lives", wide: true },
   { key: "notes", label: "Notes", wide: true },
