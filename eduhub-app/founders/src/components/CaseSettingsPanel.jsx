@@ -9,12 +9,17 @@ import { CaseIcon } from "./icons";
 // they're moving from and to, what kind of client they are. None of this is
 // the family's data; it's the agency's view of the family, which is why it
 // sits in its own bar rather than inside the application record below.
+// (Available-in-Dubai dates are the one exception -- the family sets those
+// themselves on their own dashboard's "Your move" card; shown and editable
+// here too, same as origin/destination already were.)
 export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
   const [values, setValues] = useState({
     pipeline_stage: family.pipeline_stage || "enquiry",
     owner_staff_id: family.owner_staff_id || "",
     origin: family.origin || "",
     destination: family.destination || "",
+    dubai_available_from: family.dubai_available_from || "",
+    dubai_available_until: family.dubai_available_until || "",
     membership_type: family.membership_type || "",
   });
   const [saved, setSaved] = useState(false);
@@ -103,6 +108,16 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
         <div>
           <label className="panel-field-label">Destination</label>
           <input type="text" placeholder="e.g. Dubai" {...textProps("destination")} />
+        </div>
+
+        <div>
+          <label className="panel-field-label">Available in Dubai from</label>
+          <input type="date" {...textProps("dubai_available_from")} />
+        </div>
+
+        <div>
+          <label className="panel-field-label">Available in Dubai until</label>
+          <input type="date" {...textProps("dubai_available_until")} />
         </div>
 
         <div>

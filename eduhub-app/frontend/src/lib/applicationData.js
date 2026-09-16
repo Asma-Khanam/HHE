@@ -730,15 +730,19 @@ export async function saveApplication({
 // columns directly (see families_guard_client_edit, addendum 12; only
 // pipeline_stage/owner_staff_id/membership_type/the application alias are
 // staff-only), so this is a plain update, not routed through the big
-// saveApplication pipeline. Founders just read family.origin/destination on
-// their Case panel — no separate sync needed.
-export async function updateMoveDetails(familyId, { origin, destination }) {
-  const { data, error } = await supabase
-    .from("families")
-    .update({ origin: origin ?? null, destination: destination ?? null })
-    .eq("id", familyId)
-    .select()
-    .single();
+// saveApplication pipeline. Founders just read these same columns
+// (including the two Dubai availability dates, addendum 53) on their Case
+// panel — no separate sync needed.
+export async function updateMoveDetails(familyId, { origin, destination, dubaiAvailableFrom, dubaiAvailableUntil }) {
+  const patch = { origin: origin ?? null, destination: destination ?? null };
+  // The two availability dates are optional extras on the same card --
+  // only touch them when the caller actually passes one, so a plain
+  // origin/destination save (the common case) doesn't have to know they
+  // exist.
+  if (dubaiAvailableFrom !== undefined) patch.dubai_available_from = dubaiAvailableFrom || null;
+  if (dubaiAvailableUntil !== undefined) patch.dubai_available_until = dubaiAvailableUntil || null;
+
+  const { data, error } = await supabase.from("families").update(patch).eq("id", familyId).select().single();
   if (error) throw error;
   return data;
 }

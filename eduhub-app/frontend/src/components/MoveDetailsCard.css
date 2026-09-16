@@ -64,3 +64,18 @@
   border-color: var(--hh-gold);
   box-shadow: 0 0 0 3px rgba(184, 154, 90, 0.18);
 }
+
+.move-card-subhead {
+  margin-top: 18px;
+  font-family: var(--hh-font-heading);
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--hh-burgundy);
+}
+
+.move-card-hint {
+  margin: 3px 0 0;
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+}
