@@ -2,14 +2,16 @@
   color: var(--hh-error);
 }
 
-/* Fixed column width, not 1fr -- inside an overflow-x:auto grid, 1fr has no
+/* Fixed column width, not 1fr -- inside an overflow-x:auto row, 1fr has no
    bounded space to distribute and column headers/cards were rendering too
    narrow, wrapping to two lines and pushing button text past the card edge.
-   A fixed width plus real horizontal scroll is the reliable version of this. */
+   A fixed width plus real horizontal scroll is the reliable version of
+   this. Flexbox rather than the old CSS grid, specifically so each column
+   can carry its OWN width (grid-auto-columns forces every track to the
+   same size, which a per-column collapsed state can't override). */
 .sp-board {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 220px;
+  display: flex;
+  align-items: stretch;
   gap: 14px;
   overflow-x: auto;
   padding-bottom: 10px;
@@ -32,6 +34,19 @@
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+  flex: 0 0 220px;
+}
+
+/* Founder feedback (Sept 2026): "since they have to scroll to the right a
+   lil, could we close the stages already done" -- a stage nothing is
+   currently sitting in collapses itself to a thin strip so the board only
+   spends its width on stages that actually have schools in them. Not a
+   removal: the column, its count and its click target are all still
+   there, just narrow, and clicking it (or its own chevron) expands it
+   again. */
+.sp-column.is-collapsed {
+  flex: 0 0 40px;
+  cursor: pointer;
 }
 
 .sp-column-head {
@@ -43,9 +58,24 @@
   border-bottom: 2px solid var(--hh-track);
 }
 
+.sp-column.is-collapsed .sp-column-head {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 8px 0 6px;
+  border-bottom: none;
+  border-left: 2px solid var(--hh-track);
+}
+
 .sp-column[data-stage="awaiting_decision"] .sp-column-head { border-bottom-color: var(--hh-gold); }
 .sp-column[data-stage="declined"] .sp-column-head { border-bottom-color: var(--hh-error); }
 .sp-column[data-stage="decision"] .sp-column-head { border-bottom-color: var(--hh-good); }
+
+.sp-column.is-collapsed[data-stage="awaiting_decision"] .sp-column-head { border-left-color: var(--hh-gold); border-bottom: none; }
+.sp-column.is-collapsed[data-stage="declined"] .sp-column-head { border-left-color: var(--hh-error); border-bottom: none; }
+.sp-column.is-collapsed[data-stage="decision"] .sp-column-head { border-left-color: var(--hh-good); border-bottom: none; }
 
 .sp-column-head h3 {
   font-family: var(--hh-font-heading);
@@ -61,6 +91,13 @@
   text-overflow: ellipsis;
 }
 
+.sp-column.is-collapsed .sp-column-head h3 {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .sp-column-count {
   flex-shrink: 0;
   font-size: 11px;
@@ -70,6 +107,28 @@
   background: var(--hh-track);
   border-radius: 999px;
   padding: 1px 7px;
+}
+
+.sp-column-toggle {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--hh-ink);
+  opacity: 0.4;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.sp-column-toggle:hover {
+  opacity: 0.8;
+  background: var(--hh-track);
 }
 
 .sp-column-body {

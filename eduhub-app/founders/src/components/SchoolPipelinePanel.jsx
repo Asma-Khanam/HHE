@@ -55,6 +55,14 @@ export default function SchoolPipelinePanel({
   const [declineNote, setDeclineNote] = useState("");
   const [rejectingAppId, setRejectingAppId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
+  // Founder feedback (Sept 2026): "since they have to scroll to the right
+  // a lil, could we close the stages already done, not remove but shorten
+  // it" -- a stage with nothing in it (every school has already moved
+  // past it) collapses itself into a thin strip by default, freeing up
+  // the width the other, populated stages actually need. Staff can still
+  // click any column to expand or re-collapse it by hand -- this only
+  // overrides the automatic default for that one column.
+  const [manualCollapse, setManualCollapse] = useState({});
 
   const children = familyChildren || [];
   const allApplications = useMemo(() => Object.values(applicationsByChild || {}).flat(), [applicationsByChild]);
@@ -222,12 +230,33 @@ export default function SchoolPipelinePanel({
         <div className="sp-board">
           {SCHOOL_PIPELINE_STAGES.map((stage) => {
             const items = grouped[stage.key] || [];
+            const autoCollapse = items.length === 0;
+            const collapsed = manualCollapse[stage.key] !== undefined ? manualCollapse[stage.key] : autoCollapse;
+            const toggleCollapse = () =>
+              setManualCollapse((m) => ({ ...m, [stage.key]: !collapsed }));
             return (
-              <div className="sp-column" key={stage.key} data-stage={stage.key}>
+              <div
+                className={"sp-column" + (collapsed ? " is-collapsed" : "")}
+                key={stage.key}
+                data-stage={stage.key}
+                onClick={collapsed ? toggleCollapse : undefined}
+              >
                 <div className="sp-column-head" title={stage.hint}>
                   <h3>{stage.label}</h3>
                   <span className="sp-column-count">{items.length}</span>
+                  <button
+                    type="button"
+                    className="sp-column-toggle"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleCollapse();
+                    }}
+                    title={collapsed ? "Expand this stage" : "Collapse this stage"}
+                  >
+                    {collapsed ? "›" : "‹"}
+                  </button>
                 </div>
+                {!collapsed && (
                 <div className="sp-column-body">
                   {items.length === 0 ? (
                     <div className="sp-column-empty">—</div>
@@ -274,6 +303,7 @@ export default function SchoolPipelinePanel({
                     ))
                   )}
                 </div>
+                )}
               </div>
             );
           })}
