@@ -331,10 +331,21 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
     }
   }
 
-  function startTourEdit(row) {
+  // `section` says which of the always-visible columns triggered this --
+  // "primary" or "secondary" opens just that tour's edit form, null (typing
+  // straight into the Feedback column) opens neither. Founder feedback
+  // (Sept 2026): "i clicked edit on the primary tour column, and secondary
+  // tour also opened up" -- both used to share one `draft` object with no
+  // way to tell which column asked for it, so every column checked the
+  // same truthy `draft` and all three edit UIs appeared at once. The two
+  // tour date/status/time fields still live in one shared draft (Save
+  // still writes both together, same as before), only which form is drawn
+  // is now scoped to the column that was actually clicked.
+  function startTourEdit(row, section) {
     setTourDraftById((d) => ({
       ...d,
       [row.id]: {
+        editSection: section || null,
         tour_date: row.tour_date || "",
         tour_start_time: row.tour_start_time || "",
         tour_end_time: row.tour_end_time || "",
@@ -481,7 +492,6 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
             // is enough to surface the decision, since some schools only
             // ever run their "real" tour as the secondary/assessment visit.
             const anyToured = row.tour_status === "completed" || row.tour2_status === "completed";
-            const stillNeeded = children.filter((c) => !applicationsForSchool.some((a) => a.child_id === c.id)).length;
 
             return (
               <div key={row.id} className={"svt-row-wrap" + (declined ? " is-declined" : "")}>
@@ -553,7 +563,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                       same shared draft (tourDraftById), so Save writes
                       both tours (and feedback) together, same as before. */}
                   <div className="svt-cell svt-cell-tour" onClick={(e) => e.stopPropagation()}>
-                    {draft ? (
+                    {draft && draft.editSection === "primary" ? (
                       <div className="svt-col-tour-edit">
                         <label className="svt-col-field">
                           <span>Date</span>
@@ -620,7 +630,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         {row.tour_status && (
                           <span className={"svt-tour-status-badge is-" + row.tour_status}>{TOUR_STATUS_LABEL[row.tour_status]}</span>
                         )}
-                        <button type="button" className="panel-btn panel-btn-quiet svt-col-edit-btn" onClick={() => startTourEdit(row)}>
+                        <button type="button" className="panel-btn panel-btn-quiet svt-col-edit-btn" onClick={() => startTourEdit(row, "primary")}>
                           {row.tour_date ? "Edit" : "Book"}
                         </button>
                       </>
@@ -631,7 +641,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                       primary tour column above, just editing the tour2_*
                       fields. */}
                   <div className="svt-cell svt-cell-tour" onClick={(e) => e.stopPropagation()}>
-                    {draft ? (
+                    {draft && draft.editSection === "secondary" ? (
                       <div className="svt-col-tour-edit">
                         <label className="svt-col-field">
                           <span>Date</span>
@@ -698,7 +708,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         {row.tour2_status && (
                           <span className={"svt-tour-status-badge is-" + row.tour2_status}>{TOUR_STATUS_LABEL[row.tour2_status]}</span>
                         )}
-                        <button type="button" className="panel-btn panel-btn-quiet svt-col-edit-btn" onClick={() => startTourEdit(row)}>
+                        <button type="button" className="panel-btn panel-btn-quiet svt-col-edit-btn" onClick={() => startTourEdit(row, "secondary")}>
                           {row.tour2_date ? "Edit" : "Add"}
                         </button>
                       </>
@@ -719,7 +729,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         if (draft) {
                           setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], feedback_text: e.target.value } }));
                         } else {
-                          startTourEdit(row);
+                          startTourEdit(row, null);
                           setTourDraftById((d) => ({
                             ...d,
                             [row.id]: { ...d[row.id], tour_date: row.tour_date || "", feedback_text: e.target.value },
@@ -737,73 +747,91 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                     </div>
                   </div>
 
-                  {/* Proceed column -- same handleReadyToApply/
-                      handleDeclineFamily/handleUndoDecision logic that
-                      used to live at the bottom of the "On the day" panel,
-                      gated on either tour now being completed rather than
-                      just the primary one. */}
+                  {/* Proceed column -- founder feedback (Sept 2026):
+                      "we can just do with a green tick or cross option" --
+                      replaced the two text buttons with a tick/cross pair;
+                      same handleReadyToApply/handleDeclineFamily/
+                      handleUndoDecision logic underneath, gated on either
+                      tour now being completed rather than just the
+                      primary one. */}
                   <div className="svt-cell svt-cell-proceed" onClick={(e) => e.stopPropagation()}>
                     {!anyToured ? (
                       <span className="svt-muted">Awaiting tour</span>
                     ) : declined ? (
                       <div className="svt-proceed-declined">
+                        <span className="svt-decision-icon is-no" title="Not proceeding">
+                          ✕
+                        </span>
                         <span className="svt-family-declined-text">
-                          Not proceeding{row.family_decision_note ? `: "${row.family_decision_note}"` : ""}
+                          {row.family_decision_note ? `"${row.family_decision_note}"` : "Not proceeding"}
                         </span>
                         <button type="button" className="panel-btn panel-btn-quiet svt-col-btn" onClick={() => handleUndoDecision(row)} disabled={busy}>
                           Undo
                         </button>
                       </div>
-                    ) : (
+                    ) : row.family_decision === "proceeding" ? (
                       <div className="svt-proceed-actions">
+                        <span className="svt-decision-icon is-yes" title="Proceeding">
+                          ✓
+                        </span>
                         <button
                           type="button"
-                          className="panel-btn panel-btn-primary svt-col-btn"
+                          className="panel-btn panel-btn-quiet svt-col-edit-btn"
                           onClick={() => handleReadyToApply(row)}
                           disabled={busy}
                         >
-                          {stillNeeded > 0 ? "Proceed to application" : "View application →"}
+                          View application →
                         </button>
-                        {stillNeeded > 0 &&
-                          (decliningId === row.id ? (
-                            <div className="svt-decline-form">
-                              <input
-                                type="text"
-                                className="panel-input svt-decline-input"
-                                placeholder="Reason (optional)"
-                                value={declineNote}
-                                onChange={(e) => setDeclineNote(e.target.value)}
-                              />
-                              <div className="svt-col-actions">
-                                <button type="button" className="panel-btn panel-btn-quiet svt-col-btn" onClick={() => handleDeclineFamily(row)} disabled={busy}>
-                                  Confirm
-                                </button>
-                                <button
-                                  type="button"
-                                  className="panel-btn panel-btn-quiet svt-col-btn"
-                                  onClick={() => {
-                                    setDecliningId(null);
-                                    setDeclineNote("");
-                                  }}
-                                  disabled={busy}
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              className="panel-btn panel-btn-quiet svt-col-edit-btn"
-                              onClick={() => {
-                                setDecliningId(row.id);
-                                setDeclineNote("");
-                              }}
-                              disabled={busy}
-                            >
-                              Not proceeding
-                            </button>
-                          ))}
+                      </div>
+                    ) : decliningId === row.id ? (
+                      <div className="svt-decline-form">
+                        <input
+                          type="text"
+                          className="panel-input svt-decline-input"
+                          placeholder="Reason (optional)"
+                          value={declineNote}
+                          onChange={(e) => setDeclineNote(e.target.value)}
+                        />
+                        <div className="svt-col-actions">
+                          <button type="button" className="panel-btn panel-btn-quiet svt-col-btn" onClick={() => handleDeclineFamily(row)} disabled={busy}>
+                            Confirm
+                          </button>
+                          <button
+                            type="button"
+                            className="panel-btn panel-btn-quiet svt-col-btn"
+                            onClick={() => {
+                              setDecliningId(null);
+                              setDeclineNote("");
+                            }}
+                            disabled={busy}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="svt-decision-toggle">
+                        <button
+                          type="button"
+                          className="svt-decision-btn is-yes"
+                          onClick={() => handleReadyToApply(row)}
+                          disabled={busy}
+                          title="Proceed to application"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          type="button"
+                          className="svt-decision-btn is-no"
+                          onClick={() => {
+                            setDecliningId(row.id);
+                            setDeclineNote("");
+                          }}
+                          disabled={busy}
+                          title="Not proceeding"
+                        >
+                          ✕
+                        </button>
                       </div>
                     )}
                   </div>
