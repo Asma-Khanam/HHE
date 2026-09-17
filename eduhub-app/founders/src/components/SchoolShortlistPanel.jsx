@@ -811,6 +811,12 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                       </div>
                     ) : (
                       <div className="svt-decision-toggle">
+                        {/* Founder feedback (Sept 2026, Heather via
+                            WhatsApp): "I cant see how to proceed from
+                            visit to application" -- the tick/cross were
+                            icon-only, with just a hover title for context,
+                            so the actual click target wasn't obvious at a
+                            glance. Same buttons, now labelled. */}
                         <button
                           type="button"
                           className="svt-decision-btn is-yes"
@@ -818,7 +824,8 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                           disabled={busy}
                           title="Proceed to application"
                         >
-                          ✓
+                          <span className="svt-decision-icon-inline">✓</span>
+                          <span className="svt-decision-btn-label">Proceed</span>
                         </button>
                         <button
                           type="button"
@@ -830,7 +837,8 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                           disabled={busy}
                           title="Not proceeding"
                         >
-                          ✕
+                          <span className="svt-decision-icon-inline">✕</span>
+                          <span className="svt-decision-btn-label">Decline</span>
                         </button>
                       </div>
                     )}

@@ -360,24 +360,42 @@
 
 .svt-decision-toggle {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
 }
 
+/* Founder feedback (Sept 2026, Heather via WhatsApp): "I cant see how to
+   proceed from visit to application" -- these used to be bare ✓/✕ circles
+   (a hover title was the only explanation), which read as decorative
+   rather than clickable. Same buttons, now full-width with a visible
+   "Proceed"/"Decline" label so the action is legible without hovering. */
 .svt-decision-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: 6px;
   border: 1.5px solid var(--border, #ddd);
   background: #fff;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 5px;
   color: var(--text-muted, #888);
   transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.svt-decision-icon-inline {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.svt-decision-btn-label {
+  font-size: 11px;
 }
 
 .svt-decision-btn:disabled {
@@ -385,16 +403,28 @@
   cursor: default;
 }
 
-.svt-decision-btn.is-yes:hover:not(:disabled) {
+.svt-decision-btn.is-yes {
   background: var(--hh-good-bg, #e6f4ea);
   border-color: var(--hh-good, #1e7a3c);
   color: var(--hh-good, #1e7a3c);
 }
 
-.svt-decision-btn.is-no:hover:not(:disabled) {
+.svt-decision-btn.is-no {
   background: #f6e9ec;
   border-color: var(--hh-error, #a3273f);
   color: var(--hh-error, #a3273f);
+}
+
+.svt-decision-btn.is-yes:hover:not(:disabled) {
+  background: var(--hh-good, #1e7a3c);
+  border-color: var(--hh-good, #1e7a3c);
+  color: #fff;
+}
+
+.svt-decision-btn.is-no:hover:not(:disabled) {
+  background: var(--hh-error, #a3273f);
+  border-color: var(--hh-error, #a3273f);
+  color: #fff;
 }
 
 .svt-decision-icon {
