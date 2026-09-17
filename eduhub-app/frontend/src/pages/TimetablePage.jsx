@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApplicationData } from "../context/ApplicationDataContext";
-import { fetchFamilyTimetable } from "../lib/timetableData";
+import { fetchFamilyTimetable, fetchFamilyApplications } from "../lib/timetableData";
 import { displayNameForChild } from "../lib/completeness";
-import { IconSchool } from "../components/icons";
+import { childPhaseFor, FIT_LABEL } from "../lib/schoolJourney";
+import { IconSchool, IconChevronRight } from "../components/icons";
 import "./TimetablePage.css";
 
 const TOUR_STATUS_LABEL = {
@@ -20,16 +21,33 @@ const AVAILABILITY_LABEL = {
   no: "No — full",
 };
 
+const APPLICATION_STATUS_LABEL_FULL = {
+  draft: "Application started",
+  submitted: "Submitted",
+  documents_pending: "Documents pending",
+  reference_requested: "Reference requested",
+  under_review: "Under review",
+  offer: "Offer",
+  rejected: "Rejected",
+  withdrawn: "Withdrawn",
+};
+
+const APPLICATION_PROGRESS_STEPS = 4;
+const APPLICATION_PROGRESS = {
+  draft: 0,
+  submitted: 1,
+  documents_pending: 1,
+  reference_requested: 2,
+  under_review: 3,
+  offer: 4,
+  rejected: 4,
+  withdrawn: 0,
+};
+
 function formatDate(dateStr) {
   if (!dateStr) return "";
-  // tour_date is a plain date (no time zone) — parse it as one so it never
-  // shifts a day depending on where the family happens to be reading this.
   const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
 }
 
 function formatTime(t) {
@@ -59,242 +77,336 @@ function Stars({ rating }) {
   );
 }
 
-// The family's own school visits, all in one place: the tours booked for
-// them, on-the-day details, and where each school on their shortlist stands
-// — the read-only mirror of the founders' School shortlist panel.
+// September 2026 redesign (Asma via WhatsApp, working from a design canvas
+// mockup first): "Your schools" -- one table, one row per school, one
+// column per child, showing what phase of the process each child is at --
+// instead of the old two-list "Upcoming tours" / "Your shortlist" page.
 //
-// September 2026 redesign (Asma via WhatsApp: "see everything we build on
-// the founders end of school and applications and see everything that
-// needs to be reflected here... neat, organised, easy, seamless and
-// aesthetic") -- this page had fallen behind the founders panel it mirrors
-// (Primary/Secondary tour slots, the Primary choice/Backup ranking, a
-// declined-school note, the fees link) and was styled in plain greys
-// instead of the app's own burgundy/cream/gold look used everywhere else.
-// Both are fixed here: every field the founders side can set now shows up
-// here read-only, and the whole page reuses the same card/chip language as
-// the rest of the app instead of its own one-off grey version.
+// This is the first time the family side reads from `applications` at all
+// (previously only the founders side did) -- an application's status, fit
+// and outcome are all set PER CHILD, so a school can be "Offer" for one
+// sibling and "Not applying yet" for another, which a single family-wide
+// list could never show. Tapping a row expands it for the full detail
+// (tour date/time, on-the-day logistics, our notes from the visit,
+// application progress) without cluttering the table itself.
 export default function TimetablePage() {
   const { familyId, data } = useApplicationData();
   const [rows, setRows] = useState([]);
   const [childStatus, setChildStatus] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
+  const [expandedId, setExpandedId] = useState(null);
 
   const children = data?.children || [];
+  const childIds = useMemo(() => children.map((c) => c.id), [children]);
 
   useEffect(() => {
     if (!familyId) return;
     let cancelled = false;
     (async () => {
       try {
-        const { shortlist, childStatus: cs } = await fetchFamilyTimetable(familyId);
+        const [{ shortlist, childStatus: cs }, apps] = await Promise.all([
+          fetchFamilyTimetable(familyId),
+          fetchFamilyApplications(childIds),
+        ]);
         if (cancelled) return;
         setRows(shortlist);
         setChildStatus(cs);
+        setApplications(apps);
         setStatus("ready");
       } catch (err) {
         if (cancelled) return;
-        setError(err.message || "Couldn't load your school timetable.");
+        setError(err.message || "Couldn't load your schools.");
         setStatus("error");
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [familyId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [familyId, childIds.join(",")]);
 
-  const childNameById = useMemo(() => new Map(children.map((c, i) => [c.id, displayNameForChild(c, i)])), [children]);
-
-  // One card per school with a booked tour, holding one or two occurrences
-  // (Primary tour / Secondary tour, addendum 58) rather than a flat list of
-  // occurrences -- a school with both keeps its on-the-day details (gate,
-  // parking, etc, which aren't duplicated per-slot) in one place instead of
-  // repeating them under each date.
-  const tourGroups = useMemo(() => {
-    const groups = rows
-      .map((row) => {
-        const occurrences = [];
-        const hasBoth = !!(row.tour_date && row.tour2_date);
-        if (row.tour_date && row.tour_status !== "cancelled") {
-          occurrences.push({
-            key: `${row.id}-1`,
-            label: hasBoth ? "Primary tour" : null,
-            date: row.tour_date,
-            time: timeRange(row.tour_start_time, row.tour_end_time),
-            status: row.tour_status,
-          });
-        }
-        if (row.tour2_date && row.tour2_status !== "cancelled") {
-          occurrences.push({
-            key: `${row.id}-2`,
-            label: "Secondary tour",
-            date: row.tour2_date,
-            time: timeRange(row.tour2_start_time, row.tour2_end_time),
-            status: row.tour2_status,
-          });
-        }
-        occurrences.sort((a, b) => (a.date + (a.time || "") < b.date + (b.time || "") ? -1 : 1));
-        return { row, occurrences, earliest: occurrences[0]?.date || "" };
-      })
-      .filter((g) => g.occurrences.length > 0);
-    groups.sort((a, b) => (a.earliest < b.earliest ? -1 : a.earliest > b.earliest ? 1 : 0));
-    return groups;
-  }, [rows]);
+  const childList = useMemo(
+    () => children.map((c, i) => ({ id: c.id, name: displayNameForChild(c, i) })),
+    [children]
+  );
 
   // Same ranking as the founders' School shortlist panel: the family's
   // primary choice floats to the top, a declined school sinks to the
   // bottom, everything else keeps its existing order in between.
-  const sortedShortlist = useMemo(() => {
+  const sortedRows = useMemo(() => {
     const rank = (row) => {
       if (row.family_decision === "declined") return 3;
       if (row.priority === "primary") return 0;
       if (row.priority === "secondary") return 1;
       return 2;
     };
-    return rows.map((row, index) => ({ row, index })).sort((a, b) => rank(a.row) - rank(b.row));
+    return [...rows].sort((a, b) => rank(a) - rank(b));
   }, [rows]);
 
-  if (status === "loading") return <p className="dashboard-status">Loading your timetable...</p>;
+  // Only genuinely future, not-yet-happened occurrences -- this is the
+  // actual fix for "why does it say upcoming when it's completed": a
+  // completed tour can never land here, because completeness is checked
+  // per occurrence, not assumed from the section it used to always sit in.
+  const comingUp = useMemo(() => {
+    const items = [];
+    rows.forEach((row) => {
+      const hasBoth = !!(row.tour_date && row.tour2_date);
+      if (row.tour_date && row.tour_status && row.tour_status !== "completed" && row.tour_status !== "cancelled") {
+        items.push({
+          key: `${row.id}-1`,
+          when: `${formatDate(row.tour_date)}${timeRange(row.tour_start_time, row.tour_end_time) ? ", " + timeRange(row.tour_start_time, row.tour_end_time) : ""}`,
+          date: row.tour_date,
+          school: row.school?.name || "School",
+          note: (hasBoth ? "Primary tour — " : "") + TOUR_STATUS_LABEL[row.tour_status],
+        });
+      }
+      if (row.tour2_date && row.tour2_status && row.tour2_status !== "completed" && row.tour2_status !== "cancelled") {
+        items.push({
+          key: `${row.id}-2`,
+          when: `${formatDate(row.tour2_date)}${timeRange(row.tour2_start_time, row.tour2_end_time) ? ", " + timeRange(row.tour2_start_time, row.tour2_end_time) : ""}`,
+          date: row.tour2_date,
+          school: row.school?.name || "School",
+          note: "Secondary tour — " + TOUR_STATUS_LABEL[row.tour2_status],
+        });
+      }
+    });
+    items.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    return items;
+  }, [rows]);
+
+  if (status === "loading") return <p className="dashboard-status">Loading your schools...</p>;
   if (status === "error") return <p className="dashboard-status">{error}</p>;
 
   return (
     <div className="tt">
       <header className="tt-head">
-        <h1>Your school visits</h1>
-        <p className="tt-head-sub">Tours we've booked for you, and where things stand with each school on your shortlist.</p>
+        <h1>Your schools</h1>
+        <p className="tt-head-sub">One row per school, one column per child — tap a school for the full detail on tours and applications.</p>
       </header>
 
-      <section className="tt-card">
-        <div className="tt-card-head">
-          <h2>Upcoming tours</h2>
+      {comingUp.length > 0 && (
+        <div className="tt-comingup">
+          <span className="tt-comingup-label">Coming up</span>
+          {comingUp.map((item) => (
+            <div key={item.key} className="tt-comingup-row">
+              <span className="tt-comingup-when">{item.when}</span>
+              <span className="tt-comingup-school">{item.school}</span>
+              <span className="tt-comingup-note">{item.note}</span>
+            </div>
+          ))}
         </div>
-        {tourGroups.length === 0 ? (
-          <p className="tt-empty">Nothing booked yet — this will fill in as soon as a tour is arranged.</p>
-        ) : (
-          <ul className="tt-tour-list">
-            {tourGroups.map(({ row, occurrences }) => (
-              <li key={row.id} className="tt-tour-card">
-                <div className="tt-tour-card-head">
-                  <span className="tt-tour-school-icon">
-                    <IconSchool size={16} />
-                  </span>
-                  <div className="tt-tour-card-head-text">
-                    <span className="tt-tour-school-name">{row.school?.name || "School"}</span>
-                    {row.school?.area && <span className="tt-tour-school-area">{row.school.area}</span>}
-                  </div>
-                </div>
+      )}
 
-                <div className="tt-tour-occurrences">
-                  {occurrences.map((occ) => (
-                    <div key={occ.key} className="tt-tour-occurrence">
-                      <div className="tt-tour-when">
-                        {occ.label && <span className="tt-tour-occurrence-label">{occ.label}</span>}
-                        <span className="tt-tour-date">{formatDate(occ.date)}</span>
-                        {occ.time && <span className="tt-tour-time">{occ.time}</span>}
-                      </div>
-                      {occ.status && <span className={"tt-chip is-" + occ.status}>{TOUR_STATUS_LABEL[occ.status]}</span>}
-                    </div>
-                  ))}
-                </div>
-
-                {(row.tour_gate || row.tour_building || row.tour_parking || row.tour_ask_for || row.tour_bring) && (
-                  <dl className="tt-tour-details">
-                    {row.tour_gate && (
-                      <>
-                        <dt>Gate</dt>
-                        <dd>{row.tour_gate}</dd>
-                      </>
-                    )}
-                    {row.tour_building && (
-                      <>
-                        <dt>Building</dt>
-                        <dd>{row.tour_building}</dd>
-                      </>
-                    )}
-                    {row.tour_parking && (
-                      <>
-                        <dt>Parking</dt>
-                        <dd>{row.tour_parking}</dd>
-                      </>
-                    )}
-                    {row.tour_ask_for && (
-                      <>
-                        <dt>Ask for</dt>
-                        <dd>{row.tour_ask_for}</dd>
-                      </>
-                    )}
-                    {row.tour_bring && (
-                      <>
-                        <dt>Bring</dt>
-                        <dd>{row.tour_bring}</dd>
-                      </>
-                    )}
-                  </dl>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="tt-card">
-        <div className="tt-card-head">
-          <h2>Your shortlist</h2>
-        </div>
+      <div className="tt-table">
         {rows.length === 0 ? (
           <p className="tt-empty">No schools on your shortlist yet.</p>
         ) : (
-          <ol className="tt-shortlist-list">
-            {sortedShortlist.map(({ row, index }) => {
-              const rowChildStatuses = childStatus.filter((cs) => cs.shortlist_id === row.id);
+          <>
+            <div className="tt-table-head" style={{ gridTemplateColumns: `1.6fr repeat(${Math.max(childList.length, 1)}, 1fr)` }}>
+              <span>School</span>
+              {childList.map((c) => (
+                <span key={c.id}>{c.name}</span>
+              ))}
+            </div>
+
+            {sortedRows.map((row) => {
               const declined = row.family_decision === "declined";
+              const isExpanded = expandedId === row.id;
+              const occurrences = [];
+              const hasBoth = !!(row.tour_date && row.tour2_date);
+              if (row.tour_date && row.tour_status !== "cancelled") {
+                occurrences.push({
+                  key: `${row.id}-o1`,
+                  label: hasBoth ? "Primary tour" : null,
+                  date: row.tour_date,
+                  time: timeRange(row.tour_start_time, row.tour_end_time),
+                  status: row.tour_status,
+                });
+              }
+              if (row.tour2_date && row.tour2_status !== "cancelled") {
+                occurrences.push({
+                  key: `${row.id}-o2`,
+                  label: "Secondary tour",
+                  date: row.tour2_date,
+                  time: timeRange(row.tour2_start_time, row.tour2_end_time),
+                  status: row.tour2_status,
+                });
+              }
+
+              const applicationsForSchool = applications.filter((a) => a.school_id === row.school_id);
+
               return (
-                <li key={row.id} className={"tt-shortlist-row" + (declined ? " is-declined" : "")}>
-                  <span className="tt-shortlist-number">{index + 1}</span>
-                  <div className="tt-shortlist-main">
-                    <div className="tt-shortlist-name-row">
-                      <span className="tt-shortlist-name">{row.school?.name || "School"}</span>
-                      {row.priority === "primary" && <span className="tt-priority-badge is-primary">★ Primary choice</span>}
-                      {row.priority === "secondary" && <span className="tt-priority-badge is-secondary">Backup option</span>}
-                    </div>
-                    {row.school?.area && <div className="tt-shortlist-area">{row.school.area}</div>}
-                    {row.school?.fees_url && (
-                      <a className="tt-fees-link" href={row.school.fees_url} target="_blank" rel="noopener noreferrer">
-                        View fee schedule ↗
-                      </a>
-                    )}
-                    {declined && (
-                      <p className="tt-declined-note">
-                        Marked as not proceeding{row.family_decision_note ? `: "${row.family_decision_note}"` : "."}
-                      </p>
-                    )}
-                  </div>
-                  <div className="tt-shortlist-side">
-                    <span className={"tt-availability tt-availability-" + row.availability_status}>
-                      {AVAILABILITY_LABEL[row.availability_status] || row.availability_status}
+                <div key={row.id} className={"tt-row" + (declined ? " is-declined" : "")}>
+                  <button
+                    type="button"
+                    className="tt-row-toggle"
+                    style={{ gridTemplateColumns: `1.6fr repeat(${Math.max(childList.length, 1)}, 1fr)` }}
+                    onClick={() => setExpandedId(isExpanded ? null : row.id)}
+                    aria-expanded={isExpanded}
+                  >
+                    <span className="tt-row-school">
+                      <span className="tt-row-school-icon">
+                        <IconSchool size={14} />
+                      </span>
+                      <span className="tt-row-school-text">
+                        <span className="tt-row-school-name-line">
+                          <span className="tt-row-school-name">{row.school?.name || "School"}</span>
+                          {row.priority === "primary" && <span className="tt-priority-badge is-primary">★ Primary</span>}
+                          {row.priority === "secondary" && <span className="tt-priority-badge is-secondary">Backup</span>}
+                        </span>
+                        {row.school?.area && <span className="tt-row-school-area">{row.school.area}</span>}
+                      </span>
                     </span>
-                    {rowChildStatuses.length > 0 && (
-                      <div className="tt-child-chips">
-                        {rowChildStatuses.map((cs) => (
-                          <span key={cs.id} className="tt-child-chip">
-                            {childNameById.get(cs.child_id) || "Child"}: {AVAILABILITY_LABEL[cs.availability_status] || cs.availability_status}
+
+                    {childList.map((c) => {
+                      const appsForChild = applicationsForSchool.filter((a) => a.child_id === c.id);
+                      const { phase, tone, sub } = childPhaseFor(row, appsForChild);
+                      return (
+                        <span key={c.id} className="tt-row-child-cell">
+                          <span className={"tt-phase-pill is-" + tone}>{phase}</span>
+                          {sub && <span className="tt-phase-sub">{sub}</span>}
+                        </span>
+                      );
+                    })}
+
+                    <span className={"tt-row-chevron" + (isExpanded ? " is-open" : "")}>
+                      <IconChevronRight size={16} />
+                    </span>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="tt-row-detail">
+                      {declined && (
+                        <p className="tt-declined-note">
+                          Marked as not proceeding{row.family_decision_note ? `: "${row.family_decision_note}"` : "."}
+                        </p>
+                      )}
+
+                      {row.school?.fees_url && (
+                        <a className="tt-fees-link" href={row.school.fees_url} target="_blank" rel="noopener noreferrer">
+                          View fee schedule ↗
+                        </a>
+                      )}
+
+                      <div className="tt-detail-section">
+                        <span className="tt-detail-label">Availability</span>
+                        <div className="tt-detail-body">
+                          <span className={"tt-availability tt-availability-" + row.availability_status}>
+                            {AVAILABILITY_LABEL[row.availability_status] || row.availability_status}
                           </span>
-                        ))}
+                          {childStatus
+                            .filter((cs) => cs.shortlist_id === row.id)
+                            .map((cs) => (
+                              <span key={cs.id} className="tt-child-chip">
+                                {childList.find((c) => c.id === cs.child_id)?.name || "Child"}:{" "}
+                                {AVAILABILITY_LABEL[cs.availability_status] || cs.availability_status}
+                              </span>
+                            ))}
+                        </div>
                       </div>
-                    )}
-                    {row.feedback_text || row.feedback_rating ? (
-                      <div className="tt-feedback">
-                        <Stars rating={row.feedback_rating} />
-                        {row.feedback_text && <p className="tt-feedback-text">{row.feedback_text}</p>}
-                      </div>
-                    ) : null}
-                  </div>
-                </li>
+
+                      {occurrences.length > 0 && (
+                        <div className="tt-detail-section">
+                          <span className="tt-detail-label">Tour</span>
+                          <div className="tt-detail-body tt-detail-body-stack">
+                            {occurrences.map((occ) => (
+                              <div key={occ.key} className="tt-occurrence">
+                                <div className="tt-occurrence-when">
+                                  {occ.label && <span className="tt-occurrence-label">{occ.label}</span>}
+                                  <span className="tt-occurrence-date">{formatDate(occ.date)}</span>
+                                  {occ.time && <span className="tt-occurrence-time">{occ.time}</span>}
+                                </div>
+                                <span className={"tt-chip is-" + occ.status}>{TOUR_STATUS_LABEL[occ.status]}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {(row.tour_gate || row.tour_building || row.tour_parking || row.tour_ask_for || row.tour_bring) && (
+                            <dl className="tt-tour-details">
+                              {row.tour_gate && (
+                                <>
+                                  <dt>Gate</dt>
+                                  <dd>{row.tour_gate}</dd>
+                                </>
+                              )}
+                              {row.tour_building && (
+                                <>
+                                  <dt>Building</dt>
+                                  <dd>{row.tour_building}</dd>
+                                </>
+                              )}
+                              {row.tour_parking && (
+                                <>
+                                  <dt>Parking</dt>
+                                  <dd>{row.tour_parking}</dd>
+                                </>
+                              )}
+                              {row.tour_ask_for && (
+                                <>
+                                  <dt>Ask for</dt>
+                                  <dd>{row.tour_ask_for}</dd>
+                                </>
+                              )}
+                              {row.tour_bring && (
+                                <>
+                                  <dt>Bring</dt>
+                                  <dd>{row.tour_bring}</dd>
+                                </>
+                              )}
+                            </dl>
+                          )}
+
+                          {(row.feedback_text || row.feedback_rating) && (
+                            <div className="tt-visit-note">
+                              <div className="tt-visit-note-head">
+                                <span>Our notes from the visit</span>
+                                <Stars rating={row.feedback_rating} />
+                              </div>
+                              {row.feedback_text && <p>{row.feedback_text}</p>}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {applicationsForSchool.length > 0 && (
+                        <div className="tt-detail-section">
+                          <span className="tt-detail-label">Application</span>
+                          <div className="tt-detail-body tt-detail-body-stack">
+                            {applicationsForSchool.map((app) => {
+                              const childName = childList.find((c) => c.id === app.child_id)?.name || "Child";
+                              const filled = APPLICATION_PROGRESS[app.status] ?? 0;
+                              const tone = app.status === "offer" ? "good" : app.status === "rejected" ? "bad" : "neutral";
+                              return (
+                                <div key={app.id} className="tt-application-card">
+                                  <div className="tt-application-head">
+                                    <span className="tt-application-child">{childName}</span>
+                                    {app.fit && <span className="tt-application-fit">{FIT_LABEL[app.fit]}</span>}
+                                    <span className={"tt-application-status is-" + tone}>{APPLICATION_STATUS_LABEL_FULL[app.status]}</span>
+                                  </div>
+                                  <div className="tt-application-progress">
+                                    {Array.from({ length: APPLICATION_PROGRESS_STEPS }, (_, i) => (
+                                      <span key={i} className={"tt-progress-seg" + (i < filled ? " is-filled is-" + tone : "")} />
+                                    ))}
+                                  </div>
+                                  {app.status === "rejected" && app.rejected_reason && (
+                                    <p className="tt-rejection-reason">Reason: {app.rejected_reason}</p>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               );
             })}
-          </ol>
+          </>
         )}
-      </section>
+      </div>
     </div>
   );
 }

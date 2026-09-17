@@ -14,7 +14,9 @@ import "./AppShell.css";
 const NAV_ITEMS = [
   { to: "/app/dashboard", label: "Dashboard", Icon: IconGrid },
   { to: "/app/form", label: "Application", Icon: IconClipboard },
-  { to: "/app/timetable", label: "School visits", Icon: IconSchool },
+  // September 2026 redesign: this page grew from just tours into the full
+  // per-school journey (tours + applications), so the nav label follows.
+  { to: "/app/timetable", label: "Your schools", Icon: IconSchool },
 ];
 
 // The whole logged-in app lives inside this shell: content on the right,

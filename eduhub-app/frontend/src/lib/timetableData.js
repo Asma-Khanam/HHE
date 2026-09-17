@@ -32,3 +32,21 @@ export async function fetchFamilyTimetable(familyId) {
 
   return { shortlist: data || [], childStatus: childStatusRows || [] };
 }
+
+// September 2026 redesign: "Your schools" merges the founders' School
+// visits AND Applications tabs into one family-facing view, per school —
+// so this reads straight off `applications` the same way the tours above
+// read off `school_shortlist`. The applications_owner_all policy (base
+// schema) already lets a family read/write their own children's rows; this
+// only ever reads. childIds scopes the query to the family's own children
+// (applications has no family_id column of its own, only child_id).
+export async function fetchFamilyApplications(childIds) {
+  if (!childIds || childIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("applications")
+    .select("id, child_id, school_id, status, fit, visit_date, rejected_reason, submitted_at")
+    .in("child_id", childIds);
+
+  if (error) throw error;
+  return data || [];
+}
