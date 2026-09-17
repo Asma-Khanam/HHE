@@ -34,7 +34,7 @@ function Progress({ status }) {
 // Where each child has actually applied. This is the first thing in the app
 // to use the `applications` and `schools` tables, which have existed since
 // the original schema and sat empty until now.
-export default function ApplicationsPanel({ familyId, familyChildren, applicationsByChild, schoolCatalog }) {
+export default function ApplicationsPanel({ familyId, familyChildren, applicationsByChild, schoolCatalog, highlightSchoolId }) {
   const [apps, setApps] = useState(applicationsByChild || {});
   const [schools, setSchools] = useState(schoolCatalog || []);
   // Read-only lookup of this family's own tour history, keyed by school --
@@ -62,6 +62,23 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
       cancelled = true;
     };
   }, [familyId]);
+
+  // School record's "Shortlisted families" list links straight here
+  // (?tab=applications&school=<id>) so a founder pressing through from a
+  // school's own page lands on that specific application, not just
+  // somewhere on the Applications tab generally (Sept 2026 founder
+  // feedback: "can this take me directly to where they are with the
+  // application with that school?").
+  const [highlightActive, setHighlightActive] = useState(!!highlightSchoolId);
+  useEffect(() => {
+    if (!highlightSchoolId) return;
+    const el = document.getElementById(`app-row-school-${highlightSchoolId}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightActive(true);
+    const timer = setTimeout(() => setHighlightActive(false), 2500);
+    return () => clearTimeout(timer);
+  }, [highlightSchoolId, apps]);
+
   const [addingFor, setAddingFor] = useState(null); // child id
   // Reason capture for a rejection -- opens right after staff pick
   // "Rejected" on an application that doesn't have one recorded yet, so
@@ -198,7 +215,11 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
             ) : (
               <ul className="panel-list">
                 {childApps.map((application) => (
-                  <li key={application.id} className="app-row">
+                  <li
+                    key={application.id}
+                    id={`app-row-school-${application.school_id}`}
+                    className={"app-row" + (highlightActive && String(highlightSchoolId) === String(application.school_id) ? " app-row-highlight" : "")}
+                  >
                     <span className="app-row-avatar">{schoolInitials(application.schoolName)}</span>
                     <span className="app-row-text">
                       <span className="app-row-school">{application.schoolName}</span>

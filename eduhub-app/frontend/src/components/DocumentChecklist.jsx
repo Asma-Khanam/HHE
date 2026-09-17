@@ -1,4 +1,5 @@
 import DocumentUploadRow from "./DocumentUploadRow";
+import OtherDocumentsBlock from "./OtherDocumentsBlock";
 import { uploadDocument } from "../lib/documents";
 import { PROFILE_PHOTO_TYPE } from "../data/documentTypes";
 import "./DocumentChecklist.css";
@@ -17,6 +18,7 @@ export default function DocumentChecklist({
   missingDocKeys,
   fieldKeyPrefix,
   personLabel,
+  showOther,
 }) {
   if (!ownerId) {
     return (
@@ -95,6 +97,17 @@ export default function DocumentChecklist({
           personLabel={personLabel}
         />
       ))}
+      {showOther && (
+        <OtherDocumentsBlock
+          userId={userId}
+          ownerType={ownerType}
+          ownerId={ownerId}
+          documents={documents}
+          onDocumentsChange={onDocumentsChange}
+          knownKeys={docTypes.map((t) => t.key)}
+          personLabel={personLabel}
+        />
+      )}
     </div>
   );
 }

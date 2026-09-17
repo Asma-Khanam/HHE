@@ -312,6 +312,15 @@
   gap: 10px;
 }
 
+.svt-tour-slot-label {
+  margin: 4px 0 -2px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #777);
+}
+
 .svt-tour-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -545,6 +554,10 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.svt-onday-secondary {
+  margin-top: -2px;
 }
 
 .svt-onday-datetime {

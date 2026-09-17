@@ -154,3 +154,22 @@ export async function downloadDocument(doc, cleanName) {
   a.remove();
   URL.revokeObjectURL(objectUrl);
 }
+
+// Founder feedback (Sept 2026): "an 'other' option with their own label" —
+// for documents that don't map to any fixed checklist slot. document_type
+// doubles as the free-text label here (same pattern the founders app uses
+// for its own generic document uploads), so a family's typed label has to
+// be made path-safe first, same underscore-slug approach used everywhere
+// else document_type ends up in a storage path.
+export function slugifyLabel(label) {
+  const slug = (label || "").trim().replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "");
+  return slug || "document";
+}
+
+// The inverse, for display — not a perfect round-trip (original spacing/
+// casing/punctuation isn't preserved), but close enough to read back what
+// was typed, same tradeoff cleanFileName already makes.
+export function labelFromSlug(slug) {
+  return (slug || "Document").replace(/_/g, " ");
+}
+

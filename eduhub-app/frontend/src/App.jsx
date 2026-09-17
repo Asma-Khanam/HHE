@@ -11,20 +11,23 @@ import RequireAuth from "./components/RequireAuth";
 import AppShell from "./components/AppShell";
 import { ApplicationDataProvider, useApplicationData } from "./context/ApplicationDataContext";
 
-// Where /app lands you, which depends on how far along you are.
+// Where /app lands you.
 //
-// A family part-way through their application wants the form — that's the
-// work in front of them. A family who has already submitted wants the
-// Dashboard, since there's nothing left to fill in and what they actually
-// come back for is "where are we up to" (founder request, 2026-09-02).
-//
-// While the family's data is still loading there's no honest answer yet, so
-// this waits rather than guessing and bouncing them a moment later.
+// Reversed September 2026 (founder feedback: "make the default screen the
+// parent overview, not the application screen"). This used to send a
+// family who hadn't submitted yet straight to the form instead — but
+// "haven't submitted" describes almost every family for almost their whole
+// time using this app (there's no rush to submit now that nothing's
+// blocked by it), so in practice this was the form being the default
+// screen for nearly everyone, nearly always. The Dashboard is the more
+// useful landing spot regardless of submission status: it shows what's
+// outstanding AND links straight to the form for anything still missing,
+// so nothing about reaching the form gets harder, it just isn't the first
+// thing every visit.
 function AppLanding() {
-  const { status, data } = useApplicationData();
+  const { status } = useApplicationData();
   if (status === "loading") return <p className="dashboard-status">Loading...</p>;
-  const submitted = data?.family?.intake_status === "submitted";
-  return <Navigate to={submitted ? "/app/dashboard" : "/app/form"} replace />;
+  return <Navigate to="/app/dashboard" replace />;
 }
 
 function App() {

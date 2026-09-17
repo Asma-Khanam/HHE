@@ -153,6 +153,7 @@ export default function SchoolDetailPage() {
       default_tour_ask_for: school.default_tour_ask_for || "",
       default_tour_bring: school.default_tour_bring || "",
       website_url: school.website_url || "",
+      fees_url: school.fees_url || "",
       admissions_contact_name: school.admissions_contact_name || "",
       admissions_contact_email: school.admissions_contact_email || "",
       admissions_contact_phone: school.admissions_contact_phone || "",
@@ -219,7 +220,18 @@ export default function SchoolDetailPage() {
     }
   }
 
+  // Founder feedback (Sept 2026): "if I remove a school from a shortlist -
+  // where does it go? It seems to disappear" -- it disappears because this
+  // is a real, permanent delete with no undo, and there was no confirmation
+  // step before it ran. Meant for "added by mistake", not for a family
+  // dropping a school they've genuinely considered -- that case should use
+  // Decline instead, which keeps the row visible (greyed out, sorted last)
+  // rather than erasing it.
   async function handleRemoveShortlistEntry(entry) {
+    const familyName = entry.familyName || "this family";
+    if (!window.confirm(`Remove ${familyName} from this school's shortlist? This can't be undone -- if they're just no longer pursuing it, use Decline instead so there's still a record.`)) {
+      return;
+    }
     try {
       await removeFromShortlist(entry.id);
       setDetail((d) => ({ ...d, shortlist: d.shortlist.filter((s) => s.id !== entry.id) }));
@@ -439,6 +451,16 @@ export default function SchoolDetailPage() {
               )}
             </div>
             <div className="rec-field">
+              <span className="rec-field-label">Fees</span>
+              {school.fees_url ? (
+                <a className="rec-field-value" href={school.fees_url} target="_blank" rel="noreferrer">
+                  {school.fees_url}
+                </a>
+              ) : (
+                <span className="rec-field-value is-empty">—</span>
+              )}
+            </div>
+            <div className="rec-field">
               <span className="rec-field-label">Start an application</span>
               {school.application_url ? (
                 <a className="rec-field-value" href={school.application_url} target="_blank" rel="noreferrer">
@@ -632,6 +654,18 @@ export default function SchoolDetailPage() {
                 />
               </div>
               <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-fees-url">
+                  Fees link
+                </label>
+                <input
+                  id="sch-fees-url"
+                  className="panel-input"
+                  placeholder="Link to the school's fee schedule"
+                  value={draft.fees_url}
+                  onChange={(e) => setDraft((d) => ({ ...d, fees_url: e.target.value }))}
+                />
+              </div>
+              <div className="rec-field">
                 <label className="rec-field-label" htmlFor="sch-application-url">
                   Application link
                 </label>
@@ -804,7 +838,7 @@ export default function SchoolDetailPage() {
               return (
                 <li key={entry.id} className="schooldetail-shortlist-card">
                   <div className="schooldetail-shortlist-cardtop">
-                    <Link to={`/staff/families/${entry.family_id}`} className="schooldetail-shortlist-family">
+                    <Link to={`/staff/families/${entry.family_id}?tab=applications&school=${schoolId}`} className="schooldetail-shortlist-family">
                       {entry.familyName}
                     </Link>
                     <span className="schooldetail-shortlist-stage">{stageLabel}</span>
@@ -844,6 +878,9 @@ export default function SchoolDetailPage() {
                             entry.tour_status ? ` · ${TOUR_STATUS_LABEL[entry.tour_status]}` : ""
                           }`
                         : "No tour scheduled yet"}
+                      {entry.tour2_date && (
+                        <> · Secondary: {formatDateTime(entry.tour2_date, entry.tour2_start_time)}{entry.tour2_status ? ` · ${TOUR_STATUS_LABEL[entry.tour2_status]}` : ""}</>
+                      )}
                     </span>
                     <select
                       className="panel-select"

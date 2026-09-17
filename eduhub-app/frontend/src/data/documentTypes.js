@@ -104,6 +104,31 @@ export const CHILD_DOCUMENT_TYPES = [
     conditional: true,
     hint: "Once issued.",
   },
+  // Founder feedback (Sept 2026): "let parents add extra documents per
+  // student — GCSE results, CAT4, certificates". All optional (expected:
+  // false) since these don't apply to every child or every school, and
+  // multiple since a family may have more than one of each.
+  {
+    key: "gcse_results",
+    label: "GCSE results",
+    expected: false,
+    multiple: true,
+    hint: "Optional — add these if the school you're applying to asks for them.",
+  },
+  {
+    key: "cat4_results",
+    label: "CAT4 results",
+    expected: false,
+    multiple: true,
+    hint: "Optional.",
+  },
+  {
+    key: "certificates",
+    label: "Certificates",
+    expected: false,
+    multiple: true,
+    hint: "Optional — awards, achievements, or anything else worth including.",
+  },
 ];
 
 export const PARENT_DOCUMENT_TYPES = [

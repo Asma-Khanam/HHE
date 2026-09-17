@@ -1237,17 +1237,31 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
         preferredLivingArea,
         costGuidance,
       });
-      // Critical: write the database-assigned ids back into state, MERGED
-      // onto the existing local objects rather than replacing them — saved
-      // rows only carry real database columns (see applicationData.js), so
-      // a plain replace would silently wipe out the preview-only fields
-      // (gender, preferred name, year group, etc) the family just typed.
-      // Merging keeps both: the real id (so a second save updates instead
-      // of duplicating) and the not-yet-saved fields (so they don't vanish
-      // out from under whoever's filling the form in).
-      setChildren((prev) => saved.children.map((sc, idx) => ({ ...prev[idx], ...sc })));
-      setCurrentSchools((prev) => saved.currentSchools.map((ss, idx) => ({ ...prev[idx], ...ss })));
-      if (saved.parents) setParents((prev) => saved.parents.map((sp, idx) => ({ ...prev[idx], ...sp })));
+      // Bug fix (September 2026, take 4): "I pick an option from a
+      // dropdown and it doesn't take — sometimes I have to select it a
+      // second time." The cause was this merge, done backwards. It only
+      // ever needs to pull ONE thing from the server response: the
+      // database-assigned id (so a second save updates that row instead of
+      // inserting a duplicate). Everything else the family can edit was
+      // being pulled from `sc` too — the row exactly as it was AT THE
+      // MOMENT THIS SAVE WAS SENT. Autosave fires ~1.5s after typing stops
+      // and the request itself takes a moment longer, so picking a second
+      // dropdown value (or even re-picking the same field) while an earlier
+      // save is still in flight was common, not rare. When that in-flight
+      // save's response landed, `...sc` (spread last) overwrote the newer
+      // local value with the stale one it had just sent, silently reverting
+      // the family's latest change back to what it was before — and since
+      // lastSavedSnapshotRef was already set to that same stale snapshot,
+      // autosave saw nothing further to save until the family noticed and
+      // re-selected it.
+      //
+      // The fix: keep every current local field exactly as it is (it's
+      // always at least as fresh as what the server just echoed back), and
+      // take only `id` — the one thing that's genuinely server-only and
+      // can't already be known locally for a brand-new row.
+      setChildren((prev) => saved.children.map((sc, idx) => ({ ...prev[idx], id: sc.id })));
+      setCurrentSchools((prev) => saved.currentSchools.map((ss, idx) => ({ ...prev[idx], id: ss.id, child_id: ss.child_id })));
+      if (saved.parents) setParents((prev) => saved.parents.map((sp, idx) => ({ ...prev[idx], id: sp.id })));
       lastSavedSnapshotRef.current = preSaveSnapshot;
       registerCustomCurricula(saved.currentSchools);
       return saved;
@@ -2310,6 +2324,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                           onDocumentsChange={(docs) => setDocsFor("child", child.id, docs)}
                           fieldKeyPrefix={`child-doc-${i}`}
                           personLabel={displayName}
+                          showOther
                         />
                       </div>
                       <YesNoSelect

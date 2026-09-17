@@ -612,6 +612,16 @@ export default function FamilyDetailPage() {
             </span>
             <span>owner {ownerName}</span>
             <span>on file since {formatDate(family.created_at)}</span>
+            {/* Sept 2026: Submit's only real job used to be picking the
+                family's default landing page, which is now always the
+                Dashboard -- this is what makes submitting still mean
+                something, a visible "this family says they're done for
+                now" signal for staff rather than an invisible flag. */}
+            <span className={"family-detail-intake-badge" + (family.intake_status === "submitted" ? " is-submitted" : "")}>
+              {family.intake_status === "submitted"
+                ? `Submitted${family.intake_submitted_at ? " " + formatDate(family.intake_submitted_at) : ""}`
+                : "Still filling in"}
+            </span>
             {wantsCostGuidanceFollowup(family) && (
               <span className="family-detail-card-flag is-warn">Wants cost guidance — follow up</span>
             )}
@@ -903,6 +913,7 @@ export default function FamilyDetailPage() {
             familyChildren={children}
             applicationsByChild={applicationsByChild}
             schoolCatalog={schoolCatalog}
+            highlightSchoolId={searchParams.get("school") || null}
           />
 
           <ApplicationEmailPanel

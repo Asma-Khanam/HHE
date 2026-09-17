@@ -333,7 +333,18 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
     }
   }
 
+  // Founder feedback (Sept 2026): "if I remove a school from a shortlist -
+  // where does it go? It seems to disappear" -- it disappears because this
+  // is a real, permanent delete with no undo, and there was no confirmation
+  // step to warn anyone before it ran. This is meant for "added by
+  // mistake", not for a family dropping a school they've actually
+  // considered -- that case should use Decline instead, which keeps the
+  // school visible (greyed out, sorted last) rather than erasing it.
   async function handleRemove(row) {
+    const schoolName = row.school?.name || "this school";
+    if (!window.confirm(`Remove ${schoolName} from this shortlist? This can't be undone -- if the family is just no longer pursuing it, use Decline instead so there's still a record.`)) {
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -354,6 +365,14 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
         tour_start_time: row.tour_start_time || "",
         tour_end_time: row.tour_end_time || "",
         tour_status: row.tour_status || "offered",
+        // Addendum 58 -- an independent second slot ("Secondary tour"),
+        // for a school that does an initial visit and a separate
+        // follow-up/assessment visit. Left blank unless a second tour is
+        // actually booked -- most schools only ever use the first slot.
+        tour2_date: row.tour2_date || "",
+        tour2_start_time: row.tour2_start_time || "",
+        tour2_end_time: row.tour2_end_time || "",
+        tour2_status: row.tour2_status || "offered",
         feedback_text: row.feedback_text || "",
       },
     }));
@@ -378,6 +397,10 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
         tour_start_time: draft.tour_start_time || null,
         tour_end_time: draft.tour_end_time || null,
         tour_status: draft.tour_date ? draft.tour_status : null,
+        tour2_date: draft.tour2_date || null,
+        tour2_start_time: draft.tour2_start_time || null,
+        tour2_end_time: draft.tour2_end_time || null,
+        tour2_status: draft.tour2_date ? draft.tour2_status : null,
         feedback_text: draft.feedback_text || null,
         feedback_by: draft.feedback_text ? "staff" : null,
       };
@@ -674,6 +697,20 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                                     <p className="svt-muted">No on-the-day details on the school's record yet.</p>
                                   );
                                 })()}
+                                {row.tour2_date && (
+                                  <div className="svt-onday-top svt-onday-secondary">
+                                    <span className="svt-onday-fact-label">Secondary tour</span>
+                                    <span className="svt-onday-datetime">
+                                      {formatDateTime(row.tour2_date, row.tour2_start_time)}
+                                      {row.tour2_end_time ? `–${row.tour2_end_time}` : ""}
+                                    </span>
+                                    {row.tour2_status && (
+                                      <span className={"svt-tour-status-badge is-" + row.tour2_status}>
+                                        {TOUR_STATUS_LABEL[row.tour2_status]}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                               </>
                             ) : (
                               <p className="svt-muted">No tour booked yet.</p>
@@ -698,6 +735,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                               saveTour(row);
                             }}
                           >
+                            <p className="svt-tour-slot-label">Primary tour</p>
                             <div className="svt-tour-grid">
                               <label>
                                 Date
@@ -738,6 +776,51 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                                   className="panel-input"
                                   value={draft.tour_end_time}
                                   onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_end_time: e.target.value } }))}
+                                />
+                              </label>
+                            </div>
+
+                            <p className="svt-tour-slot-label">Secondary tour</p>
+                            <div className="svt-tour-grid">
+                              <label>
+                                Date
+                                <input
+                                  type="date"
+                                  className="panel-input"
+                                  value={draft.tour2_date}
+                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_date: e.target.value } }))}
+                                />
+                              </label>
+                              <label>
+                                Status
+                                <select
+                                  className="panel-select"
+                                  value={draft.tour2_status}
+                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_status: e.target.value } }))}
+                                >
+                                  {TOUR_STATUS_OPTIONS.map((s) => (
+                                    <option key={s} value={s}>
+                                      {TOUR_STATUS_LABEL[s]}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label>
+                                Start time
+                                <input
+                                  type="time"
+                                  className="panel-input"
+                                  value={draft.tour2_start_time}
+                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_start_time: e.target.value } }))}
+                                />
+                              </label>
+                              <label>
+                                End time
+                                <input
+                                  type="time"
+                                  className="panel-input"
+                                  value={draft.tour2_end_time}
+                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_end_time: e.target.value } }))}
                                 />
                               </label>
                               <div className="svt-tour-wide svt-tour-defaults">

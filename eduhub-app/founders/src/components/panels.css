@@ -311,6 +311,16 @@
   gap: 12px;
   padding: 9px 0;
   flex-wrap: wrap;
+  border-radius: 8px;
+  transition: background-color 1.5s ease-out 1s;
+}
+
+/* Landing here from a school record's "Shortlisted families" link --
+   fades out on its own so it reads as "you're here" without needing a
+   dismiss action. */
+.app-row-highlight {
+  background-color: var(--hh-gold, #f4e9d8);
+  transition: none;
 }
 
 .app-row-avatar {
