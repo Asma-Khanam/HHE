@@ -1,42 +1,60 @@
-/* Every other page in this app gives its content real page padding
-   (Dashboard's .dash, Application's PageHeader + .application-form-body) --
-   this page never had any, so it sat flush against the nav and the top
-   edge. Matching Dashboard's scaling convention rather than a fixed
-   value so it still looks right at narrower widths. */
+/* September 2026 redesign (Asma via WhatsApp: "neat, organised, easy,
+   seamless and aesthetic") -- this page used to be its own one-off grey
+   theme (#fff/#eee/#777 etc), out of step with every other page in the
+   app. It now uses the same --hh-* tokens, card language and chip styling
+   as the founders' School shortlist panel it mirrors, and Application
+   Form's document cards, so the whole product reads as one system. */
 .tt {
   padding: clamp(16px, 2.2vw, 32px) clamp(16px, 2.6vw, 40px) 60px;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 820px;
+  max-width: 860px;
 }
 
 .tt-head h1 {
   margin: 0 0 4px;
-  font-size: 22px;
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  font-size: 1.5rem;
 }
 
 .tt-head-sub {
   margin: 0;
-  color: var(--text-muted, #777);
-  font-size: 14px;
+  color: var(--hh-ink);
+  opacity: 0.65;
+  font-size: 0.92rem;
 }
 
 .tt-card {
-  background: #fff;
-  border: 1px solid var(--border, #eee);
-  border-radius: 12px;
-  padding: 18px 20px;
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 24px 26px;
+  transition: box-shadow var(--hh-transition);
+}
+
+.tt-card:hover {
+  box-shadow: var(--hh-shadow-hover);
+}
+
+.tt-card-head {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.1);
 }
 
 .tt-card-head h2 {
-  margin: 0 0 12px;
-  font-size: 16px;
+  margin: 0;
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  font-size: 1.15rem;
 }
 
 .tt-empty {
-  color: var(--text-muted, #888);
-  font-size: 14px;
+  color: var(--hh-ink);
+  opacity: 0.55;
+  font-size: 0.9rem;
   margin: 0;
 }
 
@@ -47,184 +65,318 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
-.tt-tour-row {
+/* --- Upcoming tours ------------------------------------------------- */
+
+.tt-tour-card {
+  background: var(--hh-cream);
+  border: 1px solid rgba(83, 1, 38, 0.08);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+.tt-tour-card-head {
   display: flex;
-  gap: 16px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border, #f0f0f0);
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-.tt-tour-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+.tt-tour-school-icon {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+}
+
+.tt-tour-card-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.tt-tour-school-name {
+  font-family: var(--hh-font-heading);
+  font-weight: 600;
+  color: var(--hh-ink);
+  font-size: 1rem;
+}
+
+.tt-tour-school-area {
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}
+
+.tt-tour-occurrences {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tt-tour-occurrence {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--hh-white);
+  border-radius: 8px;
+  padding: 10px 12px;
 }
 
 .tt-tour-when {
-  min-width: 92px;
-  flex: 0 0 92px;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.tt-tour-occurrence-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--hh-gold);
+  flex: 0 0 100%;
 }
 
 .tt-tour-date {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 0.92rem;
+  color: var(--hh-ink);
 }
 
 .tt-tour-time {
-  font-size: 12px;
-  color: var(--text-muted, #888);
-  margin-top: 2px;
-}
-
-.tt-tour-main {
-  flex: 1;
-}
-
-.tt-tour-school {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
 }
 
 .tt-chip {
-  font-size: 11px;
-  padding: 2px 9px;
+  font-size: 0.72rem;
+  padding: 3px 10px;
   border-radius: 999px;
-  background: #f2f2f2;
-  color: #666;
-  font-weight: 500;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-ink);
+  opacity: 0.75;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .tt-chip.is-offered {
-  background: #eef2fb;
-  color: #35508c;
+  background: rgba(184, 154, 90, 0.16);
+  color: #8a6d2f;
+  opacity: 1;
 }
 
 .tt-chip.is-confirmed {
-  background: #e6f4ea;
-  color: #1e7a34;
+  background: rgba(83, 1, 38, 0.1);
+  color: var(--hh-burgundy);
+  opacity: 1;
 }
 
 .tt-chip.is-completed {
-  background: #f2f2f2;
-  color: #555;
+  background: var(--hh-good-bg);
+  color: var(--hh-good);
+  opacity: 1;
 }
 
 .tt-tour-details {
-  margin: 8px 0 0;
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(83, 1, 38, 0.14);
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 3px 10px;
-  font-size: 12px;
+  gap: 4px 12px;
+  font-size: 0.8rem;
 }
 
 .tt-tour-details dt {
-  color: var(--text-muted, #888);
+  color: var(--hh-ink);
+  opacity: 0.55;
 }
 
 .tt-tour-details dd {
   margin: 0;
-  color: #444;
+  color: var(--hh-ink);
 }
+
+/* --- Your shortlist --------------------------------------------------- */
 
 .tt-shortlist-row {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border, #f0f0f0);
+  gap: 14px;
+  background: var(--hh-cream);
+  border: 1px solid rgba(83, 1, 38, 0.08);
+  border-radius: 10px;
+  padding: 16px 18px;
+  transition: opacity var(--hh-transition);
 }
 
-.tt-shortlist-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+.tt-shortlist-row.is-declined {
+  opacity: 0.6;
 }
 
 .tt-shortlist-number {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+  font-family: var(--hh-font-heading);
   font-weight: 600;
-  color: var(--text-muted, #999);
+  font-size: 0.8rem;
 }
 
 .tt-shortlist-main {
-  min-width: 160px;
+  min-width: 180px;
+  flex: 1 1 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tt-shortlist-name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .tt-shortlist-name {
+  font-family: var(--hh-font-heading);
   font-weight: 600;
+  color: var(--hh-ink);
+  font-size: 0.98rem;
+}
+
+.tt-priority-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.tt-priority-badge.is-primary {
+  background: rgba(184, 154, 90, 0.2);
+  color: #8a6d2f;
+}
+
+.tt-priority-badge.is-secondary {
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
 }
 
 .tt-shortlist-area {
-  font-size: 12px;
-  color: var(--text-muted, #777);
-  margin-top: 2px;
+  font-size: 0.8rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}
+
+.tt-fees-link {
+  font-size: 0.8rem;
+  color: var(--hh-burgundy);
+  text-decoration: underline;
+  width: fit-content;
+}
+
+.tt-declined-note {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--hh-ink);
+  opacity: 0.7;
+  font-style: italic;
 }
 
 .tt-shortlist-side {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 14px;
+  gap: 10px;
   flex: 1 1 220px;
   max-width: 320px;
 }
 
 .tt-availability {
-  font-size: 11px;
-  padding: 3px 9px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 10px;
   border-radius: 999px;
   white-space: nowrap;
-  background: #f2f2f2;
-  color: #666;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-ink);
+  opacity: 0.8;
 }
 
 .tt-availability-yes {
-  background: #e6f4ea;
-  color: #1e7a34;
+  background: var(--hh-good-bg);
+  color: var(--hh-good);
+  opacity: 1;
 }
 
 .tt-availability-no {
-  background: #fbe9e7;
-  color: #a33a2e;
+  background: rgba(179, 38, 30, 0.1);
+  color: var(--hh-error);
+  opacity: 1;
 }
 
 .tt-availability-waitlist,
 .tt-availability-some_year_groups {
-  background: #fdf1dc;
-  color: #92640b;
+  background: rgba(184, 154, 90, 0.18);
+  color: #8a6d2f;
+  opacity: 1;
 }
 
 .tt-child-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   justify-content: flex-end;
 }
 
 .tt-child-chip {
-  font-size: 11px;
-  padding: 2px 8px;
+  font-size: 0.72rem;
+  padding: 3px 9px;
   border-radius: 999px;
-  background: #f2f2f2;
-  color: #555;
+  background: var(--hh-white);
+  color: var(--hh-ink);
+  opacity: 0.75;
+  border: 1px solid rgba(83, 1, 38, 0.1);
 }
 
 .tt-feedback {
   text-align: right;
-  margin-top: 4px;
-  padding-top: 4px;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(83, 1, 38, 0.14);
+  width: 100%;
 }
 
 .tt-feedback-text {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: #555;
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.75;
   max-width: 280px;
   line-height: 1.5;
+  margin-left: auto;
 }
 
 .tt-stars {
@@ -233,10 +385,30 @@
 }
 
 .tt-star {
-  font-size: 13px;
-  color: #d8d8d8;
+  font-size: 0.85rem;
+  color: var(--hh-track);
 }
 
 .tt-star.is-filled {
-  color: #d9a441;
+  color: var(--hh-gold);
+}
+
+@media (max-width: 640px) {
+  .tt-card {
+    padding: 18px;
+  }
+
+  .tt-shortlist-side {
+    align-items: flex-start;
+    max-width: none;
+  }
+
+  .tt-child-chips,
+  .tt-feedback {
+    justify-content: flex-start;
+  }
+
+  .tt-feedback-text {
+    margin-left: 0;
+  }
 }
