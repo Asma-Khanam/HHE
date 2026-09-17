@@ -72,32 +72,6 @@ function relativeToNow(iso, futureLabel) {
   return `${ago} day${ago === 1 ? "" : "s"} ago`;
 }
 
-// "Where it is up to" — one line summarising the furthest stage this school
-// has reached for this family, and how long ago (or how soon) that was.
-// Applications are looked up from the family's own applicationsByChild data
-// (already loaded on FamilyDetailPage) rather than a second fetch.
-function stageInfo(row, applicationsForSchool) {
-  const offer = applicationsForSchool.find((a) => a.status === "offer");
-  if (offer) return { label: "Offer received", when: relativeToNow(offer.offer_at || offer.submitted_at) };
-
-  const applied = applicationsForSchool.filter((a) => a.status !== "draft" && a.status !== "withdrawn");
-  if (applied.length > 0) {
-    const earliest = applied.reduce((min, a) => (a.submitted_at && (!min || a.submitted_at < min) ? a.submitted_at : min), null);
-    return { label: "Applied", when: relativeToNow(earliest) };
-  }
-
-  if (row.tour_status === "completed") {
-    return row.feedback_text
-      ? { label: "Toured, feedback in", when: relativeToNow(row.feedback_at || row.tour_completed_at) }
-      : { label: "Toured, feedback pending", when: relativeToNow(row.tour_completed_at) };
-  }
-  if (row.tour_status === "cancelled") return { label: "Tour cancelled", when: relativeToNow(row.tour_cancelled_at) };
-  if (row.tour_date) return { label: "Tour booked", when: relativeToNow(row.tour_date) };
-
-  if (row.availability_status !== "awaiting") return { label: "Awaiting tour date", when: relativeToNow(row.availability_replied_at) };
-  return { label: "Awaiting reply", when: relativeToNow(row.shortlisted_at) };
-}
-
 function admissionsProcessText(school) {
   return (
     [
@@ -485,8 +459,10 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
             {children.map((c, i) => (
               <span key={c.id}>{displayNameForChild(c, i)}{c.year_group_applying_for ? ` · ${c.year_group_applying_for}` : ""}</span>
             ))}
-            <span>Tour</span>
-            <span>Where it is up to</span>
+            <span>Primary tour</span>
+            <span>Secondary tour</span>
+            <span>Feedback</span>
+            <span>Proceed?</span>
             <span />
           </div>
 
@@ -494,12 +470,18 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
             const expanded = expandedId === row.id;
             const rowChildStatuses = childStatus.filter((cs) => cs.shortlist_id === row.id);
             const applicationsForSchool = allApplications.filter((a) => a.school_id === row.school_id);
-            const stage = stageInfo(row, applicationsForSchool);
             const draft = tourDraftById[row.id];
             const feedbackRows = otherFeedback[row.school_id] || [];
             const process = admissionsProcessText(row.school || {});
-
             const declined = row.family_decision === "declined";
+            // Founder feedback (Sept 2026): "seperate columsn for primary
+            // tour and secondary tour... and then last column can just be
+            // proceed to application or not proceed" -- Proceed used to be
+            // gated on the primary tour alone; now either slot completing
+            // is enough to surface the decision, since some schools only
+            // ever run their "real" tour as the secondary/assessment visit.
+            const anyToured = row.tour_status === "completed" || row.tour2_status === "completed";
+            const stillNeeded = children.filter((c) => !applicationsForSchool.some((a) => a.child_id === c.id)).length;
 
             return (
               <div key={row.id} className={"svt-row-wrap" + (declined ? " is-declined" : "")}>
@@ -561,20 +543,271 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                       </div>
                     );
                   })}
-                  <div className="svt-cell">
-                    {row.tour_date ? (
-                      <span className="svt-tour-chip">
-                        <span className="svt-dot is-ok" />
-                        {formatDateTime(row.tour_date, row.tour_start_time)}
-                      </span>
+
+                  {/* Primary tour column. Founder feedback (Sept 2026):
+                      "seperate columsn for primary tour and secondary
+                      tour" -- both used to be edited together inside the
+                      expanded "On the day" panel; now each has its own
+                      always-visible column, editable in place without
+                      opening the row at all. Editing either slot opens the
+                      same shared draft (tourDraftById), so Save writes
+                      both tours (and feedback) together, same as before. */}
+                  <div className="svt-cell svt-cell-tour" onClick={(e) => e.stopPropagation()}>
+                    {draft ? (
+                      <div className="svt-col-tour-edit">
+                        <label className="svt-col-field">
+                          <span>Date</span>
+                          <input
+                            type="date"
+                            className="panel-input"
+                            value={draft.tour_date}
+                            onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_date: e.target.value } }))}
+                          />
+                        </label>
+                        <label className="svt-col-field">
+                          <span>Status</span>
+                          <select
+                            className="panel-select"
+                            value={draft.tour_status}
+                            onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_status: e.target.value } }))}
+                          >
+                            {TOUR_STATUS_OPTIONS.map((s) => (
+                              <option key={s} value={s}>
+                                {TOUR_STATUS_LABEL[s]}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <div className="svt-col-field-row">
+                          <label className="svt-col-field">
+                            <span>Start</span>
+                            <input
+                              type="time"
+                              className="panel-input"
+                              value={draft.tour_start_time}
+                              onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_start_time: e.target.value } }))}
+                            />
+                          </label>
+                          <label className="svt-col-field">
+                            <span>End</span>
+                            <input
+                              type="time"
+                              className="panel-input"
+                              value={draft.tour_end_time}
+                              onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_end_time: e.target.value } }))}
+                            />
+                          </label>
+                        </div>
+                        <div className="svt-col-actions">
+                          <button type="button" className="panel-btn panel-btn-primary svt-col-btn" onClick={() => saveTour(row)} disabled={busy}>
+                            Save
+                          </button>
+                          <button type="button" className="panel-btn panel-btn-quiet svt-col-btn" onClick={() => cancelTourEdit(row.id)} disabled={busy}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
                     ) : (
-                      <span className="svt-muted">—</span>
+                      <>
+                        {row.tour_date ? (
+                          <span className="svt-tour-chip">
+                            <span className="svt-dot is-ok" />
+                            {formatDateTime(row.tour_date, row.tour_start_time)}
+                          </span>
+                        ) : (
+                          <span className="svt-muted">Not booked</span>
+                        )}
+                        {row.tour_status && (
+                          <span className={"svt-tour-status-badge is-" + row.tour_status}>{TOUR_STATUS_LABEL[row.tour_status]}</span>
+                        )}
+                        <button type="button" className="panel-btn panel-btn-quiet svt-col-edit-btn" onClick={() => startTourEdit(row)}>
+                          {row.tour_date ? "Edit" : "Book"}
+                        </button>
+                      </>
                     )}
                   </div>
-                  <div className="svt-cell">
-                    <div className="svt-stage-label">{stage.label}</div>
-                    {stage.when && <div className="svt-stage-when">{stage.when}</div>}
+
+                  {/* Secondary tour column -- same shared draft as the
+                      primary tour column above, just editing the tour2_*
+                      fields. */}
+                  <div className="svt-cell svt-cell-tour" onClick={(e) => e.stopPropagation()}>
+                    {draft ? (
+                      <div className="svt-col-tour-edit">
+                        <label className="svt-col-field">
+                          <span>Date</span>
+                          <input
+                            type="date"
+                            className="panel-input"
+                            value={draft.tour2_date}
+                            onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_date: e.target.value } }))}
+                          />
+                        </label>
+                        <label className="svt-col-field">
+                          <span>Status</span>
+                          <select
+                            className="panel-select"
+                            value={draft.tour2_status}
+                            onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_status: e.target.value } }))}
+                          >
+                            {TOUR_STATUS_OPTIONS.map((s) => (
+                              <option key={s} value={s}>
+                                {TOUR_STATUS_LABEL[s]}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <div className="svt-col-field-row">
+                          <label className="svt-col-field">
+                            <span>Start</span>
+                            <input
+                              type="time"
+                              className="panel-input"
+                              value={draft.tour2_start_time}
+                              onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_start_time: e.target.value } }))}
+                            />
+                          </label>
+                          <label className="svt-col-field">
+                            <span>End</span>
+                            <input
+                              type="time"
+                              className="panel-input"
+                              value={draft.tour2_end_time}
+                              onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_end_time: e.target.value } }))}
+                            />
+                          </label>
+                        </div>
+                        <div className="svt-col-actions">
+                          <button type="button" className="panel-btn panel-btn-primary svt-col-btn" onClick={() => saveTour(row)} disabled={busy}>
+                            Save
+                          </button>
+                          <button type="button" className="panel-btn panel-btn-quiet svt-col-btn" onClick={() => cancelTourEdit(row.id)} disabled={busy}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {row.tour2_date ? (
+                          <span className="svt-tour-chip">
+                            <span className="svt-dot is-ok" />
+                            {formatDateTime(row.tour2_date, row.tour2_start_time)}
+                          </span>
+                        ) : (
+                          <span className="svt-muted">Not booked</span>
+                        )}
+                        {row.tour2_status && (
+                          <span className={"svt-tour-status-badge is-" + row.tour2_status}>{TOUR_STATUS_LABEL[row.tour2_status]}</span>
+                        )}
+                        <button type="button" className="panel-btn panel-btn-quiet svt-col-edit-btn" onClick={() => startTourEdit(row)}>
+                          {row.tour2_date ? "Edit" : "Add"}
+                        </button>
+                      </>
+                    )}
                   </div>
+
+                  {/* Feedback column -- typing here creates the same
+                      shared draft as the tour columns (unchanged behaviour
+                      from the old "Feedback & notes" box), it just lives
+                      in the table now instead of the expanded panel. */}
+                  <div className="svt-cell svt-cell-feedback" onClick={(e) => e.stopPropagation()}>
+                    <textarea
+                      className="svt-col-feedback-input"
+                      rows={2}
+                      placeholder="How did it go?"
+                      value={draft ? draft.feedback_text : row.feedback_text || ""}
+                      onChange={(e) => {
+                        if (draft) {
+                          setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], feedback_text: e.target.value } }));
+                        } else {
+                          startTourEdit(row);
+                          setTourDraftById((d) => ({
+                            ...d,
+                            [row.id]: { ...d[row.id], tour_date: row.tour_date || "", feedback_text: e.target.value },
+                          }));
+                        }
+                      }}
+                    />
+                    <div className="svt-col-actions">
+                      {draft && (
+                        <button type="button" className="panel-btn panel-btn-primary svt-col-btn" onClick={() => saveTour(row)} disabled={busy}>
+                          Save
+                        </button>
+                      )}
+                      {savedNoteId === row.id && <span className="svt-saved-note">Saved</span>}
+                    </div>
+                  </div>
+
+                  {/* Proceed column -- same handleReadyToApply/
+                      handleDeclineFamily/handleUndoDecision logic that
+                      used to live at the bottom of the "On the day" panel,
+                      gated on either tour now being completed rather than
+                      just the primary one. */}
+                  <div className="svt-cell svt-cell-proceed" onClick={(e) => e.stopPropagation()}>
+                    {!anyToured ? (
+                      <span className="svt-muted">Awaiting tour</span>
+                    ) : declined ? (
+                      <div className="svt-proceed-declined">
+                        <span className="svt-family-declined-text">
+                          Not proceeding{row.family_decision_note ? `: "${row.family_decision_note}"` : ""}
+                        </span>
+                        <button type="button" className="panel-btn panel-btn-quiet svt-col-btn" onClick={() => handleUndoDecision(row)} disabled={busy}>
+                          Undo
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="svt-proceed-actions">
+                        <button
+                          type="button"
+                          className="panel-btn panel-btn-primary svt-col-btn"
+                          onClick={() => handleReadyToApply(row)}
+                          disabled={busy}
+                        >
+                          {stillNeeded > 0 ? "Proceed to application" : "View application →"}
+                        </button>
+                        {stillNeeded > 0 &&
+                          (decliningId === row.id ? (
+                            <div className="svt-decline-form">
+                              <input
+                                type="text"
+                                className="panel-input svt-decline-input"
+                                placeholder="Reason (optional)"
+                                value={declineNote}
+                                onChange={(e) => setDeclineNote(e.target.value)}
+                              />
+                              <div className="svt-col-actions">
+                                <button type="button" className="panel-btn panel-btn-quiet svt-col-btn" onClick={() => handleDeclineFamily(row)} disabled={busy}>
+                                  Confirm
+                                </button>
+                                <button
+                                  type="button"
+                                  className="panel-btn panel-btn-quiet svt-col-btn"
+                                  onClick={() => {
+                                    setDecliningId(null);
+                                    setDeclineNote("");
+                                  }}
+                                  disabled={busy}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="panel-btn panel-btn-quiet svt-col-edit-btn"
+                              onClick={() => {
+                                setDecliningId(row.id);
+                                setDeclineNote("");
+                              }}
+                              disabled={busy}
+                            >
+                              Not proceeding
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="svt-cell svt-cell-caret">
                     <span className={"svt-caret" + (expanded ? " is-open" : "")}>▾</span>
                   </div>
@@ -582,434 +815,98 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
 
                 {expanded && (
                   <div className="svt-detail">
-                    <div className="svt-detail-grid">
-                      <div className="svt-detail-col">
-                        <h3 className="svt-detail-heading">Admissions</h3>
-                        <dl className="svt-kv">
-                          {row.school?.admissions_contact_name && (
-                            <>
-                              <dt>Contact</dt>
-                              <dd>{row.school.admissions_contact_name}</dd>
-                            </>
-                          )}
-                          {row.school?.admissions_contact_email && (
-                            <>
-                              <dt>Email</dt>
-                              <dd>{row.school.admissions_contact_email}</dd>
-                            </>
-                          )}
-                          {row.school?.admissions_contact_phone && (
-                            <>
-                              <dt>Phone</dt>
-                              <dd>{row.school.admissions_contact_phone}</dd>
-                            </>
-                          )}
-                          {row.school?.address && (
-                            <>
-                              <dt>Address</dt>
-                              <dd>{row.school.address}</dd>
-                            </>
-                          )}
-                        </dl>
-
-                        <div className="svt-btn-row">
-                          {row.school?.website_url && (
-                            <a className="panel-btn" href={row.school.website_url} target="_blank" rel="noreferrer">
-                              Website
-                            </a>
-                          )}
-                          {row.school?.tour_booking_url && (
-                            <a className="panel-btn" href={row.school.tour_booking_url} target="_blank" rel="noreferrer">
-                              Book a tour
-                            </a>
-                          )}
-                          {row.school?.application_url && (
-                            <a className="panel-btn" href={row.school.application_url} target="_blank" rel="noreferrer">
-                              Apply
-                            </a>
-                          )}
-                          <Link className="panel-btn" to={`/staff/schools/${row.school_id}`}>
-                            Full school record
-                          </Link>
-                        </div>
-
-                        {process && (
+                    {/* Founder feedback (Sept 2026): "when they click on
+                        the dropdown, it should only show the details
+                        under admissions" -- the tour form, feedback box
+                        and proceed/decline controls that used to live in
+                        a second "On the day" column here have all moved
+                        up into the always-visible table columns above, so
+                        this is Admissions and only Admissions now. */}
+                    <div className="svt-detail-single">
+                      <h3 className="svt-detail-heading">Admissions</h3>
+                      <dl className="svt-kv">
+                        {row.school?.admissions_contact_name && (
                           <>
-                            <h4 className="svt-sub-heading">Admissions process</h4>
-                            <p className="svt-process-text">{process}</p>
+                            <dt>Contact</dt>
+                            <dd>{row.school.admissions_contact_name}</dd>
                           </>
                         )}
+                        {row.school?.admissions_contact_email && (
+                          <>
+                            <dt>Email</dt>
+                            <dd>{row.school.admissions_contact_email}</dd>
+                          </>
+                        )}
+                        {row.school?.admissions_contact_phone && (
+                          <>
+                            <dt>Phone</dt>
+                            <dd>{row.school.admissions_contact_phone}</dd>
+                          </>
+                        )}
+                        {row.school?.address && (
+                          <>
+                            <dt>Address</dt>
+                            <dd>{row.school.address}</dd>
+                          </>
+                        )}
+                      </dl>
 
-                        {/* Founder feedback (Sept 2026): "why do we have
-                            to select options from that dropdown, can we not
-                            do it in that column itself" -- the per-child
-                            column in the collapsed row is now itself a
-                            select (see chipClass/CHIP_LABEL above), so this
-                            second copy of the same control was pure
-                            duplication once that landed. Removed rather
-                            than kept as a backup path. */}
-
-                        <button
-                          type="button"
-                          className="panel-btn panel-btn-quiet svt-remove"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemove(row);
-                          }}
-                          disabled={busy}
-                        >
-                          Remove from shortlist
-                        </button>
+                      <div className="svt-btn-row">
+                        {row.school?.website_url && (
+                          <a className="panel-btn" href={row.school.website_url} target="_blank" rel="noreferrer">
+                            Website
+                          </a>
+                        )}
+                        {row.school?.tour_booking_url && (
+                          <a className="panel-btn" href={row.school.tour_booking_url} target="_blank" rel="noreferrer">
+                            Book a tour
+                          </a>
+                        )}
+                        {row.school?.application_url && (
+                          <a className="panel-btn" href={row.school.application_url} target="_blank" rel="noreferrer">
+                            Apply
+                          </a>
+                        )}
+                        <Link className="panel-btn" to={`/staff/schools/${row.school_id}`}>
+                          Full school record
+                        </Link>
                       </div>
 
-                      <div className="svt-detail-col">
-                        <h3 className="svt-detail-heading">On the day</h3>
-                        {!draft ? (
-                          <>
-                            {row.tour_date ? (
-                              <>
-                                <div className="svt-onday-top">
-                                  <span className="svt-onday-datetime">
-                                    {formatDateTime(row.tour_date, row.tour_start_time)}
-                                    {row.tour_end_time ? `–${row.tour_end_time}` : ""}
-                                  </span>
-                                  {row.tour_status && (
-                                    <span className={"svt-tour-status-badge is-" + row.tour_status}>
-                                      {TOUR_STATUS_LABEL[row.tour_status]}
-                                    </span>
-                                  )}
-                                </div>
-                                {(() => {
-                                  const facts = [
-                                    row.school?.default_tour_gate && ["Gate", row.school.default_tour_gate],
-                                    row.school?.default_tour_building && ["Building", row.school.default_tour_building],
-                                    row.school?.default_tour_parking && ["Parking", row.school.default_tour_parking],
-                                    row.school?.default_tour_ask_for && ["Ask for", row.school.default_tour_ask_for],
-                                    row.school?.default_tour_bring && ["Bring", row.school.default_tour_bring],
-                                  ].filter(Boolean);
-                                  return facts.length > 0 ? (
-                                    <div className="svt-onday-facts">
-                                      {facts.map(([label, value]) => (
-                                        <div className="svt-onday-fact" key={label}>
-                                          <span className="svt-onday-fact-label">{label}</span>
-                                          <span className="svt-onday-fact-value">{value}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <p className="svt-muted">No on-the-day details on the school's record yet.</p>
-                                  );
-                                })()}
-                                {row.tour2_date && (
-                                  <div className="svt-onday-top svt-onday-secondary">
-                                    <span className="svt-onday-fact-label">Secondary tour</span>
-                                    <span className="svt-onday-datetime">
-                                      {formatDateTime(row.tour2_date, row.tour2_start_time)}
-                                      {row.tour2_end_time ? `–${row.tour2_end_time}` : ""}
-                                    </span>
-                                    {row.tour2_status && (
-                                      <span className={"svt-tour-status-badge is-" + row.tour2_status}>
-                                        {TOUR_STATUS_LABEL[row.tour2_status]}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <p className="svt-muted">No tour booked yet.</p>
-                            )}
-                            <button
-                              type="button"
-                              className="panel-btn svt-onday-edit"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startTourEdit(row);
-                              }}
-                            >
-                              {row.tour_date ? "Edit tour" : "Book a tour"}
-                            </button>
-                          </>
-                        ) : (
-                          <form
-                            className="svt-tour-form"
-                            onClick={(e) => e.stopPropagation()}
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              saveTour(row);
-                            }}
-                          >
-                            <p className="svt-tour-slot-label">Primary tour</p>
-                            <div className="svt-tour-grid">
-                              <label>
-                                Date
-                                <input
-                                  type="date"
-                                  className="panel-input"
-                                  value={draft.tour_date}
-                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_date: e.target.value } }))}
-                                />
-                              </label>
-                              <label>
-                                Status
-                                <select
-                                  className="panel-select"
-                                  value={draft.tour_status}
-                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_status: e.target.value } }))}
-                                >
-                                  {TOUR_STATUS_OPTIONS.map((s) => (
-                                    <option key={s} value={s}>
-                                      {TOUR_STATUS_LABEL[s]}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label>
-                                Start time
-                                <input
-                                  type="time"
-                                  className="panel-input"
-                                  value={draft.tour_start_time}
-                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_start_time: e.target.value } }))}
-                                />
-                              </label>
-                              <label>
-                                End time
-                                <input
-                                  type="time"
-                                  className="panel-input"
-                                  value={draft.tour_end_time}
-                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_end_time: e.target.value } }))}
-                                />
-                              </label>
-                            </div>
+                      {process && (
+                        <>
+                          <h4 className="svt-sub-heading">Admissions process</h4>
+                          <p className="svt-process-text">{process}</p>
+                        </>
+                      )}
 
-                            <p className="svt-tour-slot-label">Secondary tour</p>
-                            <div className="svt-tour-grid">
-                              <label>
-                                Date
-                                <input
-                                  type="date"
-                                  className="panel-input"
-                                  value={draft.tour2_date}
-                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_date: e.target.value } }))}
-                                />
-                              </label>
-                              <label>
-                                Status
-                                <select
-                                  className="panel-select"
-                                  value={draft.tour2_status}
-                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_status: e.target.value } }))}
-                                >
-                                  {TOUR_STATUS_OPTIONS.map((s) => (
-                                    <option key={s} value={s}>
-                                      {TOUR_STATUS_LABEL[s]}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label>
-                                Start time
-                                <input
-                                  type="time"
-                                  className="panel-input"
-                                  value={draft.tour2_start_time}
-                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_start_time: e.target.value } }))}
-                                />
-                              </label>
-                              <label>
-                                End time
-                                <input
-                                  type="time"
-                                  className="panel-input"
-                                  value={draft.tour2_end_time}
-                                  onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_end_time: e.target.value } }))}
-                                />
-                              </label>
-                              <div className="svt-tour-wide svt-tour-defaults">
-                                <span className="svt-tour-defaults-label">
-                                  On-the-day details (set on the school record)
-                                </span>
-                                <p className="svt-tour-defaults-value">
-                                  {[
-                                    row.school?.default_tour_gate && `Gate: ${row.school.default_tour_gate}`,
-                                    row.school?.default_tour_building && `Building: ${row.school.default_tour_building}`,
-                                    row.school?.default_tour_parking && `Parking: ${row.school.default_tour_parking}`,
-                                    row.school?.default_tour_ask_for && `Ask for: ${row.school.default_tour_ask_for}`,
-                                    row.school?.default_tour_bring && `Bring: ${row.school.default_tour_bring}`,
-                                  ]
-                                    .filter(Boolean)
-                                    .join(", ") || "Not set yet, add these on the school's record."}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="svt-tour-actions">
-                              <button type="submit" className="panel-btn panel-btn-primary" disabled={busy}>
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                className="panel-btn panel-btn-quiet"
-                                onClick={() => cancelTourEdit(row.id)}
-                                disabled={busy}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </form>
-                        )}
+                      {feedbackRows.length > 0 && (
+                        <>
+                          <h4 className="svt-sub-heading">Other families on this school</h4>
+                          <div className="svt-other-feedback">
+                            {feedbackRows.slice(0, 3).map((f) => (
+                              <blockquote key={f.id} className="svt-other-feedback-item">
+                                <p>{f.feedback_text}</p>
+                                <cite>
+                                  {f.familyName}
+                                  {f.feedback_at ? `, ${formatDate(f.feedback_at)}` : ""}
+                                </cite>
+                              </blockquote>
+                            ))}
+                          </div>
+                        </>
+                      )}
 
-                        <h3 className="svt-detail-heading svt-feedback-heading">Feedback &amp; notes</h3>
-                        <textarea
-                          className="svt-feedback-input"
-                          rows={3}
-                          placeholder="How did the tour go? Anything worth noting for the family record."
-                          value={draft ? draft.feedback_text : row.feedback_text || ""}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => {
-                            if (draft) {
-                              setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], feedback_text: e.target.value } }));
-                            } else {
-                              startTourEdit(row);
-                              setTourDraftById((d) => ({
-                                ...d,
-                                [row.id]: { ...d[row.id], tour_date: row.tour_date || "", feedback_text: e.target.value },
-                              }));
-                            }
-                          }}
-                        />
-                        <div className="svt-feedback-actions">
-                          {draft && (
-                            <button
-                              type="button"
-                              className="panel-btn panel-btn-primary"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                saveTour(row);
-                              }}
-                              disabled={busy}
-                            >
-                              Save
-                            </button>
-                          )}
-                          {savedNoteId === row.id && <span className="svt-saved-note">Saved</span>}
-                        </div>
-
-                        {row.tour_status === "completed" && (() => {
-                          const stillNeeded = children.filter(
-                            (c) => !applicationsForSchool.some((a) => a.child_id === c.id)
-                          ).length;
-
-                          if (row.family_decision === "declined") {
-                            return (
-                              <div className="svt-ready-to-apply svt-family-declined">
-                                <p className="svt-family-declined-text">
-                                  Family decided not to proceed with this school
-                                  {row.family_decision_note ? `: "${row.family_decision_note}"` : "."}
-                                </p>
-                                <button
-                                  type="button"
-                                  className="panel-btn panel-btn-quiet"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleUndoDecision(row);
-                                  }}
-                                  disabled={busy}
-                                >
-                                  Undo
-                                </button>
-                              </div>
-                            );
-                          }
-
-                          return (
-                            <div className="svt-ready-to-apply">
-                              <button
-                                type="button"
-                                className="panel-btn panel-btn-primary"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleReadyToApply(row);
-                                }}
-                                disabled={busy}
-                              >
-                                {stillNeeded > 0 ? "Family wants to proceed → start application" : "View application →"}
-                              </button>
-                              {stillNeeded > 0 && (
-                                <>
-                                  <p className="svt-ready-to-apply-hint">
-                                    Creates a draft application at this school for{" "}
-                                    {stillNeeded > 1 ? "each child who doesn't have one yet" : "this child"}, and
-                                    takes you to Applications.
-                                  </p>
-                                  {decliningId === row.id ? (
-                                    <div className="svt-decline-form" onClick={(e) => e.stopPropagation()}>
-                                      <input
-                                        type="text"
-                                        className="panel-input svt-decline-input"
-                                        placeholder="Reason (optional)"
-                                        value={declineNote}
-                                        onChange={(e) => setDeclineNote(e.target.value)}
-                                      />
-                                      <div className="svt-tour-actions">
-                                        <button
-                                          type="button"
-                                          className="panel-btn panel-btn-quiet"
-                                          onClick={() => handleDeclineFamily(row)}
-                                          disabled={busy}
-                                        >
-                                          Confirm decline
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className="panel-btn panel-btn-quiet"
-                                          onClick={() => {
-                                            setDecliningId(null);
-                                            setDeclineNote("");
-                                          }}
-                                          disabled={busy}
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      className="panel-btn panel-btn-quiet svt-decline-trigger"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setDecliningId(row.id);
-                                        setDeclineNote("");
-                                      }}
-                                      disabled={busy}
-                                    >
-                                      Family isn't proceeding
-                                    </button>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          );
-                        })()}
-
-                        {feedbackRows.length > 0 && (
-                          <>
-                            <h4 className="svt-sub-heading">Other families on this school</h4>
-                            <div className="svt-other-feedback">
-                              {feedbackRows.slice(0, 3).map((f) => (
-                                <blockquote key={f.id} className="svt-other-feedback-item">
-                                  <p>{f.feedback_text}</p>
-                                  <cite>
-                                    {f.familyName}
-                                    {f.feedback_at ? `, ${formatDate(f.feedback_at)}` : ""}
-                                  </cite>
-                                </blockquote>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      <button
+                        type="button"
+                        className="panel-btn panel-btn-quiet svt-remove"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemove(row);
+                        }}
+                        disabled={busy}
+                      >
+                        Remove from shortlist
+                      </button>
                     </div>
                   </div>
                 )}
@@ -1062,5 +959,10 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
 }
 
 function svtColumns(childCount) {
-  return `minmax(150px,2fr) repeat(${childCount || 0}, minmax(80px,1fr)) minmax(120px,1fr) minmax(150px,1.3fr) 24px`;
+  // School | one column per child | Primary tour | Secondary tour |
+  // Feedback | Proceed? | caret -- widened from the old Tour/"Where
+  // it is up to" pair per founder feedback (Sept 2026) asking for the
+  // tour slots, feedback and proceed decision to each get their own
+  // always-visible column instead of being buried in the expanded row.
+  return `minmax(150px,2fr) repeat(${childCount || 0}, minmax(80px,1fr)) minmax(150px,1.3fr) minmax(150px,1.3fr) minmax(160px,1.4fr) minmax(150px,1.3fr) 24px`;
 }

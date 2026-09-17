@@ -1221,19 +1221,32 @@ export function todayInDubai() {
 // un-completes anything).
 export async function autoCompletePastTours(shortlist) {
   const today = todayInDubai();
-  const due = shortlist.filter(
-    (r) => r.tour_date && r.tour_date < today && (r.tour_status === "offered" || r.tour_status === "confirmed")
-  );
-  if (due.length === 0) return shortlist;
+  const nowIso = new Date().toISOString();
 
+  // Founder feedback (Sept 2026): "after the date has passed, the status
+  // should automatically go to completed" -- originally only checked the
+  // primary tour slot. Addendum 58's independent secondary tour slot needs
+  // the exact same auto-complete, on its own date/status pair, so a school
+  // with a primary tour done and a secondary tour still upcoming doesn't
+  // get flipped early (or a secondary tour done while the primary is still
+  // pending doesn't get skipped).
   const updates = await Promise.all(
-    due.map((r) =>
-      updateShortlistTour(r.id, { tour_status: "completed", tour_completed_at: new Date().toISOString() }).catch(
-        () => null
-      )
-    )
+    shortlist.map((r) => {
+      const patch = {};
+      if (r.tour_date && r.tour_date < today && (r.tour_status === "offered" || r.tour_status === "confirmed")) {
+        patch.tour_status = "completed";
+        patch.tour_completed_at = nowIso;
+      }
+      if (r.tour2_date && r.tour2_date < today && (r.tour2_status === "offered" || r.tour2_status === "confirmed")) {
+        patch.tour2_status = "completed";
+        patch.tour2_completed_at = nowIso;
+      }
+      if (Object.keys(patch).length === 0) return null;
+      return updateShortlistTour(r.id, patch).catch(() => null);
+    })
   );
   const updatedById = Object.fromEntries(updates.filter(Boolean).map((u) => [u.id, u]));
+  if (Object.keys(updatedById).length === 0) return shortlist;
   return shortlist.map((r) => (updatedById[r.id] ? { ...r, ...updatedById[r.id] } : r));
 }
 

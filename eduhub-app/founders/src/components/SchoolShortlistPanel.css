@@ -260,6 +260,104 @@
   gap: 6px;
 }
 
+/* The expanded row now shows Admissions only (tour/feedback/proceed moved
+   into their own always-visible table columns), so it no longer needs the
+   two-column grid -- just one column, capped so it doesn't stretch full
+   width on a wide screen. */
+.svt-detail-single {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 640px;
+}
+
+/* Primary/Secondary tour, Feedback and Proceed table columns. */
+.svt-cell-tour,
+.svt-cell-feedback,
+.svt-cell-proceed {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.svt-col-tour-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.svt-col-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  color: var(--text-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  width: 100%;
+}
+
+.svt-col-field input,
+.svt-col-field select {
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: 3px 5px;
+}
+
+.svt-col-field-row {
+  display: flex;
+  gap: 4px;
+}
+
+.svt-col-field-row .svt-col-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.svt-col-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.svt-col-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+.svt-col-edit-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  align-self: flex-start;
+}
+
+.svt-col-feedback-input {
+  width: 100%;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid var(--border, #e3e3e3);
+  border-radius: 6px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.svt-proceed-actions,
+.svt-proceed-declined {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+}
+
+.svt-proceed-declined .svt-family-declined-text {
+  font-size: 11px;
+}
+
 .svt-detail-heading {
   font-size: 12px;
   text-transform: uppercase;
