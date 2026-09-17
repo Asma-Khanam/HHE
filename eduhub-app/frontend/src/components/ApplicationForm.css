@@ -417,3 +417,79 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Per-child tab interface (September 2026, Heather via WhatsApp): "a tab
+   type interface, where they can just scroll click on each section for
+   ease" -- General info / Additional info / SEN and inclusion / Current
+   school / Documents, instead of one long scroll through all five sections
+   at once. Sections stay mounted at all times (see ApplicationForm.jsx) so
+   existing form state and the scroll-to-field deep-linking feature both
+   keep working -- .child-subtab-hidden just visually hides the inactive
+   ones rather than unmounting them. */
+.child-subtab-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 18px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--hh-track);
+}
+
+.child-subtab-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font-family: var(--hh-font-body);
+  font-size: 0.92rem;
+  color: var(--hh-ink);
+  opacity: 0.65;
+  padding: 8px 14px;
+  border-radius: 999px 999px 0 0;
+  cursor: pointer;
+  transition: background var(--hh-transition), color var(--hh-transition), opacity var(--hh-transition);
+  white-space: nowrap;
+}
+
+.child-subtab-btn:hover {
+  opacity: 1;
+  background: var(--hh-cream);
+}
+
+.child-subtab-btn.is-active {
+  background: var(--hh-cream);
+  color: var(--hh-burgundy);
+  font-family: var(--hh-font-heading);
+  opacity: 1;
+  box-shadow: inset 0 -3px 0 var(--hh-gold);
+}
+
+@media (max-width: 640px) {
+  .child-subtab-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .child-subtab-btn {
+    flex: 0 0 auto;
+  }
+}
+
+.child-subtab {
+  animation: hh-child-subtab-fade 0.15s ease-out;
+}
+
+.child-subtab-hidden {
+  display: none;
+}
+
+@keyframes hh-child-subtab-fade {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -537,7 +537,27 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                     const value = cs?.availability_status || "awaiting";
                     return (
                       <div className="svt-cell" key={c.id}>
-                        <span className={"svt-chip " + chipClass(value)}>{CHIP_LABEL[value]}</span>
+                        {/* Founder feedback (Sept 2026): "instead of having
+                            [to open] the box and then select options there"
+                            -- this used to be a read-only chip; changing it
+                            meant expanding the row and finding the same
+                            field again in the Availability section below.
+                            Same select, same handler, just reachable
+                            directly from the column the reference mockup
+                            already puts it in. */}
+                        <select
+                          className={"svt-chip-select " + chipClass(value)}
+                          value={value}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => handleChildStatusChange(row, c.id, e.target.value)}
+                          disabled={busy}
+                        >
+                          {AVAILABILITY_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {CHIP_LABEL[o.value] || o.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     );
                   })}
@@ -620,31 +640,14 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                           </>
                         )}
 
-                        <h4 className="svt-sub-heading">Availability</h4>
-                        <div className="svt-availability-list">
-                          {children.map((c, i) => {
-                            const cs = rowChildStatuses.find((r) => r.child_id === c.id);
-                            const value = cs?.availability_status || "awaiting";
-                            return (
-                              <div className="svt-availability-row" key={c.id}>
-                                <span className="svt-availability-name">{displayNameForChild(c, i)}</span>
-                                <select
-                                  className="panel-select"
-                                  value={value}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onChange={(e) => handleChildStatusChange(row, c.id, e.target.value)}
-                                  disabled={busy}
-                                >
-                                  {AVAILABILITY_OPTIONS.map((o) => (
-                                    <option key={o.value} value={o.value}>
-                                      {o.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            );
-                          })}
-                        </div>
+                        {/* Founder feedback (Sept 2026): "why do we have
+                            to select options from that dropdown, can we not
+                            do it in that column itself" -- the per-child
+                            column in the collapsed row is now itself a
+                            select (see chipClass/CHIP_LABEL above), so this
+                            second copy of the same control was pure
+                            duplication once that landed. Removed rather
+                            than kept as a backup path. */}
 
                         <button
                           type="button"

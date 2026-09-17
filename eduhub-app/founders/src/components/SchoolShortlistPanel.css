@@ -141,22 +141,51 @@
   white-space: nowrap;
 }
 
-.svt-chip.is-yes {
+/* Same pill look as .svt-chip, but a real <select> so a child's
+   availability can be changed right from the column instead of expanding
+   the row first (Sept 2026 founder feedback). */
+.svt-chip-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 22px 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8.4 1.8 4.2l.9-.9L6 6.6l3.3-3.3.9.9Z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  background-size: 9px;
+}
+
+.svt-chip-select:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.svt-chip.is-yes,
+.svt-chip-select.is-yes {
   background: #e6f4ea;
   color: #1e7a34;
 }
 
-.svt-chip.is-no {
+.svt-chip.is-no,
+.svt-chip-select.is-no {
   background: #fbe9e7;
   color: #a33a2e;
 }
 
-.svt-chip.is-partial {
+.svt-chip.is-partial,
+.svt-chip-select.is-partial {
   background: #fdf1dc;
   color: #92640b;
 }
 
-.svt-chip.is-awaiting {
+.svt-chip.is-awaiting,
+.svt-chip-select.is-awaiting {
   background: #f2f2f2;
   color: #888;
 }

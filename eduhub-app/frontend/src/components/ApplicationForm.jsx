@@ -831,6 +831,19 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   const initialCardStep = initialStepKey && steps.some((s) => s.key === initialStepKey) ? initialStepKey : null;
   const [showingList, setShowingList] = useState(!initialCardStep);
   const [stepIndex, setStepIndex] = useState(() => (initialCardStep ? stepIndexForKey(steps, initialCardStep) : 0));
+  // Founder feedback (Sept 2026): "a tab type interface... general info
+  // first tab, additional info, sen, current school and so on" -- instead
+  // of one long scroll per child, each child's card is split into named
+  // sub-tabs. Sections stay mounted the whole time (see CHILD_SUBTABS'
+  // "is-hidden" CSS below rather than not rendering the others at all) so
+  // switching tabs never loses anything mid-typed and can't interact
+  // strangely with autosave. Resets to the first tab whenever a different
+  // card opens (below), so returning to a child's card doesn't strand you
+  // on whatever tab you left a completely different child's card on.
+  const [childSubTab, setChildSubTab] = useState("general");
+  useEffect(() => {
+    setChildSubTab("general");
+  }, [stepIndex]);
 
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -1340,15 +1353,26 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   // needs to get filled" instead of leaving it to a banner.
   useEffect(() => {
     if (!scrollTarget) return;
+    const el = document.querySelector(`[data-field-key="${scrollTarget}"]`);
+    // A missing/targeted field can live in a child sub-tab that isn't the
+    // one currently showing (see childSubTab above) -- since sections stay
+    // mounted and are only CSS-hidden, the element is still found here even
+    // when its tab isn't visible. Switch to that tab first; this effect
+    // re-runs (childSubTab is a dependency) once it's actually on screen,
+    // and only then does the scroll below happen.
+    const section = el?.closest("[data-child-section]")?.getAttribute("data-child-section");
+    if (section && section !== childSubTab) {
+      setChildSubTab(section);
+      return;
+    }
     const raf = requestAnimationFrame(() => {
-      const el = document.querySelector(`[data-field-key="${scrollTarget}"]`);
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
       const focusable = el?.matches("input,select,textarea") ? el : el?.querySelector("input,select,textarea");
       focusable?.focus({ preventScroll: true });
       setScrollTarget(null);
     });
     return () => cancelAnimationFrame(raf);
-  }, [scrollTarget, stepIndex, showingList]);
+  }, [scrollTarget, stepIndex, showingList, childSubTab]);
 
   // Saves exactly what's filled in so far, required fields or not — this is
   // the fix for the form previously refusing to save anything at all until
@@ -1646,6 +1670,44 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
 
                 return (
                   <>
+                    <div className="child-subtab-nav" role="tablist">
+                        <button
+                          type="button"
+                          className={"child-subtab-btn" + (childSubTab === "general" ? " is-active" : "")}
+                          onClick={() => setChildSubTab("general")}
+                        >
+                          General info
+                        </button>
+                        <button
+                          type="button"
+                          className={"child-subtab-btn" + (childSubTab === "additional" ? " is-active" : "")}
+                          onClick={() => setChildSubTab("additional")}
+                        >
+                          Additional info
+                        </button>
+                        <button
+                          type="button"
+                          className={"child-subtab-btn" + (childSubTab === "sen" ? " is-active" : "")}
+                          onClick={() => setChildSubTab("sen")}
+                        >
+                          SEN and inclusion
+                        </button>
+                        <button
+                          type="button"
+                          className={"child-subtab-btn" + (childSubTab === "school" ? " is-active" : "")}
+                          onClick={() => setChildSubTab("school")}
+                        >
+                          Current school
+                        </button>
+                        <button
+                          type="button"
+                          className={"child-subtab-btn" + (childSubTab === "documents" ? " is-active" : "")}
+                          onClick={() => setChildSubTab("documents")}
+                        >
+                          Documents
+                        </button>
+                    </div>
+                    <div data-child-section="general" className={"child-subtab" + (childSubTab === "general" ? "" : " child-subtab-hidden")}>
                     <FormSection title={`${displayName}'s general info`} description="As it appears on their passport.">
                       <div className="hh-field-full">
                         <AvatarUpload
@@ -1813,7 +1875,9 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         />
                       </div>
                     </FormSection>
+                    </div>
 
+                    <div data-child-section="additional" className={"child-subtab" + (childSubTab === "additional" ? "" : " child-subtab-hidden")}>
                     <FormSection
                       title="Additional info"
                       description="Language, wellbeing, and anything the school should know ahead of time."
@@ -1897,7 +1961,9 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         />
                       </div>
                     </FormSection>
+                    </div>
 
+                    <div data-child-section="sen" className={"child-subtab" + (childSubTab === "sen" ? "" : " child-subtab-hidden")}>
                     {/* Section 5, "SEN and inclusion" (September 2026 change
                         request) — its own clearly headed section rather than
                         sitting inside Additional info, "so families find it
@@ -2107,7 +2173,9 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         />
                       </div>
                     </FormSection>
+                    </div>
 
+                    <div data-child-section="school" className={"child-subtab" + (childSubTab === "school" ? "" : " child-subtab-hidden")}>
                     <FormSection title="Current school" description="Their school right now, not the one they're applying to.">
                       {/* NAV-02 (September 2026 change request): "From child two
                           onwards, add a tick box... Ticking it reveals a short
@@ -2309,7 +2377,9 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         </>
                       )}
                     </FormSection>
+                    </div>
 
+                    <div data-child-section="documents" className={"child-subtab" + (childSubTab === "documents" ? "" : " child-subtab-hidden")}>
                     <FormSection
                       title="Documents"
                       description="Upload as soon as the application is saved once — each file uploads immediately, so nothing here is lost by navigating away."
@@ -2357,6 +2427,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         options={["Yes, fully", "Roughly", "No, please explain it", "Not applicable"]}
                       />
                     </FormSection>
+                    </div>
                   </>
                 );
               })()}
