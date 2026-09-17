@@ -1,3 +1,9 @@
+/* Documents section redesign (September 2026, Heather via WhatsApp: "make
+   the documents section a bit cleaner, improve the ui/ux") -- each slot is
+   now its own soft card instead of a plain row in a divided list, with a
+   status icon out front (see .doc-row-status below) as an at-a-glance
+   "have I uploaded this yet" reminder rather than something you have to
+   read the row to find out. */
 .doc-checklist {
   margin-bottom: 28px;
 }
@@ -23,29 +29,68 @@
   margin-bottom: 6px;
 }
 
-/* Each document slot stacks its label above its file(s)/upload control
-   rather than sitting side by side — a fixed two-column row is what used
-   to force everything to crowd up and overlap once the window narrowed, no
-   matter how many files, term/year selects, or buttons a given slot had. A
-   single column always has room to simply wrap, at any width. */
+/* Each document slot is its own card: label + status up top, file(s)/
+   upload control below. Stacking (rather than a fixed two-column row) is
+   what lets a single column always have room to simply wrap, at any width,
+   no matter how many files, term/year selects, or buttons a given slot
+   has. */
 .doc-row {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 0;
-  border-bottom: 1px solid rgba(83, 1, 38, 0.08);
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  column-gap: 12px;
+  row-gap: 10px;
+  padding: 16px;
+  margin-bottom: 10px;
+  background: var(--hh-cream);
+  border: 1px solid rgba(83, 1, 38, 0.08);
+  border-radius: 10px;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .doc-row:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.doc-row-uploaded {
+  background: var(--hh-white);
+  border-color: rgba(60, 130, 90, 0.22);
 }
 
 .doc-row-missing {
-  background: rgba(184, 154, 90, 0.09);
-  border-bottom-color: rgba(184, 154, 90, 0.28);
-  margin: 0 -14px;
-  padding: 14px;
-  border-radius: 6px;
+  background: rgba(184, 154, 90, 0.1);
+  border-color: rgba(184, 154, 90, 0.35);
+}
+
+.doc-row-info,
+.doc-row-action {
+  grid-column: 2;
+}
+
+/* The green tick / red cross "have they uploaded this" reminder -- purely
+   visual, not a validation message, so it sits to the left of every slot,
+   spanning both grid rows, whether or not that slot is required. */
+.doc-row-status {
+  grid-row: 1 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.doc-row-status.is-uploaded {
+  background: rgba(60, 130, 90, 0.14);
+  color: #2f7a52;
+}
+
+.doc-row-status.is-missing {
+  background: rgba(179, 38, 30, 0.1);
+  color: var(--hh-error);
 }
 
 .doc-row-info {

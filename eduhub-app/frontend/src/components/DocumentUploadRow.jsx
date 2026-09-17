@@ -148,8 +148,22 @@ export default function DocumentUploadRow({
     }
   }
 
+  // Visual "have they uploaded this or not" reminder (September 2026,
+  // Heather via WhatsApp): a green tick once at least one file is sitting
+  // in this slot, a red cross while it's still empty -- purely a glance-
+  // able reminder, not a validation state, so it shows on every slot
+  // (including ones nothing ever marked "required").
+  const uploaded = files.length > 0;
+
   return (
-    <div className={"doc-row" + (missing ? " doc-row-missing" : "")} data-field-key={fieldKey}>
+    <div className={"doc-row" + (missing ? " doc-row-missing" : "") + (uploaded ? " doc-row-uploaded" : "")} data-field-key={fieldKey}>
+      <span
+        className={"doc-row-status" + (uploaded ? " is-uploaded" : " is-missing")}
+        aria-label={uploaded ? "Uploaded" : "Not uploaded yet"}
+        title={uploaded ? "Uploaded" : "Not uploaded yet"}
+      >
+        {uploaded ? "✓" : "✕"}
+      </span>
       <div className="doc-row-info">
         <span className="doc-row-label">{docType.label}</span>
         {docType.hint && <span className="doc-row-hint">{docType.hint}</span>}

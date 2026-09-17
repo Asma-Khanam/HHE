@@ -418,72 +418,84 @@
   }
 }
 
-/* Per-child tab interface (September 2026, Heather via WhatsApp): "a tab
-   type interface, where they can just scroll click on each section for
-   ease" -- General info / Additional info / SEN and inclusion / Current
-   school / Documents, instead of one long scroll through all five sections
-   at once. Sections stay mounted at all times (see ApplicationForm.jsx) so
-   existing form state and the scroll-to-field deep-linking feature both
-   keep working -- .child-subtab-hidden just visually hides the inactive
-   ones rather than unmounting them. */
-.child-subtab-nav {
-  display: flex;
+/* Per-child AND per-parent tab interface (September 2026, Heather via
+   WhatsApp): "a tab type interface, where they can just scroll click on
+   each section for ease" -- children get General info / Additional info /
+   SEN and inclusion / Current school / Documents; parents get General info
+   / Address / Documents / Family preferences (account holder only) --
+   instead of one long scroll through every section at once. Sections stay
+   mounted at all times (see ApplicationForm.jsx) so existing form state and
+   the scroll-to-field deep-linking feature both keep working --
+   .hh-subtab-hidden just visually hides the inactive ones rather than
+   unmounting them.
+
+   Styled to match the founders app's own tab bar exactly (asked for by
+   name, "use the tab styling that i used for the founders end") -- the
+   same segmented-control look as FamilyDetailPage's .family-detail-tabs/
+   .family-detail-tab: a softly-rounded rectangle bar with the active tab
+   getting its own smaller rounded-rect highlight inside it, rather than the
+   underlined-pill style this used before. */
+.hh-subtab-nav {
+  display: inline-flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 18px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--hh-track);
+  gap: 2px;
+  max-width: 100%;
+  background: rgba(83, 1, 38, 0.06);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 20px;
 }
 
-.child-subtab-btn {
+.hh-subtab-btn {
+  flex: 0 0 auto;
   appearance: none;
   border: none;
-  background: transparent;
-  font-family: var(--hh-font-body);
-  font-size: 0.92rem;
-  color: var(--hh-ink);
-  opacity: 0.65;
-  padding: 8px 14px;
-  border-radius: 999px 999px 0 0;
-  cursor: pointer;
-  transition: background var(--hh-transition), color var(--hh-transition), opacity var(--hh-transition);
-  white-space: nowrap;
-}
-
-.child-subtab-btn:hover {
-  opacity: 1;
-  background: var(--hh-cream);
-}
-
-.child-subtab-btn.is-active {
-  background: var(--hh-cream);
-  color: var(--hh-burgundy);
+  background: none;
+  border-radius: 7px;
   font-family: var(--hh-font-heading);
+  font-size: 0.88rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+  padding: 8px 18px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.hh-subtab-btn:hover {
+  opacity: 0.9;
+}
+
+.hh-subtab-btn.is-active {
   opacity: 1;
-  box-shadow: inset 0 -3px 0 var(--hh-gold);
+  background: var(--hh-white);
+  color: var(--hh-burgundy);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(83, 1, 38, 0.18);
 }
 
 @media (max-width: 640px) {
-  .child-subtab-nav {
+  .hh-subtab-nav {
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
 
-  .child-subtab-btn {
+  .hh-subtab-btn {
     flex: 0 0 auto;
   }
 }
 
-.child-subtab {
-  animation: hh-child-subtab-fade 0.15s ease-out;
+.hh-subtab {
+  animation: hh-subtab-fade 0.15s ease-out;
 }
 
-.child-subtab-hidden {
+.hh-subtab-hidden {
   display: none;
 }
 
-@keyframes hh-child-subtab-fade {
+@keyframes hh-subtab-fade {
   from {
     opacity: 0;
     transform: translateY(2px);
@@ -492,4 +504,26 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* SEN and inclusion tab layout improvement (September 2026, Heather via
+   WhatsApp: "improve the layout and ease on the sen and inclusion tab") --
+   breaks the section's thirteen questions into three named, visually
+   separated clusters (Diagnosis and needs / Support and interventions / A
+   bit more context) instead of one long uninterrupted run, so it reads as
+   a series of small, calmer steps rather than one big list. */
+.sen-group-heading {
+  font-family: var(--hh-font-heading);
+  color: var(--hh-burgundy);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 8px 0 4px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(83, 1, 38, 0.1);
+}
+
+.sen-group-heading:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }

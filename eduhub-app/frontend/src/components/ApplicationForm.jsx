@@ -833,16 +833,18 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   const [stepIndex, setStepIndex] = useState(() => (initialCardStep ? stepIndexForKey(steps, initialCardStep) : 0));
   // Founder feedback (Sept 2026): "a tab type interface... general info
   // first tab, additional info, sen, current school and so on" -- instead
-  // of one long scroll per child, each child's card is split into named
-  // sub-tabs. Sections stay mounted the whole time (see CHILD_SUBTABS'
-  // "is-hidden" CSS below rather than not rendering the others at all) so
-  // switching tabs never loses anything mid-typed and can't interact
-  // strangely with autosave. Resets to the first tab whenever a different
-  // card opens (below), so returning to a child's card doesn't strand you
-  // on whatever tab you left a completely different child's card on.
-  const [childSubTab, setChildSubTab] = useState("general");
+  // of one long scroll per child (or parent) card, each is split into named
+  // sub-tabs (children: general/additional/sen/school/documents; parents:
+  // general/address/documents/preferences). Sections stay mounted the whole
+  // time (see .hh-subtab-hidden CSS rather than not rendering the others at
+  // all) so switching tabs never loses anything mid-typed and can't
+  // interact strangely with autosave. One piece of state serves both card
+  // types since only one card is ever open at a time; resets to the first
+  // tab whenever a different card opens (below), so returning to a card
+  // doesn't strand you on whatever tab you left a different card on.
+  const [subTab, setSubTab] = useState("general");
   useEffect(() => {
-    setChildSubTab("general");
+    setSubTab("general");
   }, [stepIndex]);
 
   const [saving, setSaving] = useState(false);
@@ -1354,15 +1356,16 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   useEffect(() => {
     if (!scrollTarget) return;
     const el = document.querySelector(`[data-field-key="${scrollTarget}"]`);
-    // A missing/targeted field can live in a child sub-tab that isn't the
-    // one currently showing (see childSubTab above) -- since sections stay
-    // mounted and are only CSS-hidden, the element is still found here even
-    // when its tab isn't visible. Switch to that tab first; this effect
-    // re-runs (childSubTab is a dependency) once it's actually on screen,
+    // A missing/targeted field can live in a child OR parent sub-tab that
+    // isn't the one currently showing (see subTab above) -- since sections
+    // stay mounted and are only CSS-hidden, the element is still found here
+    // even when its tab isn't visible. Switch to that tab first; this
+    // effect re-runs (subTab is a dependency) once it's actually on screen,
     // and only then does the scroll below happen.
-    const section = el?.closest("[data-child-section]")?.getAttribute("data-child-section");
-    if (section && section !== childSubTab) {
-      setChildSubTab(section);
+    const sectionEl = el?.closest("[data-child-section], [data-parent-section]");
+    const section = sectionEl?.getAttribute("data-child-section") || sectionEl?.getAttribute("data-parent-section");
+    if (section && section !== subTab) {
+      setSubTab(section);
       return;
     }
     const raf = requestAnimationFrame(() => {
@@ -1372,7 +1375,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
       setScrollTarget(null);
     });
     return () => cancelAnimationFrame(raf);
-  }, [scrollTarget, stepIndex, showingList, childSubTab]);
+  }, [scrollTarget, stepIndex, showingList, subTab]);
 
   // Saves exactly what's filled in so far, required fields or not — this is
   // the fix for the form previously refusing to save anything at all until
@@ -1601,6 +1604,8 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                     comfortableFeeRangeError={isFieldMissing("family:comfortable_fee_range")}
                     parentWorkLocation={parentWorkLocation}
                     onParentWorkLocationChange={setParentWorkLocation}
+                    subTab={subTab}
+                    onSubTabChange={setSubTab}
                   />
                 );
               })()}
@@ -1670,44 +1675,44 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
 
                 return (
                   <>
-                    <div className="child-subtab-nav" role="tablist">
+                    <div className="hh-subtab-nav" role="tablist">
                         <button
                           type="button"
-                          className={"child-subtab-btn" + (childSubTab === "general" ? " is-active" : "")}
-                          onClick={() => setChildSubTab("general")}
+                          className={"hh-subtab-btn" + (subTab === "general" ? " is-active" : "")}
+                          onClick={() => setSubTab("general")}
                         >
                           General info
                         </button>
                         <button
                           type="button"
-                          className={"child-subtab-btn" + (childSubTab === "additional" ? " is-active" : "")}
-                          onClick={() => setChildSubTab("additional")}
+                          className={"hh-subtab-btn" + (subTab === "additional" ? " is-active" : "")}
+                          onClick={() => setSubTab("additional")}
                         >
                           Additional info
                         </button>
                         <button
                           type="button"
-                          className={"child-subtab-btn" + (childSubTab === "sen" ? " is-active" : "")}
-                          onClick={() => setChildSubTab("sen")}
+                          className={"hh-subtab-btn" + (subTab === "sen" ? " is-active" : "")}
+                          onClick={() => setSubTab("sen")}
                         >
                           SEN and inclusion
                         </button>
                         <button
                           type="button"
-                          className={"child-subtab-btn" + (childSubTab === "school" ? " is-active" : "")}
-                          onClick={() => setChildSubTab("school")}
+                          className={"hh-subtab-btn" + (subTab === "school" ? " is-active" : "")}
+                          onClick={() => setSubTab("school")}
                         >
                           Current school
                         </button>
                         <button
                           type="button"
-                          className={"child-subtab-btn" + (childSubTab === "documents" ? " is-active" : "")}
-                          onClick={() => setChildSubTab("documents")}
+                          className={"hh-subtab-btn" + (subTab === "documents" ? " is-active" : "")}
+                          onClick={() => setSubTab("documents")}
                         >
                           Documents
                         </button>
                     </div>
-                    <div data-child-section="general" className={"child-subtab" + (childSubTab === "general" ? "" : " child-subtab-hidden")}>
+                    <div data-child-section="general" className={"hh-subtab" + (subTab === "general" ? "" : " hh-subtab-hidden")}>
                     <FormSection title={`${displayName}'s general info`} description="As it appears on their passport.">
                       <div className="hh-field-full">
                         <AvatarUpload
@@ -1877,7 +1882,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                     </FormSection>
                     </div>
 
-                    <div data-child-section="additional" className={"child-subtab" + (childSubTab === "additional" ? "" : " child-subtab-hidden")}>
+                    <div data-child-section="additional" className={"hh-subtab" + (subTab === "additional" ? "" : " hh-subtab-hidden")}>
                     <FormSection
                       title="Additional info"
                       description="Language, wellbeing, and anything the school should know ahead of time."
@@ -1963,7 +1968,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                     </FormSection>
                     </div>
 
-                    <div data-child-section="sen" className={"child-subtab" + (childSubTab === "sen" ? "" : " child-subtab-hidden")}>
+                    <div data-child-section="sen" className={"hh-subtab" + (subTab === "sen" ? "" : " hh-subtab-hidden")}>
                     {/* Section 5, "SEN and inclusion" (September 2026 change
                         request) — its own clearly headed section rather than
                         sitting inside Additional info, "so families find it
@@ -1973,6 +1978,13 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                       title="SEN and inclusion"
                       description="These questions help us find a school that will genuinely support your child. There are no wrong answers, and nothing here is shared with a school without your written permission."
                     >
+                      {/* Grouped into three named clusters (September 2026,
+                          Heather via WhatsApp: "improve the layout and ease
+                          on the sen and inclusion tab") -- purely visual
+                          dividers, same fields and logic as before, just
+                          broken into digestible chunks instead of one long
+                          run of thirteen questions. */}
+                      <h3 className="hh-field-full sen-group-heading">Diagnosis and needs</h3>
                       <StrictSelect
                         label="Does your child have any identified special educational needs, learning difficulties or a diagnosis?"
                         required
@@ -2063,6 +2075,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         />
                       </div>
 
+                      <h3 className="hh-field-full sen-group-heading">Support and interventions</h3>
                       <StrictSelect
                         label="Has your child ever been taken out of class for intervention or support sessions?"
                         required
@@ -2126,6 +2139,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         </p>
                       )}
 
+                      <h3 className="hh-field-full sen-group-heading">A bit more context</h3>
                       <MultiSelect
                         label="Have any of these words or phrases ever been used to describe your child, by a teacher, doctor, therapist, family member or anyone else?"
                         fieldKey={`child-${i}-sen_descriptive_words`}
@@ -2175,7 +2189,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                     </FormSection>
                     </div>
 
-                    <div data-child-section="school" className={"child-subtab" + (childSubTab === "school" ? "" : " child-subtab-hidden")}>
+                    <div data-child-section="school" className={"hh-subtab" + (subTab === "school" ? "" : " hh-subtab-hidden")}>
                     <FormSection title="Current school" description="Their school right now, not the one they're applying to.">
                       {/* NAV-02 (September 2026 change request): "From child two
                           onwards, add a tick box... Ticking it reveals a short
@@ -2379,7 +2393,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                     </FormSection>
                     </div>
 
-                    <div data-child-section="documents" className={"child-subtab" + (childSubTab === "documents" ? "" : " child-subtab-hidden")}>
+                    <div data-child-section="documents" className={"hh-subtab" + (subTab === "documents" ? "" : " hh-subtab-hidden")}>
                     <FormSection
                       title="Documents"
                       description="Upload as soon as the application is saved once — each file uploads immediately, so nothing here is lost by navigating away."
@@ -2719,19 +2733,61 @@ function ParentSection({
   comfortableFeeRangeError,
   parentWorkLocation,
   onParentWorkLocationChange,
+  subTab,
+  onSubTabChange,
 }) {
   const isSecondary = !!primaryRole;
   const synced = isSecondary && sameAsAbove;
 
+  // Same "tab type interface" as the child card (September 2026 change
+  // request, extended to the parent cards too) -- General info / Address /
+  // Documents, plus a Family preferences tab that only shows up on the
+  // account holder's own card (those questions are about the family as a
+  // whole, asked once, same as before).
   return (
-    <FormSection
-      title={isHolder ? `${role} — Account holder` : role}
-      description={
-        isHolder
-          ? "This is you, the person filling in and submitting this application."
-          : "Their details, as much as you have — only their full name is required."
-      }
-    >
+    <>
+      <div className="hh-subtab-nav" role="tablist">
+        <button
+          type="button"
+          className={"hh-subtab-btn" + (subTab === "general" ? " is-active" : "")}
+          onClick={() => onSubTabChange("general")}
+        >
+          General info
+        </button>
+        <button
+          type="button"
+          className={"hh-subtab-btn" + (subTab === "address" ? " is-active" : "")}
+          onClick={() => onSubTabChange("address")}
+        >
+          Address
+        </button>
+        <button
+          type="button"
+          className={"hh-subtab-btn" + (subTab === "documents" ? " is-active" : "")}
+          onClick={() => onSubTabChange("documents")}
+        >
+          Documents
+        </button>
+        {isHolder && (
+          <button
+            type="button"
+            className={"hh-subtab-btn" + (subTab === "preferences" ? " is-active" : "")}
+            onClick={() => onSubTabChange("preferences")}
+          >
+            Family preferences
+          </button>
+        )}
+      </div>
+
+      <div data-parent-section="general" className={"hh-subtab" + (subTab === "general" ? "" : " hh-subtab-hidden")}>
+      <FormSection
+        title={isHolder ? `${role} — Account holder` : role}
+        description={
+          isHolder
+            ? "This is you, the person filling in and submitting this application."
+            : "Their details, as much as you have — only their full name is required."
+        }
+      >
       <div className="hh-field-full">
         <AvatarUpload
           userId={userId}
@@ -2831,7 +2887,11 @@ function ParentSection({
         value={parent.occupation_designation}
         onChange={(v) => onChange("occupation_designation", v)}
       />
+      </FormSection>
+      </div>
 
+      <div data-parent-section="address" className={"hh-subtab" + (subTab === "address" ? "" : " hh-subtab-hidden")}>
+      <FormSection title={`${role}'s address`} description="Where they live.">
       <AddressBlock
         label={`${role}'s address`}
         required={isHolder}
@@ -2848,10 +2908,16 @@ function ParentSection({
         onChangeSameAs={(v) => onChange("address_same_as", v)}
         onChangeAddress={(v) => onChange("address", v)}
       />
+      </FormSection>
+      </div>
 
+      <div data-parent-section="documents" className={"hh-subtab" + (subTab === "documents" ? "" : " hh-subtab-hidden")}>
+      <FormSection
+        title="Documents"
+        description="Upload as soon as the application is saved once — each file uploads immediately, so nothing here is lost by navigating away."
+      >
       <div className="hh-field-full">
         <DocumentChecklist
-          title={`${role} documents`}
           userId={userId}
           ownerType="parent"
           ownerId={parent.id}
@@ -2863,13 +2929,19 @@ function ParentSection({
           personLabel={parent.full_name || role}
         />
       </div>
+      </FormSection>
+      </div>
 
       {/* AH-09 (September 2026 change request): asked once, under the
           account holder, after everything else — it's about the family as a
           whole, not this one person, which is also why it lives here rather
-          than being duplicated onto the non-holder parent's page. */}
+          than being duplicated onto the non-holder parent's page. Its own
+          tab (rather than tacked onto the bottom of General info) since it's
+          conceptually a different topic -- the family's preferences, not
+          this parent's own details. */}
       {isHolder && (
-        <>
+        <div data-parent-section="preferences" className={"hh-subtab" + (subTab === "preferences" ? "" : " hh-subtab-hidden")}>
+        <FormSection title="Family preferences" description="A few questions about the family as a whole, not just you.">
           <RankingSelect
             label="What matters most to you in a school? Please rank your top five."
             required
@@ -2898,9 +2970,10 @@ function ParentSection({
             onChange={onParentWorkLocationChange}
             hint="For example Dubai Media City, Abu Dhabi, or working from home. This helps us think about the school run."
           />
-        </>
+        </FormSection>
+        </div>
       )}
-    </FormSection>
+    </>
   );
 }
 
