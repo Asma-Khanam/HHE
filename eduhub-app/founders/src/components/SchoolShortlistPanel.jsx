@@ -350,6 +350,10 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
         tour_start_time: row.tour_start_time || "",
         tour_end_time: row.tour_end_time || "",
         tour_status: row.tour_status || "offered",
+        // Addendum 59 -- why a tour was cancelled, entered alongside the
+        // Cancelled status itself rather than buried in the separate
+        // Feedback box.
+        tour_cancelled_reason: row.tour_cancelled_reason || "",
         // Addendum 58 -- an independent second slot ("Secondary tour"),
         // for a school that does an initial visit and a separate
         // follow-up/assessment visit. Left blank unless a second tour is
@@ -358,6 +362,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
         tour2_start_time: row.tour2_start_time || "",
         tour2_end_time: row.tour2_end_time || "",
         tour2_status: row.tour2_status || "offered",
+        tour2_cancelled_reason: row.tour2_cancelled_reason || "",
         feedback_text: row.feedback_text || "",
       },
     }));
@@ -382,10 +387,12 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
         tour_start_time: draft.tour_start_time || null,
         tour_end_time: draft.tour_end_time || null,
         tour_status: draft.tour_date ? draft.tour_status : null,
+        tour_cancelled_reason: draft.tour_date && draft.tour_status === "cancelled" ? draft.tour_cancelled_reason || null : null,
         tour2_date: draft.tour2_date || null,
         tour2_start_time: draft.tour2_start_time || null,
         tour2_end_time: draft.tour2_end_time || null,
         tour2_status: draft.tour2_date ? draft.tour2_status : null,
+        tour2_cancelled_reason: draft.tour2_date && draft.tour2_status === "cancelled" ? draft.tour2_cancelled_reason || null : null,
         feedback_text: draft.feedback_text || null,
         feedback_by: draft.feedback_text ? "staff" : null,
       };
@@ -588,6 +595,26 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                             ))}
                           </select>
                         </label>
+                        {draft.tour_status === "cancelled" && (
+                          // Founder feedback (Sept 2026, Heather via
+                          // WhatsApp): "I also need to cancel the Brighton
+                          // tour and record why on their profile" --
+                          // cancelling used to have nowhere to put a
+                          // reason; this only appears once Cancelled is
+                          // picked, and is saved right alongside it.
+                          <label className="svt-col-field">
+                            <span>Reason for cancelling</span>
+                            <input
+                              type="text"
+                              className="panel-input"
+                              placeholder="Why was it cancelled?"
+                              value={draft.tour_cancelled_reason}
+                              onChange={(e) =>
+                                setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_cancelled_reason: e.target.value } }))
+                              }
+                            />
+                          </label>
+                        )}
                         <div className="svt-col-field-row">
                           <label className="svt-col-field">
                             <span>Start</span>
@@ -630,6 +657,9 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         {row.tour_status && (
                           <span className={"svt-tour-status-badge is-" + row.tour_status}>{TOUR_STATUS_LABEL[row.tour_status]}</span>
                         )}
+                        {row.tour_status === "cancelled" && row.tour_cancelled_reason && (
+                          <span className="svt-cancel-reason">"{row.tour_cancelled_reason}"</span>
+                        )}
                         <button type="button" className="panel-btn panel-btn-quiet svt-col-edit-btn" onClick={() => startTourEdit(row, "primary")}>
                           {row.tour_date ? "Edit" : "Book"}
                         </button>
@@ -666,6 +696,20 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                             ))}
                           </select>
                         </label>
+                        {draft.tour2_status === "cancelled" && (
+                          <label className="svt-col-field">
+                            <span>Reason for cancelling</span>
+                            <input
+                              type="text"
+                              className="panel-input"
+                              placeholder="Why was it cancelled?"
+                              value={draft.tour2_cancelled_reason}
+                              onChange={(e) =>
+                                setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_cancelled_reason: e.target.value } }))
+                              }
+                            />
+                          </label>
+                        )}
                         <div className="svt-col-field-row">
                           <label className="svt-col-field">
                             <span>Start</span>
@@ -707,6 +751,9 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         )}
                         {row.tour2_status && (
                           <span className={"svt-tour-status-badge is-" + row.tour2_status}>{TOUR_STATUS_LABEL[row.tour2_status]}</span>
+                        )}
+                        {row.tour2_status === "cancelled" && row.tour2_cancelled_reason && (
+                          <span className="svt-cancel-reason">"{row.tour2_cancelled_reason}"</span>
                         )}
                         <button type="button" className="panel-btn panel-btn-quiet svt-col-edit-btn" onClick={() => startTourEdit(row, "secondary")}>
                           {row.tour2_date ? "Edit" : "Add"}
