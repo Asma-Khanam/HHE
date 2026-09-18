@@ -518,6 +518,25 @@
   margin-top: 10px;
 }
 
+.svt-remove-confirm {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--hh-error, #a3273f);
+  border-radius: 8px;
+  background: #fbf3f4;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 420px;
+}
+
+.svt-remove-confirm-text {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--hh-ink, #333);
+}
+
 .svt-on-the-day {
   font-size: 13px;
   color: #444;

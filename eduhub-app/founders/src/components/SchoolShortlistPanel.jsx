@@ -108,6 +108,15 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
   const [savedNoteId, setSavedNoteId] = useState(null);
   const [decliningId, setDecliningId] = useState(null);
   const [declineNote, setDeclineNote] = useState("");
+  // Founder feedback (Sept 2026, Heather via WhatsApp): "I want to remove
+  // a school from a shortlist... I cant get past this screen" -- that
+  // screen was the browser's own native window.confirm() popup, which can
+  // silently stop responding in some setups (repeated dialogs get an
+  // auto-suppress option some browsers tick on their own). Replaced with
+  // an ordinary in-page confirm step, same as the Decline flow already
+  // uses elsewhere on this panel, so there's no separate browser dialog to
+  // get stuck on at all.
+  const [removingId, setRemovingId] = useState(null);
 
   const children = familyChildren || [];
 
@@ -314,11 +323,12 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
   // mistake", not for a family dropping a school they've actually
   // considered -- that case should use Decline instead, which keeps the
   // school visible (greyed out, sorted last) rather than erasing it.
+  //
+  // The confirmation step itself used to be a native window.confirm() --
+  // see the removingId state above for why that got replaced with an
+  // in-page step instead.
   async function handleRemove(row) {
-    const schoolName = row.school?.name || "this school";
-    if (!window.confirm(`Remove ${schoolName} from this shortlist? This can't be undone -- if the family is just no longer pursuing it, use Decline instead so there's still a record.`)) {
-      return;
-    }
+    setRemovingId(null);
     setBusy(true);
     setError("");
     try {
@@ -979,17 +989,44 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         </>
                       )}
 
-                      <button
-                        type="button"
-                        className="panel-btn panel-btn-quiet svt-remove"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemove(row);
-                        }}
-                        disabled={busy}
-                      >
-                        Remove from shortlist
-                      </button>
+                      {removingId === row.id ? (
+                        <div className="svt-remove-confirm" onClick={(e) => e.stopPropagation()}>
+                          <p className="svt-remove-confirm-text">
+                            Remove {row.school?.name || "this school"} from the shortlist? This can't be undone -- if the
+                            family is just no longer pursuing it, use Decline instead so there's still a record.
+                          </p>
+                          <div className="svt-col-actions">
+                            <button
+                              type="button"
+                              className="panel-btn panel-btn-primary svt-col-btn"
+                              onClick={() => handleRemove(row)}
+                              disabled={busy}
+                            >
+                              Yes, remove
+                            </button>
+                            <button
+                              type="button"
+                              className="panel-btn panel-btn-quiet svt-col-btn"
+                              onClick={() => setRemovingId(null)}
+                              disabled={busy}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="panel-btn panel-btn-quiet svt-remove"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRemovingId(row.id);
+                          }}
+                          disabled={busy}
+                        >
+                          Remove from shortlist
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
