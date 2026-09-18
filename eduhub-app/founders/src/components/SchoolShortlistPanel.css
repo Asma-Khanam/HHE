@@ -518,12 +518,17 @@
   margin-top: 10px;
 }
 
+/* Neutral/gold rather than alarming red -- this is now the ordinary
+   soft-decline confirm (greys out, sorted last, reason recorded), not a
+   destructive delete. The nested variant below, for the rare genuine
+   mistaken-add case, keeps the red treatment since that one really is
+   permanent. */
 .svt-remove-confirm {
   margin-top: 10px;
   padding: 10px 12px;
-  border: 1.5px solid var(--hh-error, #a3273f);
+  border: 1.5px solid var(--hh-gold, #b8902e);
   border-radius: 8px;
-  background: #fbf3f4;
+  background: #fbf8ef;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -535,6 +540,20 @@
   font-size: 12.5px;
   line-height: 1.4;
   color: var(--hh-ink, #333);
+}
+
+.svt-remove-confirm-nested {
+  margin-top: 4px;
+  border-color: var(--hh-error, #a3273f);
+  background: #fbf3f4;
+}
+
+.svt-remove-mistake-link {
+  align-self: flex-start;
+  font-size: 11px;
+  padding: 2px 4px;
+  color: var(--text-muted, #888);
+  text-decoration: underline;
 }
 
 .svt-on-the-day {

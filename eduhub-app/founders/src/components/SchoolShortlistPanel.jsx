@@ -989,44 +989,110 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         </>
                       )}
 
-                      {removingId === row.id ? (
-                        <div className="svt-remove-confirm" onClick={(e) => e.stopPropagation()}>
-                          <p className="svt-remove-confirm-text">
-                            Remove {row.school?.name || "this school"} from the shortlist? This can't be undone -- if the
-                            family is just no longer pursuing it, use Decline instead so there's still a record.
-                          </p>
-                          <div className="svt-col-actions">
-                            <button
-                              type="button"
-                              className="panel-btn panel-btn-primary svt-col-btn"
-                              onClick={() => handleRemove(row)}
-                              disabled={busy}
-                            >
-                              Yes, remove
-                            </button>
-                            <button
-                              type="button"
-                              className="panel-btn panel-btn-quiet svt-col-btn"
-                              onClick={() => setRemovingId(null)}
-                              disabled={busy}
-                            >
-                              Cancel
-                            </button>
+                      {/* Founder feedback (Sept 2026, Heather via
+                          WhatsApp): "even tho she says she wants it
+                          removed from shortlist, it shouldnt entirely go
+                          from that list once added, it could grey out and
+                          fall at the bottom of the list. she should be
+                          able to add reason as to why the family wanted
+                          it removed." -- "Remove from shortlist" used to
+                          mean a real, permanent delete every time it was
+                          reached for, even for an ordinary "this school
+                          doesn't work for the family" case (like a school
+                          that can't take all the children). This is now
+                          the same soft Decline used by the Proceed
+                          column -- greyed out, sorted last, with a reason
+                          -- and doesn't require a tour to have happened
+                          first, since a school can turn out unsuitable at
+                          any stage. A genuine mistaken add can still be
+                          deleted outright, tucked under its own explicit
+                          second step so it's not the default reach. */}
+                      {!declined &&
+                        (decliningId === row.id ? (
+                          <div className="svt-remove-confirm" onClick={(e) => e.stopPropagation()}>
+                            <p className="svt-remove-confirm-text">
+                              Mark {row.school?.name || "this school"} as not being pursued. It stays on the list,
+                              greyed out at the bottom, so there's still a record.
+                            </p>
+                            <input
+                              type="text"
+                              className="panel-input svt-decline-input"
+                              placeholder="Reason (e.g. couldn't accommodate all children)"
+                              value={declineNote}
+                              onChange={(e) => setDeclineNote(e.target.value)}
+                            />
+                            <div className="svt-col-actions">
+                              <button
+                                type="button"
+                                className="panel-btn panel-btn-primary svt-col-btn"
+                                onClick={() => handleDeclineFamily(row)}
+                                disabled={busy}
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                type="button"
+                                className="panel-btn panel-btn-quiet svt-col-btn"
+                                onClick={() => {
+                                  setDecliningId(null);
+                                  setDeclineNote("");
+                                }}
+                                disabled={busy}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+
+                            {removingId === row.id ? (
+                              <div className="svt-remove-confirm svt-remove-confirm-nested">
+                                <p className="svt-remove-confirm-text">
+                                  This permanently deletes it from the shortlist instead -- no record, no undo. Only for
+                                  a school that was added by mistake.
+                                </p>
+                                <div className="svt-col-actions">
+                                  <button
+                                    type="button"
+                                    className="panel-btn panel-btn-quiet svt-col-btn"
+                                    onClick={() => handleRemove(row)}
+                                    disabled={busy}
+                                  >
+                                    Yes, delete permanently
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="panel-btn panel-btn-quiet svt-col-btn"
+                                    onClick={() => setRemovingId(null)}
+                                    disabled={busy}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="panel-btn panel-btn-quiet svt-remove-mistake-link"
+                                onClick={() => setRemovingId(row.id)}
+                                disabled={busy}
+                              >
+                                Added by mistake? Delete permanently instead
+                              </button>
+                            )}
                           </div>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          className="panel-btn panel-btn-quiet svt-remove"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRemovingId(row.id);
-                          }}
-                          disabled={busy}
-                        >
-                          Remove from shortlist
-                        </button>
-                      )}
+                        ) : (
+                          <button
+                            type="button"
+                            className="panel-btn panel-btn-quiet svt-remove"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDecliningId(row.id);
+                              setDeclineNote("");
+                            }}
+                            disabled={busy}
+                          >
+                            Not pursuing this school
+                          </button>
+                        ))}
                     </div>
                   </div>
                 )}
