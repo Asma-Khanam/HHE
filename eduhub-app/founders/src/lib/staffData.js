@@ -397,6 +397,87 @@ export async function deleteApplication(applicationId) {
 }
 
 // ---------------------------------------------------------------------------
+// Application events + fees (addendum 60) -- the Stage Timeline and Fees
+// list on an application's expanded detail. Both tables are written by
+// staff through these functions today; a future OpenApply sync job writes
+// into the exact same tables with source="openapply_sync" instead, so nothing
+// here needs to change when that lands.
+// ---------------------------------------------------------------------------
+
+export async function listApplicationEvents(applicationIds) {
+  if (!applicationIds || !applicationIds.length) return [];
+  return (
+    unwrap(
+      await supabase
+        .from("application_events")
+        .select("*")
+        .in("application_id", applicationIds)
+        .order("occurred_at", { ascending: false })
+    ) || []
+  );
+}
+
+export async function createApplicationEvent({ applicationId, eventType, newStatus, description, occurredAt }) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return unwrap(
+    await supabase
+      .from("application_events")
+      .insert({
+        application_id: applicationId,
+        event_type: eventType,
+        new_status: newStatus || null,
+        description,
+        occurred_at: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
+        source: "staff",
+        created_by: user?.id || null,
+      })
+      .select()
+      .single()
+  );
+}
+
+export async function listApplicationFees(applicationIds) {
+  if (!applicationIds || !applicationIds.length) return [];
+  return (
+    unwrap(
+      await supabase
+        .from("application_fees")
+        .select("*")
+        .in("application_id", applicationIds)
+        .order("due_date", { nullsFirst: false })
+    ) || []
+  );
+}
+
+export async function createApplicationFee({ applicationId, label, amount, currency, dueDate }) {
+  return unwrap(
+    await supabase
+      .from("application_fees")
+      .insert({
+        application_id: applicationId,
+        label: label.trim(),
+        amount: amount === "" || amount === null || amount === undefined ? null : Number(amount),
+        currency: currency || "AED",
+        due_date: dueDate || null,
+        source: "staff",
+      })
+      .select()
+      .single()
+  );
+}
+
+export async function updateApplicationFee(feeId, patch) {
+  return unwrap(await supabase.from("application_fees").update(patch).eq("id", feeId).select().single());
+}
+
+export async function deleteApplicationFee(feeId) {
+  const { error } = await supabase.from("application_fees").delete().eq("id", feeId);
+  if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
 // Tasks
 // ---------------------------------------------------------------------------
 

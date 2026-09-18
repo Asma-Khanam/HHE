@@ -53,6 +53,62 @@ export const REJECTION_REASONS = [
   "Other",
 ];
 
+// Application Stage Timeline event kinds (addendum 60). Mirrors that file's
+// CHECK constraint on application_events.event_type -- add one here without
+// adding it there and the insert just fails. 'status_change' is written
+// automatically whenever the Status dropdown on an application changes; the
+// rest are logged by staff (or, in future, an OpenApply sync job) through
+// the "Log an update" action.
+export const EVENT_TYPES = [
+  { key: "status_change", label: "Status change" },
+  { key: "assessment_booked", label: "Assessment booked" },
+  { key: "assessment_completed", label: "Assessment completed" },
+  { key: "document_requested", label: "Document requested" },
+  { key: "document_received", label: "Document received" },
+  { key: "fee_invoiced", label: "Fee invoiced" },
+  { key: "fee_paid", label: "Fee paid" },
+  { key: "note", label: "Note" },
+];
+
+export function eventTypeLabel(key) {
+  return EVENT_TYPES.find((e) => e.key === key)?.label || "Update";
+}
+
+export function eventSourceLabel(source) {
+  return source === "openapply_sync" ? "Synced from OpenApply" : "Logged by staff";
+}
+
+// Fee status (addendum 60) -- mirrors application_fees.status's CHECK.
+export const FEE_STATUSES = [
+  { key: "unpaid", label: "Unpaid" },
+  { key: "paid", label: "Paid" },
+  { key: "waived", label: "Waived" },
+];
+
+export function feeStatusLabel(key) {
+  return FEE_STATUSES.find((f) => f.key === key)?.label || key;
+}
+
+// How many whole days an application has sat in its current status --
+// "never typed by hand", per the founders' own reference mockup for this
+// page. Derived from the most recent status_change event that moved it
+// INTO the status it's currently in; falls back to when the application
+// row was created if there's no event history yet (e.g. it predates
+// addendum 60, or nobody has changed its status since).
+export function daysInStage(application, events) {
+  if (!application) return null;
+  const statusEvents = (events || []).filter(
+    (e) => e.event_type === "status_change" && e.new_status === application.status
+  );
+  // events are expected sorted newest-first; guard against unsorted input.
+  const mostRecent = statusEvents.sort((a, b) => new Date(b.occurred_at) - new Date(a.occurred_at))[0];
+  const since = mostRecent ? mostRecent.occurred_at : application.created_at;
+  if (!since) return null;
+  const start = new Date(since);
+  if (Number.isNaN(start.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - start.getTime()) / 86400000));
+}
+
 // One school, for one family, reduced to a single stage in the Overview
 // pipeline widget -- the same underlying school_shortlist + applications
 // rows the School visits and Applications tabs already show, just read as

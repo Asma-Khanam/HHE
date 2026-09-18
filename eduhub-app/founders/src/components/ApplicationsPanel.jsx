@@ -1,8 +1,40 @@
 import { useEffect, useState } from "react";
-import { createApplication, updateApplication, deleteApplication, createSchool, listShortlistForFamily } from "../lib/staffData";
+import {
+  createApplication,
+  updateApplication,
+  deleteApplication,
+  createSchool,
+  listShortlistForFamily,
+  listApplicationEvents,
+  createApplicationEvent,
+  listApplicationFees,
+  createApplicationFee,
+  updateApplicationFee,
+  deleteApplicationFee,
+} from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
-import { APPLICATION_STATUSES, APPLICATION_PROGRESS_STEPS, applicationStatus, FIT_OPTIONS, fitLabel, REJECTION_REASONS } from "../lib/workflow";
+import {
+  APPLICATION_STATUSES,
+  APPLICATION_PROGRESS_STEPS,
+  applicationStatus,
+  FIT_OPTIONS,
+  fitLabel,
+  REJECTION_REASONS,
+  EVENT_TYPES,
+  eventTypeLabel,
+  eventSourceLabel,
+  FEE_STATUSES,
+  feeStatusLabel,
+  daysInStage,
+} from "../lib/workflow";
 import "./panels.css";
+
+function formatEventWhen(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
 
 function formatShortDate(iso) {
   if (!iso) return "";
@@ -91,6 +123,149 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
   const [fit, setFit] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  // Expanded detail (Stage Timeline + Fees) for one application at a time --
+  // fetched lazily on first expand, same pattern as tourBySchool above, so
+  // the tab doesn't pull every application's whole history up front.
+  const [expandedId, setExpandedId] = useState(null);
+  const [eventsByApp, setEventsByApp] = useState({});
+  const [feesByApp, setFeesByApp] = useState({});
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [logEventType, setLogEventType] = useState("note");
+  const [logDescription, setLogDescription] = useState("");
+  const [addingFeeFor, setAddingFeeFor] = useState(null);
+  const [feeLabel, setFeeLabel] = useState("");
+  const [feeAmount, setFeeAmount] = useState("");
+  const [feeDueDate, setFeeDueDate] = useState("");
+
+  async function toggleExpand(application) {
+    if (expandedId === application.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(application.id);
+    setAddingFeeFor(null);
+    setLogDescription("");
+    setLogEventType("note");
+    if (eventsByApp[application.id] && feesByApp[application.id]) return;
+    setDetailLoading(true);
+    try {
+      const [events, fees] = await Promise.all([
+        listApplicationEvents([application.id]),
+        listApplicationFees([application.id]),
+      ]);
+      setEventsByApp((m) => ({ ...m, [application.id]: events }));
+      setFeesByApp((m) => ({ ...m, [application.id]: fees }));
+    } catch (err) {
+      setError(err.message || "Couldn't load this application's history.");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  // The Status dropdown is the common case, so changing it writes a
+  // status_change event automatically -- staff never have to remember to
+  // also "log" the fact separately. The Stage Timeline is built from this,
+  // never typed by hand for the common path.
+  async function changeStatus(childId, application, nextStatus) {
+    patch(childId, application, { status: nextStatus });
+    if (nextStatus === "rejected" && !application.rejected_reason) {
+      setReasonDraft("");
+      setReasonEditingId(application.id);
+    }
+    try {
+      const event = await createApplicationEvent({
+        applicationId: application.id,
+        eventType: "status_change",
+        newStatus: nextStatus,
+        description: `Status changed to ${applicationStatus(nextStatus).label}`,
+      });
+      setEventsByApp((m) =>
+        m[application.id] ? { ...m, [application.id]: [event, ...m[application.id]] } : m
+      );
+    } catch {
+      // The status change itself already saved via patch() above -- a
+      // failure here only means the timeline entry is missing, which
+      // isn't worth surfacing as an error on top of a successful save.
+    }
+  }
+
+  async function submitLogEvent(application) {
+    const description = logDescription.trim();
+    if (!description) return;
+    setDetailLoading(true);
+    try {
+      const event = await createApplicationEvent({
+        applicationId: application.id,
+        eventType: logEventType,
+        description,
+      });
+      setEventsByApp((m) => ({ ...m, [application.id]: [event, ...(m[application.id] || [])] }));
+      setLogDescription("");
+    } catch (err) {
+      setError(err.message || "Couldn't log that update.");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  async function submitAddFee(e, application) {
+    e.preventDefault();
+    const label = feeLabel.trim();
+    if (!label) return;
+    setDetailLoading(true);
+    try {
+      const fee = await createApplicationFee({
+        applicationId: application.id,
+        label,
+        amount: feeAmount,
+        dueDate: feeDueDate,
+      });
+      setFeesByApp((m) => ({ ...m, [application.id]: [...(m[application.id] || []), fee] }));
+      setFeeLabel("");
+      setFeeAmount("");
+      setFeeDueDate("");
+      setAddingFeeFor(null);
+    } catch (err) {
+      setError(err.message || "Couldn't add that fee.");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  async function setFeeStatus(application, fee, status) {
+    const previous = feesByApp[application.id] || [];
+    setFeesByApp((m) => ({
+      ...m,
+      [application.id]: previous.map((f) => (f.id === fee.id ? { ...f, status } : f)),
+    }));
+    try {
+      const paidAt = status === "paid" ? new Date().toISOString() : null;
+      await updateApplicationFee(fee.id, { status, paid_at: paidAt });
+      if (status === "paid") {
+        const event = await createApplicationEvent({
+          applicationId: application.id,
+          eventType: "fee_paid",
+          description: `${fee.label} marked paid`,
+        });
+        setEventsByApp((m) => ({ ...m, [application.id]: [event, ...(m[application.id] || [])] }));
+      }
+    } catch (err) {
+      setError(err.message || "Couldn't update that fee.");
+      setFeesByApp((m) => ({ ...m, [application.id]: previous }));
+    }
+  }
+
+  async function removeFee(application, fee) {
+    const previous = feesByApp[application.id] || [];
+    setFeesByApp((m) => ({ ...m, [application.id]: previous.filter((f) => f.id !== fee.id) }));
+    try {
+      await deleteApplicationFee(fee.id);
+    } catch (err) {
+      setError(err.message || "Couldn't remove that fee.");
+      setFeesByApp((m) => ({ ...m, [application.id]: previous }));
+    }
+  }
 
   function resetForm() {
     setSchoolId("");
@@ -256,14 +431,7 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
                       <select
                         className="panel-select"
                         value={application.status}
-                        onChange={(e) => {
-                          const nextStatus = e.target.value;
-                          patch(child.id, application, { status: nextStatus });
-                          if (nextStatus === "rejected" && !application.rejected_reason) {
-                            setReasonDraft("");
-                            setReasonEditingId(application.id);
-                          }
-                        }}
+                        onChange={(e) => changeStatus(child.id, application, e.target.value)}
                       >
                         {APPLICATION_STATUSES.map((s) => (
                           <option key={s.key} value={s.key}>
@@ -271,6 +439,19 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
                           </option>
                         ))}
                       </select>
+                      <span className="app-days-in-stage" title="Days since this application entered its current status -- derived from the Stage Timeline, not typed by hand">
+                        {(() => {
+                          const d = daysInStage(application, eventsByApp[application.id]);
+                          return d === null ? "" : `${d}d in stage`;
+                        })()}
+                      </span>
+                      <button
+                        type="button"
+                        className="panel-btn panel-btn-quiet"
+                        onClick={() => toggleExpand(application)}
+                      >
+                        {expandedId === application.id ? "Hide timeline" : "Timeline & fees"}
+                      </button>
                       <button
                         type="button"
                         className="panel-btn panel-btn-quiet"
@@ -320,6 +501,147 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
                             {application.rejected_reason ? `Reason: ${application.rejected_reason}` : "+ Add reason"}
                           </button>
                         )}
+                      </div>
+                    )}
+
+                    {expandedId === application.id && (
+                      <div className="app-detail" onClick={(e) => e.stopPropagation()}>
+                        <div className="app-detail-col">
+                          <h4 className="app-detail-heading">Fees</h4>
+                          {(feesByApp[application.id] || []).length === 0 && !detailLoading && (
+                            <p className="panel-hint">No fees logged yet.</p>
+                          )}
+                          <ul className="app-fee-list">
+                            {(feesByApp[application.id] || []).map((fee) => (
+                              <li key={fee.id} className="app-fee-row">
+                                <span className="app-fee-label">
+                                  {fee.label}
+                                  {fee.source === "openapply_sync" && (
+                                    <span className="app-source-chip">Synced</span>
+                                  )}
+                                </span>
+                                <span className="app-fee-amount">
+                                  {fee.amount != null ? `${fee.currency} ${fee.amount}` : "—"}
+                                </span>
+                                <span className="app-fee-due">
+                                  {fee.due_date ? formatShortDate(fee.due_date) : ""}
+                                </span>
+                                <select
+                                  className="panel-select"
+                                  value={fee.status}
+                                  onChange={(e) => setFeeStatus(application, fee, e.target.value)}
+                                >
+                                  {FEE_STATUSES.map((f) => (
+                                    <option key={f.key} value={f.key}>
+                                      {f.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  className="panel-btn panel-btn-quiet"
+                                  onClick={() => removeFee(application, fee)}
+                                  title="Remove this fee"
+                                >
+                                  ✕
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                          {addingFeeFor === application.id ? (
+                            <form className="panel-form" onSubmit={(e) => submitAddFee(e, application)}>
+                              <input
+                                type="text"
+                                className="panel-input panel-form-grow"
+                                placeholder="Label (e.g. Application fee)"
+                                value={feeLabel}
+                                autoFocus
+                                onChange={(e) => setFeeLabel(e.target.value)}
+                              />
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="panel-input"
+                                placeholder="Amount"
+                                value={feeAmount}
+                                onChange={(e) => setFeeAmount(e.target.value)}
+                              />
+                              <input
+                                type="date"
+                                className="panel-input"
+                                value={feeDueDate}
+                                onChange={(e) => setFeeDueDate(e.target.value)}
+                              />
+                              <button type="submit" className="panel-btn panel-btn-primary" disabled={!feeLabel.trim()}>
+                                Add
+                              </button>
+                              <button type="button" className="panel-btn panel-btn-quiet" onClick={() => setAddingFeeFor(null)}>
+                                Cancel
+                              </button>
+                            </form>
+                          ) : (
+                            <button type="button" className="panel-btn" onClick={() => setAddingFeeFor(application.id)}>
+                              + Add fee
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="app-detail-col">
+                          <h4 className="app-detail-heading">Stage timeline</h4>
+                          <div className="app-log-form">
+                            <select
+                              className="panel-select"
+                              value={logEventType}
+                              onChange={(e) => setLogEventType(e.target.value)}
+                            >
+                              {EVENT_TYPES.filter((t) => t.key !== "status_change").map((t) => (
+                                <option key={t.key} value={t.key}>
+                                  {t.label}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              className="panel-input panel-form-grow"
+                              placeholder="What happened?"
+                              value={logDescription}
+                              onChange={(e) => setLogDescription(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") submitLogEvent(application);
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="panel-btn panel-btn-primary"
+                              disabled={!logDescription.trim() || detailLoading}
+                              onClick={() => submitLogEvent(application)}
+                            >
+                              Log
+                            </button>
+                          </div>
+                          {(eventsByApp[application.id] || []).length === 0 && !detailLoading && (
+                            <p className="panel-hint">No history yet -- changes to Status log here automatically.</p>
+                          )}
+                          <ul className="app-timeline">
+                            {(eventsByApp[application.id] || []).map((event) => (
+                              <li key={event.id} className="app-timeline-row">
+                                <span className="app-timeline-when">{formatEventWhen(event.occurred_at)}</span>
+                                <span className="app-timeline-body">
+                                  <span className="app-timeline-type">{eventTypeLabel(event.event_type)}</span>
+                                  {" — "}
+                                  {event.description}
+                                  <span
+                                    className={
+                                      "app-source-chip" + (event.source === "openapply_sync" ? " is-synced" : "")
+                                    }
+                                  >
+                                    {eventSourceLabel(event.source)}
+                                  </span>
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       </div>
                     )}
                   </li>
