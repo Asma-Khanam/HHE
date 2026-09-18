@@ -1,0 +1,14 @@
+{
+  "name": "hhe-openapply-sync",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Scheduled job: logs into each family's OpenApply portal with their stored application login, reads the Checklist and Invoices & Fees pages, and writes changes into application_events / application_fees. Runs standalone via GitHub Actions -- not part of either Vite app, so it has its own package.json and doesn't affect founders/ or frontend/'s dependencies.",
+  "type": "module",
+  "scripts": {
+    "sync": "node sync.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "playwright": "^1.47.0"
+  }
+}
