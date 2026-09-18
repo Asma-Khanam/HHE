@@ -1,0 +1,59 @@
+name: OpenApply sync
+
+# Runs every 4 hours automatically (per Asma's answer: "a few times a day"),
+# and can also be run on demand from the Actions tab for testing -- with a
+# checkbox to force debug mode on for that one run regardless of the repo
+# variable's default.
+on:
+  schedule:
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: "Debug mode (log in, screenshot pages, write nothing to Supabase)"
+        type: boolean
+        default: true
+      debug_application_id:
+        description: "Optional: only process this one applications.id (debug runs only)"
+        required: false
+        type: string
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: eduhub-app/backend/openapply-sync
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Manual runs use the checkbox above; the scheduled run (no inputs)
+          # falls back to the OPENAPPLY_SYNC_DEBUG repo variable so the
+          # every-4-hours job only goes live once that variable is set to
+          # "false" -- see README.md.
+          OPENAPPLY_SYNC_DEBUG: ${{ github.event_name == 'workflow_dispatch' && inputs.debug || vars.OPENAPPLY_SYNC_DEBUG }}
+          OPENAPPLY_SYNC_DEBUG_APPLICATION_ID: ${{ inputs.debug_application_id }}
+        run: npm run sync
+
+      - name: Upload debug screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapply-debug-output
+          path: eduhub-app/backend/openapply-sync/debug-output
+          if-no-files-found: ignore
+          retention-days: 14
