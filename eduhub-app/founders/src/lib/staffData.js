@@ -1217,10 +1217,36 @@ export function todayInDubai() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" }); // YYYY-MM-DD
 }
 
+// Founder feedback (Sept 2026, Heather via WhatsApp): "for the Hadleys
+// that went to Queen Elizabeth today?" -- a same-day tour used to sit as
+// "Confirmed" (and Proceed stayed locked on "Awaiting tour") until
+// midnight rolled the date over, even hours after the tour itself had
+// clearly finished. "HH:MM" in Asia/Dubai so it can be compared directly
+// against tour_start_time/tour_end_time, which are stored the same way.
+export function nowTimeInDubai() {
+  return new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Dubai", hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+// A tour counts as "past" once its own date is behind today, OR it's
+// today and the time it was scheduled to end (or start, if no end time
+// was set) has already gone by -- deliberately NOT "today" on its own,
+// so a same-day tour later this afternoon doesn't get marked Completed
+// before it's actually happened. A same-day tour with no time recorded
+// at all is left for staff to mark by hand, since there's nothing to
+// compare against.
+function tourIsPast(dateStr, startTime, endTime, today, nowTime) {
+  if (!dateStr) return false;
+  if (dateStr < today) return true;
+  if (dateStr > today) return false;
+  const cutoff = endTime || startTime;
+  return Boolean(cutoff) && cutoff <= nowTime;
+}
+
 // Only ever moves forward (never touches "Cancelled", and never
 // un-completes anything).
 export async function autoCompletePastTours(shortlist) {
   const today = todayInDubai();
+  const nowTime = nowTimeInDubai();
   const nowIso = new Date().toISOString();
 
   // Founder feedback (Sept 2026): "after the date has passed, the status
@@ -1233,11 +1259,17 @@ export async function autoCompletePastTours(shortlist) {
   const updates = await Promise.all(
     shortlist.map((r) => {
       const patch = {};
-      if (r.tour_date && r.tour_date < today && (r.tour_status === "offered" || r.tour_status === "confirmed")) {
+      if (
+        tourIsPast(r.tour_date, r.tour_start_time, r.tour_end_time, today, nowTime) &&
+        (r.tour_status === "offered" || r.tour_status === "confirmed")
+      ) {
         patch.tour_status = "completed";
         patch.tour_completed_at = nowIso;
       }
-      if (r.tour2_date && r.tour2_date < today && (r.tour2_status === "offered" || r.tour2_status === "confirmed")) {
+      if (
+        tourIsPast(r.tour2_date, r.tour2_start_time, r.tour2_end_time, today, nowTime) &&
+        (r.tour2_status === "offered" || r.tour2_status === "confirmed")
+      ) {
         patch.tour2_status = "completed";
         patch.tour2_completed_at = nowIso;
       }
