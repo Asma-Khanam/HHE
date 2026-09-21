@@ -208,6 +208,10 @@ function needsTransferCertificateHelpBadge(child) {
 // don't read as equally urgent at a glance.
 function childCardFlags(child) {
   const flags = [];
+  // Matches the SEN marker on the Overview child card: shown whenever the
+  // family said the child has any identified need.
+  const senStatus = (child?.sen_status || "").trim();
+  if (senStatus !== "" && !senStatus.startsWith("No, none")) flags.push({ label: "SEN", warn: true });
   const disclosure = senDisclosureBadgeLabel(child);
   if (disclosure) flags.push({ label: disclosure, warn: false });
   const transferHelp = needsTransferCertificateHelpBadge(child);
