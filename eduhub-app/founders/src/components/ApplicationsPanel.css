@@ -290,3 +290,20 @@
 .ap-details[open] > summary::before { content: "▾ "; }
 .ap-details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
 .ap-details-wide { grid-column: 1 / -1; }
+
+.ap-portal { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.ap-portal-box { border: 1px solid #e3d9b8; background: #fbf7ea; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ap-portal-title { font-weight: 700; font-size: 0.9rem; }
+.ap-portal-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.88rem; }
+.ap-portal-label { width: 70px; color: #7a6f4d; font-size: 0.8rem; }
+.ap-portal-code { background: #fff; border: 1px solid #e3d9b8; border-radius: 6px; padding: 2px 8px; word-break: break-all; }
+.ap-portal-link { color: #8a6d1a; font-weight: 600; }
+.ap-portal-muted { color: #8a8468; }
+.ap-portal-toggle { background: none; border: none; color: #8a6d1a; cursor: pointer; font-size: 0.8rem; text-decoration: underline; }
+.ap-log-add { display: flex; gap: 8px; }
+.ap-log-add .panel-input { flex: 1; }
+.ap-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; }
+.ap-log-item { display: flex; gap: 10px; font-size: 0.85rem; }
+.ap-log-date { color: #7a6f4d; white-space: nowrap; min-width: 88px; }
+.ap-log-src { color: #9a947a; font-size: 0.78rem; }
+@media (max-width: 760px) { .ap-portal { grid-template-columns: 1fr; } }

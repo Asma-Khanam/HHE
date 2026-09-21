@@ -8,7 +8,8 @@ import {
   createApplicationEvent,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
-import { APPLICATION_STATUSES, REJECTION_REASONS, daysInStage } from "../lib/workflow";
+import { APPLICATION_STATUSES, REJECTION_REASONS, daysInStage, eventTypeLabel, eventSourceLabel } from "../lib/workflow";
+import CopyButton from "./CopyButton";
 import "./panels.css";
 import AutosaveField from "./Autosave";
 import "./ApplicationsPanel.css";
@@ -48,6 +49,121 @@ function reasonFieldFor(status) {
   return status === "withdrawn" ? "withdrawn_reason" : "rejected_reason";
 }
 
+const ALIAS_DOMAIN = "applications.heatherharries.com";
+
+// Portal login + activity log for one application, shown when a consultant
+// opens the application. Login details are the parent's application alias
+// and password (the same ones shown on the Application email panel); nothing
+// here is deletable -- log entries are only ever added.
+function PortalAndLog({ application, school, parents, events, onEventAdded }) {
+  const [revealed, setRevealed] = useState(false);
+  const [entry, setEntry] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [logError, setLogError] = useState("");
+  const login = (parents || []).find((p) => p.application_alias && p.application_password);
+  const email = login ? `${login.application_alias}@${ALIAS_DOMAIN}` : "";
+  const portalUrl = school?.openapply_login_url || "";
+
+  async function addEntry() {
+    const text = entry.trim();
+    if (!text || saving) return;
+    setSaving(true);
+    setLogError("");
+    try {
+      const ev = await createApplicationEvent({ applicationId: application.id, eventType: "note", description: text });
+      onEventAdded(ev);
+      setEntry("");
+    } catch (err) {
+      setLogError(err.message || "Couldn't add that entry.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="ap-portal">
+      <div className="ap-portal-box">
+        <div className="ap-portal-title">Portal login</div>
+        {portalUrl ? (
+          <div className="ap-portal-row">
+            <span className="ap-portal-label">Portal</span>
+            <a href={portalUrl} target="_blank" rel="noreferrer" className="ap-portal-link">
+              Open {school?.name || "school"} portal
+            </a>
+            <CopyButton text={portalUrl} />
+          </div>
+        ) : (
+          <div className="ap-portal-row ap-portal-muted">No portal link saved for this school yet.</div>
+        )}
+        {login ? (
+          <>
+            <div className="ap-portal-row">
+              <span className="ap-portal-label">Email</span>
+              <code className="ap-portal-code">{email}</code>
+              <CopyButton text={email} />
+            </div>
+            <div className="ap-portal-row">
+              <span className="ap-portal-label">Password</span>
+              <code className="ap-portal-code">{revealed ? login.application_password : "••••••••••••"}</code>
+              <button type="button" className="ap-portal-toggle" onClick={() => setRevealed((v) => !v)}>
+                {revealed ? "Hide" : "Show"}
+              </button>
+              <CopyButton text={login.application_password} />
+            </div>
+            <div className="ap-portal-row ap-portal-muted">
+              {login.full_name ? `${login.full_name}'s` : "Parent's"} application email. Same login for every school.
+            </div>
+          </>
+        ) : (
+          <div className="ap-portal-row ap-portal-muted">
+            No application email and password generated yet — create them in the Application email section below.
+          </div>
+        )}
+      </div>
+
+      <div className="ap-portal-box">
+        <div className="ap-portal-title">Activity log</div>
+        <div className="ap-log-add">
+          <input
+            className="panel-input"
+            placeholder="Add a log entry (e.g. logged in, uploaded passport, paid invoice)"
+            value={entry}
+            onChange={(e) => setEntry(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addEntry();
+              }
+            }}
+          />
+          <button type="button" className="panel-btn" disabled={saving || !entry.trim()} onClick={addEntry}>
+            {saving ? "Adding…" : "Add"}
+          </button>
+        </div>
+        {logError && <div className="hh-form-banner hh-form-banner-error">{logError}</div>}
+        {events.length === 0 ? (
+          <div className="ap-portal-row ap-portal-muted">Nothing logged yet.</div>
+        ) : (
+          <ul className="ap-log">
+            {events.map((ev) => (
+              <li key={ev.id} className="ap-log-item">
+                <span className="ap-log-date">
+                  {new Date(ev.occurred_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                </span>
+                <span className="ap-log-body">
+                  <strong>{eventTypeLabel(ev.event_type)}</strong>
+                  {ev.description ? ` — ${ev.description}` : ""}
+                  <span className="ap-log-src"> · {eventSourceLabel(ev.source)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Where each child has applied and how far along each application is.
 // Applications are never deleted from here -- a school that falls away is
 // set to Withdrawn (with a reason) or Declined instead, so the record stays.
@@ -58,6 +174,7 @@ export default function ApplicationsPanel({
   onApplicationsChange,
   schoolCatalog,
   highlightSchoolId,
+  parents = [],
 }) {
   const [apps, setApps] = useState(applicationsByChild || {});
   // Every change made here is reported to the page above, so leaving this tab
@@ -413,7 +530,7 @@ export default function ApplicationsPanel({
                         className="ap-details"
                         open={!!(application.notes || application.assessment_date || application.assessment_link || application.assessment_notes)}
                       >
-                        <summary>Application details &amp; notes</summary>
+                        <summary>Application details, portal login &amp; log</summary>
                         <div className="ap-details-grid">
                           <label className="ap-field">
                             <span className="ap-label">Date submitted</span>
@@ -474,6 +591,15 @@ export default function ApplicationsPanel({
                             />
                           </div>
                         </div>
+                        <PortalAndLog
+                          application={application}
+                          school={schools.find((sc) => sc.id === application.school_id)}
+                          parents={parents}
+                          events={eventsByApp[application.id] || []}
+                          onEventAdded={(ev) =>
+                            setEventsByApp((m) => ({ ...m, [application.id]: [ev, ...(m[application.id] || [])] }))
+                          }
+                        />
                       </details>
                     </li>
                   );

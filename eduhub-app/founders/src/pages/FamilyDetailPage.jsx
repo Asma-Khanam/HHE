@@ -956,6 +956,7 @@ export default function FamilyDetailPage() {
             applicationsByChild={applicationsByChild}
             onApplicationsChange={handleApplicationsChange}
             schoolCatalog={schoolCatalog}
+            parents={parents || []}
             highlightSchoolId={searchParams.get("school") || null}
           />
 
