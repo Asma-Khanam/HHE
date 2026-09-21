@@ -155,15 +155,19 @@ async function loadSyncTargets() {
   // with both set and not marked inactive is used (normally the mother).
   const { data: parents, error: parentsErr } = await supabase
     .from("parents")
-    .select("family_id, full_name, application_alias, application_alias_status, application_password, created_at")
+    .select("family_id, full_name, relationship, application_alias, application_alias_status, application_password, created_at")
     .in("family_id", familyIds)
     .order("created_at", { ascending: true });
   if (parentsErr) throw parentsErr;
   const familyById = {};
   families.forEach((f) => {
-    const login = (parents || []).find(
+    // Mother first (her alias is the one registered on the school portals),
+    // then anyone else with a login. Never guesses between two logins silently.
+    const candidates = (parents || []).filter(
       (p) => p.family_id === f.id && p.application_alias && p.application_password && p.application_alias_status !== "inactive"
     );
+    const login = candidates.find((p) => p.relationship === "Mother") || candidates[0];
+    if (login) console.log(`Family ${f.id}: using the ${login.relationship || "parent"} login (${candidates.length} available)`);
     familyById[f.id] = {
       id: f.id,
       application_alias: login ? `${login.application_alias}@${ALIAS_DOMAIN}` : null,
