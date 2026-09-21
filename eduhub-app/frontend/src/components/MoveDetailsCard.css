@@ -79,3 +79,15 @@
   color: var(--hh-ink);
   opacity: 0.6;
 }
+
+.move-card-row select {
+  font-family: var(--hh-font-body);
+  font-size: 0.9rem;
+  font-weight: 400;
+  padding: 9px 12px;
+  border: 1px solid rgba(83, 1, 38, 0.15);
+  border-radius: 8px;
+  color: var(--hh-ink);
+  background: var(--hh-white);
+  outline: none;
+}

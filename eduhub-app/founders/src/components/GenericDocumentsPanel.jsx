@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getSignedUrl, downloadDocument, uploadDocument, deleteDocument, listDocuments, slugifyLabel, labelFromSlug } from "../lib/documents";
+import AutosaveField from "./Autosave";
+import { updateDocumentDescription } from "../lib/staffData";
 import "./panels.css";
 import "./GenericDocumentsPanel.css";
 
@@ -126,6 +128,26 @@ export default function GenericDocumentsPanel({ ownerType, ownerId, uploadUserId
                   Remove
                 </button>
               </span>
+              <div className="gdp-desc" style={{ flexBasis: "100%" }}>
+                <AutosaveField
+                  bare
+                  multiline
+                  rows={2}
+                  collapsible
+                  value={doc.description || ""}
+                  placeholder="What is this document? (e.g. Educational psychologist report, March 2026)"
+                  onSave={async (v) => {
+                    try {
+                      const updated = await updateDocumentDescription(doc.id, v);
+                      setDocs((list) => list.map((d) => (d.id === doc.id ? { ...d, description: updated.description } : d)));
+                      return true;
+                    } catch (e) {
+                      setError(e.message || "Couldn't save that description.");
+                      return false;
+                    }
+                  }}
+                />
+              </div>
             </li>
           ))}
         </ul>

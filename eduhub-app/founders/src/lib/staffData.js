@@ -1432,3 +1432,83 @@ export async function listFamilyStageHistory(familyId) {
 export async function listAllStageHistory() {
   return unwrap(await supabase.from("family_stage_history").select("family_id, to_stage"));
 }
+
+// ---------------------------------------------------------------------------
+// Addendum 70: document descriptions, partner referrals, placements
+// ---------------------------------------------------------------------------
+export async function updateDocumentDescription(docId, description) {
+  return unwrap(
+    await supabase
+      .from("documents")
+      .update({ description: (description || "").trim() || null })
+      .eq("id", docId)
+      .select()
+      .single()
+  );
+}
+
+export async function listPartnerReferrals(familyId) {
+  return unwrap(
+    await supabase.from("partner_referrals").select("*").eq("family_id", familyId).order("referred_on", { ascending: false })
+  );
+}
+
+export async function createPartnerReferral({ familyId, direction, partnerName, referredOn, notes }) {
+  return unwrap(
+    await supabase
+      .from("partner_referrals")
+      .insert({
+        family_id: familyId,
+        direction,
+        partner_name: partnerName.trim(),
+        referred_on: referredOn || new Date().toISOString().slice(0, 10),
+        notes: notes?.trim() || null,
+      })
+      .select()
+      .single()
+  );
+}
+
+export async function listPlacements(familyId) {
+  return unwrap(
+    await supabase.from("family_placements").select("*").eq("family_id", familyId).order("start_date", { ascending: true })
+  );
+}
+
+// A placement is a child's school start date. Saving one also puts a
+// reminder on the calendar for that day ("wish them good luck"), and
+// changing the date moves that same reminder rather than adding another.
+export async function createPlacement({ familyId, childId, childName, schoolName, startDate }) {
+  const event = await createCalendarEvent({
+    familyId,
+    childId: childId || null,
+    kind: "reminder",
+    title: `First day at ${schoolName.trim()}: wish ${childName || "the child"} good luck`,
+    notes: "Placement start date. Send a good-luck message on their first day.",
+    startsAt: `${startDate}T09:00:00`,
+    allDay: true,
+  });
+  return unwrap(
+    await supabase
+      .from("family_placements")
+      .insert({
+        family_id: familyId,
+        child_id: childId || null,
+        school_name: schoolName.trim(),
+        start_date: startDate,
+        calendar_event_id: event.id,
+      })
+      .select()
+      .single()
+  );
+}
+
+export async function updatePlacementDate(placement, startDate) {
+  const row = unwrap(
+    await supabase.from("family_placements").update({ start_date: startDate }).eq("id", placement.id).select().single()
+  );
+  if (placement.calendar_event_id) {
+    await updateCalendarEvent(placement.calendar_event_id, { startsAt: `${startDate}T09:00:00`, allDay: true });
+  }
+  return row;
+}

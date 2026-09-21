@@ -747,6 +747,19 @@ export async function updateMoveDetails(familyId, { origin, destination, dubaiAv
   return data;
 }
 
+// "How did you hear about us?" -- saved on its own so a database that hasn't
+// had addendum 70 run yet can't break the rest of the application.
+export async function updateReferralSource(familyId, { source, detail }) {
+  const { data, error } = await supabase
+    .from("families")
+    .update({ referral_source: source || null, referral_source_detail: detail || null })
+    .eq("id", familyId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function submitApplication(familyId) {
   const { error } = await supabase
     .from("families")

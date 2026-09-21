@@ -54,7 +54,7 @@ export default function FamiliesListPage() {
 
   const counts = useMemo(() => {
     const list = families || [];
-    const c = { all: list.length };
+    const c = { all: list.filter((f) => f.client_stage !== "placed").length };
     CLIENT_STAGES.forEach((s) => {
       c[s.key] = list.filter((f) => f.client_stage === s.key).length;
     });
@@ -64,7 +64,8 @@ export default function FamiliesListPage() {
   const filtered = useMemo(() => {
     if (!families) return [];
     let list = families;
-    if (tab !== "all") list = list.filter((f) => f.client_stage === tab);
+    if (tab === "all") list = list.filter((f) => f.client_stage !== "placed");
+    else list = list.filter((f) => f.client_stage === tab);
     if (cameInAs) list = list.filter((f) => f.entry_stage === cameInAs);
     if (everIn) list = list.filter((f) => everByFamily[f.id]?.has(everIn));
 

@@ -120,6 +120,9 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
               </option>
             ))}
           </select>
+          {values.client_stage === "placed" && (
+            <p className="panel-field-hint">Add each child's school start date under Placement on the Overview tab.</p>
+          )}
         </div>
 
         <div>

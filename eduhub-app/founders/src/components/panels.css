@@ -1068,3 +1068,17 @@
 .case-journey-step{display:inline-flex;align-items:center;gap:6px}
 .case-journey-arrow{opacity:.5}
 .case-journey-date{opacity:.65;font-size:.8rem}
+
+.ref-source{margin:0 0 12px;font-size:.95rem}
+.ref-source-label{font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;opacity:.6;margin-right:6px}
+.ref-form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.ref-form .ref-notes{flex:1 1 220px}
+.ref-list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.ref-item{display:flex;gap:10px;align-items:center;padding:8px 12px;background:#fffdf6;border:1px solid #efe8d0;border-radius:10px;font-size:.92rem}
+.ref-main{flex:1;min-width:0}
+.ref-date{opacity:.65;font-size:.82rem;white-space:nowrap}
+.ref-dir{font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:999px;background:#f3e9c6;color:#6b5312}
+.ref-dir.is-out{background:#e6ecf7;color:#2d4a86}
+.pl-date{width:auto}
+.gdp-desc{margin-top:6px}
+.panel-field-hint{margin:6px 0 0;font-size:.78rem;opacity:.7}

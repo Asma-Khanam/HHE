@@ -5,11 +5,13 @@
 // the database has to allow it too or the write will just fail.
 
 export const PIPELINE_STAGES = [
-  { key: "enquiry", label: "Enquiry" },
-  { key: "profile", label: "Profile" },
-  { key: "applied", label: "Applied" },
-  { key: "assessed", label: "Assessed" },
-  { key: "offer", label: "Offer" },
+  // Heather's stages (21 Sept 2026, addendum 70). The database keys are the
+  // original ones; only the meaning and label changed.
+  { key: "enquiry", label: "Documents uploaded" },
+  { key: "profile", label: "Schools suggested" },
+  { key: "applied", label: "Visits arranged" },
+  { key: "assessed", label: "Applications made" },
+  { key: "offer", label: "Offers received" },
   { key: "placed", label: "Placed" },
 ];
 

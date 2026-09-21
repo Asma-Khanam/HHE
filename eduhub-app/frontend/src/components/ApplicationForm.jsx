@@ -13,6 +13,7 @@ import AddressBlock, { resolveAddress } from "./AddressBlock";
 import AvatarUpload from "./AvatarUpload";
 import PageHeader from "./PageHeader";
 import MoveDetailsCard from "./MoveDetailsCard";
+import ReferralCard from "./ReferralCard";
 import DocumentChecklist from "./DocumentChecklist";
 import { saveApplication, submitApplication, deleteChild } from "../lib/applicationData";
 import { deleteDocument } from "../lib/documents";
@@ -2580,6 +2581,7 @@ function CardListView({
   return (
     <div className="card-list-view">
       <MoveDetailsCard familyId={familyId} family={family} onFamilyChange={onFamilyChange} />
+      <ReferralCard familyId={familyId} family={family} onFamilyChange={onFamilyChange} />
 
       <FormSection title="Parents" description="Tell us who's who, and who's actually filling this in.">
         <div className="hh-field-full account-holder-picker">

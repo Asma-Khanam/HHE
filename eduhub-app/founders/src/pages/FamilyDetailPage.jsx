@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { getFamilyDetail, getCurrentStaff, shortId, friendlyError, touchFamilyActivity } from "../lib/staffData";
 import { getMissingItems, getOutstandingDocuments, displayNameForChild } from "../lib/completeness";
+import { householdAddress } from "../lib/address";
 import CaseSettingsPanel from "../components/CaseSettingsPanel";
 import ApplicationEmailPanel from "../components/ApplicationEmailPanel";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
@@ -306,7 +307,7 @@ function RecordField({ label, value, wide }) {
 // that ISN'T all at one address, so anyone living elsewhere is called out by
 // name rather than left to be noticed further down the record.
 function AddressSummary({ family, parents, familyChildren, accountHolderRole }) {
-  const main = (family.home_address || "").trim();
+  const main = householdAddress(family, parents);
 
   const elsewhere = [
     ...parents.map((p) => ({
@@ -865,7 +866,7 @@ export default function FamilyDetailPage() {
                       per-child. Shown on every child's card too so staff
                       don't have to leave the child's profile to see it. */}
                   <div className="rec-grid">
-                    <RecordField label="Family address" value={family.home_address} wide />
+                    <RecordField label="Family address" value={householdAddress(family, namedParents)} wide />
                   </div>
 
                   <RecordFieldsEditor

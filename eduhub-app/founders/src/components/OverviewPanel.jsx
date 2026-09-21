@@ -2,6 +2,9 @@ import { displayNameForChild } from "../lib/completeness";
 import { packageLabel } from "../data/packages";
 import SchoolPipelinePanel from "./SchoolPipelinePanel";
 import CopyButton from "./CopyButton";
+import { householdAddress } from "../lib/address";
+import ReferralsPanel from "./ReferralsPanel";
+import PlacementPanel from "./PlacementPanel";
 import CaseNotesPanel from "./CaseNotesPanel";
 import GenericDocumentsPanel from "./GenericDocumentsPanel";
 import "./panels.css";
@@ -68,7 +71,8 @@ export default function OverviewPanel({
 }) {
   const [mother, father] = namedParents;
   // Only call out an address on a person when it is NOT the household address.
-  const differs = (addr) => !sameAddress(addr, family.home_address);
+  const householdAddr = householdAddress(family, namedParents);
+  const differs = (addr) => !sameAddress(addr, householdAddr);
 
   return (
     <div className="family-detail-tab-stack">
@@ -104,7 +108,7 @@ export default function OverviewPanel({
 
           <div className="ov-person">
             <span className="ov-eyebrow">Household address</span>
-            <ReadLine value={family.home_address} label="Copy address" />
+            <ReadLine value={householdAddr} label="Copy address" />
           </div>
         </div>
 
@@ -156,6 +160,12 @@ export default function OverviewPanel({
         onGoToVisits={onGoToVisits}
         onGoToApplications={onGoToApplications}
       />
+
+      {family.client_stage === "placed" && (
+        <PlacementPanel family={family} familyChildren={familyChildren} />
+      )}
+
+      <ReferralsPanel family={family} />
 
       <CaseNotesPanel
         familyId={family.id}
