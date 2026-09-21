@@ -5,9 +5,9 @@
 .ov-pill { font-size: 0.78rem; font-weight: 600; padding: 4px 12px; border-radius: 999px; background: rgba(184, 154, 90, 0.18); color: var(--hh-ink); white-space: nowrap; }
 .ov-pill.is-empty { background: rgba(83, 1, 38, 0.06); opacity: 0.6; }
 .ov-people { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.ov-person { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 12px; background: rgba(83, 1, 38, 0.035); border: 1px solid rgba(83, 1, 38, 0.07); min-width: 0; }
+.ov-person { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: 12px; background: #faf3e3; border: 1px solid rgba(184, 154, 90, 0.45); min-width: 0; }
 .ov-none { font-size: 0.9rem; opacity: 0.5; }
-.ov-lower { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; padding-top: 16px; border-top: 1px solid rgba(83, 1, 38, 0.08); }
+.ov-lower { display: grid; grid-template-columns: 1fr; gap: 14px; padding-top: 16px; border-top: 1px solid rgba(83, 1, 38, 0.08); }
 .ov-dates { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .ov-date { font: inherit; font-size: 0.9rem; padding: 6px 10px; border: 1px solid rgba(83, 1, 38, 0.15); border-radius: 8px; background: var(--hh-white); color: var(--hh-ink); }
 .ov-date:focus { outline: none; border-color: var(--hh-gold); box-shadow: 0 0 0 3px rgba(184, 154, 90, 0.18); }
@@ -29,3 +29,10 @@
   .ov-people { grid-template-columns: 1fr; }
   .ov-lower { grid-template-columns: 1fr; }
 }
+
+.ov-line { display: flex; align-items: center; min-width: 0; gap: 8px; }
+.ov-line.is-strong .ov-value { font-weight: 600; }
+.ov-line-icon { flex: none; width: 16px; opacity: 0.45; font-size: 0.8rem; }
+.ov-value { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 0.92rem; }
+.ov-value.is-empty { opacity: 0.4; }
+.ov-line .copy-btn { margin-left: 0; }

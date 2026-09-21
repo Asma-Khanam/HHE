@@ -1,12 +1,9 @@
-import { useState } from "react";
 import { displayNameForChild } from "../lib/completeness";
 import { packageLabel } from "../data/packages";
 import SchoolPipelinePanel from "./SchoolPipelinePanel";
 import CopyButton from "./CopyButton";
 import CaseNotesPanel from "./CaseNotesPanel";
 import GenericDocumentsPanel from "./GenericDocumentsPanel";
-import EditableLine from "./EditableLine";
-import { updateFamily, updateRecordFields } from "../lib/staffData";
 import "./panels.css";
 import "./OverviewPanel.css";
 
@@ -15,11 +12,16 @@ function hasSen(child) {
   return st !== "" && !st.startsWith("No, none");
 }
 
-function stayLabel(from, until) {
-  if (!from || !until) return "";
-  const days = Math.round((new Date(until) - new Date(from)) / 86400000);
-  if (Number.isNaN(days) || days < 0) return "";
-  return days === 0 ? "1 day" : `${days + 1} days`;
+// Read-only line: value (or a dash) with a copy icon. Editing lives in the
+// Family details tab; this card only displays what's already on file.
+function ReadLine({ value, label, icon, strong }) {
+  return (
+    <div className={"ov-line" + (strong ? " is-strong" : "")}>
+      {icon && <span className="ov-line-icon" aria-hidden="true">{icon}</span>}
+      <span className={"ov-value" + (value ? "" : " is-empty")}>{value || "—"}</span>
+      <CopyButton text={value} label={label} />
+    </div>
+  );
 }
 
 // The Overview tab (September 2026 change request, then revised again).
@@ -40,31 +42,8 @@ export default function OverviewPanel({
   caseNotes,
   staff,
   schoolCatalog,
-  onFamilyChange,
-  onParentSaved,
 }) {
   const [mother, father] = namedParents;
-  const [dateError, setDateError] = useState("");
-  const stay = stayLabel(family.dubai_available_from, family.dubai_available_until);
-
-  // Throws on failure (EditableLine shows the error); the date boxes use
-  // saveDates, which reports it beside them instead.
-  async function saveFamily(patch) {
-    const updated = await updateFamily(family.id, patch);
-    if (updated) onFamilyChange?.(updated);
-  }
-  async function saveDates(patch) {
-    setDateError("");
-    try {
-      await saveFamily(patch);
-    } catch (err) {
-      setDateError(err?.message || "Couldn't save those dates.");
-    }
-  }
-  async function saveParent(parentId, patch) {
-    const updated = await updateRecordFields("parents", parentId, patch);
-    if (updated) onParentSaved?.(updated);
-  }
 
   return (
     <div className="family-detail-tab-stack">
@@ -83,76 +62,22 @@ export default function OverviewPanel({
         </header>
 
         <div className="ov-people">
-          {[mother, father].map((parent, i) => {
-            const role = i === 0 ? "Mother" : "Father";
-            return (
-              <div className="ov-person" key={role}>
-                <span className="ov-eyebrow">{role}</span>
-                {parent ? (
-                  <>
-                    <EditableLine
-                      strong
-                      placeholder="Full name"
-                      value={parent.full_name}
-                      onSave={(v) => saveParent(parent.id, { full_name: v })}
-                    />
-                    <EditableLine
-                      icon="mail"
-                      type="email"
-                      placeholder="Add email"
-                      value={parent.email}
-                      onSave={(v) => saveParent(parent.id, { email: v })}
-                    />
-                    <EditableLine
-                      icon="phone"
-                      type="tel"
-                      placeholder="Add phone"
-                      value={parent.phone}
-                      onSave={(v) => saveParent(parent.id, { phone: v })}
-                    />
-                  </>
-                ) : (
-                  <span className="ov-none">Not on file</span>
-                )}
-              </div>
-            );
-          })}
+          {[mother, father].map((parent, i) => (
+            <div className="ov-person" key={i === 0 ? "Mother" : "Father"}>
+              <span className="ov-eyebrow">{i === 0 ? "Mother" : "Father"}</span>
+              <ReadLine value={parent?.full_name} label="Copy name" strong />
+              <ReadLine value={parent?.email} label="Copy email" icon="✉" />
+              <ReadLine value={parent?.phone} label="Copy phone" icon="☎" />
+            </div>
+          ))}
 
           <div className="ov-person">
             <span className="ov-eyebrow">Household address</span>
-            <EditableLine
-              placeholder="Add address"
-              value={family.home_address}
-              onSave={(v) => saveFamily({ home_address: v })}
-            />
+            <ReadLine value={family.home_address} label="Copy address" />
           </div>
         </div>
 
         <div className="ov-lower">
-          <div className="ov-dubai">
-            <span className="ov-eyebrow">Available in Dubai</span>
-            <div className="ov-dates">
-              <input
-                type="date"
-                className="ov-date"
-                value={family.dubai_available_from || ""}
-                onChange={(e) => saveDates({ dubai_available_from: e.target.value })}
-                aria-label="Available in Dubai from"
-              />
-              <span className="ov-arrow">→</span>
-              <input
-                type="date"
-                className="ov-date"
-                value={family.dubai_available_until || ""}
-                onChange={(e) => saveDates({ dubai_available_until: e.target.value })}
-                aria-label="Available in Dubai until"
-              />
-              {stay && <span className="ov-stay">{stay}</span>}
-            </div>
-            <span className="ov-note">Families sometimes change plans by text — edit here and it updates everywhere.</span>
-            {dateError && <span className="ov-error">{dateError}</span>}
-          </div>
-
           <div className="ov-kids">
             <span className="ov-eyebrow">Children</span>
             {familyChildren.length === 0 ? (
