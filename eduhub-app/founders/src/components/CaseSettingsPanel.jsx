@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { updateFamily } from "../lib/staffData";
 import { PIPELINE_STAGES } from "../lib/workflow";
 import { PACKAGES } from "../data/packages";
@@ -22,6 +22,17 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
     dubai_available_until: family.dubai_available_until || "",
     membership_type: family.membership_type || "",
   });
+  // Other parts of the page (the Overview's Dubai dates) edit the same
+  // columns -- keep this bar in step with whatever the family row now says.
+  useEffect(() => {
+    setValues((v) => ({
+      ...v,
+      origin: family.origin || "",
+      destination: family.destination || "",
+      dubai_available_from: family.dubai_available_from || "",
+      dubai_available_until: family.dubai_available_until || "",
+    }));
+  }, [family.origin, family.destination, family.dubai_available_from, family.dubai_available_until]);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
@@ -112,12 +123,20 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
 
         <div>
           <label className="panel-field-label">Available in Dubai from</label>
-          <input type="date" {...textProps("dubai_available_from")} />
+          <input
+            type="date"
+            {...textProps("dubai_available_from")}
+            onChange={(e) => save({ dubai_available_from: e.target.value })}
+          />
         </div>
 
         <div>
           <label className="panel-field-label">Available in Dubai until</label>
-          <input type="date" {...textProps("dubai_available_until")} />
+          <input
+            type="date"
+            {...textProps("dubai_available_until")}
+            onChange={(e) => save({ dubai_available_until: e.target.value })}
+          />
         </div>
 
         <div>

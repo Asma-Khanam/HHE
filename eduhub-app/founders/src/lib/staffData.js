@@ -317,7 +317,7 @@ export async function getFamilyDetail(familyId) {
 // Only the staff-managed columns are ever sent — the family's own data
 // (home_address, intake_status) is theirs to change, not ours, and
 // account_user_id is refused outright by a database trigger anyway.
-const FAMILY_STAFF_COLUMNS = ["pipeline_stage", "destination", "origin", "membership_type", "owner_staff_id"];
+const FAMILY_STAFF_COLUMNS = ["pipeline_stage", "destination", "origin", "membership_type", "owner_staff_id", "home_address", "dubai_available_from", "dubai_available_until"];
 
 export async function updateFamily(familyId, patch) {
   const payload = {};

@@ -677,6 +677,8 @@ export default function FamilyDetailPage() {
           onGoToApplications={() => setActiveTab("applications")}
           caseNotes={caseNotes}
           staff={staff}
+          onFamilyChange={handleFamilyFieldChange}
+          onParentSaved={handleParentSaved}
           schoolCatalog={schoolCatalog}
         />
       )}

@@ -26,6 +26,8 @@ export default function AutosaveField({
   delay = 800,
   className = "",
   collapsible = false,
+  bare = false, // no label/status row -- for compact inline use; errors still show
+  type = "text",
 }) {
   const [draft, setDraft] = useState(value || "");
   const [state, setState] = useState("idle"); // idle | dirty | saving | saved | error
@@ -156,10 +158,12 @@ export default function AutosaveField({
   if (collapsible && !editing && draft.trim()) {
     return (
       <div className={"as " + className}>
-        <div className="as-head">
-          {label ? <span className="as-label">{label}</span> : <span />}
-          <span className={"as-status is-" + state}>{state === "saved" ? "✓ Saved" : "Click to edit"}</span>
-        </div>
+        {!bare && (
+          <div className="as-head">
+            {label ? <span className="as-label">{label}</span> : <span />}
+            <span className={"as-status is-" + state}>{state === "saved" ? "✓ Saved" : "Click to edit"}</span>
+          </div>
+        )}
         <button
           type="button"
           className="as-display"
@@ -190,7 +194,7 @@ export default function AutosaveField({
   const Tag = multiline ? "textarea" : "input";
   return (
     <div className={"as " + className}>
-      <div className="as-head">
+      <div className={"as-head" + (bare && state !== "error" ? " is-hidden" : "")}>
         {label ? <span className="as-label">{label}</span> : <span />}
         <span className={"as-status is-" + state}>
           {statusText}
@@ -203,7 +207,7 @@ export default function AutosaveField({
       </div>
       <Tag
         className={"as-input" + (state === "error" ? " is-error" : "")}
-        {...(multiline ? { rows } : { type: "text", list })}
+        {...(multiline ? { rows } : { type, list })}
         placeholder={placeholder}
         value={draft}
         onChange={handleChange}

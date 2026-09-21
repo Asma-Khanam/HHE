@@ -94,3 +94,7 @@ textarea.as-input {
   border-color: rgba(83, 1, 38, 0.18);
   background: rgba(83, 1, 38, 0.06);
 }
+
+.as-head.is-hidden {
+  display: none;
+}
