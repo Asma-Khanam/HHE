@@ -105,8 +105,8 @@ function admissionsProcessText(school) {
       school.requires_map && "MAP",
       school.requires_interview && "Interview",
       school.requires_taster_day && "Taster day",
-      school.application_fee != null && `Application fee: ${school.application_fee}`,
-      school.deposit_amount != null && `Deposit: ${school.deposit_amount}`,
+      school.application_fee != null && `Application fee: ${school.fee_currency || "AED"} ${school.application_fee}`,
+      school.deposit_amount != null && `Deposit: ${school.fee_currency || "AED"} ${school.deposit_amount}`,
     ]
       .filter(Boolean)
       .join(" · ") || null

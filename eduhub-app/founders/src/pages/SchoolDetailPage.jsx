@@ -275,8 +275,8 @@ function SchoolRecordView({ school }) {
               </span>
             )}
           </SvRow>
-          <SvRow label="Application fee">{school.application_fee != null ? String(school.application_fee) : ""}</SvRow>
-          <SvRow label="Deposit">{school.deposit_amount != null ? String(school.deposit_amount) : ""}</SvRow>
+          <SvRow label="Application fee">{school.application_fee != null ? `${school.fee_currency || "AED"} ${school.application_fee}` : ""}</SvRow>
+          <SvRow label="Deposit">{school.deposit_amount != null ? `${school.fee_currency || "AED"} ${school.deposit_amount}` : ""}</SvRow>
           <SvRow label="Contact">{contact.length > 0 && contact.join(" · ")}</SvRow>
         </div>
       </div>
@@ -369,6 +369,7 @@ export default function SchoolDetailPage() {
       requires_map: !!school.requires_map,
       requires_interview: !!school.requires_interview,
       requires_taster_day: !!school.requires_taster_day,
+      fee_currency: school.fee_currency || "AED",
       application_fee: school.application_fee ?? "",
       deposit_amount: school.deposit_amount ?? "",
       documents_required: school.documents_required || "",
@@ -863,6 +864,21 @@ export default function SchoolDetailPage() {
                   value={draft.admissions_contact_phone}
                   onChange={(e) => setDraft((d) => ({ ...d, admissions_contact_phone: e.target.value }))}
                 />
+              </div>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-currency">
+                  Currency (application fee and deposit)
+                </label>
+                <select
+                  id="sch-currency"
+                  className="panel-input"
+                  value={draft.fee_currency}
+                  onChange={(e) => setDraft((d) => ({ ...d, fee_currency: e.target.value }))}
+                >
+                  {["AED", "GBP", "USD", "EUR"].map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
               </div>
               <div className="rec-field">
                 <label className="rec-field-label" htmlFor="sch-fee">
