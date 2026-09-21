@@ -1,0 +1,163 @@
+/* Application email panel -- one card per parent. */
+
+.ae-intro {
+  margin-bottom: 16px;
+  max-width: 70ch;
+  line-height: 1.5;
+}
+
+.ae-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+.ae-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--hh-cream);
+  border: 1px solid rgba(83, 1, 38, 0.08);
+  border-radius: 12px;
+}
+.ae-card.is-inactive {
+  opacity: 0.65;
+}
+
+.ae-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ae-who {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.ae-role {
+  font-family: var(--hh-font-heading);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--hh-burgundy);
+}
+.ae-name {
+  font-size: 0.8rem;
+  color: var(--hh-ink);
+  opacity: 0.6;
+}
+
+.ae-badge {
+  flex: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #ececec;
+  color: #6d6367;
+}
+.ae-badge.is-active {
+  background: var(--hh-good-bg);
+  color: var(--hh-good);
+}
+
+.ae-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ae-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hh-ink);
+  opacity: 0.5;
+}
+.ae-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--hh-white);
+  border: 1px solid rgba(83, 1, 38, 0.12);
+  border-radius: 8px;
+  padding: 7px 8px 7px 12px;
+}
+.ae-code {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  color: var(--hh-burgundy);
+  word-break: break-all;
+}
+.ae-muted {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--hh-ink);
+  opacity: 0.5;
+}
+
+.ae-btn {
+  flex: none;
+  font-family: var(--hh-font-body);
+  font-size: 0.74rem;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(83, 1, 38, 0.18);
+  background: var(--hh-white);
+  color: var(--hh-burgundy);
+  cursor: pointer;
+  transition: background var(--hh-transition);
+}
+.ae-btn:hover:not(:disabled) {
+  background: rgba(184, 154, 90, 0.14);
+}
+.ae-btn.is-done {
+  background: var(--hh-good-bg);
+  border-color: rgba(47, 107, 79, 0.35);
+  color: var(--hh-good);
+}
+.ae-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ae-card-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+.ae-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--hh-font-body);
+  font-size: 0.76rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.ae-link:hover:not(:disabled) {
+  opacity: 1;
+  color: var(--hh-burgundy);
+}
+
+.ae-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ae-empty-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}

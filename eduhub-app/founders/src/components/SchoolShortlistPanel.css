@@ -265,10 +265,22 @@
    two-column grid -- just one column, capped so it doesn't stretch full
    width on a wide screen. */
 .svt-detail-single {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+/* Admissions on the left (where it always was), Notes on the right. */
+.svt-detail-main {
   display: flex;
   flex-direction: column;
   gap: 6px;
   max-width: 640px;
+}
+@media (max-width: 860px) {
+  .svt-detail-single {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Primary/Secondary tour, Feedback and Proceed table columns. */
@@ -882,7 +894,9 @@
 
 /* Internal notes box inside an expanded school row (addendum 63) */
 .svt-notes {
-  margin-bottom: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .svt-notes-state {
   font-weight: 400;
@@ -899,4 +913,5 @@
   font-size: 0.9rem;
   resize: vertical;
   background: #fff;
+  min-height: 150px;
 }

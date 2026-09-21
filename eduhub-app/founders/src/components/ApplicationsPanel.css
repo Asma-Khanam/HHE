@@ -1,0 +1,249 @@
+/* Applications tab -- one card per school, per child. */
+
+.ap-child + .ap-child {
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(83, 1, 38, 0.08);
+}
+
+.ap-child-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.ap-child-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ap-child-name {
+  font-family: var(--hh-font-heading);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--hh-burgundy);
+}
+
+.ap-child-year {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--hh-ink);
+  background: var(--hh-cream);
+  border-radius: 999px;
+  padding: 2px 10px;
+  opacity: 0.85;
+}
+
+.ap-empty {
+  padding: 18px;
+  text-align: center;
+  background: var(--hh-cream);
+  border-radius: 10px;
+}
+
+/* Add-a-school row */
+.ap-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+  background: var(--hh-cream);
+  border-radius: 10px;
+}
+.ap-add-grow {
+  flex: 1 1 200px;
+}
+.ap-add-or {
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.5;
+}
+
+/* The list of schools */
+.ap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ap-card {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.5fr) minmax(210px, 1fr) minmax(150px, 0.7fr);
+  gap: 12px 20px;
+  align-items: start;
+  padding: 14px 16px;
+  background: var(--hh-white);
+  border: 1px solid rgba(83, 1, 38, 0.1);
+  border-radius: 12px;
+  transition: box-shadow var(--hh-transition), border-color var(--hh-transition), opacity var(--hh-transition);
+}
+.ap-card:hover {
+  border-color: rgba(83, 1, 38, 0.22);
+  box-shadow: 0 4px 14px rgba(83, 1, 38, 0.07);
+}
+.ap-card.is-highlight {
+  border-color: var(--hh-gold);
+  box-shadow: 0 0 0 3px rgba(184, 154, 90, 0.25);
+}
+/* Withdrawn: sits at the bottom, greyed out, never disappears. */
+.ap-card.is-withdrawn {
+  background: #f6f4f4;
+  opacity: 0.62;
+}
+.ap-card.is-withdrawn:hover {
+  opacity: 0.9;
+}
+.ap-card.is-withdrawn .ap-avatar {
+  background: #9a8f93;
+}
+.ap-card.is-withdrawn .ap-school-name {
+  text-decoration: line-through;
+  text-decoration-color: rgba(42, 17, 25, 0.35);
+}
+
+.ap-school {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.ap-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ap-school-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ap-school-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--hh-ink);
+  line-height: 1.25;
+}
+.ap-school-meta {
+  font-size: 0.78rem;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}
+
+.ap-field,
+.ap-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.ap-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hh-ink);
+  opacity: 0.5;
+}
+.ap-days {
+  font-size: 0.74rem;
+  color: var(--hh-ink);
+  opacity: 0.5;
+}
+
+/* Reason / decision-date row runs the full width of the card, under the fields. */
+.ap-extra {
+  grid-column: 1 / -1;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(83, 1, 38, 0.12);
+}
+.ap-extra-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.ap-extra input[type="date"] {
+  align-self: flex-start;
+}
+
+/* Stage dropdown, tinted by where the application is up to. */
+.ap-stage {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  font-family: var(--hh-font-body);
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 8px 32px 8px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 10px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23530126' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.ap-stage:focus {
+  box-shadow: 0 0 0 3px rgba(184, 154, 90, 0.3);
+}
+.ap-tone-neutral {
+  background-color: var(--hh-cream);
+  border-color: rgba(83, 1, 38, 0.15);
+  color: var(--hh-burgundy);
+}
+.ap-tone-progress {
+  background-color: #f3ecdc;
+  border-color: rgba(184, 154, 90, 0.5);
+  color: #6b531f;
+}
+.ap-tone-good {
+  background-color: var(--hh-good-bg);
+  border-color: rgba(47, 107, 79, 0.35);
+  color: var(--hh-good);
+}
+.ap-tone-warn {
+  background-color: #fbf1e0;
+  border-color: rgba(200, 130, 30, 0.4);
+  color: #8a5a10;
+}
+.ap-tone-bad {
+  background-color: #fbeceb;
+  border-color: rgba(179, 38, 30, 0.3);
+  color: var(--hh-error);
+}
+.ap-tone-muted {
+  background-color: #ececec;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #6d6367;
+}
+
+@media (max-width: 900px) {
+  .ap-card {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ap-school {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 560px) {
+  .ap-card {
+    grid-template-columns: 1fr;
+  }
+}

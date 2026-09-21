@@ -1017,11 +1017,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         up into the always-visible table columns above, so
                         this is Admissions and only Admissions now. */}
                     <div className="svt-detail-single">
-                      <ShortlistNotes
-                        shortlistId={row.id}
-                        initial={notesById[row.id] || ""}
-                        onSaved={(id, body) => setNotesById((m) => ({ ...m, [id]: body }))}
-                      />
+                      <div className="svt-detail-main">
                       <h3 className="svt-detail-heading">Admissions</h3>
                       <dl className="svt-kv">
                         {row.school?.admissions_contact_name && (
@@ -1206,6 +1202,12 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                             Not pursuing this school
                           </button>
                         ))}
+                      </div>
+                      <ShortlistNotes
+                        shortlistId={row.id}
+                        initial={notesById[row.id] || ""}
+                        onSaved={(id, body) => setNotesById((m) => ({ ...m, [id]: body }))}
+                      />
                     </div>
                   </div>
                 )}

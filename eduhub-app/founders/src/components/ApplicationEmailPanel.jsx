@@ -5,13 +5,12 @@ import {
   regenerateParentApplicationPassword,
 } from "../lib/staffData";
 import "./panels.css";
+import "./ApplicationEmailPanel.css";
 
 const DOMAIN = "applications.heatherharries.com";
 
-// Copies either the address or its password, and briefly confirms which one
-// just went to the clipboard — the two "Copy" buttons sit right next to each
-// other so the confirmation has to say which it was, not just "Copied".
-function CopyButton({ value, label }) {
+// Copies a value and briefly confirms it went to the clipboard.
+function CopyButton({ value, label = "Copy" }) {
   const [copied, setCopied] = useState(false);
   function handleCopy() {
     navigator.clipboard?.writeText(value);
@@ -19,131 +18,131 @@ function CopyButton({ value, label }) {
     setTimeout(() => setCopied(false), 1500);
   }
   return (
-    <button type="button" className="panel-btn panel-btn-quiet" onClick={handleCopy}>
+    <button type="button" className={"ae-btn" + (copied ? " is-done" : "")} onClick={handleCopy}>
       {copied ? "Copied" : label}
     </button>
   );
 }
 
-// The email + password pair for one already-created address. Handles the
-// case where the address was generated before application_password existed
-// (addendum 42, same day, before addendum 43 added it) — those rows have no
-// password yet, so this offers to fill one in without touching the address
-// itself, since the address may already be registered with a school.
-function AddressWithPassword({ address, password, onGeneratePassword, busy }) {
-  const [revealed, setRevealed] = useState(false);
-  return (
-    <>
-      <code className="panel-copy-value">{address}</code>
-      <CopyButton value={address} label="Copy email" />
-      {password ? (
-        <>
-          <code className="panel-copy-value">{revealed ? password : "••••••••••••"}</code>
-          <button type="button" className="panel-btn panel-btn-quiet" onClick={() => setRevealed((v) => !v)}>
-            {revealed ? "Hide" : "Show"}
-          </button>
-          <CopyButton value={password} label="Copy password" />
-        </>
-      ) : (
-        <button type="button" className="panel-btn panel-btn-quiet" onClick={onGeneratePassword} disabled={busy}>
-          {busy ? "Generating…" : "No password yet — generate one"}
-        </button>
-      )}
-    </>
-  );
-}
-
-// One row per parent, so Mother and Father can each get their own address +
-// password to register separately with a school portal (addendum 42) —
-// sits alongside the family-wide one above it, doesn't replace it. Same
-// password every time this address is used — addendum 43 dropped the idea
-// of a different login per school, since there isn't one in practice.
-function ParentAliasRow({ parent, onParentChange }) {
+// One card per parent (Mother, Father). Each parent gets their own address
+// and password to register with a school; the same pair works for every
+// school (addendum 42/43). Addresses are never deleted -- an address that
+// shouldn't be used any more is deactivated, and can be turned back on.
+function ParentAliasCard({ parent, onParentChange }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [revealed, setRevealed] = useState(false);
 
   const alias = parent.application_alias;
   const status = parent.application_alias_status;
   const address = alias ? `${alias}@${DOMAIN}` : null;
+  const active = status === "active";
 
-  async function handleGenerate() {
+  async function run(action, fallback) {
     setBusy(true);
     setError("");
     try {
-      const updated = await generateParentApplicationAlias(parent.id, parent.full_name, parent.relationship);
-      onParentChange(updated);
+      onParentChange(await action());
     } catch (err) {
-      setError(err.message || "Couldn't create an address.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleGeneratePassword() {
-    setBusy(true);
-    setError("");
-    try {
-      const updated = await regenerateParentApplicationPassword(parent.id);
-      onParentChange(updated);
-    } catch (err) {
-      setError(err.message || "Couldn't create a password.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleToggle() {
-    setBusy(true);
-    setError("");
-    try {
-      const updated = await setParentApplicationAliasStatus(parent.id, status === "active" ? "inactive" : "active");
-      onParentChange(updated);
-    } catch (err) {
-      setError(err.message || "Couldn't update that.");
+      setError(err.message || fallback);
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="parent-alias-row">
-      <span className="parent-alias-role">{parent.relationship}</span>
+    <div className={"ae-card" + (address && !active ? " is-inactive" : "")}>
+      <div className="ae-card-head">
+        <div className="ae-who">
+          <span className="ae-role">{parent.relationship}</span>
+          {parent.full_name && <span className="ae-name">{parent.full_name}</span>}
+        </div>
+        {address && <span className={"ae-badge" + (active ? " is-active" : "")}>{active ? "Active" : "Inactive"}</span>}
+      </div>
+
       {!address ? (
-        <button type="button" className="panel-btn panel-btn-quiet" onClick={handleGenerate} disabled={busy}>
-          {busy ? "Creating…" : "+ Create address"}
-        </button>
+        <div className="ae-empty">
+          <p className="ae-empty-text">No address yet.</p>
+          <button
+            type="button"
+            className="panel-btn panel-btn-primary"
+            disabled={busy}
+            onClick={() =>
+              run(
+                () => generateParentApplicationAlias(parent.id, parent.full_name, parent.relationship),
+                "Couldn't create an address."
+              )
+            }
+          >
+            {busy ? "Creating…" : "+ Create address"}
+          </button>
+        </div>
       ) : (
         <>
-          <AddressWithPassword
-            address={address}
-            password={parent.application_password}
-            onGeneratePassword={handleGeneratePassword}
-            busy={busy}
-          />
-          <span className={"families-badge" + (status === "active" ? " is-submitted" : "")}>
-            {status === "active" ? "Active" : "Inactive"}
-          </span>
-          <button type="button" className="panel-btn panel-btn-quiet" onClick={handleToggle} disabled={busy}>
-            {busy ? "Working…" : status === "active" ? "Deactivate" : "Reactivate"}
-          </button>
+          <div className="ae-field">
+            <span className="ae-label">Email</span>
+            <div className="ae-value">
+              <code className="ae-code">{address}</code>
+              <CopyButton value={address} />
+            </div>
+          </div>
+
+          <div className="ae-field">
+            <span className="ae-label">Password</span>
+            {parent.application_password ? (
+              <div className="ae-value">
+                <code className="ae-code">{revealed ? parent.application_password : "••••••••••••"}</code>
+                <button type="button" className="ae-btn" onClick={() => setRevealed((v) => !v)}>
+                  {revealed ? "Hide" : "Show"}
+                </button>
+                <CopyButton value={parent.application_password} />
+              </div>
+            ) : (
+              <div className="ae-value">
+                <span className="ae-muted">No password yet</span>
+                <button
+                  type="button"
+                  className="ae-btn"
+                  disabled={busy}
+                  onClick={() => run(() => regenerateParentApplicationPassword(parent.id), "Couldn't create a password.")}
+                >
+                  {busy ? "Generating…" : "Generate one"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="ae-card-foot">
+            <button
+              type="button"
+              className="ae-link"
+              disabled={busy}
+              onClick={() =>
+                run(
+                  () => setParentApplicationAliasStatus(parent.id, active ? "inactive" : "active"),
+                  "Couldn't update that."
+                )
+              }
+            >
+              {busy ? "Working…" : active ? "Deactivate this address" : "Reactivate this address"}
+            </button>
+          </div>
         </>
       )}
+
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
     </div>
   );
 }
 
 // The actual mail routing lives outside this app (ImprovMX catch-all
-// forwarding on applications.heatherharries.com into relocate@heatherharries.com)
-// -- this panel only shows and controls the CRM's side of it.
+// forwarding on applications.heatherharries.com into relocate@heatherharries.com);
+// this panel only shows and controls the CRM's side of it.
 //
 // One address per parent, and that's all (Heather, 21 Sept 2026: "just one
-// for mother and one for father"). This panel used to ALSO show a third,
-// family-wide address above the parents'. That block is gone from the
-// screen; nothing is deleted -- families.application_alias and its
-// password still exist, and mail sent to an existing family address still
-// forwards and logs. Each parent's pair works for every school it's
-// registered with (addendum 43).
+// for mother and one for father"). The old family-wide address is no longer
+// shown, but nothing was deleted -- families.application_alias still exists,
+// and mail sent to an existing family address still forwards and logs.
 export default function ApplicationEmailPanel({ parents, onParentChange }) {
   return (
     <section className="panel">
@@ -151,19 +150,18 @@ export default function ApplicationEmailPanel({ parents, onParentChange }) {
         <h2>Application email</h2>
       </div>
 
-      <p className="panel-hint">
-        Use these instead of relocate@heatherharries.com when registering with a school -- one address for each
-        parent. Each forwards straight into the team inbox and everything sent to it lands in the case log
-        automatically. A password is generated with it, ready to copy-paste, and the same pair works for every
-        school it gets registered with.
+      <p className="panel-hint ae-intro">
+        Use these instead of relocate@heatherharries.com when registering with a school: one address per parent.
+        Mail sent to them reaches the team inbox and is logged in the case log. The same email and password work
+        for every school.
       </p>
 
       {(parents || []).length === 0 ? (
         <p className="panel-hint">Add the parents' names on the Family details tab first, then their addresses appear here.</p>
       ) : (
-        <div className="parent-alias-section">
+        <div className="ae-grid">
           {parents.map((parent) => (
-            <ParentAliasRow key={parent.id} parent={parent} onParentChange={onParentChange} />
+            <ParentAliasCard key={parent.id} parent={parent} onParentChange={onParentChange} />
           ))}
         </div>
       )}
