@@ -14,6 +14,7 @@ import {
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import GenericDocumentsPanel from "../components/GenericDocumentsPanel";
+import AutosaveField from "../components/Autosave";
 import "../components/panels.css";
 import "./FamilyDetailPage.css";
 import "./SchoolDetailPage.css";
@@ -114,9 +115,8 @@ function SchoolRecordView({ school }) {
   const links = [
     ["Website", school.website_url],
     ["Fees", school.fees_url],
-    ["Start application", school.application_url],
     ["Book a tour", school.tour_booking_url],
-    [school.application_platform === "openapply" ? "OpenApply portal" : "Application portal", school.openapply_login_url],
+    [school.application_platform === "openapply" ? "OpenApply portal" : "Application portal", school.openapply_login_url || school.application_url],
   ];
   const onDay = [
     ["Gate", school.default_tour_gate],
@@ -132,7 +132,6 @@ function SchoolRecordView({ school }) {
     school.requires_taster_day && "Taster day",
   ].filter(Boolean);
   const contact = [school.admissions_contact_name, school.admissions_contact_email, school.admissions_contact_phone].filter(Boolean);
-  const hasNotes = school.notes && school.notes !== school.admissions_process_notes;
   return (
     <div className="sv">
       <div className="sv-links">
@@ -176,20 +175,8 @@ function SchoolRecordView({ school }) {
         </div>
       </div>
       <div className="sv-card sv-wide">
-        <h3>Admissions process</h3>
-        <LongText text={school.admissions_process_notes} />
-      </div>
-      <div className="sv-cols sv-cols-2">
-        <div className="sv-card">
-          <h3>Documents required</h3>
-          <LongText text={school.documents_required} />
-        </div>
-        {hasNotes && (
-          <div className="sv-card">
-            <h3>Notes</h3>
-            <LongText text={school.notes} />
-          </div>
-        )}
+        <h3>Documents required</h3>
+        <LongText text={school.documents_required} />
       </div>
     </div>
   );
@@ -200,6 +187,7 @@ export default function SchoolDetailPage() {
   const navigate = useNavigate();
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
+  const [tab, setTab] = useState("record");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -278,10 +266,19 @@ export default function SchoolDetailPage() {
       application_fee: school.application_fee ?? "",
       deposit_amount: school.deposit_amount ?? "",
       documents_required: school.documents_required || "",
-      admissions_process_notes: school.admissions_process_notes || "",
-      notes: school.notes || "",
     });
     setEditing(true);
+  }
+
+  async function saveSchoolField(patch) {
+    try {
+      const updated = await updateSchool(schoolId, patch);
+      setDetail((d) => ({ ...d, school: updated }));
+      return true;
+    } catch (err) {
+      setError(friendlyError(err, "Couldn't save that."));
+      return false;
+    }
   }
 
   async function saveRecord(e) {
@@ -500,7 +497,28 @@ export default function SchoolDetailPage() {
 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
+      <div className="family-detail-tabs" role="tablist">
+        {[
+          ["record", "School record"],
+          ["notes", "Notes"],
+          ["documents", "Documents"],
+          ["families", "Shortlisted families" + (shortlist.length ? ` (${shortlist.length})` : "")],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            className={"family-detail-tab" + (tab === key ? " is-active" : "")}
+            onClick={() => setTab(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div className="family-detail-stack">
+      {tab === "record" && (
       <section className="family-detail-card">
         <div className="panel-head">
           <h2>School record</h2>
@@ -670,7 +688,7 @@ export default function SchoolDetailPage() {
               </div>
               <div className="rec-field">
                 <label className="rec-field-label" htmlFor="sch-application-url">
-                  Application link
+                  Sign-up link (where parents first register, if different from the portal)
                 </label>
                 <input
                   id="sch-application-url"
@@ -804,19 +822,6 @@ export default function SchoolDetailPage() {
                 </div>
               </div>
               <div className="rec-field rec-field-wide">
-                <label className="rec-field-label" htmlFor="sch-admissions-notes">
-                  Admissions process notes
-                </label>
-                <textarea
-                  id="sch-admissions-notes"
-                  className="panel-input"
-                  rows={3}
-                  placeholder="e.g. Round 1 interview, then CAT4, offer usually within 2 weeks"
-                  value={draft.admissions_process_notes}
-                  onChange={(e) => setDraft((d) => ({ ...d, admissions_process_notes: e.target.value }))}
-                />
-              </div>
-              <div className="rec-field rec-field-wide">
                 <label className="rec-field-label" htmlFor="sch-documents">
                   Documents required
                 </label>
@@ -826,18 +831,6 @@ export default function SchoolDetailPage() {
                   rows={2}
                   value={draft.documents_required}
                   onChange={(e) => setDraft((d) => ({ ...d, documents_required: e.target.value }))}
-                />
-              </div>
-              <div className="rec-field rec-field-wide">
-                <label className="rec-field-label" htmlFor="sch-notes">
-                  Notes
-                </label>
-                <textarea
-                  id="sch-notes"
-                  className="panel-input"
-                  rows={2}
-                  value={draft.notes}
-                  onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
                 />
               </div>
             </div>
@@ -852,7 +845,36 @@ export default function SchoolDetailPage() {
           </form>
         )}
       </section>
+      )}
 
+      {tab === "notes" && (
+      <section className="family-detail-card">
+        <div className="panel-head"><h2>Notes</h2></div>
+        <p className="family-detail-hint">Saves as you type. Press Enter or click away to finish.</p>
+        <div className="sv-notes">
+          <AutosaveField
+            label="Admissions process notes"
+            multiline
+            rows={6}
+            collapsible
+            value={school.admissions_process_notes || ""}
+            placeholder="e.g. Round 1 interview, then CAT4, offer usually within 2 weeks"
+            onSave={async (v) => saveSchoolField({ admissions_process_notes: v })}
+          />
+          <AutosaveField
+            label="Notes"
+            multiline
+            rows={6}
+            collapsible
+            value={school.notes || ""}
+            placeholder="Anything else worth knowing about this school"
+            onSave={async (v) => saveSchoolField({ notes: v })}
+          />
+        </div>
+      </section>
+      )}
+
+      {tab === "families" && (
       <section className="family-detail-card">
         <h2>
           Shortlisted families
@@ -1043,12 +1065,14 @@ export default function SchoolDetailPage() {
           </form>
         )}
       </section>
+      )}
 
       {/* Addendum 55 (Heather, September 2026 via WhatsApp): "Can we also
           have a document upload available in the schools section so we can
           upload A Level/ GCSE option booklets?" Generic, no fixed
           checklist -- "staff" stands in for a per-user storage folder here
           since a school isn't owned by any one family/account. */}
+      {tab === "documents" && (
       <section className="family-detail-card">
         <GenericDocumentsPanel
           ownerType="school"
@@ -1058,6 +1082,7 @@ export default function SchoolDetailPage() {
           uploadHint="A-Level/GCSE option booklets, or anything else worth keeping on this school's own record."
         />
       </section>
+      )}
       </div>
     </div>
   );
