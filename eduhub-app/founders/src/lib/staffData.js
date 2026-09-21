@@ -613,8 +613,14 @@ export async function createCaseNote({ familyId, childId, schoolId, kind, body, 
   );
 }
 
-export async function updateCaseNote(noteId, { body }) {
-  return unwrap(await supabase.from("case_notes").update({ body: body.trim() }).eq("id", noteId).select().single());
+export async function updateCaseNote(noteId, patch) {
+  const row = {};
+  if ("body" in patch) row.body = (patch.body || "").trim();
+  if ("kind" in patch) row.kind = patch.kind || "note";
+  if ("childId" in patch) row.child_id = patch.childId || null;
+  if ("schoolId" in patch) row.school_id = patch.schoolId || null;
+  if ("occurredAt" in patch && patch.occurredAt) row.occurred_at = new Date(patch.occurredAt).toISOString();
+  return unwrap(await supabase.from("case_notes").update(row).eq("id", noteId).select().single());
 }
 
 export async function deleteCaseNote(noteId) {

@@ -8,7 +8,6 @@ import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import ApplicationsPanel from "../components/ApplicationsPanel";
 import SchoolShortlistPanel from "../components/SchoolShortlistPanel";
 import TasksPanel from "../components/TasksPanel";
-import CaseNotesPanel from "../components/CaseNotesPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
 import PaymentsPanel from "../components/PaymentsPanel";
 import RecordFieldsEditor from "../components/RecordFieldsEditor";
@@ -444,7 +443,7 @@ export default function FamilyDetailPage() {
   // instead of always opening on Family details.
   const [activeTab, setActiveTab] = useState(() => {
     const requested = searchParams.get("tab");
-    return FAMILY_DETAIL_TAB_KEYS.includes(requested) ? requested : "details";
+    return FAMILY_DETAIL_TAB_KEYS.includes(requested) ? requested : "overview";
   });
   const [activeHouseholdKey, setActiveHouseholdKey] = useState(null);
   const [whatsNeededOpen, setWhatsNeededOpen] = useState(false);
@@ -676,6 +675,9 @@ export default function FamilyDetailPage() {
           onFamilyRefresh={refreshFamily}
           onGoToVisits={() => setActiveTab("visits")}
           onGoToApplications={() => setActiveTab("applications")}
+          caseNotes={caseNotes}
+          staff={staff}
+          schoolCatalog={schoolCatalog}
         />
       )}
 
@@ -901,14 +903,6 @@ export default function FamilyDetailPage() {
             applicationsByChild={applicationsByChild}
             onFamilyRefresh={refreshFamily}
             onGoToApplications={() => setActiveTab("applications")}
-          />
-
-          <CaseNotesPanel
-            familyId={family.id}
-            notes={caseNotes}
-            staff={staff}
-            familyChildren={children}
-            schoolCatalog={schoolCatalog}
           />
         </div>
       )}

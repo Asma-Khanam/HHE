@@ -1,0 +1,38 @@
+.copy-btn {
+  flex: none;
+  margin-left: 8px;
+  padding: 1px 8px;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--hh-ink);
+  background: transparent;
+  border: 1px solid rgba(83, 1, 38, 0.18);
+  border-radius: 999px;
+  cursor: pointer;
+  opacity: 0.55;
+  vertical-align: middle;
+}
+.copy-btn:hover,
+.copy-btn:focus-visible {
+  opacity: 1;
+  border-color: var(--hh-gold);
+}
+.copy-btn.is-done {
+  opacity: 1;
+  color: var(--hh-good);
+  border-color: var(--hh-good);
+}
+.rec-field > .copy-btn {
+  align-self: flex-start;
+  margin: 2px 0 0;
+}
+.copy-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.copy-row .copy-btn {
+  margin: 0;
+}

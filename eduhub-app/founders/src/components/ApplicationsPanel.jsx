@@ -381,6 +381,7 @@ export default function ApplicationsPanel({
                       {(application.status === "rejected" || application.status === "withdrawn") && (
                         <div className="ap-extra">
                           <AutosaveField
+                            collapsible
                             label={application.status === "withdrawn" ? "Reason for withdrawing" : "Reason for declining"}
                             placeholder={
                               application.status === "withdrawn" ? "Why was it withdrawn?" : "Why? (no space, fees, etc.)"

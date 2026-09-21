@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { createCaseNote, updateCaseNote, deleteCaseNote, friendlyError } from "../lib/staffData";
+import { useEffect, useRef, useState } from "react";
+import AutosaveField from "./Autosave";
+import { createCaseNote, updateCaseNote, friendlyError } from "../lib/staffData";
 import { NOTE_KINDS, noteKindLabel, relativeDay } from "../lib/workflow";
 import "./panels.css";
 
@@ -37,14 +38,14 @@ export default function CaseNotesPanel({ familyId, notes: initialNotes, staff, f
   const [childId, setChildId] = useState("");
   const [schoolId, setSchoolId] = useState("");
   const [occurredAt, setOccurredAt] = useState("");
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [confirmingDelete, setConfirmingDelete] = useState(null);
-  // Which note is open for editing, and the working copy of its text. A typo
-  // in a logged call is worth fixing in place rather than deleting and
-  // retyping — the trigger keeps the original author either way.
-  const [editingId, setEditingId] = useState(null);
-  const [editBody, setEditBody] = useState("");
+  const [saveState, setSaveState] = useState("idle"); // idle | dirty | saving | saved | error
+  // The note being composed is a real row from the first keystroke on: it is
+  // created once, then updated as more is typed, so nothing is ever lost.
+  const draftId = useRef(null);
+  const timer = useRef(null);
+  const latest = useRef({});
+  latest.current = { kind, body, childId, schoolId, occurredAt };
 
   const staffById = Object.fromEntries((staff || []).map((s) => [s.user_id, s]));
   const childNameById = Object.fromEntries(
@@ -52,71 +53,85 @@ export default function CaseNotesPanel({ familyId, notes: initialNotes, staff, f
   );
   const schoolNameById = Object.fromEntries((schoolCatalog || []).map((s) => [s.id, s.name]));
 
-  function resetForm() {
+  function upsertLocal(row) {
+    setNotes((list) =>
+      [row, ...list.filter((n) => n.id !== row.id)].sort((a, b) => new Date(b.occurred_at) - new Date(a.occurred_at))
+    );
+  }
+
+  async function persist() {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    const cur = latest.current;
+    if (!cur.body.trim()) return;
+    setSaveState("saving");
+    setError("");
+    try {
+      let row;
+      if (draftId.current) {
+        row = await updateCaseNote(draftId.current, cur);
+      } else {
+        row = await createCaseNote({ familyId, ...cur });
+        draftId.current = row.id;
+      }
+      upsertLocal(row);
+      setSaveState(latest.current.body === cur.body ? "saved" : "dirty");
+    } catch (err) {
+      setSaveState("error");
+      setError(friendlyError(err, "Couldn't save that note."));
+    }
+  }
+
+  function queueSave(delay = 800) {
+    setSaveState("dirty");
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(persist, delay);
+  }
+
+  // Leaving the page with a note still waiting to save: send it now.
+  useEffect(
+    () => () => {
+      if (timer.current) persist();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  useEffect(() => {
+    if (saveState !== "dirty" && saveState !== "saving" && saveState !== "error") return;
+    const warn = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [saveState]);
+
+  async function finishComposing() {
+    await persist();
+    draftId.current = null;
     setBody("");
     setChildId("");
     setSchoolId("");
     setOccurredAt("");
     setKind("call");
     setComposing(false);
-    setError("");
+    setSaveState("idle");
   }
 
-  async function handleAdd(e) {
-    e.preventDefault();
-    if (!body.trim()) return;
-    setBusy(true);
-    setError("");
-    try {
-      const created = await createCaseNote({ familyId, childId, schoolId, kind, body, occurredAt });
-      // Newest first, same order the fetch uses — but inserted by date rather
-      // than just unshifted, since a call logged late belongs on its own day.
-      setNotes((list) =>
-        [created, ...list].sort((a, b) => new Date(b.occurred_at) - new Date(a.occurred_at))
-      );
-      resetForm();
-    } catch (err) {
-      setError(friendlyError(err, "Couldn't save that note."));
-    } finally {
-      setBusy(false);
-    }
+  // Changing kind / child / school / date on a note already started saves too.
+  function changeMeta(setter, value) {
+    setter(value);
+    latest.current = { ...latest.current };
+    if (draftId.current) queueSave(50);
   }
 
-  function startEdit(note) {
-    setEditingId(note.id);
-    setEditBody(note.body);
-    setConfirmingDelete(null);
-    setError("");
-  }
-
-  async function handleSaveEdit(noteId) {
-    if (!editBody.trim()) return;
-    setBusy(true);
-    setError("");
-    try {
-      const saved = await updateCaseNote(noteId, { body: editBody });
-      setNotes((list) => list.map((n) => (n.id === noteId ? saved : n)));
-      setEditingId(null);
-      setEditBody("");
-    } catch (err) {
-      setError(friendlyError(err, "Couldn't save that change."));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleDelete(noteId) {
-    setBusy(true);
-    setError("");
-    try {
-      await deleteCaseNote(noteId);
-      setNotes((list) => list.filter((n) => n.id !== noteId));
-      setConfirmingDelete(null);
-    } catch (err) {
-      setError(friendlyError(err, "Couldn't delete that note."));
-    } finally {
-      setBusy(false);
-    }
+  async function saveNoteBody(noteId, text) {
+    if (!text) throw new Error("A note can't be empty.");
+    const saved = await updateCaseNote(noteId, { body: text });
+    setNotes((list) => list.map((n) => (n.id === noteId ? saved : n)));
   }
 
   return (
@@ -134,18 +149,18 @@ export default function CaseNotesPanel({ familyId, notes: initialNotes, staff, f
       </div>
 
       <p className="panel-hint">
-        Internal to the team — families never see any of this. Anyone covering this family can pick it up from here.
+        Internal to the team — families never see any of this. Everything saves itself, and nothing here is ever deleted.
       </p>
 
       {composing && (
-        <form className="note-form" onSubmit={handleAdd}>
+        <div className="note-form">
           <div className="note-kind-row">
             {NOTE_KINDS.map((k) => (
               <button
                 type="button"
                 key={k.key}
                 className={"note-kind-btn" + (kind === k.key ? " is-active" : "")}
-                onClick={() => setKind(k.key)}
+                onClick={() => changeMeta(setKind, k.key)}
               >
                 {k.label}
               </button>
@@ -158,13 +173,17 @@ export default function CaseNotesPanel({ familyId, notes: initialNotes, staff, f
             autoFocus
             placeholder="What happened? Who said what, and what did we agree to do next."
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={(e) => {
+              setBody(e.target.value);
+              queueSave();
+            }}
+            onBlur={() => body.trim() && persist()}
           />
 
           <div className="note-form-row">
             <label>
               <span>About</span>
-              <select className="panel-select" value={childId} onChange={(e) => setChildId(e.target.value)}>
+              <select className="panel-select" value={childId} onChange={(e) => changeMeta(setChildId, e.target.value)}>
                 <option value="">The whole family</option>
                 {(familyChildren || []).map((c) => (
                   <option key={c.id} value={c.id}>
@@ -176,7 +195,7 @@ export default function CaseNotesPanel({ familyId, notes: initialNotes, staff, f
 
             <label>
               <span>School</span>
-              <select className="panel-select" value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
+              <select className="panel-select" value={schoolId} onChange={(e) => changeMeta(setSchoolId, e.target.value)}>
                 <option value="">Not school-specific</option>
                 {(schoolCatalog || []).map((sc) => (
                   <option key={sc.id} value={sc.id}>
@@ -190,21 +209,32 @@ export default function CaseNotesPanel({ familyId, notes: initialNotes, staff, f
               {/* Defaults to now when left blank — a call on Friday written up
                   on Monday should sit on Friday in the timeline. */}
               <span>When</span>
-              <input type="date" className="panel-input" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} />
+              <input type="date" className="panel-input" value={occurredAt} onChange={(e) => changeMeta(setOccurredAt, e.target.value)} />
             </label>
           </div>
 
           {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
           <div className="note-form-actions">
-            <button type="button" className="panel-btn panel-btn-quiet" onClick={resetForm} disabled={busy}>
-              Cancel
-            </button>
-            <button type="submit" className="panel-btn panel-btn-primary" disabled={busy || !body.trim()}>
-              {busy ? "Saving..." : "Save to the log"}
+            <span className="panel-hint" style={{ margin: 0, marginRight: "auto" }}>
+              {saveState === "dirty"
+                ? "Saving soon…"
+                : saveState === "saving"
+                ? "Saving…"
+                : saveState === "saved"
+                ? "✓ Saved to the log"
+                : "Saves automatically as you type"}
+            </span>
+            <button
+              type="button"
+              className="panel-btn panel-btn-primary"
+              onClick={finishComposing}
+              disabled={!body.trim() && !draftId.current && false}
+            >
+              Done
             </button>
           </div>
-        </form>
+        </div>
       )}
 
       {!composing && error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
@@ -231,61 +261,18 @@ export default function CaseNotesPanel({ familyId, notes: initialNotes, staff, f
                   {note.school_id && schoolNameById[note.school_id] && (
                     <span className="note-tag">{schoolNameById[note.school_id]}</span>
                   )}
-                  {note.edited_at && <span className="note-edited">edited</span>}
+                  {note.edited_at && note.created_at && new Date(note.edited_at) - new Date(note.created_at) > 600000 && (
+                    <span className="note-edited">edited</span>
+                  )}
                 </div>
-                {editingId === note.id ? (
-                  <div className="note-edit">
-                    <textarea
-                      className="panel-input"
-                      rows={4}
-                      autoFocus
-                      value={editBody}
-                      onChange={(e) => setEditBody(e.target.value)}
-                    />
-                    <div className="note-form-actions">
-                      <button
-                        type="button"
-                        className="panel-btn panel-btn-quiet"
-                        onClick={() => setEditingId(null)}
-                        disabled={busy}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        className="panel-btn panel-btn-primary"
-                        onClick={() => handleSaveEdit(note.id)}
-                        disabled={busy || !editBody.trim()}
-                      >
-                        {busy ? "Saving..." : "Save"}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <p className="note-text">{note.body}</p>
-                    {confirmingDelete === note.id ? (
-                      <div className="note-confirm">
-                        <span>Delete this note? It won't be recoverable.</span>
-                        <button type="button" onClick={() => setConfirmingDelete(null)} disabled={busy}>
-                          Cancel
-                        </button>
-                        <button type="button" className="is-danger" onClick={() => handleDelete(note.id)} disabled={busy}>
-                          Delete
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="note-actions">
-                        <button type="button" className="note-delete" onClick={() => startEdit(note)}>
-                          Edit
-                        </button>
-                        <button type="button" className="note-delete" onClick={() => setConfirmingDelete(note.id)}>
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
+                <AutosaveField
+                  collapsible
+                  multiline
+                  rows={4}
+                  className="note-autosave"
+                  value={note.body}
+                  onSave={(v) => saveNoteBody(note.id, v)}
+                />
               </div>
             </li>
           ))}

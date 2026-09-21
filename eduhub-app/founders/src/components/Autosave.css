@@ -74,3 +74,23 @@ textarea.as-input {
   min-height: 130px;
   line-height: 1.45;
 }
+
+.as-display {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: var(--hh-font-body);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  padding: 8px 11px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: rgba(83, 1, 38, 0.04);
+  color: var(--hh-ink);
+  cursor: text;
+}
+.as-display:hover {
+  border-color: rgba(83, 1, 38, 0.18);
+  background: rgba(83, 1, 38, 0.06);
+}

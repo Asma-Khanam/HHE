@@ -1,6 +1,8 @@
 import { displayNameForChild } from "../lib/completeness";
 import { packageLabel } from "../data/packages";
 import SchoolPipelinePanel from "./SchoolPipelinePanel";
+import CopyButton from "./CopyButton";
+import CaseNotesPanel from "./CaseNotesPanel";
 import GenericDocumentsPanel from "./GenericDocumentsPanel";
 import "./panels.css";
 
@@ -19,6 +21,9 @@ export default function OverviewPanel({
   onFamilyRefresh,
   onGoToVisits,
   onGoToApplications,
+  caseNotes,
+  staff,
+  schoolCatalog,
 }) {
   const [mother, father] = namedParents;
   const childNames = familyChildren.map((c, i) => displayNameForChild(c, i));
@@ -30,6 +35,7 @@ export default function OverviewPanel({
           <div className="rec-field">
             <span className="rec-field-label">Family</span>
             <span className="rec-field-value">{displayName}</span>
+            <CopyButton text={displayName} />
           </div>
 
           <div className="rec-field">
@@ -45,6 +51,11 @@ export default function OverviewPanel({
               {mother?.full_name || "Not on file"}
               {(mother?.email || mother?.phone) && <> — {[mother.email, mother.phone].filter(Boolean).join(" · ")}</>}
             </span>
+            <span className="copy-row">
+              <CopyButton text={mother?.full_name} label="Copy name" />
+              <CopyButton text={mother?.email} label="Copy email" />
+              <CopyButton text={mother?.phone} label="Copy phone" />
+            </span>
           </div>
 
           <div className="rec-field">
@@ -52,6 +63,11 @@ export default function OverviewPanel({
             <span className={"rec-field-value" + (father?.full_name ? "" : " is-empty")}>
               {father?.full_name || "Not on file"}
               {(father?.email || father?.phone) && <> — {[father.email, father.phone].filter(Boolean).join(" · ")}</>}
+            </span>
+            <span className="copy-row">
+              <CopyButton text={father?.full_name} label="Copy name" />
+              <CopyButton text={father?.email} label="Copy email" />
+              <CopyButton text={father?.phone} label="Copy phone" />
             </span>
           </div>
 
@@ -67,6 +83,7 @@ export default function OverviewPanel({
             <span className={"rec-field-value" + (family.home_address ? "" : " is-empty")}>
               {family.home_address || "Not on file"}
             </span>
+            <CopyButton text={family.home_address} />
           </div>
         </div>
       </section>
@@ -78,6 +95,14 @@ export default function OverviewPanel({
         onFamilyRefresh={onFamilyRefresh}
         onGoToVisits={onGoToVisits}
         onGoToApplications={onGoToApplications}
+      />
+
+      <CaseNotesPanel
+        familyId={family.id}
+        notes={caseNotes}
+        staff={staff}
+        familyChildren={familyChildren}
+        schoolCatalog={schoolCatalog}
       />
 
       {/* Addendum 55 (Heather, September 2026 via WhatsApp): "Can we add a

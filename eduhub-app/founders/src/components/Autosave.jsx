@@ -25,10 +25,16 @@ export default function AutosaveField({
   list,
   delay = 800,
   className = "",
+  collapsible = false,
 }) {
   const [draft, setDraft] = useState(value || "");
   const [state, setState] = useState("idle"); // idle | dirty | saving | saved | error
   const [message, setMessage] = useState("");
+  // collapsible: once something is saved the box folds into a tidy display;
+  // click it to edit or carry on writing.
+  const [editing, setEditing] = useState(!(value || "").trim());
+  const inputRef = useRef(null);
+  const focusNext = useRef(false);
 
   const latest = useRef(value || ""); // what is in the box right now
   const saved = useRef((value || "").trim()); // last value known to be stored
@@ -58,7 +64,7 @@ export default function AutosaveField({
     if (next === saved.current) {
       dirty.current = false;
       setState((s) => (s === "dirty" ? "idle" : s));
-      return;
+      return true;
     }
     setState("saving");
     setMessage("");
@@ -68,16 +74,17 @@ export default function AutosaveField({
       saved.current = next;
       if (latest.current.trim() !== next) {
         // More was typed while this was saving -- save that too.
-        save();
-        return;
+        return save();
       }
       dirty.current = false;
       setState("saved");
       clearTimeout(fade.current);
       fade.current = setTimeout(() => setState((s) => (s === "saved" ? "idle" : s)), 2500);
+      return true;
     } catch (err) {
       setState("error");
       setMessage(err?.message || "Couldn't save.");
+      return false;
     }
   }
 
@@ -113,11 +120,58 @@ export default function AutosaveField({
     timer.current = setTimeout(save, delay);
   }
 
+  async function saveAndFold() {
+    const ok = await save();
+    if (collapsible && ok && latest.current.trim()) setEditing(false);
+  }
+
   function handleKeyDown(e) {
+    if (e.key === "Escape" && collapsible && saved.current) {
+      e.preventDefault();
+      if (timer.current) clearTimeout(timer.current);
+      dirty.current = false;
+      latest.current = saved.current;
+      setDraft(saved.current);
+      setState("idle");
+      setEditing(false);
+      return;
+    }
     if (e.key !== "Enter") return;
     if (multiline && !(e.metaKey || e.ctrlKey)) return;
     e.preventDefault();
-    save();
+    saveAndFold();
+  }
+
+  useEffect(() => {
+    if (editing && focusNext.current) {
+      focusNext.current = false;
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange?.(el.value.length, el.value.length);
+      }
+    }
+  }, [editing]);
+
+  if (collapsible && !editing && draft.trim()) {
+    return (
+      <div className={"as " + className}>
+        <div className="as-head">
+          {label ? <span className="as-label">{label}</span> : <span />}
+          <span className={"as-status is-" + state}>{state === "saved" ? "✓ Saved" : "Click to edit"}</span>
+        </div>
+        <button
+          type="button"
+          className="as-display"
+          onClick={() => {
+            focusNext.current = true;
+            setEditing(true);
+          }}
+        >
+          {draft}
+        </button>
+      </div>
+    );
   }
 
   const statusText =
@@ -130,8 +184,8 @@ export default function AutosaveField({
       : state === "error"
       ? `Couldn't save: ${message}`
       : multiline
-      ? "Saves automatically"
-      : "Saves automatically · Enter to save now";
+      ? collapsible ? "Saves automatically · Ctrl/Cmd+Enter to finish" : "Saves automatically"
+      : "Saves automatically · Enter to save";
 
   const Tag = multiline ? "textarea" : "input";
   return (
@@ -153,7 +207,8 @@ export default function AutosaveField({
         placeholder={placeholder}
         value={draft}
         onChange={handleChange}
-        onBlur={save}
+        onBlur={collapsible ? saveAndFold : save}
+        ref={inputRef}
         onKeyDown={handleKeyDown}
       />
     </div>

@@ -1,3 +1,4 @@
+import CopyButton from "./CopyButton";
 import { useState } from "react";
 import { updateRecordFields, insertRecordWithFields } from "../lib/staffData";
 import "./RecordFieldsEditor.css";
@@ -78,6 +79,7 @@ function ViewField({ field, value }) {
     <div className={"rec-field" + (field.wide ? " rec-field-wide" : "")}>
       <span className="rec-field-label">{field.label}</span>
       <span className={"rec-field-value" + (filled ? "" : " is-empty")}>{filled ? display : "—"}</span>
+      {filled && <CopyButton text={String(display)} />}
     </div>
   );
 }
