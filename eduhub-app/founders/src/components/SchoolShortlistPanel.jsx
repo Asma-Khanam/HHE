@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   listShortlistForFamily,
@@ -17,6 +17,7 @@ import {
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import "./panels.css";
+import AutosaveField from "./Autosave";
 import "./SchoolShortlistPanel.css";
 
 const AVAILABILITY_OPTIONS = [
@@ -76,70 +77,22 @@ function relativeToNow(iso, futureLabel) {
 
 // Internal notes for one shortlisted school -- somewhere to paste what a
 // school's admissions team emailed back about availability. Separate from
-// the Feedback box (which is about how the tour went). Saves by itself:
-// a moment after typing stops, on clicking away, and when the row is closed.
-// Stored in shortlist_notes (staff-only, addendum 63), not on the
-// shortlist row, because families can read that row.
+// the Feedback box (which is about how the tour went). Saves by itself (see
+// Autosave.jsx). Stored in shortlist_notes (staff-only, addendum 63), not on
+// the shortlist row, because families can read that row.
 function ShortlistNotes({ shortlistId, initial, onSaved }) {
-  const [value, setValue] = useState(initial || "");
-  const [state, setState] = useState("idle"); // idle | saving | saved | error
-  const lastSaved = useRef(initial || "");
-  const latest = useRef(initial || "");
-  const timer = useRef(null);
-
-  async function save() {
-    if (timer.current) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
-    const body = latest.current;
-    if (body === lastSaved.current) return;
-    setState("saving");
-    try {
-      await saveShortlistNote(shortlistId, body);
-      lastSaved.current = body;
-      onSaved?.(shortlistId, body);
-      setState("saved");
-    } catch {
-      setState("error");
-    }
-  }
-
-  useEffect(
-    () => () => {
-      // Row closed (or page left) with a save still waiting -- send it now.
-      if (timer.current) save();
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
-
-  function handleChange(e) {
-    const next = e.target.value;
-    setValue(next);
-    latest.current = next;
-    setState("idle");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(save, 800);
-  }
-
   return (
     <div className="svt-notes">
-      <h3 className="svt-detail-heading">
-        Notes
-        <span className="svt-notes-state">
-          {state === "saving" && " · Saving…"}
-          {state === "saved" && " · Saved"}
-          {state === "error" && " · Couldn't save -- has addendum 63 been run?"}
-        </span>
-      </h3>
-      <textarea
-        className="svt-notes-input"
-        rows={4}
+      <AutosaveField
+        label="Notes"
+        multiline
+        rows={8}
         placeholder="Internal notes, e.g. paste the school's email about availability. The family can't see this."
-        value={value}
-        onChange={handleChange}
-        onBlur={save}
+        value={initial}
+        onSave={async (v) => {
+          await saveShortlistNote(shortlistId, v || "");
+          onSaved?.(shortlistId, v || "");
+        }}
       />
     </div>
   );

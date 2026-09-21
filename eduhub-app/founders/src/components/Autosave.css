@@ -1,0 +1,76 @@
+/* AutosaveField -- the shared "saves itself" text field. */
+
+.as {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.as-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 1rem;
+}
+.as-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hh-ink);
+  opacity: 0.5;
+}
+.as-status {
+  font-size: 0.72rem;
+  color: var(--hh-ink);
+  opacity: 0.45;
+  text-align: right;
+}
+.as-status.is-dirty,
+.as-status.is-saving {
+  opacity: 0.7;
+}
+.as-status.is-saved {
+  color: var(--hh-good);
+  opacity: 1;
+  font-weight: 600;
+}
+.as-status.is-error {
+  color: var(--hh-error);
+  opacity: 1;
+}
+.as-retry {
+  margin-left: 8px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.as-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--hh-font-body);
+  font-size: 0.9rem;
+  padding: 8px 11px;
+  border: 1px solid rgba(83, 1, 38, 0.15);
+  border-radius: 8px;
+  background: var(--hh-white);
+  color: var(--hh-ink);
+  outline: none;
+}
+.as-input:focus {
+  border-color: var(--hh-gold);
+  box-shadow: 0 0 0 3px rgba(184, 154, 90, 0.18);
+}
+.as-input.is-error {
+  border-color: var(--hh-error);
+}
+textarea.as-input {
+  resize: vertical;
+  min-height: 130px;
+  line-height: 1.45;
+}

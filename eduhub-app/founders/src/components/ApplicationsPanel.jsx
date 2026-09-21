@@ -10,6 +10,7 @@ import {
 import { displayNameForChild } from "../lib/completeness";
 import { APPLICATION_STATUSES, REJECTION_REASONS, daysInStage } from "../lib/workflow";
 import "./panels.css";
+import AutosaveField from "./Autosave";
 import "./ApplicationsPanel.css";
 
 const TOUR_STATUS_LABEL = { offered: "booked", confirmed: "booked", completed: "toured", cancelled: "cancelled" };
@@ -45,37 +46,6 @@ function schoolInitials(name) {
 // Declined and Withdrawn each keep their own reason column (addendum 52 and 63).
 function reasonFieldFor(status) {
   return status === "withdrawn" ? "withdrawn_reason" : "rejected_reason";
-}
-
-// A text field that saves itself when you click away -- no Save button.
-function ReasonField({ label, placeholder, value, listId, onSave }) {
-  const [draft, setDraft] = useState(value || "");
-  useEffect(() => {
-    setDraft(value || "");
-  }, [value]);
-
-  function commit() {
-    const next = draft.trim();
-    if (next !== (value || "")) onSave(next || null);
-  }
-
-  return (
-    <label className="ap-extra">
-      <span className="ap-label">{label}</span>
-      <input
-        type="text"
-        className="panel-input ap-extra-input"
-        list={listId}
-        placeholder={placeholder}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-        }}
-      />
-    </label>
-  );
 }
 
 // Where each child has applied and how far along each application is.
@@ -167,9 +137,12 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
     }));
     try {
       await updateApplication(application.id, changes);
+      setError("");
+      return true;
     } catch (err) {
       setError(err.message || "Couldn't save that change.");
       setApps(previous);
+      return false;
     }
   }
 
@@ -393,15 +366,20 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
                       )}
 
                       {(application.status === "rejected" || application.status === "withdrawn") && (
-                        <ReasonField
-                          label={application.status === "withdrawn" ? "Reason for withdrawing" : "Reason for declining"}
-                          placeholder={
-                            application.status === "withdrawn" ? "Why was it withdrawn?" : "Why? (no space, fees, etc.)"
-                          }
-                          value={application[reasonField]}
-                          listId={application.status === "rejected" ? "rejection-reason-options" : undefined}
-                          onSave={(v) => patch(child.id, application, { [reasonField]: v })}
-                        />
+                        <div className="ap-extra">
+                          <AutosaveField
+                            label={application.status === "withdrawn" ? "Reason for withdrawing" : "Reason for declining"}
+                            placeholder={
+                              application.status === "withdrawn" ? "Why was it withdrawn?" : "Why? (no space, fees, etc.)"
+                            }
+                            value={application[reasonField]}
+                            list={application.status === "rejected" ? "rejection-reason-options" : undefined}
+                            onSave={async (v) => {
+                              const ok = await patch(child.id, application, { [reasonField]: v });
+                              if (!ok) throw new Error("check the message above, then Retry");
+                            }}
+                          />
+                        </div>
                       )}
                     </li>
                   );
