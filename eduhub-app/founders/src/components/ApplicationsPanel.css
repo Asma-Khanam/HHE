@@ -282,3 +282,11 @@
   border-color: var(--hh-burgundy);
   color: var(--hh-white);
 }
+
+.ap-details { grid-column: 1 / -1; margin-top: 4px; border-top: 1px solid rgba(83, 1, 38, 0.08); padding-top: 8px; }
+.ap-details > summary { cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--hh-ink); opacity: 0.65; list-style: none; }
+.ap-details > summary::-webkit-details-marker { display: none; }
+.ap-details > summary::before { content: "▸ "; }
+.ap-details[open] > summary::before { content: "▾ "; }
+.ap-details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+.ap-details-wide { grid-column: 1 / -1; }

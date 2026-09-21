@@ -41,3 +41,9 @@
 .ov-same { font-size: 0.8rem; opacity: 0.5; }
 .ov-child-addr { display: flex; flex-direction: column; gap: 2px; }
 .ov-child-name { font-size: 0.86rem; font-weight: 600; }
+
+.ov-lower { display: flex; flex-direction: column; gap: 8px; }
+.ov-kids { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.ov-child { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 12px; background: #faf3e3; border: 1px solid rgba(184, 154, 90, 0.45); min-width: 0; }
+.ov-child-top { display: flex; align-items: center; gap: 8px; }
+.ov-child-title { font-size: 1.05rem; font-weight: 600; color: var(--hh-burgundy, var(--hh-ink)); }

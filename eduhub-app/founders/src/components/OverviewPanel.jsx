@@ -12,6 +12,23 @@ function sameAddress(a, b) {
   return norm(a) !== "" && norm(a) === norm(b);
 }
 
+function dobLine(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  if (now < new Date(now.getFullYear(), d.getMonth(), d.getDate())) age -= 1;
+  const text = d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  return `${text} (age ${age})`;
+}
+
+function dobPlain(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
 function hasSen(child) {
   const st = (child?.sen_status || "").trim();
   return st !== "" && !st.startsWith("No, none");
@@ -19,12 +36,12 @@ function hasSen(child) {
 
 // Read-only line: value (or a dash) with a copy icon. Editing lives in the
 // Family details tab; this card only displays what's already on file.
-function ReadLine({ value, label, icon, strong }) {
+function ReadLine({ value, label, icon, strong, copy }) {
   return (
     <div className={"ov-line" + (strong ? " is-strong" : "")}>
       {icon && <span className="ov-line-icon" aria-hidden="true">{icon}</span>}
       <span className={"ov-value" + (value ? "" : " is-empty")}>{value || "—"}</span>
-      <CopyButton text={value} label={label} />
+      <CopyButton text={copy ?? value} label={label} />
     </div>
   );
 }
@@ -47,8 +64,11 @@ export default function OverviewPanel({
   caseNotes,
   staff,
   schoolCatalog,
+  currentSchools,
 }) {
   const [mother, father] = namedParents;
+  // Only call out an address on a person when it is NOT the household address.
+  const differs = (addr) => !sameAddress(addr, family.home_address);
 
   return (
     <div className="family-detail-tab-stack">
@@ -73,12 +93,10 @@ export default function OverviewPanel({
               <ReadLine value={parent?.full_name} label="Copy name" strong />
               <ReadLine value={parent?.email} label="Copy email" icon="✉" />
               <ReadLine value={parent?.phone} label="Copy phone" icon="☎" />
-              {parent && (
+              {parent?.address && differs(parent.address) && (
                 <>
                   <span className="ov-sub">Lives at</span>
-                  <ReadLine value={sameAddress(parent.address, family.home_address) ? "" : parent.address} label="Copy address" />
-                  {sameAddress(parent.address, family.home_address) && <span className="ov-same">Same as household address</span>}
-                  {!parent.address && <span className="ov-same">No separate address on file</span>}
+                  <ReadLine value={parent.address} label="Copy address" />
                 </>
               )}
             </div>
@@ -87,43 +105,46 @@ export default function OverviewPanel({
           <div className="ov-person">
             <span className="ov-eyebrow">Household address</span>
             <ReadLine value={family.home_address} label="Copy address" />
-            {familyChildren.length > 0 && <span className="ov-sub">Children</span>}
-            {familyChildren.map((c, i) => (
-              <div className="ov-child-addr" key={c.id}>
-                <span className="ov-child-name">{displayNameForChild(c, i)}</span>
-                {c.address && !sameAddress(c.address, family.home_address) ? (
-                  <ReadLine value={c.address} label="Copy address" />
-                ) : (
-                  <span className="ov-same">{c.address ? "Same as household address" : "No separate address on file"}</span>
-                )}
-              </div>
-            ))}
           </div>
         </div>
 
         <div className="ov-lower">
-          <div className="ov-kids">
-            <span className="ov-eyebrow">Children</span>
-            {familyChildren.length === 0 ? (
-              <span className="ov-none">None on file yet</span>
-            ) : (
-              <div className="ov-kid-list">
-                {familyChildren.map((c, i) => {
-                  const sen = hasSen(c);
-                  return (
-                    <span className="ov-kid" key={c.id}>
-                      {displayNameForChild(c, i)}
-                      {sen && (
+          <span className="ov-eyebrow">Children</span>
+          {familyChildren.length === 0 ? (
+            <span className="ov-none">None on file yet</span>
+          ) : (
+            <div className="ov-kids">
+              {familyChildren.map((c, i) => {
+                const school = currentSchools?.[i]?.school_name;
+                const years = Array.isArray(c.academic_years_of_entry) ? c.academic_years_of_entry.join(", ") : "";
+                return (
+                  <div className="ov-child" key={c.id}>
+                    <div className="ov-child-top">
+                      <span className="ov-child-title">{displayNameForChild(c, i)}</span>
+                      {hasSen(c) && (
                         <span className="ov-sen" title={c.sen_status}>
                           SEN
                         </span>
                       )}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    </div>
+                    <span className="ov-sub">Date of birth</span>
+                    <ReadLine value={dobLine(c.date_of_birth)} copy={dobPlain(c.date_of_birth)} label="Copy date of birth" />
+                    <span className="ov-sub">Applying for</span>
+                    <ReadLine value={c.year_group_applying_for} label="Copy year group" />
+                    {years && <span className="ov-same">{years}</span>}
+                    <span className="ov-sub">Current school</span>
+                    <ReadLine value={school} label="Copy school" />
+                    {c.address && differs(c.address) && (
+                      <>
+                        <span className="ov-sub">Lives at</span>
+                        <ReadLine value={c.address} label="Copy address" />
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 

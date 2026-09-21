@@ -15,7 +15,37 @@ import OverviewPanel from "../components/OverviewPanel";
 import EmailsPanel from "../components/EmailsPanel";
 import MeetingsPanel from "../components/MeetingsPanel";
 import { AddressIcon, BudgetIcon, HouseholdIcon } from "../components/icons";
-import { NATIONALITIES, LANGUAGES, RELIGIONS, ENGLISH_PROFICIENCY_LEVELS, GENDERS } from "../data/formOptions";
+import {
+  NATIONALITIES,
+  LANGUAGES,
+  RELIGIONS,
+  ENGLISH_PROFICIENCY_LEVELS,
+  GENDERS,
+  BUDGET_STATUS_OPTIONS,
+  FEE_RANGE_OPTIONS,
+  HOUSING_BUDGET_OPTIONS,
+  COST_GUIDANCE_OPTIONS,
+  ACADEMIC_YEARS,
+  CURRICULA,
+  EDUCATION_GAPS_OPTIONS,
+  REASONS_FOR_LEAVING,
+  REPEATED_YEAR_OPTIONS,
+  SCHOOL_REFUSAL_OPTIONS,
+  SEN_DESCRIPTIVE_WORD_OPTIONS,
+  SEN_DIAGNOSIS_OPTIONS,
+  SEN_DISCLOSURE_OPTIONS,
+  SEN_DOCUMENT_OPTIONS,
+  SEN_INTERVENTION_FREQUENCY_OPTIONS,
+  SEN_INTERVENTION_STATUS_OPTIONS,
+  SEN_INTERVENTION_TYPE_OPTIONS,
+  SEN_LSA_OPTIONS,
+  SEN_OUTSIDE_PROFESSIONAL_OPTIONS,
+  SEN_STATUS_OPTIONS,
+  TERMS_WITH_FLEXIBLE,
+  TRANSFER_CERTIFICATE_UNDERSTANDING,
+  YEAR_GROUPS,
+  YES_NO_OPTIONS,
+} from "../data/formOptions";
 import "./FamilyDetailPage.css";
 
 // ---------------------------------------------------------------------------
@@ -61,12 +91,12 @@ const CHILD_GENERAL_FIELDS = [
   // "array_join"` reads the new column and renders it as a plain
   // comma-separated list, same idea as the "date"/"reference_status"
   // formatters just below.
-  { key: "academic_years_of_entry", label: "Academic year(s) of entry", type: "array_join" },
-  { key: "year_group_applying_for", label: "Year group applying for" },
-  { key: "terms", label: "Term(s)", type: "array_join" },
+  { key: "academic_years_of_entry", label: "Academic year(s) of entry", type: "multiselect", options: ACADEMIC_YEARS },
+  { key: "year_group_applying_for", type: "select", options: YEAR_GROUPS, label: "Year group applying for" },
+  { key: "terms", label: "Term(s)", type: "multiselect", options: TERMS_WITH_FLEXIBLE },
   { key: "first_language", label: "First language", type: "select", options: LANGUAGES },
   { key: "second_language", label: "Second language", type: "select", options: LANGUAGES },
-  { key: "english_first_home_language", label: "English is first / home language?" },
+  { key: "english_first_home_language", type: "select", strict: true, options: YES_NO_OPTIONS, label: "English is first / home language?" },
   { key: "english_proficiency", label: "English proficiency", type: "select", options: ENGLISH_PROFICIENCY_LEVELS },
   { key: "eid", label: "EID" },
   { key: "address", label: "Where this child lives", wide: true },
@@ -76,9 +106,10 @@ const CHILD_GENERAL_FIELDS = [
 const CHILD_ADDITIONAL_FIELDS = [
   { key: "sports_hobbies_interests", label: "Sports, hobbies and interests", wide: true },
   { key: "sports_achievements", label: "Sports achievements", wide: true },
-  { key: "gifted_talented", label: "On the Gifted or Talented Register?" },
+  { key: "gifted_talented", type: "select", strict: true, options: YES_NO_OPTIONS, label: "On the Gifted or Talented Register?" },
   { key: "medical_inclusion_needs", label: "Allergies or health conditions", wide: true },
-  { key: "has_transfer_certificate", label: "Has transfer / leaving certificate?" },
+  { key: "has_transfer_certificate", type: "select", strict: true, options: YES_NO_OPTIONS, label: "Has transfer / leaving certificate?" },
+  { key: "transfer_certificate_understanding", label: "Understands the Transfer Certificate and attestation process?", type: "select", strict: true, options: TRANSFER_CERTIFICATE_UNDERSTANDING },
 ];
 
 // SEN-01 (September 2026 change request) — "SEN and inclusion" became its
@@ -89,7 +120,7 @@ const CHILD_ADDITIONAL_FIELDS = [
 // academic_years_of_entry/terms above. The "Other" text and the concerns
 // note only ever apply to their own answer, same showIf pattern as before.
 const CHILD_SEN_FIELDS = [
-  { key: "sen_status", label: "SEN and inclusion — status" },
+  { key: "sen_status", type: "select", strict: true, options: SEN_STATUS_OPTIONS, label: "SEN and inclusion — status" },
   {
     key: "sen_concerns_description",
     label: "SEN and inclusion — concerns",
@@ -99,7 +130,7 @@ const CHILD_SEN_FIELDS = [
   {
     key: "sen_diagnoses",
     label: "SEN and inclusion — diagnoses",
-    type: "array_join",
+    type: "multiselect", options: SEN_DIAGNOSIS_OPTIONS,
     wide: true,
     showIf: (c) => c?.sen_status === "Yes, formally identified or diagnosed",
   },
@@ -111,13 +142,13 @@ const CHILD_SEN_FIELDS = [
   },
   // SEN-02 — asked of every child regardless of the SEN-01 answer, so no
   // showIf here.
-  { key: "sen_documents_held", label: "SEN and inclusion — documents held", type: "array_join", wide: true },
+  { key: "sen_documents_held", label: "SEN and inclusion — documents held", type: "multiselect", options: SEN_DOCUMENT_OPTIONS, wide: true },
   // SEN-04 through SEN-11 (September 2026 change request).
-  { key: "sen_intervention_status", label: "SEN and inclusion — intervention or support sessions" },
+  { key: "sen_intervention_status", type: "select", strict: true, options: SEN_INTERVENTION_STATUS_OPTIONS, label: "SEN and inclusion — intervention or support sessions" },
   {
     key: "sen_intervention_types",
     label: "SEN and inclusion — session types",
-    type: "array_join",
+    type: "multiselect", options: SEN_INTERVENTION_TYPE_OPTIONS,
     wide: true,
     showIf: (c) => typeof c?.sen_intervention_status === "string" && c.sen_intervention_status.startsWith("Yes"),
   },
@@ -128,19 +159,20 @@ const CHILD_SEN_FIELDS = [
     showIf: (c) => (c?.sen_intervention_types || []).includes("Other"),
   },
   {
-    key: "sen_intervention_frequency",
+    key: "sen_intervention_frequency", type: "select", strict: true, options: SEN_INTERVENTION_FREQUENCY_OPTIONS,
     label: "SEN and inclusion — session frequency",
     showIf: (c) => (c?.sen_intervention_types || []).length > 0,
   },
-  { key: "sen_lsa_status", label: "SEN and inclusion — Learning Support Assistant / shadow teacher" },
-  { key: "sen_descriptive_words", label: "SEN and inclusion — words used to describe child", type: "array_join", wide: true },
-  { key: "sen_outside_professionals", label: "SEN and inclusion — outside professionals", type: "array_join", wide: true },
+  { key: "sen_lsa_status", type: "select", strict: true, options: SEN_LSA_OPTIONS, label: "SEN and inclusion — Learning Support Assistant / shadow teacher" },
+  { key: "sen_descriptive_words", label: "SEN and inclusion — words used to describe child", type: "multiselect", options: SEN_DESCRIPTIVE_WORD_OPTIONS, wide: true },
+  { key: "sen_outside_professionals", label: "SEN and inclusion — outside professionals", type: "multiselect", options: SEN_OUTSIDE_PROFESSIONAL_OPTIONS, wide: true },
   {
     key: "sen_outside_professionals_other",
     label: "SEN and inclusion — other outside professional",
     wide: true,
     showIf: (c) => (c?.sen_outside_professionals || []).includes("Other"),
   },
+  { key: "sen_disclosure_preference", label: "SEN and inclusion — disclose support needs to schools?", type: "select", strict: true, wide: true, options: SEN_DISCLOSURE_OPTIONS },
   { key: "sen_additional_notes", label: "SEN and inclusion — anything else the family wants us to know", wide: true },
 ];
 
@@ -187,33 +219,33 @@ function childCardFlags(child) {
 
 const SCHOOL_FIELDS = [
   { key: "school_name", label: "Current school" },
-  { key: "year_group_of_leaving", label: "Year group of leaving" },
+  { key: "year_group_of_leaving", type: "select", options: YEAR_GROUPS, label: "Year group of leaving" },
   // CS-01 (September 2026 change request): "Date last attended" removed —
   // it was never actually filled in from the family's side, so this just
   // stops showing a permanently-blank row.
-  { key: "curriculum", label: "Curriculum" },
+  { key: "curriculum", type: "select", options: CURRICULA, label: "Curriculum" },
   { key: "contact_name", label: "Contact name at school" },
   { key: "contact_email", label: "Contact email at school" },
   { key: "contact_phone", label: "Contact phone at school" },
   { key: "reference_status", label: "Confidential reference", type: "reference_status" },
-  { key: "reason_for_leaving", label: "Reason for leaving", wide: true },
+  { key: "reason_for_leaving", type: "select", options: REASONS_FOR_LEAVING, label: "Reason for leaving", wide: true },
   { key: "reason_for_leaving_details", label: "Reason for leaving — more detail", wide: true },
   // CS-04/CS-05/CS-06 (September 2026 change request).
-  { key: "education_gaps_status", label: "Gaps in education?" },
+  { key: "education_gaps_status", type: "select", strict: true, options: EDUCATION_GAPS_OPTIONS, label: "Gaps in education?" },
   {
     key: "education_gaps_details",
     label: "Gaps in education — detail",
     wide: true,
     showIf: (s) => s?.education_gaps_status === "Yes",
   },
-  { key: "repeated_year_status", label: "Repeated a year, or asked to?" },
+  { key: "repeated_year_status", type: "select", strict: true, options: REPEATED_YEAR_OPTIONS, label: "Repeated a year, or asked to?" },
   {
     key: "repeated_year_details",
     label: "Repeated a year — detail",
     wide: true,
     showIf: (s) => !!s?.repeated_year_status && s.repeated_year_status !== "No",
   },
-  { key: "school_refusal_status", label: "Refused a place, or asked to leave?" },
+  { key: "school_refusal_status", type: "select", strict: true, options: SCHOOL_REFUSAL_OPTIONS, label: "Refused a place, or asked to leave?" },
   {
     key: "school_refusal_details",
     label: "Refused a place / asked to leave — detail",
@@ -321,13 +353,22 @@ function AddressSummary({ family, parents, familyChildren, accountHolderRole }) 
   );
 }
 
+const BUDGET_FIELDS = [
+  { key: "budget_status", label: "Set a budget for the move?", type: "select", strict: true, options: BUDGET_STATUS_OPTIONS, wide: true },
+  { key: "comfortable_fee_range", label: "Comfortable fee range, per child", type: "select", strict: true, options: FEE_RANGE_OPTIONS },
+  { key: "housing_budget", label: "Annual housing budget", type: "select", strict: true, options: HOUSING_BUDGET_OPTIONS },
+  { key: "parent_work_location", label: "Parent work location" },
+  { key: "preferred_living_area", label: "Where they're thinking of living", wide: true },
+  { key: "cost_guidance_response", label: "Wants cost guidance?", type: "select", strict: true, options: COST_GUIDANCE_OPTIONS },
+];
+
 // Section 3, "Budget and relocation planning" (September 2026 change
 // request) — AH-09/AH-10/AH-11 and BUD-01 through BUD-05 all live directly
 // on the families row, same as home_address, so this card reads them the
 // same way AddressSummary above reads home_address. BUD-05's flag is the
 // one thing here that needs to be seen without opening this card — anything
 // other than "No thank you" gets a visible amber badge right in the heading.
-function BudgetSummary({ family }) {
+function BudgetSummary({ family, onSaved }) {
   const priorities = Array.isArray(family.school_priorities) ? family.school_priorities : [];
   const flagged = wantsCostGuidanceFollowup(family);
 
@@ -338,17 +379,16 @@ function BudgetSummary({ family }) {
         Budget and relocation planning
         {flagged && <span className="family-detail-card-flag is-warn">Wants cost guidance — follow up</span>}
       </h2>
+      <RecordFieldsEditor
+        fields={BUDGET_FIELDS}
+        source={family}
+        table="families"
+        recordId={family.id}
+        familyId={family.id}
+        currentStaffName=""
+        onSaved={onSaved}
+      />
       <div className="rec-grid">
-        <RecordField label="Set a budget for the move?" value={family.budget_status} />
-        <RecordField label="Comfortable fee range, per child" value={family.comfortable_fee_range} />
-        <RecordField label="Annual housing budget" value={family.housing_budget} />
-        <RecordField label="Parent work location" value={family.parent_work_location} />
-        <RecordField label="Where they're thinking of living" value={family.preferred_living_area} wide />
-        <RecordField label="Wants cost guidance?" value={family.cost_guidance_response} />
-        {/* This was previously its own div sitting after (not inside) the
-            rec-grid, so "rec-field-wide"'s column-span had no grid to span
-            across and it rendered narrower than the card. Moved inside the
-            grid so it actually spans full width like the other wide fields. */}
         <div className="rec-field rec-field-wide">
           <span className="rec-field-label">Top school priorities, ranked</span>
           {priorities.length ? (
@@ -677,6 +717,7 @@ export default function FamilyDetailPage() {
           onGoToApplications={() => setActiveTab("applications")}
           caseNotes={caseNotes}
           staff={staff}
+          currentSchools={currentSchools}
           schoolCatalog={schoolCatalog}
         />
       )}
@@ -692,7 +733,7 @@ export default function FamilyDetailPage() {
             accountHolderRole={accountHolderRole}
           />
 
-          <BudgetSummary family={family} />
+          <BudgetSummary family={family} onSaved={handleFamilyFieldChange} />
         </div>
 
         <div className="family-detail-col">

@@ -409,6 +409,72 @@ export default function ApplicationsPanel({
                           )}
                         </div>
                       )}
+                      <details
+                        className="ap-details"
+                        open={!!(application.notes || application.assessment_date || application.assessment_link || application.assessment_notes)}
+                      >
+                        <summary>Application details &amp; notes</summary>
+                        <div className="ap-details-grid">
+                          <label className="ap-field">
+                            <span className="ap-label">Date submitted</span>
+                            <input
+                              type="date"
+                              className="panel-input"
+                              value={application.submitted_at ? String(application.submitted_at).slice(0, 10) : ""}
+                              onChange={(e) => patch(child.id, application, { submitted_at: e.target.value || null })}
+                            />
+                          </label>
+                          <label className="ap-field">
+                            <span className="ap-label">Assessment date</span>
+                            <input
+                              type="date"
+                              className="panel-input"
+                              value={application.assessment_date || ""}
+                              onChange={(e) => patch(child.id, application, { assessment_date: e.target.value || null })}
+                            />
+                          </label>
+                          <div className="ap-details-wide">
+                            <AutosaveField
+                              collapsible
+                              label="Assessment meeting link"
+                              placeholder="Paste the Zoom / Teams link"
+                              value={application.assessment_link}
+                              onSave={async (v) => {
+                                const ok = await patch(child.id, application, { assessment_link: v });
+                                if (!ok) throw new Error("check the message above, then Retry");
+                              }}
+                            />
+                          </div>
+                          <div className="ap-details-wide">
+                            <AutosaveField
+                              collapsible
+                              multiline
+                              rows={3}
+                              label="Assessment details"
+                              placeholder="What to bring, who is meeting them, anything the family needs to know"
+                              value={application.assessment_notes}
+                              onSave={async (v) => {
+                                const ok = await patch(child.id, application, { assessment_notes: v });
+                                if (!ok) throw new Error("check the message above, then Retry");
+                              }}
+                            />
+                          </div>
+                          <div className="ap-details-wide">
+                            <AutosaveField
+                              collapsible
+                              multiline
+                              rows={4}
+                              label="Notes on this application"
+                              placeholder="Anything the team should know about this application"
+                              value={application.notes}
+                              onSave={async (v) => {
+                                const ok = await patch(child.id, application, { notes: v });
+                                if (!ok) throw new Error("check the message above, then Retry");
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </details>
                     </li>
                   );
                 })}
