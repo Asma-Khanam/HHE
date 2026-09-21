@@ -498,6 +498,13 @@ export default function FamilyDetailPage() {
     setDetail((d) => ({ ...d, children: d.children.map((c) => (c.id === updated.id ? updated : c)) }));
     touchFamilyActivity(familyId);
   }
+  // The Applications tab edits its own copy of the applications (so typing
+  // stays snappy) and reports every change back here. Without this, going to
+  // another tab and coming back re-opened the panel from the copy loaded when
+  // the page first opened, so recent stage changes and reasons looked lost.
+  function handleApplicationsChange(nextByChild) {
+    setDetail((d) => (d ? { ...d, applicationsByChild: nextByChild } : d));
+  }
   function handleSchoolSaved(updated) {
     setDetail((d) => {
       const idx = d.children.findIndex((c) => c.id === updated.child_id);
@@ -912,6 +919,7 @@ export default function FamilyDetailPage() {
             familyId={family.id}
             familyChildren={children}
             applicationsByChild={applicationsByChild}
+            onApplicationsChange={handleApplicationsChange}
             schoolCatalog={schoolCatalog}
             highlightSchoolId={searchParams.get("school") || null}
           />

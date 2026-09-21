@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createApplication,
   updateApplication,
@@ -51,8 +51,27 @@ function reasonFieldFor(status) {
 // Where each child has applied and how far along each application is.
 // Applications are never deleted from here -- a school that falls away is
 // set to Withdrawn (with a reason) or Declined instead, so the record stays.
-export default function ApplicationsPanel({ familyId, familyChildren, applicationsByChild, schoolCatalog, highlightSchoolId }) {
+export default function ApplicationsPanel({
+  familyId,
+  familyChildren,
+  applicationsByChild,
+  onApplicationsChange,
+  schoolCatalog,
+  highlightSchoolId,
+}) {
   const [apps, setApps] = useState(applicationsByChild || {});
+  // Every change made here is reported to the page above, so leaving this tab
+  // and coming back shows the current data, not what was loaded at page open.
+  const onChangeRef = useRef(onApplicationsChange);
+  onChangeRef.current = onApplicationsChange;
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
+    onChangeRef.current?.(apps);
+  }, [apps]);
   const [schools, setSchools] = useState(schoolCatalog || []);
   // Read-only lookup of this family's tour history per school, so a row can
   // say "Toured 15 Sept" without flipping over to the School visits tab.
@@ -213,12 +232,6 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
         <h2>Applications</h2>
       </div>
 
-      <datalist id="rejection-reason-options">
-        {REJECTION_REASONS.map((r) => (
-          <option key={r} value={r} />
-        ))}
-      </datalist>
-
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
       {familyChildren.map((child, i) => {
@@ -373,12 +386,26 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
                               application.status === "withdrawn" ? "Why was it withdrawn?" : "Why? (no space, fees, etc.)"
                             }
                             value={application[reasonField]}
-                            list={application.status === "rejected" ? "rejection-reason-options" : undefined}
                             onSave={async (v) => {
                               const ok = await patch(child.id, application, { [reasonField]: v });
                               if (!ok) throw new Error("check the message above, then Retry");
                             }}
                           />
+                          {application.status === "rejected" && (
+                            <div className="ap-chips">
+                              <span className="ap-chips-label">Quick pick</span>
+                              {REJECTION_REASONS.filter((r) => r !== "Other").map((r) => (
+                                <button
+                                  key={r}
+                                  type="button"
+                                  className={"ap-chip" + (application.rejected_reason === r ? " is-on" : "")}
+                                  onClick={() => patch(child.id, application, { rejected_reason: r })}
+                                >
+                                  {r}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </li>

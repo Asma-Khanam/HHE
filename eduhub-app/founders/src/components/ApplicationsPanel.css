@@ -247,3 +247,38 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Quick-pick reasons for a declined application (replaces the browser's own
+   drop-down list, which showed a stray arrow on the field). */
+.ap-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.ap-chips-label {
+  font-size: 0.7rem;
+  color: var(--hh-ink);
+  opacity: 0.45;
+  margin-right: 2px;
+}
+.ap-chip {
+  font-family: var(--hh-font-body);
+  font-size: 0.74rem;
+  padding: 3px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(83, 1, 38, 0.18);
+  background: var(--hh-white);
+  color: var(--hh-burgundy);
+  cursor: pointer;
+  transition: background var(--hh-transition);
+}
+.ap-chip:hover {
+  background: rgba(184, 154, 90, 0.14);
+}
+.ap-chip.is-on {
+  background: var(--hh-burgundy);
+  border-color: var(--hh-burgundy);
+  color: var(--hh-white);
+}
