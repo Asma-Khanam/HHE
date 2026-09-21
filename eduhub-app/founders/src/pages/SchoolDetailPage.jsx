@@ -91,6 +91,19 @@ function familyStageLabel(row, applicationsForFamily) {
 // family that has it shortlisted — the school-side view that complements
 // SchoolVisitsPanel on FamilyDetailPage (Phase 1 of the School visits
 // tracker; see eduhub_schema_addendum_36_school_visits_tracker.sql).
+// Where each family sits with this school, for the Shortlisted families
+// sub-tabs. A family can be in more than one (visited AND applied).
+function entryApps(entry) {
+  return (entry.children || []).flatMap((c) => c.applications || []);
+}
+const FAMILY_FILTERS = [
+  ["all", "Suggested", () => true],
+  ["visited", "Visited", (e) => e.tour_status === "completed" || e.tour2_status === "completed"],
+  ["applied", "Applied", (e) => entryApps(e).some((a) => a.status && a.status !== "draft")],
+  ["offered", "Offered", (e) => entryApps(e).some((a) => a.status === "offer" || a.status === "offer_accepted")],
+  ["withdrew", "Withdrew", (e) => entryApps(e).some((a) => a.status === "withdrawn")],
+];
+
 function SchoolNotesFeed({ schoolId }) {
   const [notes, setNotes] = useState(null);
   const [staffById, setStaffById] = useState({});
@@ -294,6 +307,7 @@ export default function SchoolDetailPage() {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
   const [tab, setTab] = useState("record");
+  const [famFilter, setFamFilter] = useState("all");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -1003,11 +1017,29 @@ export default function SchoolDetailPage() {
           Shortlisted families
           {shortlist.length > 0 && <span className="family-detail-card-count">{shortlist.length}</span>}
         </h2>
+        {shortlist.length > 0 && (
+          <div className="family-detail-tabs household-tabs sv-subtabs" role="tablist">
+            {FAMILY_FILTERS.map(([key, label, test]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={famFilter === key}
+                className={"family-detail-tab" + (famFilter === key ? " is-active" : "")}
+                onClick={() => setFamFilter(key)}
+              >
+                {label} ({shortlist.filter(test).length})
+              </button>
+            ))}
+          </div>
+        )}
         {shortlist.length === 0 ? (
           <p className="family-detail-hint">No family has shortlisted this school yet.</p>
+        ) : shortlist.filter(FAMILY_FILTERS.find((f) => f[0] === famFilter)[2]).length === 0 ? (
+          <p className="family-detail-hint">No families here yet.</p>
         ) : (
           <ul className="panel-list schooldetail-shortlist-list">
-            {shortlist.map((entry) => {
+            {shortlist.filter(FAMILY_FILTERS.find((f) => f[0] === famFilter)[2]).map((entry) => {
               const waitingDays = entry.availability_status === "awaiting" ? daysSince(entry.shortlisted_at) : null;
               const stageLabel = familyStageLabel(entry, (entry.children || []).flatMap((c) => c.applications || []));
               return (
