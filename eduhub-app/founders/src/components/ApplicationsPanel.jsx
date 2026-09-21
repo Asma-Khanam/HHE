@@ -89,13 +89,17 @@ function PortalAndLog({ application, school, parents, events, onEventAdded, onPo
           <div className="ap-portal-url">
             <AutosaveField
               collapsible
-              label={`Portal link for ${school.name} (saved once, used for every family)`}
+              label={`Portal link for ${school.name} (same field as on the school record)`}
               placeholder="Paste the school's portal login page, e.g. https://school.openapply.com/dashboard"
               value={portalUrl}
               onSave={async (v) => {
                 const clean = (v || "").trim();
-                await updateSchool(school.id, { openapply_login_url: clean || null });
-                onPortalUrlSaved(school.id, clean || null);
+                const patch = { openapply_login_url: clean || null };
+                if (clean && /openapply\.com/i.test(clean) && !school.application_platform) {
+                  patch.application_platform = "openapply";
+                }
+                await updateSchool(school.id, patch);
+                onPortalUrlSaved(school.id, clean || null, patch.application_platform);
               }}
             />
             {portalUrl && (
@@ -617,8 +621,14 @@ export default function ApplicationsPanel({
                           application={application}
                           school={schools.find((sc) => sc.id === application.school_id)}
                           parents={parents}
-                          onPortalUrlSaved={(id, url) =>
-                            setSchools((list) => list.map((sc) => (sc.id === id ? { ...sc, openapply_login_url: url } : sc)))
+                          onPortalUrlSaved={(id, url, platform) =>
+                            setSchools((list) =>
+                              list.map((sc) =>
+                                sc.id === id
+                                  ? { ...sc, openapply_login_url: url, application_platform: platform || sc.application_platform }
+                                  : sc
+                              )
+                            )
                           }
                           events={eventsByApp[application.id] || []}
                           onEventAdded={(ev) =>

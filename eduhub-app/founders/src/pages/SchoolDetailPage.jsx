@@ -187,6 +187,11 @@ export default function SchoolDetailPage() {
         application_platform: draft.application_platform || null,
         openapply_login_url: (draft.openapply_login_url || "").trim() || null,
       };
+      // An OpenApply address tags the school as OpenApply on its own, so
+      // consultants only ever have to paste the link.
+      if (patch.openapply_login_url && /openapply\.com/i.test(patch.openapply_login_url) && !patch.application_platform) {
+        patch.application_platform = "openapply";
+      }
       const updated = await updateSchool(schoolId, patch);
       setDetail((d) => ({ ...d, school: updated }));
       setEditing(false);
@@ -476,7 +481,7 @@ export default function SchoolDetailPage() {
               )}
             </div>
             <div className="rec-field">
-              <span className="rec-field-label">Application portal</span>
+              <span className="rec-field-label">Portal link</span>
               {school.openapply_login_url ? (
                 <a className="rec-field-value" href={school.openapply_login_url} target="_blank" rel="noreferrer">
                   {school.application_platform === "openapply" ? "OpenApply · " : ""}
@@ -694,7 +699,7 @@ export default function SchoolDetailPage() {
               </div>
               <div className="rec-field">
                 <label className="rec-field-label" htmlFor="sch-platform">
-                  Application platform
+                  Portal type (set automatically for OpenApply links)
                 </label>
                 <select
                   id="sch-platform"
@@ -709,7 +714,7 @@ export default function SchoolDetailPage() {
               </div>
               <div className="rec-field">
                 <label className="rec-field-label" htmlFor="sch-portal-url">
-                  Portal login link (where parents sign in after registering)
+                  Portal link (where parents sign in after registering)
                 </label>
                 <input
                   id="sch-portal-url"
