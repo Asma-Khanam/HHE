@@ -44,7 +44,7 @@ function childChipClass(value) {
   return "is-awaiting";
 }
 
-const TOUR_STATUS_LABEL = { offered: "Offered", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
+const TOUR_STATUS_LABEL = { offered: "Booked", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -72,7 +72,7 @@ function daysSince(iso) {
 // > awaiting reply), collapsed to a label only since this view doesn't
 // need the relative-time detail the family-facing panel shows.
 function familyStageLabel(row, applicationsForFamily) {
-  if (applicationsForFamily.some((a) => a.status === "offer")) return "Offer received";
+  if (applicationsForFamily.some((a) => a.status === "offer" || a.status === "offer_accepted")) return "Offer received";
   if (applicationsForFamily.some((a) => a.status !== "draft" && a.status !== "withdrawn")) return "Applied";
   if (row.tour_status === "completed") return row.feedback_text || row.feedback_rating ? "Toured, feedback in" : "Toured, feedback pending";
   if (row.tour_status === "cancelled") return "Tour cancelled";

@@ -1053,3 +1053,12 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Withdrawn applications: greyed out, sorted to the bottom (addendum 63) */
+.app-row-inactive {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+.app-row-inactive:hover {
+  opacity: 0.85;
+}

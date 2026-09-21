@@ -879,3 +879,24 @@
 .svt-onday-edit {
   margin-top: 4px;
 }
+
+/* Internal notes box inside an expanded school row (addendum 63) */
+.svt-notes {
+  margin-bottom: 1.1rem;
+}
+.svt-notes-state {
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--hh-muted, #7a6a70);
+}
+.svt-notes-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  background: #fff;
+}

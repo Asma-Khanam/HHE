@@ -9,11 +9,12 @@
 export const APPLICATION_STATUS_LABEL = {
   draft: "Application started",
   submitted: "Submitted",
-  documents_pending: "Documents pending",
-  reference_requested: "Reference requested",
-  under_review: "Under review",
-  offer: "Offer",
-  rejected: "Rejected",
+  assessment_booked: "Assessment booked",
+  under_review: "Awaiting decision",
+  offer: "Offer received",
+  offer_accepted: "Offer accepted",
+  waitlisted: "Waitlisted",
+  rejected: "Declined",
   withdrawn: "Withdrawn",
 };
 
@@ -41,11 +42,13 @@ export function nearestTourInfo(row) {
 // 'neutral' | 'muted'), `sub` is the optional detail line underneath.
 export function childPhaseFor(row, applicationsForChild) {
   const apps = (applicationsForChild || []).filter((a) => a.status !== "withdrawn");
-  const finalApp = apps.find((a) => a.status === "offer" || a.status === "rejected");
+  const finalApp = apps.find((a) => a.status === "offer" || a.status === "offer_accepted" || a.status === "rejected");
   if (finalApp) {
-    return finalApp.status === "offer"
+    return finalApp.status === "offer_accepted"
+      ? { phase: "Offer accepted", tone: "good", sub: null }
+      : finalApp.status === "offer"
       ? { phase: "Offer", tone: "good", sub: "Received" }
-      : { phase: "Rejected", tone: "bad", sub: finalApp.rejected_reason ? `Reason: ${finalApp.rejected_reason}` : null };
+      : { phase: "Declined", tone: "bad", sub: finalApp.rejected_reason ? `Reason: ${finalApp.rejected_reason}` : null };
   }
 
   const activeApp = apps.find((a) => a.status !== "draft");

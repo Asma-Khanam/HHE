@@ -26,7 +26,7 @@ function cardTone(stage, apps) {
   if (stage === "declined") return "bad";
   if (stage === "awaiting_decision") return "attention";
   if (stage === "decision") {
-    if (apps.some((a) => a.status === "offer")) return "good";
+    if (apps.some((a) => a.status === "offer" || a.status === "offer_accepted")) return "good";
     if (apps.some((a) => a.status === "rejected")) return "bad";
   }
   return "neutral";

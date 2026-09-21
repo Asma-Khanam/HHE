@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   listShortlistForFamily,
@@ -12,6 +12,8 @@ import {
   createApplication,
   friendlyError,
   autoCompletePastTours,
+  listShortlistNotes,
+  saveShortlistNote,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import "./panels.css";
@@ -41,7 +43,7 @@ function chipClass(value) {
 }
 
 const TOUR_STATUS_OPTIONS = ["offered", "confirmed", "completed", "cancelled"];
-const TOUR_STATUS_LABEL = { offered: "Offered", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
+const TOUR_STATUS_LABEL = { offered: "Booked", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
 
 function formatDate(iso) {
   if (!iso) return null;
@@ -72,6 +74,77 @@ function relativeToNow(iso, futureLabel) {
   return `${ago} day${ago === 1 ? "" : "s"} ago`;
 }
 
+// Internal notes for one shortlisted school -- somewhere to paste what a
+// school's admissions team emailed back about availability. Separate from
+// the Feedback box (which is about how the tour went). Saves by itself:
+// a moment after typing stops, on clicking away, and when the row is closed.
+// Stored in shortlist_notes (staff-only, addendum 63), not on the
+// shortlist row, because families can read that row.
+function ShortlistNotes({ shortlistId, initial, onSaved }) {
+  const [value, setValue] = useState(initial || "");
+  const [state, setState] = useState("idle"); // idle | saving | saved | error
+  const lastSaved = useRef(initial || "");
+  const latest = useRef(initial || "");
+  const timer = useRef(null);
+
+  async function save() {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    const body = latest.current;
+    if (body === lastSaved.current) return;
+    setState("saving");
+    try {
+      await saveShortlistNote(shortlistId, body);
+      lastSaved.current = body;
+      onSaved?.(shortlistId, body);
+      setState("saved");
+    } catch {
+      setState("error");
+    }
+  }
+
+  useEffect(
+    () => () => {
+      // Row closed (or page left) with a save still waiting -- send it now.
+      if (timer.current) save();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  function handleChange(e) {
+    const next = e.target.value;
+    setValue(next);
+    latest.current = next;
+    setState("idle");
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(save, 800);
+  }
+
+  return (
+    <div className="svt-notes">
+      <h3 className="svt-detail-heading">
+        Notes
+        <span className="svt-notes-state">
+          {state === "saving" && " · Saving…"}
+          {state === "saved" && " · Saved"}
+          {state === "error" && " · Couldn't save -- has addendum 63 been run?"}
+        </span>
+      </h3>
+      <textarea
+        className="svt-notes-input"
+        rows={4}
+        placeholder="Internal notes, e.g. paste the school's email about availability. The family can't see this."
+        value={value}
+        onChange={handleChange}
+        onBlur={save}
+      />
+    </div>
+  );
+}
+
 function admissionsProcessText(school) {
   return (
     [
@@ -98,6 +171,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
   const [rows, setRows] = useState([]);
   const [childStatus, setChildStatus] = useState([]);
   const [otherFeedback, setOtherFeedback] = useState({});
+  const [notesById, setNotesById] = useState({});
   const [allSchools, setAllSchools] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -130,12 +204,16 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
       setAllSchools(schools);
       const shortlistIds = shortlist.map((r) => r.id);
       const schoolIds = [...new Set(shortlist.map((r) => r.school_id))];
-      const [cs, other] = await Promise.all([
+      const [cs, other, notes] = await Promise.all([
         listChildAvailabilityForShortlistIds(shortlistIds),
         listOtherFeedbackForSchools(schoolIds, familyId),
+        // Notes failing to load (e.g. addendum 63 not run yet) shouldn't
+        // take the whole shortlist down with it.
+        listShortlistNotes(shortlistIds).catch(() => ({})),
       ]);
       setChildStatus(cs);
       setOtherFeedback(other);
+      setNotesById(notes);
     } catch (err) {
       setError(friendlyError(err));
     } finally {
@@ -258,8 +336,10 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
 
   const stats = useMemo(() => {
     const replied = rows.filter((r) => r.availability_status !== "awaiting").length;
-    const toursBooked = rows.filter((r) => r.tour_date).length;
-    const toured = rows.filter((r) => r.tour_status === "completed").length;
+    // Both tour slots count -- a school with a primary AND a secondary tour
+    // is two tours booked.
+    const toursBooked = rows.reduce((n, r) => n + (r.tour_date ? 1 : 0) + (r.tour2_date ? 1 : 0), 0);
+    const toured = rows.filter((r) => r.tour_status === "completed" || r.tour2_status === "completed").length;
     const appliedSchools = new Set(
       allApplications.filter((a) => a.status !== "draft" && a.status !== "withdrawn").map((a) => a.school_id)
     );
@@ -277,7 +357,28 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
     };
   }, [rows, allApplications]);
 
-  const tours = rows.filter((r) => r.tour_date);
+  // One entry per booked tour slot, so a school with both a primary and a
+  // secondary tour shows both in the Tour schedule underneath.
+  const tours = rows.flatMap((r) =>
+    [
+      r.tour_date && {
+        id: r.id + "-primary",
+        kind: "Primary tour",
+        school: r.school,
+        date: r.tour_date,
+        start: r.tour_start_time,
+        status: r.tour_status,
+      },
+      r.tour2_date && {
+        id: r.id + "-secondary",
+        kind: "Secondary tour",
+        school: r.school,
+        date: r.tour2_date,
+        start: r.tour2_start_time,
+        status: r.tour2_status,
+      },
+    ].filter(Boolean)
+  );
 
   async function handleAdd(e) {
     e.preventDefault();
@@ -508,7 +609,9 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
             // gated on the primary tour alone; now either slot completing
             // is enough to surface the decision, since some schools only
             // ever run their "real" tour as the secondary/assessment visit.
-            const anyToured = row.tour_status === "completed" || row.tour2_status === "completed";
+            // 21 Sept 2026 (Heather): a visit is NOT a required step before
+            // applying, so Proceed / Decline below no longer waits for a
+            // tour to be completed -- the gate this used to feed is gone.
 
             return (
               <div key={row.id} className={"svt-row-wrap" + (declined ? " is-declined" : "")}>
@@ -812,9 +915,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                       tour now being completed rather than just the
                       primary one. */}
                   <div className="svt-cell svt-cell-proceed" onClick={(e) => e.stopPropagation()}>
-                    {!anyToured ? (
-                      <span className="svt-muted">Awaiting tour</span>
-                    ) : declined ? (
+                    {declined ? (
                       <div className="svt-proceed-declined">
                         <span className="svt-decision-icon is-no" title="Not proceeding">
                           ✕
@@ -916,6 +1017,11 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         up into the always-visible table columns above, so
                         this is Admissions and only Admissions now. */}
                     <div className="svt-detail-single">
+                      <ShortlistNotes
+                        shortlistId={row.id}
+                        initial={notesById[row.id] || ""}
+                        onSaved={(id, body) => setNotesById((m) => ({ ...m, [id]: body }))}
+                      />
                       <h3 className="svt-detail-heading">Admissions</h3>
                       <dl className="svt-kv">
                         {row.school?.admissions_contact_name && (
@@ -927,7 +1033,14 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         {row.school?.admissions_contact_email && (
                           <>
                             <dt>Email</dt>
-                            <dd>{row.school.admissions_contact_email}</dd>
+                            <dd>
+                              {/* A mailto link: opens in Titan once Titan is set as the browser's
+                                  default email app (Titan webmail > Settings > "Set Titan as the
+                                  default email app"). Titan documents no compose URL of its own. */}
+                              <a href={`mailto:${row.school.admissions_contact_email}`} title="Opens in Titan">
+                                {row.school.admissions_contact_email}
+                              </a>
+                            </dd>
                           </>
                         )}
                         {row.school?.admissions_contact_phone && (
@@ -1129,12 +1242,13 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
           <h3 className="svt-sub-heading">Tour schedule</h3>
           <ul className="svt-schedule-list">
             {[...tours]
-              .sort((a, b) => (a.tour_date + (a.tour_start_time || "")).localeCompare(b.tour_date + (b.tour_start_time || "")))
-              .map((row) => (
-                <li key={row.id} className="svt-schedule-row">
-                  <span className="svt-schedule-when">{formatDateTime(row.tour_date, row.tour_start_time)}</span>
-                  <span className="svt-schedule-school">{row.school?.name}</span>
-                  {row.tour_status && <span className="svt-tour-chip-inline">{TOUR_STATUS_LABEL[row.tour_status]}</span>}
+              .sort((a, b) => (a.date + (a.start || "")).localeCompare(b.date + (b.start || "")))
+              .map((t) => (
+                <li key={t.id} className="svt-schedule-row">
+                  <span className="svt-schedule-when">{formatDateTime(t.date, t.start)}</span>
+                  <span className="svt-schedule-school">{t.school?.name}</span>
+                  <span className="svt-tour-chip-inline">{t.kind}</span>
+                  {t.status && <span className="svt-tour-chip-inline">{TOUR_STATUS_LABEL[t.status]}</span>}
                 </li>
               ))}
           </ul>

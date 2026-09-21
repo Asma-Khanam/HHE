@@ -1128,8 +1128,8 @@ export async function getSchoolDetail(schoolId) {
     toursBooked: shortlistWithNames.filter((r) => ["offered", "confirmed", "completed"].includes(r.tour_status)).length,
     toured: shortlistWithNames.filter((r) => r.tour_status === "completed").length,
     applications: allApplicationStatuses.filter((a) => a.status !== "draft" && a.status !== "withdrawn").length,
-    assessments: allApplicationStatuses.filter((a) => ["reference_requested", "under_review"].includes(a.status)).length,
-    offers: allApplicationStatuses.filter((a) => a.status === "offer").length,
+    assessments: allApplicationStatuses.filter((a) => ["assessment_booked", "under_review"].includes(a.status)).length,
+    offers: allApplicationStatuses.filter((a) => a.status === "offer" || a.status === "offer_accepted").length,
     accepted: null,
   };
 
@@ -1286,6 +1286,24 @@ export async function upsertChildAvailability(shortlistId, childId, availability
 // in the same panel and there's no reason to make two round trips.
 export async function updateShortlistTour(shortlistId, patch) {
   return unwrap(await supabase.from("school_shortlist").update(patch).eq("id", shortlistId).select().single());
+}
+
+// Staff-only notes per shortlisted school (addendum 63). Its own table, not a
+// column on school_shortlist, because families can read school_shortlist.
+export async function listShortlistNotes(shortlistIds) {
+  if (!shortlistIds || shortlistIds.length === 0) return {};
+  const rows = unwrap(await supabase.from("shortlist_notes").select("shortlist_id, body").in("shortlist_id", shortlistIds));
+  return Object.fromEntries((rows || []).map((r) => [r.shortlist_id, r.body || ""]));
+}
+
+export async function saveShortlistNote(shortlistId, body) {
+  return unwrap(
+    await supabase
+      .from("shortlist_notes")
+      .upsert({ shortlist_id: shortlistId, body, updated_at: new Date().toISOString() })
+      .select()
+      .single()
+  );
 }
 
 // The founders' request: once a tour's date has passed, it should flip to

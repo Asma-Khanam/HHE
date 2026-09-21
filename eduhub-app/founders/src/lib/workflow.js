@@ -25,14 +25,20 @@ export function stageLabel(key) {
 // The application statuses were fixed by the original schema's CHECK
 // constraint — these are just the human labels for them, plus a rough
 // "how far along is this" position used for the progress bar.
+// Heather's stages (21 Sept 2026, addendum 63). The database keys for three
+// of them were kept from before so nothing else had to change:
+//   under_review = "Awaiting decision", offer = "Offer received",
+//   rejected = "Declined". assessment_booked, offer_accepted and waitlisted
+// are new. documents_pending / reference_requested are retired.
 export const APPLICATION_STATUSES = [
-  { key: "draft", label: "Draft", progress: 0 },
-  { key: "submitted", label: "Submitted", progress: 1 },
-  { key: "documents_pending", label: "Documents pending", progress: 1 },
-  { key: "reference_requested", label: "Reference requested", progress: 2 },
-  { key: "under_review", label: "Under review", progress: 3 },
-  { key: "offer", label: "Offer", progress: 4 },
-  { key: "rejected", label: "Rejected", progress: 4 },
+  { key: "draft", label: "Not yet submitted", progress: 0 },
+  { key: "submitted", label: "Application submitted", progress: 1 },
+  { key: "assessment_booked", label: "Assessment booked", progress: 2 },
+  { key: "under_review", label: "Awaiting decision", progress: 3 },
+  { key: "offer", label: "Offer received", progress: 4 },
+  { key: "offer_accepted", label: "Offer accepted", progress: 4 },
+  { key: "waitlisted", label: "Waitlisted", progress: 3 },
+  { key: "rejected", label: "Declined", progress: 4 },
   { key: "withdrawn", label: "Withdrawn", progress: 0 },
 ];
 
@@ -126,7 +132,7 @@ export const SCHOOL_PIPELINE_STAGES = [
 
 export function pipelineStage(row, applicationsForSchool) {
   const apps = (applicationsForSchool || []).filter((a) => a.status !== "withdrawn");
-  const finalApp = apps.find((a) => a.status === "offer" || a.status === "rejected");
+  const finalApp = apps.find((a) => a.status === "offer" || a.status === "offer_accepted" || a.status === "rejected");
   if (finalApp) return "decision";
 
   if (row.family_decision === "declined" && apps.length === 0) return "declined";
@@ -135,8 +141,8 @@ export function pipelineStage(row, applicationsForSchool) {
   if (activeApp) return "application_progress";
   if (apps.length > 0) return "application_started";
 
-  if (row.tour_status === "completed") return "awaiting_decision";
-  if (row.tour_date || row.tour_status) return "tour_scheduled";
+  if (row.tour_status === "completed" || row.tour2_status === "completed") return "awaiting_decision";
+  if (row.tour_date || row.tour_status || row.tour2_date || row.tour2_status) return "tour_scheduled";
   return "shortlisted";
 }
 

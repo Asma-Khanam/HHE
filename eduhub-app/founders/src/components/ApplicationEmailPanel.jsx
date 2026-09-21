@@ -1,8 +1,5 @@
 import { useState } from "react";
 import {
-  generateApplicationAlias,
-  setApplicationAliasStatus,
-  regenerateApplicationPassword,
   generateParentApplicationAlias,
   setParentApplicationAliasStatus,
   regenerateParentApplicationPassword,
@@ -138,111 +135,33 @@ function ParentAliasRow({ parent, onParentChange }) {
 
 // The actual mail routing lives outside this app (ImprovMX catch-all
 // forwarding on applications.heatherharries.com into relocate@heatherharries.com)
-// — this panel only shows and controls the CRM's side of it. Each address
-// (the family-wide one below, and each parent's own one further down) comes
-// with a password generated the moment the address is created — the same
-// email + password pair gets used, unchanged, for every school it's
-// registered with. Addendum 43 replaced an earlier per-school-login design
-// once it turned out schools don't actually need a different password each.
-export default function ApplicationEmailPanel({ family, familyDisplayNameValue, onFamilyChange, parents, onParentChange }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  const alias = family.application_alias;
-  const status = family.application_alias_status;
-  const address = alias ? `${alias}@${DOMAIN}` : null;
-
-  async function handleGenerate() {
-    setBusy(true);
-    setError("");
-    try {
-      const updated = await generateApplicationAlias(family.id, familyDisplayNameValue);
-      onFamilyChange(updated);
-    } catch (err) {
-      setError(err.message || "Couldn't create an address.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleGeneratePassword() {
-    setBusy(true);
-    setError("");
-    try {
-      const updated = await regenerateApplicationPassword(family.id);
-      onFamilyChange(updated);
-    } catch (err) {
-      setError(err.message || "Couldn't create a password.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleToggle() {
-    setBusy(true);
-    setError("");
-    try {
-      const updated = await setApplicationAliasStatus(family.id, status === "active" ? "inactive" : "active");
-      onFamilyChange(updated);
-    } catch (err) {
-      setError(err.message || "Couldn't update that.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
+// -- this panel only shows and controls the CRM's side of it.
+//
+// One address per parent, and that's all (Heather, 21 Sept 2026: "just one
+// for mother and one for father"). This panel used to ALSO show a third,
+// family-wide address above the parents'. That block is gone from the
+// screen; nothing is deleted -- families.application_alias and its
+// password still exist, and mail sent to an existing family address still
+// forwards and logs. Each parent's pair works for every school it's
+// registered with (addendum 43).
+export default function ApplicationEmailPanel({ parents, onParentChange }) {
   return (
     <section className="panel">
       <div className="panel-head">
         <h2>Application email</h2>
-        {address && (
-          <span className={"families-badge" + (status === "active" ? " is-submitted" : "")}>
-            {status === "active" ? "Active" : "Inactive"}
-          </span>
-        )}
       </div>
 
-      {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
+      <p className="panel-hint">
+        Use these instead of relocate@heatherharries.com when registering with a school -- one address for each
+        parent. Each forwards straight into the team inbox and everything sent to it lands in the case log
+        automatically. A password is generated with it, ready to copy-paste, and the same pair works for every
+        school it gets registered with.
+      </p>
 
-      {!address ? (
-        <>
-          <p className="panel-hint">
-            Use this instead of relocate@heatherharries.com when registering with a school — it's unique to this
-            family, forwards straight into the team inbox, and everything sent to it lands in the case log below
-            automatically. A password is generated with it, ready to copy-paste, and the same pair works for every
-            school it gets registered with.
-          </p>
-          <button type="button" className="panel-btn panel-btn-primary" onClick={handleGenerate} disabled={busy}>
-            {busy ? "Creating…" : "+ Create application address"}
-          </button>
-        </>
+      {(parents || []).length === 0 ? (
+        <p className="panel-hint">Add the parents' names on the Family details tab first, then their addresses appear here.</p>
       ) : (
-        <>
-          <div className="panel-copy-row">
-            <AddressWithPassword
-              address={address}
-              password={family.application_password}
-              onGeneratePassword={handleGeneratePassword}
-              busy={busy}
-            />
-          </div>
-          <p className="panel-hint">
-            {status === "active"
-              ? "Register this email + password with schools now — the same pair every time. Mail sent to the address forwards to the team inbox and logs itself in the case log below."
-              : "Deactivated — mail sent here still logs to the case log for the record, but no longer forwards. Turn it back on if you need to reach the school again."}
-          </p>
-          <button type="button" className="panel-btn" onClick={handleToggle} disabled={busy}>
-            {busy ? "Working…" : status === "active" ? "Deactivate" : "Reactivate"}
-          </button>
-        </>
-      )}
-
-      {(parents || []).length > 0 && (
         <div className="parent-alias-section">
-          <p className="panel-hint">
-            Some schools want each parent registered separately rather than sharing the family address above — create
-            a second address (with its own password) per parent only if that comes up.
-          </p>
           {parents.map((parent) => (
             <ParentAliasRow key={parent.id} parent={parent} onParentChange={onParentChange} />
           ))}

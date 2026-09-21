@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import { fetchFamilyTimetable, fetchFamilyApplications } from "../lib/timetableData";
 import { displayNameForChild } from "../lib/completeness";
-import { childPhaseFor, FIT_LABEL } from "../lib/schoolJourney";
+import { childPhaseFor } from "../lib/schoolJourney";
 import { IconSchool, IconChevronRight } from "../components/icons";
 import "./TimetablePage.css";
 
 const TOUR_STATUS_LABEL = {
-  offered: "Offered",
+  offered: "Booked",
   confirmed: "Confirmed",
   completed: "Completed",
   cancelled: "Cancelled",
@@ -24,11 +24,12 @@ const AVAILABILITY_LABEL = {
 const APPLICATION_STATUS_LABEL_FULL = {
   draft: "Application started",
   submitted: "Submitted",
-  documents_pending: "Documents pending",
-  reference_requested: "Reference requested",
-  under_review: "Under review",
-  offer: "Offer",
-  rejected: "Rejected",
+  assessment_booked: "Assessment booked",
+  under_review: "Awaiting decision",
+  offer: "Offer received",
+  offer_accepted: "Offer accepted",
+  waitlisted: "Waitlisted",
+  rejected: "Declined",
   withdrawn: "Withdrawn",
 };
 
@@ -36,10 +37,11 @@ const APPLICATION_PROGRESS_STEPS = 4;
 const APPLICATION_PROGRESS = {
   draft: 0,
   submitted: 1,
-  documents_pending: 1,
-  reference_requested: 2,
+  assessment_booked: 2,
   under_review: 3,
+  waitlisted: 3,
   offer: 4,
+  offer_accepted: 4,
   rejected: 4,
   withdrawn: 0,
 };
@@ -377,12 +379,11 @@ export default function TimetablePage() {
                             {applicationsForSchool.map((app) => {
                               const childName = childList.find((c) => c.id === app.child_id)?.name || "Child";
                               const filled = APPLICATION_PROGRESS[app.status] ?? 0;
-                              const tone = app.status === "offer" ? "good" : app.status === "rejected" ? "bad" : "neutral";
+                              const tone = app.status === "offer" || app.status === "offer_accepted" ? "good" : app.status === "rejected" ? "bad" : "neutral";
                               return (
                                 <div key={app.id} className="tt-application-card">
                                   <div className="tt-application-head">
                                     <span className="tt-application-child">{childName}</span>
-                                    {app.fit && <span className="tt-application-fit">{FIT_LABEL[app.fit]}</span>}
                                     <span className={"tt-application-status is-" + tone}>{APPLICATION_STATUS_LABEL_FULL[app.status]}</span>
                                   </div>
                                   <div className="tt-application-progress">

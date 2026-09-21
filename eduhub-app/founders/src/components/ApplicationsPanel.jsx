@@ -17,8 +17,6 @@ import {
   APPLICATION_STATUSES,
   APPLICATION_PROGRESS_STEPS,
   applicationStatus,
-  FIT_OPTIONS,
-  fitLabel,
   REJECTION_REASONS,
   EVENT_TYPES,
   eventTypeLabel,
@@ -42,6 +40,11 @@ function formatShortDate(iso) {
 }
 
 const TOUR_STATUS_LABEL = { offered: "Tour booked", confirmed: "Tour booked", completed: "Toured", cancelled: "Tour cancelled" };
+
+// Declined and Withdrawn each keep their own reason column (addendum 52 and 63).
+function reasonFieldFor(status) {
+  return status === "withdrawn" ? "withdrawn_reason" : "rejected_reason";
+}
 
 function schoolInitials(name) {
   return (name || "?")
@@ -120,7 +123,6 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
   const [reasonDraft, setReasonDraft] = useState("");
   const [schoolId, setSchoolId] = useState("");
   const [newSchoolName, setNewSchoolName] = useState("");
-  const [fit, setFit] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -169,7 +171,10 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
   // never typed by hand for the common path.
   async function changeStatus(childId, application, nextStatus) {
     patch(childId, application, { status: nextStatus });
-    if (nextStatus === "rejected" && !application.rejected_reason) {
+    if (
+      (nextStatus === "rejected" && !application.rejected_reason) ||
+      (nextStatus === "withdrawn" && !application.withdrawn_reason)
+    ) {
       setReasonDraft("");
       setReasonEditingId(application.id);
     }
@@ -270,7 +275,6 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
   function resetForm() {
     setSchoolId("");
     setNewSchoolName("");
-    setFit("");
   }
 
   async function handleAdd(e, child) {
@@ -293,7 +297,7 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
           targetSchoolId = created.id;
         }
       }
-      const created = await createApplication({ childId: child.id, schoolId: targetSchoolId, fit, status: "draft" });
+      const created = await createApplication({ childId: child.id, schoolId: targetSchoolId, status: "draft" });
       const schoolName = schools.find((s) => s.id === targetSchoolId)?.name || typedName;
       setApps((map) => ({ ...map, [child.id]: [...(map[child.id] || []), { ...created, schoolName }] }));
       resetForm();
@@ -323,8 +327,9 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
     const reason = reasonDraft.trim();
     setReasonEditingId(null);
     setReasonDraft("");
-    if (reason === (application.rejected_reason || "")) return;
-    patch(childId, application, { rejected_reason: reason || null });
+    const field = reasonFieldFor(application.status);
+    if (reason === (application[field] || "")) return;
+    patch(childId, application, { [field]: reason || null });
   }
 
   async function handleRemove(childId, application) {
@@ -364,7 +369,12 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
       {familyChildren.map((child, i) => {
-        const childApps = apps[child.id] || [];
+        // Withdrawn applications drop to the bottom of the list (greyed out
+        // in the row below) rather than disappearing. Stable sort, so
+        // everything else keeps its order.
+        const childApps = [...(apps[child.id] || [])].sort(
+          (a, b) => (a.status === "withdrawn") - (b.status === "withdrawn")
+        );
         const name = displayNameForChild(child, i);
         return (
           <div key={child.id} className="app-child-block">
@@ -393,15 +403,14 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
                   <li
                     key={application.id}
                     id={`app-row-school-${application.school_id}`}
-                    className={"app-row" + (highlightActive && String(highlightSchoolId) === String(application.school_id) ? " app-row-highlight" : "")}
+                    className={"app-row" + (highlightActive && String(highlightSchoolId) === String(application.school_id) ? " app-row-highlight" : "") + (application.status === "withdrawn" ? " app-row-inactive" : "")}
                   >
                     <span className="app-row-avatar">{schoolInitials(application.schoolName)}</span>
                     <span className="app-row-text">
                       <span className="app-row-school">{application.schoolName}</span>
                       <span className="app-row-fit">
-                        {application.fit ? fitLabel(application.fit) : "Fit not judged yet"}
                         {tourBySchool[application.school_id] && (
-                          <> · {TOUR_STATUS_LABEL[tourBySchool[application.school_id].status] || "Tour booked"}{" "}
+                          <>{TOUR_STATUS_LABEL[tourBySchool[application.school_id].status] || "Tour booked"}{" "}
                           {formatShortDate(tourBySchool[application.school_id].date)}</>
                         )}
                       </span>
@@ -415,19 +424,6 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
                         onChange={(e) => patch(child.id, application, { visit_date: e.target.value || null })}
                         title="Visit date — also shows on the shared calendar"
                       />
-                      <select
-                        className="panel-select"
-                        value={application.fit || ""}
-                        onChange={(e) => patch(child.id, application, { fit: e.target.value || null })}
-                        title="How good a fit is this school?"
-                      >
-                        <option value="">Fit…</option>
-                        {FIT_OPTIONS.map((f) => (
-                          <option key={f.key} value={f.key}>
-                            {f.label}
-                          </option>
-                        ))}
-                      </select>
                       <select
                         className="panel-select"
                         value={application.status}
@@ -461,15 +457,15 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
                         ✕
                       </button>
                     </span>
-                    {application.status === "rejected" && (
+                    {(application.status === "rejected" || application.status === "withdrawn") && (
                       <div className="app-row-reason" onClick={(e) => e.stopPropagation()}>
                         {reasonEditingId === application.id ? (
                           <>
                             <input
                               type="text"
                               className="panel-input"
-                              list="rejection-reason-options"
-                              placeholder="Why? (no space, fees, etc.)"
+                              list={application.status === "rejected" ? "rejection-reason-options" : undefined}
+                              placeholder={application.status === "withdrawn" ? "Why was it withdrawn?" : "Why? (no space, fees, etc.)"}
                               value={reasonDraft}
                               autoFocus
                               onChange={(e) => setReasonDraft(e.target.value)}
@@ -494,13 +490,29 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
                             type="button"
                             className="app-row-reason-chip"
                             onClick={() => {
-                              setReasonDraft(application.rejected_reason || "");
+                              setReasonDraft(application[reasonFieldFor(application.status)] || "");
                               setReasonEditingId(application.id);
                             }}
                           >
-                            {application.rejected_reason ? `Reason: ${application.rejected_reason}` : "+ Add reason"}
+                            {application[reasonFieldFor(application.status)]
+                              ? `Reason: ${application[reasonFieldFor(application.status)]}`
+                              : "+ Add reason"}
                           </button>
                         )}
+                      </div>
+                    )}
+
+                    {application.status === "offer" && (
+                      <div className="app-row-reason" onClick={(e) => e.stopPropagation()}>
+                        <label className="app-row-reason-chip" style={{ textDecoration: "none", cursor: "default" }}>
+                          Decision needed by{" "}
+                        </label>
+                        <input
+                          type="date"
+                          className="panel-input"
+                          value={application.offer_decision_by || ""}
+                          onChange={(e) => patch(child.id, application, { offer_decision_by: e.target.value || null })}
+                        />
                       </div>
                     )}
 
@@ -676,14 +688,6 @@ export default function ApplicationsPanel({ familyId, familyChildren, applicatio
                     if (e.target.value) setSchoolId("");
                   }}
                 />
-                <select className="panel-select" value={fit} onChange={(e) => setFit(e.target.value)}>
-                  <option value="">Fit…</option>
-                  {FIT_OPTIONS.map((f) => (
-                    <option key={f.key} value={f.key}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
                 <button
                   type="submit"
                   className="panel-btn panel-btn-primary"
