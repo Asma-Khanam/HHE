@@ -71,7 +71,6 @@ const PARENT_FIELDS = [
   { key: "second_language", label: "Second language", type: "select", options: LANGUAGES },
   { key: "employer_name", label: "Employer name" },
   { key: "occupation_designation", label: "Occupation / designation" },
-  { key: "eid", label: "EID" },
   { key: "address", label: "Their address", wide: true },
 ];
 
@@ -98,7 +97,6 @@ const CHILD_GENERAL_FIELDS = [
   { key: "second_language", label: "Second language", type: "select", options: LANGUAGES },
   { key: "english_first_home_language", type: "select", strict: true, options: YES_NO_OPTIONS, label: "English is first / home language?" },
   { key: "english_proficiency", label: "English proficiency", type: "select", options: ENGLISH_PROFICIENCY_LEVELS },
-  { key: "eid", label: "EID" },
   { key: "address", label: "Where this child lives", wide: true },
   { key: "notes", label: "Notes", wide: true },
 ];
@@ -960,6 +958,7 @@ export default function FamilyDetailPage() {
             highlightSchoolId={searchParams.get("school") || null}
           />
 
+          <div id="application-email-section" />
           <ApplicationEmailPanel
             family={family}
             familyDisplayNameValue={displayName}

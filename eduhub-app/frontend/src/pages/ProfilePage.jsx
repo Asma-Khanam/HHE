@@ -92,7 +92,6 @@ export default function ProfilePage() {
             <Row label="Second language" value={holder?.second_language} />
             <Row label="Employer" value={holder?.employer_name} />
             <Row label="Occupation" value={holder?.occupation_designation} />
-            <Row label="EID" value={holder?.eid} />
           </div>
           <Row label="Home address" value={data?.family?.home_address} />
         </div>

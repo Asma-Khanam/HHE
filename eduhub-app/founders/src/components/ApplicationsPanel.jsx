@@ -6,6 +6,7 @@ import {
   listShortlistForFamily,
   listApplicationEvents,
   createApplicationEvent,
+  updateSchool,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import { APPLICATION_STATUSES, REJECTION_REASONS, daysInStage, eventTypeLabel, eventSourceLabel } from "../lib/workflow";
@@ -55,7 +56,7 @@ const ALIAS_DOMAIN = "applications.heatherharries.com";
 // opens the application. Login details are the parent's application alias
 // and password (the same ones shown on the Application email panel); nothing
 // here is deletable -- log entries are only ever added.
-function PortalAndLog({ application, school, parents, events, onEventAdded }) {
+function PortalAndLog({ application, school, parents, events, onEventAdded, onPortalUrlSaved }) {
   const [revealed, setRevealed] = useState(false);
   const [entry, setEntry] = useState("");
   const [saving, setSaving] = useState(false);
@@ -84,17 +85,29 @@ function PortalAndLog({ application, school, parents, events, onEventAdded }) {
     <div className="ap-portal">
       <div className="ap-portal-box">
         <div className="ap-portal-title">Portal login</div>
-        {portalUrl ? (
-          <div className="ap-portal-row">
-            <span className="ap-portal-label">Portal</span>
-            <a href={portalUrl} target="_blank" rel="noreferrer" className="ap-portal-link">
-              Open {school?.name || "school"} portal
-            </a>
-            <CopyButton text={portalUrl} />
+        {school ? (
+          <div className="ap-portal-url">
+            <AutosaveField
+              collapsible
+              label={`Portal link for ${school.name} (saved once, used for every family)`}
+              placeholder="Paste the school's portal login page, e.g. https://school.openapply.com/dashboard"
+              value={portalUrl}
+              onSave={async (v) => {
+                const clean = (v || "").trim();
+                await updateSchool(school.id, { openapply_login_url: clean || null });
+                onPortalUrlSaved(school.id, clean || null);
+              }}
+            />
+            {portalUrl && (
+              <div className="ap-portal-row">
+                <a href={portalUrl} target="_blank" rel="noreferrer" className="ap-portal-link">
+                  Open portal
+                </a>
+                <CopyButton text={portalUrl} />
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="ap-portal-row ap-portal-muted">No portal link saved for this school yet.</div>
-        )}
+        ) : null}
         {login ? (
           <>
             <div className="ap-portal-row">
@@ -116,7 +129,16 @@ function PortalAndLog({ application, school, parents, events, onEventAdded }) {
           </>
         ) : (
           <div className="ap-portal-row ap-portal-muted">
-            No application email and password generated yet — create them in the Application email section below.
+            No application email and password generated yet.{" "}
+            <button
+              type="button"
+              className="ap-portal-toggle"
+              onClick={() =>
+                document.getElementById("application-email-section")?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+            >
+              Go to Application email
+            </button>
           </div>
         )}
       </div>
@@ -595,6 +617,9 @@ export default function ApplicationsPanel({
                           application={application}
                           school={schools.find((sc) => sc.id === application.school_id)}
                           parents={parents}
+                          onPortalUrlSaved={(id, url) =>
+                            setSchools((list) => list.map((sc) => (sc.id === id ? { ...sc, openapply_login_url: url } : sc)))
+                          }
                           events={eventsByApp[application.id] || []}
                           onEventAdded={(ev) =>
                             setEventsByApp((m) => ({ ...m, [application.id]: [ev, ...(m[application.id] || [])] }))
