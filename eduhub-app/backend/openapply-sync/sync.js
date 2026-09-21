@@ -170,8 +170,12 @@ async function loadSyncTargets() {
     if (login) console.log(`Family ${f.id}: using the ${login.relationship || "parent"} login (${candidates.length} available)`);
     familyById[f.id] = {
       id: f.id,
-      application_alias: login ? `${login.application_alias}@${ALIAS_DOMAIN}` : null,
-      application_password: login ? login.application_password : null,
+      application_alias: login ? `${String(login.application_alias).trim()}@${ALIAS_DOMAIN}` : null,
+      application_password: login ? String(login.application_password).trim() : null,
+      login_role: login ? login.relationship || "unknown" : null,
+      login_raw_lengths: login
+        ? { alias: String(login.application_alias).length, password: String(login.application_password).length }
+        : null,
     };
   });
 
@@ -211,6 +215,19 @@ async function syncOne(browser, target, debugDir) {
     // to redirect to OpenApply's own login form; that's fine, the fields
     // below are filled in on whatever page actually has them.
     await page.goto(school.openapply_login_url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    if (DEBUG_MODE) {
+      // Non-secret facts about the login being tried, so a failure can be
+      // diagnosed from the artifact without ever printing the password.
+      const info = [
+        `role: ${family.login_role}`,
+        `email: ${family.application_alias.slice(0, 3)}***@${family.application_alias.split("@")[1]}`,
+        `stored alias length: ${family.login_raw_lengths?.alias} (typed: ${family.application_alias.split("@")[0].length})`,
+        `stored password length: ${family.login_raw_lengths?.password} (typed: ${family.application_password.length})`,
+        `password has spaces: ${/\s/.test(family.application_password)}`,
+      ].join("\n");
+      await fs.mkdir(path.join(debugDir, app.id), { recursive: true });
+      await fs.writeFile(path.join(debugDir, app.id, "login-info.txt"), info + "\n");
+    }
     await page.fill(CONFIG.login.emailSelector, family.application_alias);
     await page.fill(CONFIG.login.passwordSelector, family.application_password);
     await Promise.all([
