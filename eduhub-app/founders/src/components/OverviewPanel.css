@@ -36,3 +36,8 @@
 .ov-value { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 0.92rem; }
 .ov-value.is-empty { opacity: 0.4; }
 .ov-line .copy-btn { margin-left: 0; }
+
+.ov-sub { margin-top: 8px; font-size: 0.66rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.5; }
+.ov-same { font-size: 0.8rem; opacity: 0.5; }
+.ov-child-addr { display: flex; flex-direction: column; gap: 2px; }
+.ov-child-name { font-size: 0.86rem; font-weight: 600; }

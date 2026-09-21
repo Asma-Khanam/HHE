@@ -7,6 +7,11 @@ import GenericDocumentsPanel from "./GenericDocumentsPanel";
 import "./panels.css";
 import "./OverviewPanel.css";
 
+function sameAddress(a, b) {
+  const norm = (v) => (v || "").toLowerCase().replace(/\s+/g, " ").trim();
+  return norm(a) !== "" && norm(a) === norm(b);
+}
+
 function hasSen(child) {
   const st = (child?.sen_status || "").trim();
   return st !== "" && !st.startsWith("No, none");
@@ -68,12 +73,31 @@ export default function OverviewPanel({
               <ReadLine value={parent?.full_name} label="Copy name" strong />
               <ReadLine value={parent?.email} label="Copy email" icon="✉" />
               <ReadLine value={parent?.phone} label="Copy phone" icon="☎" />
+              {parent && (
+                <>
+                  <span className="ov-sub">Lives at</span>
+                  <ReadLine value={sameAddress(parent.address, family.home_address) ? "" : parent.address} label="Copy address" />
+                  {sameAddress(parent.address, family.home_address) && <span className="ov-same">Same as household address</span>}
+                  {!parent.address && <span className="ov-same">No separate address on file</span>}
+                </>
+              )}
             </div>
           ))}
 
           <div className="ov-person">
             <span className="ov-eyebrow">Household address</span>
             <ReadLine value={family.home_address} label="Copy address" />
+            {familyChildren.length > 0 && <span className="ov-sub">Children</span>}
+            {familyChildren.map((c, i) => (
+              <div className="ov-child-addr" key={c.id}>
+                <span className="ov-child-name">{displayNameForChild(c, i)}</span>
+                {c.address && !sameAddress(c.address, family.home_address) ? (
+                  <ReadLine value={c.address} label="Copy address" />
+                ) : (
+                  <span className="ov-same">{c.address ? "Same as household address" : "No separate address on file"}</span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
