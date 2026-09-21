@@ -159,6 +159,8 @@ export default function SchoolDetailPage() {
       admissions_contact_phone: school.admissions_contact_phone || "",
       tour_booking_url: school.tour_booking_url || "",
       application_url: school.application_url || "",
+      application_platform: school.application_platform || "",
+      openapply_login_url: school.openapply_login_url || "",
       requires_cat4: !!school.requires_cat4,
       requires_map: !!school.requires_map,
       requires_interview: !!school.requires_interview,
@@ -181,6 +183,9 @@ export default function SchoolDetailPage() {
         ...draft,
         application_fee: draft.application_fee === "" ? null : Number(draft.application_fee),
         deposit_amount: draft.deposit_amount === "" ? null : Number(draft.deposit_amount),
+        // Empty = not set. The platform column only accepts openapply / other / null.
+        application_platform: draft.application_platform || null,
+        openapply_login_url: (draft.openapply_login_url || "").trim() || null,
       };
       const updated = await updateSchool(schoolId, patch);
       setDetail((d) => ({ ...d, school: updated }));
@@ -470,6 +475,17 @@ export default function SchoolDetailPage() {
                 <span className="rec-field-value is-empty">—</span>
               )}
             </div>
+            <div className="rec-field">
+              <span className="rec-field-label">Application portal</span>
+              {school.openapply_login_url ? (
+                <a className="rec-field-value" href={school.openapply_login_url} target="_blank" rel="noreferrer">
+                  {school.application_platform === "openapply" ? "OpenApply · " : ""}
+                  {school.openapply_login_url}
+                </a>
+              ) : (
+                <span className="rec-field-value is-empty">—</span>
+              )}
+            </div>
             <div className="rec-field rec-field-wide">
               <span className="rec-field-label">Admissions contact</span>
               <span className="rec-field-value">
@@ -674,6 +690,33 @@ export default function SchoolDetailPage() {
                   className="panel-input"
                   value={draft.application_url}
                   onChange={(e) => setDraft((d) => ({ ...d, application_url: e.target.value }))}
+                />
+              </div>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-platform">
+                  Application platform
+                </label>
+                <select
+                  id="sch-platform"
+                  className="panel-input"
+                  value={draft.application_platform}
+                  onChange={(e) => setDraft((d) => ({ ...d, application_platform: e.target.value }))}
+                >
+                  <option value="">Not set</option>
+                  <option value="openapply">OpenApply</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-portal-url">
+                  Portal login link (where parents sign in after registering)
+                </label>
+                <input
+                  id="sch-portal-url"
+                  className="panel-input"
+                  placeholder="e.g. https://school.openapply.com/dashboard"
+                  value={draft.openapply_login_url}
+                  onChange={(e) => setDraft((d) => ({ ...d, openapply_login_url: e.target.value }))}
                 />
               </div>
               <div className="rec-field">
