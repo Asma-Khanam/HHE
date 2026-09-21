@@ -85,6 +85,116 @@ function familyStageLabel(row, applicationsForFamily) {
 // family that has it shortlisted — the school-side view that complements
 // SchoolVisitsPanel on FamilyDetailPage (Phase 1 of the School visits
 // tracker; see eduhub_schema_addendum_36_school_visits_tracker.sql).
+function LongText({ text }) {
+  const [open, setOpen] = useState(false);
+  if (!text) return <span className="sv-empty">Nothing added yet</span>;
+  const long = text.length > 280 || text.split("\n").length > 4;
+  return (
+    <div>
+      <div className={"sv-long" + (long && !open ? " is-clamped" : "")}>{text}</div>
+      {long && (
+        <button type="button" className="sv-more" onClick={() => setOpen((o) => !o)}>
+          {open ? "Show less" : "Show more"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SvRow({ label, children }) {
+  return (
+    <div className="sv-row">
+      <span className="sv-label">{label}</span>
+      <span className="sv-value">{children || <span className="sv-empty">Not added</span>}</span>
+    </div>
+  );
+}
+
+function SchoolRecordView({ school }) {
+  const links = [
+    ["Website", school.website_url],
+    ["Fees", school.fees_url],
+    ["Start application", school.application_url],
+    ["Book a tour", school.tour_booking_url],
+    [school.application_platform === "openapply" ? "OpenApply portal" : "Application portal", school.openapply_login_url],
+  ];
+  const onDay = [
+    ["Gate", school.default_tour_gate],
+    ["Building", school.default_tour_building],
+    ["Parking", school.default_tour_parking],
+    ["Ask for", school.default_tour_ask_for],
+    ["Bring", school.default_tour_bring],
+  ].filter(([, v]) => v);
+  const reqs = [
+    school.requires_cat4 && "CAT4",
+    school.requires_map && "MAP",
+    school.requires_interview && "Interview",
+    school.requires_taster_day && "Taster day",
+  ].filter(Boolean);
+  const contact = [school.admissions_contact_name, school.admissions_contact_email, school.admissions_contact_phone].filter(Boolean);
+  const hasNotes = school.notes && school.notes !== school.admissions_process_notes;
+  return (
+    <div className="sv">
+      <div className="sv-links">
+        {links.map(([label, url]) =>
+          url ? (
+            <a key={label} className="sv-chip is-on" href={url} target="_blank" rel="noreferrer">
+              {label} ↗
+            </a>
+          ) : (
+            <span key={label} className="sv-chip">{label}: not set</span>
+          )
+        )}
+      </div>
+      <div className="sv-cols">
+        <div className="sv-card">
+          <h3>Basics</h3>
+          <SvRow label="Area">{school.area}</SvRow>
+          <SvRow label="Curriculum">{school.curriculum}</SvRow>
+          <SvRow label="Address">{school.address}</SvRow>
+        </div>
+        <div className="sv-card">
+          <h3>Tours</h3>
+          <SvRow label="Usual schedule">{school.typical_tour_schedule}</SvRow>
+          {onDay.map(([l, v]) => (
+            <SvRow key={l} label={l}>{v}</SvRow>
+          ))}
+          {onDay.length === 0 && <SvRow label="On the day" />}
+        </div>
+        <div className="sv-card">
+          <h3>Admissions</h3>
+          <SvRow label="Assessments">
+            {reqs.length > 0 && (
+              <span className="sv-pills">
+                {reqs.map((r) => <span key={r} className="sv-pill">{r}</span>)}
+              </span>
+            )}
+          </SvRow>
+          <SvRow label="Application fee">{school.application_fee != null ? String(school.application_fee) : ""}</SvRow>
+          <SvRow label="Deposit">{school.deposit_amount != null ? String(school.deposit_amount) : ""}</SvRow>
+          <SvRow label="Contact">{contact.length > 0 && contact.join(" · ")}</SvRow>
+        </div>
+      </div>
+      <div className="sv-card sv-wide">
+        <h3>Admissions process</h3>
+        <LongText text={school.admissions_process_notes} />
+      </div>
+      <div className="sv-cols sv-cols-2">
+        <div className="sv-card">
+          <h3>Documents required</h3>
+          <LongText text={school.documents_required} />
+        </div>
+        {hasNotes && (
+          <div className="sv-card">
+            <h3>Notes</h3>
+            <LongText text={school.notes} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function SchoolDetailPage() {
   const { schoolId } = useParams();
   const navigate = useNavigate();
@@ -402,135 +512,7 @@ export default function SchoolDetailPage() {
         </div>
 
         {!editing ? (
-          <div className="rec-grid">
-            <h3 className="rec-subhead">Basics</h3>
-            <div className="rec-field">
-              <span className="rec-field-label">Area</span>
-              <span className={"rec-field-value" + (school.area ? "" : " is-empty")}>{school.area || "—"}</span>
-            </div>
-            <div className="rec-field rec-field-wide">
-              <span className="rec-field-label">Address</span>
-              <span className={"rec-field-value" + (school.address ? "" : " is-empty")}>{school.address || "—"}</span>
-            </div>
-            <div className="rec-field">
-              <span className="rec-field-label">Curriculum</span>
-              <span className={"rec-field-value" + (school.curriculum ? "" : " is-empty")}>{school.curriculum || "—"}</span>
-            </div>
-
-            <h3 className="rec-subhead">Tour details</h3>
-            <div className="rec-field rec-field-wide">
-              <span className="rec-field-label">Typical tour schedule</span>
-              <span className={"rec-field-value" + (school.typical_tour_schedule ? "" : " is-empty")}>
-                {school.typical_tour_schedule || "—"}
-              </span>
-            </div>
-            <div className="rec-field rec-field-wide">
-              <span className="rec-field-label">On-the-day details</span>
-              <span className="rec-field-value">
-                {[
-                  school.default_tour_gate && `Gate: ${school.default_tour_gate}`,
-                  school.default_tour_building && `Building: ${school.default_tour_building}`,
-                  school.default_tour_parking && `Parking: ${school.default_tour_parking}`,
-                  school.default_tour_ask_for && `Ask for: ${school.default_tour_ask_for}`,
-                  school.default_tour_bring && `Bring: ${school.default_tour_bring}`,
-                ]
-                  .filter(Boolean)
-                  .join(". ") || <span className="is-empty">—</span>}
-              </span>
-            </div>
-            <div className="rec-field">
-              <span className="rec-field-label">Book a tour</span>
-              {school.tour_booking_url ? (
-                <a className="rec-field-value" href={school.tour_booking_url} target="_blank" rel="noreferrer">
-                  {school.tour_booking_url}
-                </a>
-              ) : (
-                <span className="rec-field-value is-empty">—</span>
-              )}
-            </div>
-
-            <h3 className="rec-subhead">Admissions &amp; applications</h3>
-            <div className="rec-field">
-              <span className="rec-field-label">Website</span>
-              {school.website_url ? (
-                <a className="rec-field-value" href={school.website_url} target="_blank" rel="noreferrer">
-                  {school.website_url}
-                </a>
-              ) : (
-                <span className="rec-field-value is-empty">—</span>
-              )}
-            </div>
-            <div className="rec-field">
-              <span className="rec-field-label">Fees</span>
-              {school.fees_url ? (
-                <a className="rec-field-value" href={school.fees_url} target="_blank" rel="noreferrer">
-                  {school.fees_url}
-                </a>
-              ) : (
-                <span className="rec-field-value is-empty">—</span>
-              )}
-            </div>
-            <div className="rec-field">
-              <span className="rec-field-label">Start an application</span>
-              {school.application_url ? (
-                <a className="rec-field-value" href={school.application_url} target="_blank" rel="noreferrer">
-                  {school.application_url}
-                </a>
-              ) : (
-                <span className="rec-field-value is-empty">—</span>
-              )}
-            </div>
-            <div className="rec-field">
-              <span className="rec-field-label">Portal link</span>
-              {school.openapply_login_url ? (
-                <a className="rec-field-value" href={school.openapply_login_url} target="_blank" rel="noreferrer">
-                  {school.application_platform === "openapply" ? "OpenApply · " : ""}
-                  {school.openapply_login_url}
-                </a>
-              ) : (
-                <span className="rec-field-value is-empty">—</span>
-              )}
-            </div>
-            <div className="rec-field rec-field-wide">
-              <span className="rec-field-label">Admissions contact</span>
-              <span className="rec-field-value">
-                {[school.admissions_contact_name, school.admissions_contact_email, school.admissions_contact_phone]
-                  .filter(Boolean)
-                  .join(" · ") || <span className="is-empty">—</span>}
-              </span>
-            </div>
-            <div className="rec-field rec-field-wide">
-              <span className="rec-field-label">Admissions process</span>
-              <span className="rec-field-value">
-                {[
-                  school.requires_cat4 && "CAT4",
-                  school.requires_map && "MAP",
-                  school.requires_interview && "Interview",
-                  school.requires_taster_day && "Taster day",
-                  school.application_fee != null && `Application fee: ${school.application_fee}`,
-                  school.deposit_amount != null && `Deposit: ${school.deposit_amount}`,
-                ]
-                  .filter(Boolean)
-                  .join(" · ") || <span className="is-empty">—</span>}
-              </span>
-            </div>
-            <div className="rec-field rec-field-wide">
-              <span className="rec-field-label">Admissions process notes</span>
-              <span className={"rec-field-value" + (school.admissions_process_notes ? "" : " is-empty")}>
-                {school.admissions_process_notes || "—"}
-              </span>
-            </div>
-            <div className="rec-field rec-field-wide">
-              <span className="rec-field-label">Documents required</span>
-              <span className={"rec-field-value" + (school.documents_required ? "" : " is-empty")}>
-                {school.documents_required || "—"}
-              </span>
-            </div>
-            <div className="rec-field rec-field-wide">
-              <span className="rec-field-label">Notes</span>
-              <span className={"rec-field-value" + (school.notes ? "" : " is-empty")}>{school.notes || "—"}</span>
-            </div>
-          </div>
+          <SchoolRecordView school={school} />
         ) : (
           <form className="school-edit-form" onSubmit={saveRecord}>
             <div className="rec-grid">

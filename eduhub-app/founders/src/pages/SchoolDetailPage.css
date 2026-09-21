@@ -254,3 +254,25 @@
   display: flex;
   gap: 8px;
 }
+
+/* School record: at-a-glance view */
+.sv{display:flex;flex-direction:column;gap:14px}
+.sv-links{display:flex;flex-wrap:wrap;gap:8px}
+.sv-chip{font-size:12.5px;padding:5px 11px;border-radius:999px;border:1px dashed #d9d2bd;color:#a39a80;background:transparent}
+.sv-chip.is-on{border:1px solid #e3d9b8;background:#fbf7ea;color:#8a6d1a;text-decoration:none;font-weight:600}
+.sv-chip.is-on:hover{background:#f5edd0}
+.sv-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sv-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:900px){.sv-cols,.sv-cols-2{grid-template-columns:1fr}}
+.sv-card{background:#fffdf6;border:1px solid #efe8d0;border-radius:12px;padding:12px 14px}
+.sv-card h3{margin:0 0 8px;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:#8a6d1a}
+.sv-row{display:flex;flex-direction:column;gap:1px;padding:5px 0;border-top:1px solid #f3eedb}
+.sv-row:first-of-type{border-top:0}
+.sv-label{font-size:11.5px;color:#8b8570}
+.sv-value{font-size:14px;color:#2b2a26;overflow-wrap:anywhere}
+.sv-empty{color:#b9b29a;font-style:italic;font-size:13px}
+.sv-pills{display:flex;flex-wrap:wrap;gap:6px}
+.sv-pill{background:#f3e9c6;color:#6b5312;border-radius:999px;padding:2px 9px;font-size:12.5px;font-weight:600}
+.sv-long{white-space:pre-wrap;font-size:14px;line-height:1.55;color:#2b2a26}
+.sv-long.is-clamped{max-height:6.4em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 60%,transparent);mask-image:linear-gradient(#000 60%,transparent)}
+.sv-more{margin-top:6px;background:none;border:0;color:#8a6d1a;font-weight:600;font-size:13px;cursor:pointer;padding:0}
