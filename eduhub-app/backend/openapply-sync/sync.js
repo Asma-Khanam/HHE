@@ -116,6 +116,7 @@ function mapStatusText(text) {
 // why: small row counts, each query stays obvious about what it needs).
 // ----------------------------------------------------------------------------
 const ALIAS_DOMAIN = "applications.heatherharries.com";
+const WRITES_ENABLED = false;
 
 async function loadSyncTargets() {
   const { data: schools, error: schoolsErr } = await supabase
@@ -129,7 +130,7 @@ async function loadSyncTargets() {
 
   let appsQuery = supabase
     .from("applications")
-    .select("id, child_id, school_id, status")
+    .select("id, child_id, school_id, status, openapply_student_id")
     .in("school_id", schools.map((s) => s.id));
   if (DEBUG_ONLY_APPLICATION_ID) appsQuery = appsQuery.eq("id", DEBUG_ONLY_APPLICATION_ID);
   const { data: applications, error: appsErr } = await appsQuery;
@@ -138,11 +139,12 @@ async function loadSyncTargets() {
 
   const { data: children, error: childrenErr } = await supabase
     .from("children")
-    .select("id, family_id")
+    .select("id, family_id, first_name, last_name")
     .in("id", applications.map((a) => a.child_id));
   if (childrenErr) throw childrenErr;
   const familyIdByChild = Object.fromEntries(children.map((c) => [c.id, c.family_id]));
 
+  const childById = Object.fromEntries(children.map((c) => [c.id, c]));
   const familyIds = [...new Set(children.map((c) => c.family_id))];
   const { data: families, error: familiesErr } = await supabase
     .from("families")
@@ -194,7 +196,7 @@ async function loadSyncTargets() {
       const familyId = familyIdByChild[app.child_id];
       const family = familyById[familyId];
       const school = schoolById[app.school_id];
-      return { app, family, school, existingFees: feesByApplication[app.id] || [] };
+      return { app, family, school, child: childById[app.child_id], existingFees: feesByApplication[app.id] || [] };
     })
     .filter((t) => t.family?.application_alias && t.family?.application_password && t.school?.openapply_login_url);
 }
@@ -203,7 +205,7 @@ async function loadSyncTargets() {
 // One application's sync: log in, read both pages, diff, write.
 // ----------------------------------------------------------------------------
 async function syncOne(browser, target, debugDir) {
-  const { app, family, school, existingFees } = target;
+  const { app, family, school, child, existingFees } = target;
   const label = `${school.name} / application ${app.id}`;
   console.log(`\n--- ${label} ---`);
 
@@ -246,14 +248,33 @@ async function syncOne(browser, target, debugDir) {
       return false; // caller stops the whole run: never retry logins (account lockout risk)
     }
 
-    // --- Checklist page: overall status ---
-    await clickNavLink(page, CONFIG.checklist.navLinkText);
+    // Read-only navigation: plain page loads (GET) straight to the pages
+    // OpenApply itself links from the dashboard. Nothing is clicked, filled
+    // or submitted beyond the login form above.
+    const origin = new URL(school.openapply_login_url).origin;
+
+    // Which OpenApply student is this child? Use the stored id if there is
+    // one, otherwise match the child's name against the dashboard's own
+    // student links. No clear single match = skip, never guess.
+    let studentId = app.openapply_student_id || null;
+    if (!studentId) {
+      studentId = await findStudentId(page, child);
+    }
+    if (!studentId) {
+      console.warn(`  Could not tell which OpenApply student is ${child?.first_name || "this child"} -- skipping.`);
+      if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, app.id, "dashboard");
+      return;
+    }
+    console.log(`  Using OpenApply student ${studentId}`);
+
+    // --- Checklist page ---
+    await page.goto(`${origin}/students/${studentId}/profile`, { waitUntil: "networkidle", timeout: 30000 }).catch(() => {});
     if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, app.id, "checklist");
     const checklistText = await page.locator("body").innerText();
     const mappedStatus = mapStatusText(checklistText);
 
     // --- Invoices & Fees page ---
-    await clickNavLink(page, CONFIG.invoices.navLinkText);
+    await page.goto(`${origin}/fees`, { waitUntil: "networkidle", timeout: 30000 }).catch(() => {});
     if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, app.id, "invoices");
     const feeRows = await extractFeeRows(page);
 
@@ -264,6 +285,14 @@ async function syncOne(browser, target, debugDir) {
       return;
     }
 
+    // Writes stay OFF until the page parsing above has been checked against
+    // real saved pages: the status guess is a keyword match and the fee rows
+    // are a placeholder parse, and a wrong guess must never overwrite what a
+    // consultant has set. Flip WRITES_ENABLED only after that check.
+    if (!WRITES_ENABLED) {
+      console.log("  Writes are switched off (WRITES_ENABLED=false) -- nothing saved.");
+      return;
+    }
     await applyStatus(app, mappedStatus);
     await applyFees(app, feeRows, existingFees);
   } catch (err) {
@@ -272,6 +301,25 @@ async function syncOne(browser, target, debugDir) {
   } finally {
     await context.close();
   }
+}
+
+// Match the child to one of the dashboard's "/students/<id>/profile" links by
+// name. Returns the id only when exactly one distinct student matches.
+async function findStudentId(page, child) {
+  if (!child?.first_name) return null;
+  const first = child.first_name.trim().toLowerCase();
+  const last = (child.last_name || "").trim().toLowerCase();
+  const links = await page.locator('a[href*="/students/"][href$="/profile"]').all();
+  const ids = new Set();
+  for (const link of links) {
+    const href = (await link.getAttribute("href")) || "";
+    const text = ((await link.innerText().catch(() => "")) || "").toLowerCase();
+    const m = href.match(/\/students\/(\d+)\/profile/);
+    if (!m || !text.includes(first)) continue;
+    if (last && !text.includes(last)) continue;
+    ids.add(m[1]);
+  }
+  return ids.size === 1 ? [...ids][0] : null;
 }
 
 async function clickNavLink(page, text) {
