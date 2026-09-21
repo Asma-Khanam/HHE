@@ -10,8 +10,13 @@ import {
   upsertChildAvailability,
   listFamilies,
   createApplication,
+  listStaff,
+  listSchoolNotes,
+  createSchoolNote,
+  updateSchoolNote,
   friendlyError,
 } from "../lib/staffData";
+import { relativeDay } from "../lib/workflow";
 import { displayNameForChild } from "../lib/completeness";
 import GenericDocumentsPanel from "../components/GenericDocumentsPanel";
 import AutosaveField from "../components/Autosave";
@@ -86,6 +91,107 @@ function familyStageLabel(row, applicationsForFamily) {
 // family that has it shortlisted — the school-side view that complements
 // SchoolVisitsPanel on FamilyDetailPage (Phase 1 of the School visits
 // tracker; see eduhub_schema_addendum_36_school_visits_tracker.sql).
+function SchoolNotesFeed({ schoolId }) {
+  const [notes, setNotes] = useState(null);
+  const [staffById, setStaffById] = useState({});
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    listSchoolNotes(schoolId)
+      .then((n) => alive && setNotes(n))
+      .catch((e) => alive && (setNotes([]), setErr(friendlyError(e, "Couldn't load notes."))));
+    listStaff()
+      .then((rows) => alive && setStaffById(Object.fromEntries((rows || []).map((r) => [r.user_id, r]))))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [schoolId]);
+
+  async function add() {
+    const body = text.trim();
+    if (!body || busy) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const row = await createSchoolNote(schoolId, body);
+      setNotes((l) => [row, ...(l || [])]);
+      setText("");
+    } catch (e) {
+      setErr(friendlyError(e, "Couldn't save that note."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveEdit(id, body) {
+    if (!body.trim()) return false;
+    try {
+      const row = await updateSchoolNote(id, body);
+      setNotes((l) => l.map((n) => (n.id === id ? row : n)));
+      return true;
+    } catch (e) {
+      setErr(friendlyError(e, "Couldn't save that note."));
+      return false;
+    }
+  }
+
+  const who = (n) => {
+    const r = n.author_id ? staffById[n.author_id] : null;
+    return r?.full_name || r?.email || "Team member";
+  };
+
+  return (
+    <div className="snf">
+      <div className="snf-composer">
+        <textarea
+          className="panel-input"
+          rows={2}
+          placeholder="Add a note…  (Enter to add, Shift+Enter for a new line)"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              add();
+            }
+          }}
+        />
+        <button type="button" className="panel-btn panel-btn-primary" onClick={add} disabled={busy || !text.trim()}>
+          {busy ? "Adding…" : "+ Add note"}
+        </button>
+      </div>
+      {err && <div className="hh-form-banner hh-form-banner-error">{err}</div>}
+      {notes === null ? (
+        <p className="family-detail-hint">Loading…</p>
+      ) : notes.length === 0 ? (
+        <p className="family-detail-hint">No notes yet. Add the first one above.</p>
+      ) : (
+        <ul className="snf-list">
+          {notes.map((n) => (
+            <li key={n.id} className="snf-item">
+              <span className="snf-avatar">{who(n).charAt(0).toUpperCase()}</span>
+              <div className="snf-main">
+                <div className="snf-meta">
+                  <strong>{who(n)}</strong>
+                  <span title={new Date(n.created_at).toLocaleString()}>
+                    {relativeDay(n.created_at)} · {new Date(n.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  {n.edited_at && <span>· edited</span>}
+                </div>
+                <AutosaveField bare multiline rows={3} collapsible value={n.body} onSave={(v) => saveEdit(n.id, v)} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function LongText({ text }) {
   const [open, setOpen] = useState(false);
   if (!text) return <span className="sv-empty">Nothing added yet</span>;
@@ -850,7 +956,8 @@ export default function SchoolDetailPage() {
       {tab === "notes" && (
       <section className="family-detail-card">
         <div className="panel-head"><h2>Notes</h2></div>
-        <p className="family-detail-hint">Saves as you type. Press Enter or click away to finish.</p>
+        <SchoolNotesFeed schoolId={schoolId} />
+        <h3 className="snf-sub">Reference notes</h3>
         <div className="sv-notes">
           <AutosaveField
             label="Admissions process notes"

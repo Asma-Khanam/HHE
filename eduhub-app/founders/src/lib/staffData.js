@@ -1396,3 +1396,27 @@ export async function listToursForFamily(familyId) {
   const shortlist = await listShortlistForFamily(familyId);
   return shortlist.filter((row) => row.tour_date);
 }
+
+// School notes feed (addendum 66): add-only log, newest first.
+export async function listSchoolNotes(schoolId) {
+  return unwrap(
+    await supabase.from("school_notes").select("*").eq("school_id", schoolId).order("created_at", { ascending: false })
+  );
+}
+
+export async function createSchoolNote(schoolId, body) {
+  return unwrap(
+    await supabase.from("school_notes").insert({ school_id: schoolId, body: body.trim() }).select().single()
+  );
+}
+
+export async function updateSchoolNote(noteId, body) {
+  return unwrap(
+    await supabase
+      .from("school_notes")
+      .update({ body: body.trim(), edited_at: new Date().toISOString() })
+      .eq("id", noteId)
+      .select()
+      .single()
+  );
+}
