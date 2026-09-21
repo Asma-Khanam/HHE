@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { listFamilies, listAllStageHistory, shortId, friendlyError } from "../lib/staffData";
+import { listFamilies, shortId, friendlyError } from "../lib/staffData";
 import { PIPELINE_STAGES, CLIENT_STAGES, clientStageLabel, stageIndex, stageLabel, isOverdue } from "../lib/workflow";
 import { packageLabel } from "../data/packages";
 import "./FamiliesListPage.css";
@@ -32,21 +32,9 @@ export default function FamiliesListPage() {
   const [families, setFamilies] = useState(null); // null = loading
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState("all");
-  const [cameInAs, setCameInAs] = useState("");
-  const [everIn, setEverIn] = useState("");
-  const [everByFamily, setEverByFamily] = useState({});
+  const [tab, setTab] = useState("live");
 
   useEffect(() => {
-    listAllStageHistory()
-      .then((rows) => {
-        const m = {};
-        (rows || []).forEach((r) => {
-          (m[r.family_id] = m[r.family_id] || new Set()).add(r.to_stage);
-        });
-        setEverByFamily(m);
-      })
-      .catch(() => {});
     listFamilies()
       .then(setFamilies)
       .catch((err) => setError(friendlyError(err, "Couldn't load families.")));
@@ -66,8 +54,6 @@ export default function FamiliesListPage() {
     let list = families;
     if (tab === "all") list = list.filter((f) => f.client_stage !== "placed");
     else list = list.filter((f) => f.client_stage === tab);
-    if (cameInAs) list = list.filter((f) => f.entry_stage === cameInAs);
-    if (everIn) list = list.filter((f) => everByFamily[f.id]?.has(everIn));
 
     const q = search.trim().toLowerCase();
     if (!q) return list;
@@ -78,16 +64,15 @@ export default function FamiliesListPage() {
         f.childLabels.join(" ").toLowerCase().includes(q) ||
         (f.destination || "").toLowerCase().includes(q)
     );
-  }, [families, search, tab, cameInAs, everIn, everByFamily]);
+  }, [families, search, tab]);
 
   const TABS = [
-    { key: "all", label: `All families (${counts.all})` },
     ...["live", "paid_consult", "free_sanity_check", "consultant", "placed"].map((k) => ({
       key: k,
       label: `${k === "paid_consult" ? "Paid consults" : clientStageLabel(k)} (${counts[k] || 0})`,
     })),
+    { key: "all", label: `All families (${counts.all})` },
   ];
-
   return (
     <div className="families-page">
       <div className="families-page-header">
@@ -126,26 +111,7 @@ export default function FamiliesListPage() {
           Progress: {PIPELINE_STAGES.map((s) => s.label).join(" → ")}
         </div>
       </div>
-      <div className="families-toolbar families-filters">
-        <label>
-          Came in as{" "}
-          <select className="panel-select" value={cameInAs} onChange={(e) => setCameInAs(e.target.value)}>
-            <option value="">Any</option>
-            {CLIENT_STAGES.map((s) => (
-              <option key={s.key} value={s.key}>{s.label}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Has ever been{" "}
-          <select className="panel-select" value={everIn} onChange={(e) => setEverIn(e.target.value)}>
-            <option value="">Any</option>
-            {CLIENT_STAGES.map((s) => (
-              <option key={s.key} value={s.key}>{s.label}</option>
-            ))}
-          </select>
-        </label>
-      </div>
+
 
       {families && families.length === 0 && !error && (
         <p className="families-empty-hint">No families have signed up yet — this fills in the moment one does.</p>
@@ -192,9 +158,6 @@ export default function FamiliesListPage() {
                   <td>{family.destination || <span className="is-muted">—</span>}</td>
                   <td>
                     <span className="families-badge">{clientStageLabel(family.client_stage)}</span>
-                    {family.entry_stage && family.entry_stage !== family.client_stage && (
-                      <span className="families-cell-sub">came in as {clientStageLabel(family.entry_stage)}</span>
-                    )}
                   </td>
                   <td>
                     <StageDots stage={family.pipeline_stage} />
