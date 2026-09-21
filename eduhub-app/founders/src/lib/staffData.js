@@ -317,7 +317,7 @@ export async function getFamilyDetail(familyId) {
 // Only the staff-managed columns are ever sent — the family's own data
 // (home_address, intake_status) is theirs to change, not ours, and
 // account_user_id is refused outright by a database trigger anyway.
-const FAMILY_STAFF_COLUMNS = ["pipeline_stage", "destination", "origin", "membership_type", "owner_staff_id", "home_address", "dubai_available_from", "dubai_available_until"];
+const FAMILY_STAFF_COLUMNS = ["pipeline_stage", "client_stage", "destination", "origin", "membership_type", "owner_staff_id", "home_address", "dubai_available_from", "dubai_available_until"];
 
 export async function updateFamily(familyId, patch) {
   const payload = {};
@@ -1419,4 +1419,16 @@ export async function updateSchoolNote(noteId, body) {
       .select()
       .single()
   );
+}
+
+// Client stage history (addendum 68): every move, oldest first.
+export async function listFamilyStageHistory(familyId) {
+  return unwrap(
+    await supabase.from("family_stage_history").select("*").eq("family_id", familyId).order("moved_at", { ascending: true })
+  );
+}
+
+// Every family's moves, for the caseload's "has ever been in" filter.
+export async function listAllStageHistory() {
+  return unwrap(await supabase.from("family_stage_history").select("family_id, to_stage"));
 }

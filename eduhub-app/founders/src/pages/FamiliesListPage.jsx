@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { listFamilies, shortId, getCurrentStaff, friendlyError } from "../lib/staffData";
-import { PIPELINE_STAGES, stageIndex, stageLabel, isOverdue } from "../lib/workflow";
+import { listFamilies, listAllStageHistory, shortId, friendlyError } from "../lib/staffData";
+import { PIPELINE_STAGES, CLIENT_STAGES, clientStageLabel, stageIndex, stageLabel, isOverdue } from "../lib/workflow";
 import { packageLabel } from "../data/packages";
 import "./FamiliesListPage.css";
 
@@ -30,13 +30,23 @@ function wantsCostGuidanceFollowup(family) {
 export default function FamiliesListPage() {
   const navigate = useNavigate();
   const [families, setFamilies] = useState(null); // null = loading
-  const [me, setMe] = useState(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
+  const [cameInAs, setCameInAs] = useState("");
+  const [everIn, setEverIn] = useState("");
+  const [everByFamily, setEverByFamily] = useState({});
 
   useEffect(() => {
-    getCurrentStaff().then(setMe).catch(() => {});
+    listAllStageHistory()
+      .then((rows) => {
+        const m = {};
+        (rows || []).forEach((r) => {
+          (m[r.family_id] = m[r.family_id] || new Set()).add(r.to_stage);
+        });
+        setEverByFamily(m);
+      })
+      .catch(() => {});
     listFamilies()
       .then(setFamilies)
       .catch((err) => setError(friendlyError(err, "Couldn't load families.")));
@@ -44,18 +54,19 @@ export default function FamiliesListPage() {
 
   const counts = useMemo(() => {
     const list = families || [];
-    return {
-      all: list.length,
-      mine: list.filter((f) => me && f.owner_staff_id === me.user_id).length,
-      placed: list.filter((f) => f.pipeline_stage === "placed").length,
-    };
-  }, [families, me]);
+    const c = { all: list.length };
+    CLIENT_STAGES.forEach((s) => {
+      c[s.key] = list.filter((f) => f.client_stage === s.key).length;
+    });
+    return c;
+  }, [families]);
 
   const filtered = useMemo(() => {
     if (!families) return [];
     let list = families;
-    if (tab === "mine") list = list.filter((f) => me && f.owner_staff_id === me.user_id);
-    if (tab === "placed") list = list.filter((f) => f.pipeline_stage === "placed");
+    if (tab !== "all") list = list.filter((f) => f.client_stage === tab);
+    if (cameInAs) list = list.filter((f) => f.entry_stage === cameInAs);
+    if (everIn) list = list.filter((f) => everByFamily[f.id]?.has(everIn));
 
     const q = search.trim().toLowerCase();
     if (!q) return list;
@@ -66,12 +77,14 @@ export default function FamiliesListPage() {
         f.childLabels.join(" ").toLowerCase().includes(q) ||
         (f.destination || "").toLowerCase().includes(q)
     );
-  }, [families, search, tab, me]);
+  }, [families, search, tab, cameInAs, everIn, everByFamily]);
 
   const TABS = [
     { key: "all", label: `All families (${counts.all})` },
-    { key: "mine", label: `Mine (${counts.mine})` },
-    { key: "placed", label: `Placed (${counts.placed})` },
+    ...["live", "paid_consult", "free_sanity_check", "consultant", "placed"].map((k) => ({
+      key: k,
+      label: `${k === "paid_consult" ? "Paid consults" : clientStageLabel(k)} (${counts[k] || 0})`,
+    })),
   ];
 
   return (
@@ -109,8 +122,28 @@ export default function FamiliesListPage() {
           ))}
         </div>
         <div className="families-stage-legend">
-          Stage: {PIPELINE_STAGES.map((s) => s.label).join(" → ")}
+          Progress: {PIPELINE_STAGES.map((s) => s.label).join(" → ")}
         </div>
+      </div>
+      <div className="families-toolbar families-filters">
+        <label>
+          Came in as{" "}
+          <select className="panel-select" value={cameInAs} onChange={(e) => setCameInAs(e.target.value)}>
+            <option value="">Any</option>
+            {CLIENT_STAGES.map((s) => (
+              <option key={s.key} value={s.key}>{s.label}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Has ever been{" "}
+          <select className="panel-select" value={everIn} onChange={(e) => setEverIn(e.target.value)}>
+            <option value="">Any</option>
+            {CLIENT_STAGES.map((s) => (
+              <option key={s.key} value={s.key}>{s.label}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {families && families.length === 0 && !error && (
@@ -129,6 +162,7 @@ export default function FamiliesListPage() {
                 <th>Family</th>
                 <th>Children</th>
                 <th>Destination</th>
+                <th>Client stage</th>
                 <th>Pipeline stage</th>
                 <th>Next action</th>
                 <th>Owner</th>
@@ -155,6 +189,12 @@ export default function FamiliesListPage() {
                     {family.childLabels.length ? family.childLabels.join(", ") : <span className="is-muted">None yet</span>}
                   </td>
                   <td>{family.destination || <span className="is-muted">—</span>}</td>
+                  <td>
+                    <span className="families-badge">{clientStageLabel(family.client_stage)}</span>
+                    {family.entry_stage && family.entry_stage !== family.client_stage && (
+                      <span className="families-cell-sub">came in as {clientStageLabel(family.entry_stage)}</span>
+                    )}
+                  </td>
                   <td>
                     <StageDots stage={family.pipeline_stage} />
                   </td>

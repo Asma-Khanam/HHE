@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { updateFamily } from "../lib/staffData";
-import { PIPELINE_STAGES } from "../lib/workflow";
+import { updateFamily, listFamilyStageHistory } from "../lib/staffData";
+import { PIPELINE_STAGES, CLIENT_STAGES, clientStageLabel } from "../lib/workflow";
 import { PACKAGES } from "../data/packages";
 import "./panels.css";
 import { CaseIcon } from "./icons";
@@ -15,6 +15,7 @@ import { CaseIcon } from "./icons";
 export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
   const [values, setValues] = useState({
     pipeline_stage: family.pipeline_stage || "enquiry",
+    client_stage: family.client_stage || "",
     owner_staff_id: family.owner_staff_id || "",
     origin: family.origin || "",
     destination: family.destination || "",
@@ -33,6 +34,16 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
       dubai_available_until: family.dubai_available_until || "",
     }));
   }, [family.origin, family.destination, family.dubai_available_from, family.dubai_available_until]);
+  const [history, setHistory] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    listFamilyStageHistory(family.id)
+      .then((h) => alive && setHistory(h || []))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [family.id, family.client_stage]);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
@@ -96,6 +107,22 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
         </div>
 
         <div>
+          <label className="panel-field-label">Client stage</label>
+          <select
+            className="panel-select"
+            value={values.client_stage}
+            onChange={(e) => save({ client_stage: e.target.value })}
+          >
+            {!values.client_stage && <option value="">Not set</option>}
+            {CLIENT_STAGES.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
           <label className="panel-field-label">Owner</label>
           <select
             className="panel-select"
@@ -155,6 +182,22 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
           </select>
         </div>
       </div>
+
+      {history.length > 0 && (
+        <div className="case-journey">
+          <span className="case-journey-label">Journey</span>
+          {history.map((h, i) => (
+            <span key={h.id} className="case-journey-step">
+              {i > 0 && <span className="case-journey-arrow">→</span>}
+              <strong>{clientStageLabel(h.to_stage)}</strong>
+              <span className="case-journey-date">
+                {i === 0 ? "came in " : ""}
+                {new Date(h.moved_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

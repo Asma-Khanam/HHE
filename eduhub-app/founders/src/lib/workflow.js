@@ -13,6 +13,20 @@ export const PIPELINE_STAGES = [
   { key: "placed", label: "Placed" },
 ];
 
+// The caseload's own grouping (addendum 68), separate from the progress bar
+// above: where the family sits commercially. entry_stage never changes.
+export const CLIENT_STAGES = [
+  { key: "free_sanity_check", label: "Free sanity check" },
+  { key: "paid_consult", label: "Paid consult" },
+  { key: "live", label: "Live" },
+  { key: "consultant", label: "Consultant" },
+  { key: "placed", label: "Placed" },
+];
+
+export function clientStageLabel(key) {
+  return CLIENT_STAGES.find((s) => s.key === key)?.label || "Not set";
+}
+
 export function stageIndex(key) {
   const i = PIPELINE_STAGES.findIndex((s) => s.key === key);
   return i === -1 ? 0 : i;

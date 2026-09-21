@@ -1062,3 +1062,9 @@
 .app-row-inactive:hover {
   opacity: 0.85;
 }
+
+.case-journey{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(83,1,38,.1);font-size:.88rem}
+.case-journey-label{font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;opacity:.6}
+.case-journey-step{display:inline-flex;align-items:center;gap:6px}
+.case-journey-arrow{opacity:.5}
+.case-journey-date{opacity:.65;font-size:.8rem}

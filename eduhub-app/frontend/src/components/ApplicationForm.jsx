@@ -47,7 +47,7 @@ const emptyChild = {
   full_name: "",
   date_of_birth: "",
   nationality: "",
-  first_language: "",
+  first_language: "English",
   second_language: "",
   medical_inclusion_needs: "",
   sports_hobbies_interests: "",
@@ -175,7 +175,7 @@ const emptyParent = {
   phone: "",
   nationality: "",
   religion: "",
-  first_language: "",
+  first_language: "English",
   second_language: "",
   employer_name: "",
   occupation_designation: "",
@@ -675,8 +675,8 @@ function buildInitialParents(existingParents) {
   if (!byRole.Father && unassigned.length) byRole.Father = unassigned.shift();
 
   return [
-    { ...emptyParent, ...byRole.Mother, relationship: "Mother" },
-    { ...emptyParent, ...byRole.Father, relationship: "Father" },
+    { ...emptyParent, ...dropNulls(byRole.Mother), relationship: "Mother" },
+    { ...emptyParent, ...dropNulls(byRole.Father), relationship: "Father" },
   ];
 }
 
@@ -1464,6 +1464,53 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   // whole application. On a detail page (!showingList) it now saves and
   // returns to the overview instead; the real, validating submit stays on
   // the list/overview page only, since that's genuinely the end of the form.
+  // Founder feedback (Sept 2026): "Next" should move on to the next tab of the
+  // same person, and only the last tab offers "Submit Mother/Father/<child>",
+  // which saves and returns to the Application overview.
+  const holderIsFather = accountHolderRole === "Father";
+  const personTabs = (() => {
+    if (showingList) return null;
+    const k = activeStep.key;
+    if (k.startsWith("child-")) return ["general", "additional", "sen", "school", "documents"];
+    if (k === "mother" || k === "father") {
+      const isHolder = k === "father" ? holderIsFather : !holderIsFather;
+      return ["general", "address", "documents", ...(isHolder ? ["preferences"] : [])];
+    }
+    return null;
+  })();
+  const subTabPos = personTabs ? personTabs.indexOf(subTab) : -1;
+  const onLastSubTab = !personTabs || subTabPos === personTabs.length - 1 || subTabPos === -1;
+  const personName = (() => {
+    const k = activeStep.key;
+    if (k === "mother") return "Mother";
+    if (k === "father") return "Father";
+    if (k.startsWith("child-")) {
+      const idx = Number(k.slice(6));
+      return displayNameForChild(children[idx] || {}) || `Child ${idx + 1}`;
+    }
+    return "";
+  })();
+
+  async function handleNextSubTab() {
+    setError("");
+    setSaving(true);
+    try {
+      const saved = await persist();
+      if (!saved) {
+        setError("Still saving in the background — give it a second and try again.");
+        return;
+      }
+      setSubTab(personTabs[subTabPos + 1]);
+      requestAnimationFrame(() =>
+        document.querySelector(".hh-subtab-btn")?.scrollIntoView({ behavior: "smooth", block: "center" })
+      );
+    } catch (err) {
+      setError(friendlyError(err, "Something went wrong saving — please try again."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleFooterNext() {
     setError("");
     setSaving(true);
@@ -2454,15 +2501,24 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
           {missingItems.length
             ? `${missingItems.length} required field${missingItems.length > 1 ? "s" : ""} left`
             : "Everything required is filled in"}
-          {autosaveStatus === "saving" && " · Saving…"}
-          {autosaveStatus === "saved" && " · All changes saved"}
-          {autosaveStatus === "error" && " · Couldn't autosave — it'll try again as soon as you change something else"}
+          {autosaveStatus === "saving" && (
+            <span className="save-status is-saving" role="status">
+              <span className="save-status-spinner" aria-hidden="true" /> Saving…
+            </span>
+          )}
+          {autosaveStatus === "saved" && (
+            <span className="save-status is-saved" role="status">
+              <span aria-hidden="true">✓</span> All changes saved
+            </span>
+          )}
+          {autosaveStatus === "error" && (
+            <span className="save-status is-error" role="alert">
+              Couldn't save — check your connection. It will try again when you change something.
+            </span>
+          )}
         </span>
         <div className="application-form-footer-actions">
-          {!showingList && activeStep.key.startsWith("child-") ? (
-            // NAV-01: a clear, standalone choice at the foot of each child
-            // page, rather than sending the family back to the overview to
-            // find "add another child" or Submit for themselves.
+          {!showingList && activeStep.key.startsWith("child-") && onLastSubTab ? (
             <>
               <button
                 className="hh-btn-secondary"
@@ -2472,13 +2528,17 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
               >
                 {saving ? "Saving..." : "Add another child"}
               </button>
-              <button className="hh-btn-primary" type="submit" disabled={saving || submitting}>
-                {submitting ? "Submitting..." : "Submit application"}
+              <button className="hh-btn-primary" type="button" onClick={handleFooterNext} disabled={saving || submitting}>
+                {saving ? "Saving..." : `Submit ${personName}`}
               </button>
             </>
+          ) : !showingList && personTabs && !onLastSubTab ? (
+            <button className="hh-btn-primary" type="button" onClick={handleNextSubTab} disabled={saving || submitting}>
+              {saving ? "Saving..." : "Next"}
+            </button>
           ) : !showingList ? (
             <button className="hh-btn-primary" type="button" onClick={handleFooterNext} disabled={saving || submitting}>
-              {saving ? "Saving..." : "Next"}
+              {saving ? "Saving..." : personName ? `Submit ${personName}` : "Next"}
             </button>
           ) : (
             <button className="hh-btn-primary" type="submit" disabled={saving || submitting}>

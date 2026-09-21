@@ -314,3 +314,4 @@
   margin: 0;
   border-top: 1px solid rgba(83, 1, 38, 0.06);
 }
+.families-filters{gap:18px;margin-top:-4px}.families-filters label{font-size:.85rem;display:inline-flex;align-items:center;gap:8px}
