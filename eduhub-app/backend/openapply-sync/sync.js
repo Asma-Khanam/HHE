@@ -115,6 +115,8 @@ function mapStatusText(text) {
 // style as the rest of this codebase (see staffData.js's own comment on
 // why: small row counts, each query stays obvious about what it needs).
 // ----------------------------------------------------------------------------
+const ALIAS_DOMAIN = "applications.heatherharries.com";
+
 async function loadSyncTargets() {
   const { data: schools, error: schoolsErr } = await supabase
     .from("schools")
@@ -144,10 +146,30 @@ async function loadSyncTargets() {
   const familyIds = [...new Set(children.map((c) => c.family_id))];
   const { data: families, error: familiesErr } = await supabase
     .from("families")
-    .select("id, application_alias, application_password")
+    .select("id")
     .in("id", familyIds);
   if (familiesErr) throw familiesErr;
-  const familyById = Object.fromEntries(families.map((f) => [f.id, f]));
+
+  // The working portal login is the PARENT's own alias + password (parents
+  // table, addenda 42/43), not the older family-level one. Oldest parent row
+  // with both set and not marked inactive is used (normally the mother).
+  const { data: parents, error: parentsErr } = await supabase
+    .from("parents")
+    .select("family_id, full_name, application_alias, application_alias_status, application_password, created_at")
+    .in("family_id", familyIds)
+    .order("created_at", { ascending: true });
+  if (parentsErr) throw parentsErr;
+  const familyById = {};
+  families.forEach((f) => {
+    const login = (parents || []).find(
+      (p) => p.family_id === f.id && p.application_alias && p.application_password && p.application_alias_status !== "inactive"
+    );
+    familyById[f.id] = {
+      id: f.id,
+      application_alias: login ? `${login.application_alias}@${ALIAS_DOMAIN}` : null,
+      application_password: login ? login.application_password : null,
+    };
+  });
 
   const { data: existingFees, error: feesErr } = await supabase
     .from("application_fees")
@@ -200,7 +222,7 @@ async function syncOne(browser, target, debugDir) {
     if (!loggedIn) {
       console.warn(`  Could not confirm login succeeded for ${label} -- skipping.`);
       if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, app.id, "login-uncertain");
-      return;
+      return false; // caller stops the whole run: never retry logins (account lockout risk)
     }
 
     // --- Checklist page: overall status ---
@@ -340,7 +362,11 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   try {
     for (const target of targets) {
-      await syncOne(browser, target, debugDir);
+      const ok = await syncOne(browser, target, debugDir);
+      if (ok === false) {
+        console.error("Login failed -- stopping the run so no further login attempts are made.");
+        break;
+      }
     }
   } finally {
     await browser.close();
