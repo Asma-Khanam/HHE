@@ -78,3 +78,8 @@
 .rfe-other-back:hover {
   opacity: 1;
 }
+
+.rfe-checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.rfe-check { display: inline-flex; align-items: flex-start; gap: 8px; padding: 7px 12px; border: 1px solid rgba(83, 1, 38, 0.15); border-radius: 10px; background: var(--hh-white); font-size: 0.86rem; cursor: pointer; max-width: 100%; }
+.rfe-check input { margin-top: 3px; accent-color: var(--hh-burgundy, #530126); }
+.rfe-check.is-on { border-color: var(--hh-gold); background: #faf3e3; }

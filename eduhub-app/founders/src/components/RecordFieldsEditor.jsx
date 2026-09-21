@@ -40,6 +40,7 @@ function formatDate(iso) {
 // become a comma-separated string, same convention the read-only view
 // already uses for "array_join" fields.
 function toInputValue(field, value) {
+  if (field.type === "multiselect") return Array.isArray(value) ? [...value] : [];
   if (field.type === "array_join") return Array.isArray(value) ? value.join(", ") : value || "";
   if (field.type === "date") return value ? String(value).slice(0, 10) : "";
   return value ?? "";
@@ -47,6 +48,7 @@ function toInputValue(field, value) {
 
 // The reverse, back into whatever shape the column actually stores.
 function fromInputValue(field, raw) {
+  if (field.type === "multiselect") return Array.isArray(raw) ? raw : [];
   if (field.type === "array_join") {
     return raw
       .split(",")
@@ -58,6 +60,11 @@ function fromInputValue(field, raw) {
 }
 
 function valuesEqual(field, a, b) {
+  if (field.type === "multiselect") {
+    const setA = new Set(Array.isArray(a) ? a : []);
+    const arrB = Array.isArray(b) ? b : [];
+    return setA.size === new Set(arrB).size && arrB.every((v) => setA.has(v));
+  }
   if (field.type === "array_join") {
     const arrA = Array.isArray(a) ? a : [];
     const arrB = Array.isArray(b) ? b : [];
@@ -73,7 +80,7 @@ function ViewField({ field, value }) {
   if (field.type === "date") display = formatDate(value);
   if (field.type === "reference_status")
     display = REFERENCE_STATUS_OPTIONS.find((o) => o.value === value)?.label || value;
-  if (field.type === "array_join") display = Array.isArray(display) ? display.join(", ") : display;
+  if (field.type === "array_join" || field.type === "multiselect") display = Array.isArray(display) ? display.join(", ") : display;
   const filled = isFilled(display);
   return (
     <div className={"rec-field" + (field.wide ? " rec-field-wide" : "")}>
@@ -115,12 +122,38 @@ function EditField({ field, value, onChange }) {
         </label>
         <select {...commonProps} className="panel-select">
           <option value="">—</option>
+          {isFilled(value) && !field.options.includes(value) && <option value={value}>{value}</option>}
           {field.options.map((o) => (
             <option key={o} value={o}>
               {o}
             </option>
           ))}
         </select>
+      </div>
+    );
+  }
+
+  if (field.type === "multiselect") {
+    const current = Array.isArray(value) ? value : [];
+    // Anything already on file that isn't on the family's list stays visible
+    // (and ticked) so saving never silently drops it.
+    const extras = current.filter((v) => !field.options.includes(v));
+    const all = [...field.options, ...extras];
+    return (
+      <div className="rec-field rfe-edit-field rec-field-wide">
+        <span className="rec-field-label">{field.label}</span>
+        <div className="rfe-checks">
+          {all.map((o) => (
+            <label key={o} className={"rfe-check" + (current.includes(o) ? " is-on" : "")}>
+              <input
+                type="checkbox"
+                checked={current.includes(o)}
+                onChange={(e) => onChange(e.target.checked ? [...current, o] : current.filter((v) => v !== o))}
+              />
+              <span>{o}</span>
+            </label>
+          ))}
+        </div>
       </div>
     );
   }
