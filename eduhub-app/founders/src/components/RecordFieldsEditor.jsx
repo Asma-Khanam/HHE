@@ -78,8 +78,10 @@ function ViewField({ field, value }) {
   return (
     <div className={"rec-field" + (field.wide ? " rec-field-wide" : "")}>
       <span className="rec-field-label">{field.label}</span>
-      <span className={"rec-field-value" + (filled ? "" : " is-empty")}>{filled ? display : "—"}</span>
-      {filled && <CopyButton text={String(display)} />}
+      <div className="copy-line">
+        <span className={"rec-field-value" + (filled ? "" : " is-empty")}>{filled ? display : "—"}</span>
+        {filled && <CopyButton text={String(display)} />}
+      </div>
     </div>
   );
 }

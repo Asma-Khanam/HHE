@@ -34,8 +34,10 @@ export default function OverviewPanel({
         <div className="rec-grid">
           <div className="rec-field">
             <span className="rec-field-label">Family</span>
-            <span className="rec-field-value">{displayName}</span>
-            <CopyButton text={displayName} />
+            <div className="copy-line">
+              <span className="rec-field-value">{displayName}</span>
+              <CopyButton text={displayName} />
+            </div>
           </div>
 
           <div className="rec-field">
@@ -47,28 +49,42 @@ export default function OverviewPanel({
 
           <div className="rec-field">
             <span className="rec-field-label">Mother</span>
-            <span className={"rec-field-value" + (mother?.full_name ? "" : " is-empty")}>
-              {mother?.full_name || "Not on file"}
-              {(mother?.email || mother?.phone) && <> — {[mother.email, mother.phone].filter(Boolean).join(" · ")}</>}
-            </span>
-            <span className="copy-row">
+            <div className={"copy-line rec-field-value" + (mother?.full_name ? "" : " is-empty")}>
+              <span>{mother?.full_name || "Not on file"}</span>
               <CopyButton text={mother?.full_name} label="Copy name" />
-              <CopyButton text={mother?.email} label="Copy email" />
-              <CopyButton text={mother?.phone} label="Copy phone" />
-            </span>
+            </div>
+            {mother?.email && (
+              <div className="copy-line rec-field-value">
+                <span>{mother.email}</span>
+                <CopyButton text={mother.email} label="Copy email" />
+              </div>
+            )}
+            {mother?.phone && (
+              <div className="copy-line rec-field-value">
+                <span>{mother.phone}</span>
+                <CopyButton text={mother.phone} label="Copy phone" />
+              </div>
+            )}
           </div>
 
           <div className="rec-field">
             <span className="rec-field-label">Father</span>
-            <span className={"rec-field-value" + (father?.full_name ? "" : " is-empty")}>
-              {father?.full_name || "Not on file"}
-              {(father?.email || father?.phone) && <> — {[father.email, father.phone].filter(Boolean).join(" · ")}</>}
-            </span>
-            <span className="copy-row">
+            <div className={"copy-line rec-field-value" + (father?.full_name ? "" : " is-empty")}>
+              <span>{father?.full_name || "Not on file"}</span>
               <CopyButton text={father?.full_name} label="Copy name" />
-              <CopyButton text={father?.email} label="Copy email" />
-              <CopyButton text={father?.phone} label="Copy phone" />
-            </span>
+            </div>
+            {father?.email && (
+              <div className="copy-line rec-field-value">
+                <span>{father.email}</span>
+                <CopyButton text={father.email} label="Copy email" />
+              </div>
+            )}
+            {father?.phone && (
+              <div className="copy-line rec-field-value">
+                <span>{father.phone}</span>
+                <CopyButton text={father.phone} label="Copy phone" />
+              </div>
+            )}
           </div>
 
           <div className="rec-field rec-field-wide">
@@ -80,10 +96,10 @@ export default function OverviewPanel({
 
           <div className="rec-field rec-field-wide">
             <span className="rec-field-label">Household address</span>
-            <span className={"rec-field-value" + (family.home_address ? "" : " is-empty")}>
-              {family.home_address || "Not on file"}
-            </span>
-            <CopyButton text={family.home_address} />
+            <div className={"copy-line rec-field-value" + (family.home_address ? "" : " is-empty")}>
+              <span>{family.home_address || "Not on file"}</span>
+              <CopyButton text={family.home_address} />
+            </div>
           </div>
         </div>
       </section>
