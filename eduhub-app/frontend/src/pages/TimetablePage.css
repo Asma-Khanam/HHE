@@ -73,6 +73,146 @@
   color: rgba(255, 255, 255, 0.55);
 }
 
+/* --- Week strip --------------------------------------------------------- */
+
+.tt-week {
+  background: var(--hh-white);
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 14px 18px 16px;
+}
+
+.tt-week-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.tt-week-label {
+  font-family: var(--hh-font-heading);
+  font-size: 0.9rem;
+  color: var(--hh-burgundy);
+  font-weight: 600;
+  min-width: 150px;
+  text-align: center;
+}
+
+.tt-week-nav {
+  background: rgba(83, 1, 38, 0.06);
+  border: none;
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  line-height: 1;
+  font-size: 1rem;
+  color: var(--hh-burgundy);
+  cursor: pointer;
+}
+
+.tt-week-nav:hover {
+  background: rgba(83, 1, 38, 0.12);
+}
+
+.tt-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.tt-week-day {
+  border-radius: 10px;
+  border: 1px solid rgba(83, 1, 38, 0.08);
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 76px;
+}
+
+.tt-week-day.is-today {
+  border-color: var(--hh-burgundy);
+  background: rgba(83, 1, 38, 0.04);
+}
+
+.tt-week-day-label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--hh-ink);
+  opacity: 0.55;
+}
+
+.tt-week-day-num {
+  font-family: var(--hh-font-heading);
+  font-size: 0.95rem;
+  color: var(--hh-ink);
+}
+
+.tt-week-day.is-today .tt-week-day-num {
+  color: var(--hh-burgundy);
+  font-weight: 700;
+}
+
+.tt-week-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.tt-week-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  background: var(--hh-burgundy);
+  border: none;
+  border-radius: 6px;
+  padding: 3px 6px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.tt-week-chip:hover {
+  opacity: 0.88;
+}
+
+.tt-week-chip-school {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--hh-white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.tt-week-chip-time {
+  font-size: 0.58rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.tt-week-chip.is-completed {
+  background: rgba(83, 1, 38, 0.35);
+}
+
+.tt-week-chip.is-cancelled {
+  background: rgba(83, 1, 38, 0.15);
+}
+
+@media (max-width: 640px) {
+  .tt-week-grid {
+    grid-template-columns: repeat(7, minmax(38px, 1fr));
+  }
+  .tt-week-chip-school {
+    display: none;
+  }
+}
+
 /* --- Table -------------------------------------------------------------- */
 
 .tt-table {

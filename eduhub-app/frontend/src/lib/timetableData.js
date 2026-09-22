@@ -18,7 +18,7 @@ export async function fetchFamilyTimetable(familyId) {
        tour_gate, tour_building, tour_parking, tour_ask_for, tour_bring,
        feedback_text, feedback_rating, feedback_at,
        priority, family_decision, family_decision_note,
-       school:schools ( id, name, area, address, fees_url )`
+       school:schools ( id, name, area, address, fees_url, admissions_contact_phone )`
     )
     .eq("family_id", familyId);
 

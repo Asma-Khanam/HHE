@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import { fetchFamilyTimetable, fetchFamilyApplications } from "../lib/timetableData";
 import { displayNameForChild } from "../lib/completeness";
@@ -46,6 +46,26 @@ const APPLICATION_PROGRESS = {
   withdrawn: 0,
 };
 
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function startOfWeek(d) {
+  // Monday-first week.
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  const s = new Date(d);
+  s.setDate(s.getDate() + diff);
+  s.setHours(0, 0, 0, 0);
+  return s;
+}
+
+function addDays(d, n) {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return "";
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -91,7 +111,107 @@ function Stars({ rating }) {
 // list could never show. Tapping a row expands it for the full detail
 // (tour date/time, on-the-day logistics, our notes from the visit,
 // application progress) without cluttering the table itself.
-export default function TimetablePage() {
+// "The family needs to clearly see their week and the tours they are booked
+// onto" (Heather's tracker, Sept 2026). A Mon-Sun strip replaces the old
+// flat "Coming up" list -- each day is its own card, tours on it show as
+// small tappable chips, and tapping one opens that school's row below
+// (onOpenTour) rather than duplicating the tour detail up here.
+function WeekStrip({ rows, onOpenTour }) {
+  const today = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t;
+  }, []);
+
+  // Land on the week that actually has something in it: the week of the
+  // next upcoming tour if there is one, otherwise this week.
+  const initialWeekStart = useMemo(() => {
+    let earliest = null;
+    rows.forEach((row) => {
+      [
+        [row.tour_date, row.tour_status],
+        [row.tour2_date, row.tour2_status],
+      ].forEach(([date, status]) => {
+        if (!date || status === "cancelled" || status === "completed") return;
+        const d = new Date(date + "T00:00:00");
+        if (d >= today && (!earliest || d < earliest)) earliest = d;
+      });
+    });
+    return startOfWeek(earliest || today);
+  }, [rows, today]);
+
+  const [weekStart, setWeekStart] = useState(() => initialWeekStart);
+
+  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+
+  const toursByDay = useMemo(() => {
+    const map = {};
+    rows.forEach((row) => {
+      const hasBoth = !!(row.tour_date && row.tour2_date);
+      [
+        [row.tour_date, row.tour_status, hasBoth ? "Primary" : null],
+        [row.tour2_date, row.tour2_status, "Secondary"],
+      ].forEach(([date, status, label]) => {
+        if (!date || status === "cancelled") return;
+        const key = date;
+        (map[key] = map[key] || []).push({
+          rowId: row.id,
+          school: row.school?.name || "School",
+          time: label === "Primary" || label === null ? timeRange(row.tour_start_time, row.tour_end_time) : timeRange(row.tour2_start_time, row.tour2_end_time),
+          status,
+          label,
+        });
+      });
+    });
+    return map;
+  }, [rows]);
+
+  const weekLabel = `${days[0].toLocaleDateString(undefined, { day: "numeric", month: days[0].getMonth() === days[6].getMonth() ? undefined : "short" })} – ${days[6].toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`;
+
+  return (
+    <div className="tt-week">
+      <div className="tt-week-head">
+        <button type="button" className="tt-week-nav" onClick={() => setWeekStart((w) => addDays(w, -7))} aria-label="Previous week">
+          &lsaquo;
+        </button>
+        <span className="tt-week-label">{weekLabel}</span>
+        <button type="button" className="tt-week-nav" onClick={() => setWeekStart((w) => addDays(w, 7))} aria-label="Next week">
+          &rsaquo;
+        </button>
+      </div>
+      <div className="tt-week-grid">
+        {days.map((d) => {
+          const key = dateKey(d);
+          const isToday = key === dateKey(today);
+          const tours = toursByDay[key] || [];
+          return (
+            <div key={key} className={"tt-week-day" + (isToday ? " is-today" : "")}>
+              <span className="tt-week-day-label">{d.toLocaleDateString(undefined, { weekday: "short" })}</span>
+              <span className="tt-week-day-num">{d.getDate()}</span>
+              <div className="tt-week-chips">
+                {tours.map((t, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={"tt-week-chip is-" + t.status}
+                    onClick={() => onOpenTour(t.rowId)}
+                    title={`${t.school}${t.label ? " \u2014 " + t.label + " tour" : ""}`}
+                  >
+                    <span className="tt-week-chip-school">{t.school}</span>
+                    {t.time && <span className="tt-week-chip-time">{t.time}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export default function TimetablePage()
+ {
   const { familyId, data } = useApplicationData();
   const [rows, setRows] = useState([]);
   const [childStatus, setChildStatus] = useState([]);
@@ -99,6 +219,14 @@ export default function TimetablePage() {
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState(null);
+  const rowRefs = useRef({});
+
+  function openTour(rowId) {
+    setExpandedId(rowId);
+    requestAnimationFrame(() => {
+      rowRefs.current[rowId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
 
   const children = data?.children || [];
   const childIds = useMemo(() => children.map((c) => c.id), [children]);
@@ -147,37 +275,6 @@ export default function TimetablePage() {
     return [...rows].sort((a, b) => rank(a) - rank(b));
   }, [rows]);
 
-  // Only genuinely future, not-yet-happened occurrences -- this is the
-  // actual fix for "why does it say upcoming when it's completed": a
-  // completed tour can never land here, because completeness is checked
-  // per occurrence, not assumed from the section it used to always sit in.
-  const comingUp = useMemo(() => {
-    const items = [];
-    rows.forEach((row) => {
-      const hasBoth = !!(row.tour_date && row.tour2_date);
-      if (row.tour_date && row.tour_status && row.tour_status !== "completed" && row.tour_status !== "cancelled") {
-        items.push({
-          key: `${row.id}-1`,
-          when: `${formatDate(row.tour_date)}${timeRange(row.tour_start_time, row.tour_end_time) ? ", " + timeRange(row.tour_start_time, row.tour_end_time) : ""}`,
-          date: row.tour_date,
-          school: row.school?.name || "School",
-          note: (hasBoth ? "Primary tour — " : "") + TOUR_STATUS_LABEL[row.tour_status],
-        });
-      }
-      if (row.tour2_date && row.tour2_status && row.tour2_status !== "completed" && row.tour2_status !== "cancelled") {
-        items.push({
-          key: `${row.id}-2`,
-          when: `${formatDate(row.tour2_date)}${timeRange(row.tour2_start_time, row.tour2_end_time) ? ", " + timeRange(row.tour2_start_time, row.tour2_end_time) : ""}`,
-          date: row.tour2_date,
-          school: row.school?.name || "School",
-          note: "Secondary tour — " + TOUR_STATUS_LABEL[row.tour2_status],
-        });
-      }
-    });
-    items.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-    return items;
-  }, [rows]);
-
   if (status === "loading") return <p className="dashboard-status">Loading your schools...</p>;
   if (status === "error") return <p className="dashboard-status">{error}</p>;
 
@@ -188,18 +285,7 @@ export default function TimetablePage() {
         <p className="tt-head-sub">One row per school, one column per child — tap a school for the full detail on tours and applications.</p>
       </header>
 
-      {comingUp.length > 0 && (
-        <div className="tt-comingup">
-          <span className="tt-comingup-label">Coming up</span>
-          {comingUp.map((item) => (
-            <div key={item.key} className="tt-comingup-row">
-              <span className="tt-comingup-when">{item.when}</span>
-              <span className="tt-comingup-school">{item.school}</span>
-              <span className="tt-comingup-note">{item.note}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {rows.length > 0 && <WeekStrip rows={rows} onOpenTour={openTour} />}
 
       <div className="tt-table">
         {rows.length === 0 ? (
@@ -240,7 +326,11 @@ export default function TimetablePage() {
               const applicationsForSchool = applications.filter((a) => a.school_id === row.school_id);
 
               return (
-                <div key={row.id} className={"tt-row" + (declined ? " is-declined" : "")}>
+                <div
+                  key={row.id}
+                  ref={(el) => (rowRefs.current[row.id] = el)}
+                  className={"tt-row" + (declined ? " is-declined" : "")}
+                >
                   <button
                     type="button"
                     className="tt-row-toggle"
@@ -325,8 +415,22 @@ export default function TimetablePage() {
                             ))}
                           </div>
 
-                          {(row.tour_gate || row.tour_building || row.tour_parking || row.tour_ask_for || row.tour_bring) && (
+                          {(row.school?.address || row.school?.admissions_contact_phone || row.tour_gate || row.tour_building || row.tour_parking || row.tour_ask_for || row.tour_bring) && (
                             <dl className="tt-tour-details">
+                              {row.school?.address && (
+                                <>
+                                  <dt>Address</dt>
+                                  <dd>{row.school.address}</dd>
+                                </>
+                              )}
+                              {row.school?.admissions_contact_phone && (
+                                <>
+                                  <dt>Phone</dt>
+                                  <dd>
+                                    <a href={`tel:${row.school.admissions_contact_phone}`}>{row.school.admissions_contact_phone}</a>
+                                  </dd>
+                                </>
+                              )}
                               {row.tour_gate && (
                                 <>
                                   <dt>Gate</dt>
