@@ -71,7 +71,7 @@ const PARENT_FIELDS = [
   { key: "first_language", label: "First language", type: "select", options: LANGUAGES },
   { key: "second_language", label: "Second language", type: "select", options: LANGUAGES },
   { key: "employer_name", label: "Employer name" },
-  { key: "occupation_designation", label: "Occupation / designation" },
+  { key: "occupation_designation", label: "Job title" },
   { key: "address", label: "Their address", wide: true },
 ];
 

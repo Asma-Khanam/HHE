@@ -114,6 +114,11 @@ export function getMissingItems({
   budgetStatus,
 }) {
   const missing = [];
+  // AH-09/AH-10 live on the account holder's own card (Family preferences
+  // tab), so a missing one opens THAT card -- previously "family", which
+  // isn't a card, so clicking it from the Dashboard just dropped the family
+  // on the Application tab's list with nothing highlighted.
+  const holderStepKey = accountHolderRole === "Father" ? "father" : "mother";
 
   // AH-09: family-level, not tied to any one person's card — exactly 5
   // required, per the document ("the parent selects and orders exactly
@@ -123,7 +128,7 @@ export function getMissingItems({
   // ApplicationForm.jsx).
   if ((schoolPriorities || []).length !== 5) {
     missing.push({
-      stepKey: "family",
+      stepKey: holderStepKey,
       label: "Rank your top 5 school priorities",
       kind: "field",
       owner: "family",
@@ -136,7 +141,7 @@ export function getMissingItems({
   // owned by nobody's card in particular.
   if (!isFilled(comfortableFeeRange)) {
     missing.push({
-      stepKey: "family",
+      stepKey: holderStepKey,
       label: "Comfortable annual fee range",
       kind: "field",
       owner: "family",
@@ -175,7 +180,7 @@ export function getMissingItems({
           owner: "parent",
           parentIndex: i,
           field: field.key,
-          fieldKey: `parent-${i}-${field.key}`,
+          fieldKey: `parent-${i}-${field.key === "full_name" ? "first_name" : field.key}`,
         });
       }
     });
@@ -193,7 +198,7 @@ export function getMissingItems({
           owner: "child",
           childIndex: i,
           field: field.key,
-          fieldKey: `child-${i}-${field.key}`,
+          fieldKey: `child-${i}-${field.key === "full_name" ? "first_name" : field.key}`,
         });
       }
     });
@@ -333,7 +338,10 @@ export function getReadinessPct({
 // disagree with the Dashboard.
 export function getStepBreakdown({ parents, accountHolderRole, children, currentSchools, documentsByOwner, budgetStatus }) {
   const tracked = [
-    ...getMissingItems({ parents, accountHolderRole, children, currentSchools }),
+    // Family-level questions (priorities, fee range, budget) are left out:
+    // this list is built without the family's answers to them, so they'd
+    // always read as missing. The budget card is scored on its own below.
+    ...getMissingItems({ parents, accountHolderRole, children, currentSchools }).filter((item) => item.owner !== "family"),
     ...getOutstandingDocuments({ parents, accountHolderRole, children, documentsByOwner }),
   ];
 

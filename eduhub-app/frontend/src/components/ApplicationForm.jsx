@@ -649,6 +649,9 @@ function stepIndexForKey(steps, key) {
 // failed Submit can scroll straight to it instead of just naming it in text.
 function fieldKeyForMissingItem(item) {
   if (!item) return null;
+  // getMissingItems/getOutstandingDocuments already work out the exact key
+  // (including Full name -> the First name box), so use theirs first.
+  if (item.fieldKey) return item.fieldKey;
   if (item.kind === "field") {
     if (item.owner === "parent") return `parent-${item.parentIndex}-${item.field}`;
     if (item.owner === "child") return `child-${item.childIndex}-${item.field}`;
@@ -2438,6 +2441,47 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                       </div>
                         </>
                       )}
+
+                      {/* Founder feedback (Sept 2026): "If one child is loaded, can
+                          there be a tick box if the other siblings attend the same
+                          school?" The same tick already sits on each sibling's own
+                          Current school tab; this is the other direction, from the
+                          first child, so the family doesn't have to open every
+                          sibling to do it. Copies what's filled in above at the
+                          moment it's ticked (same one-time copy as the sibling
+                          tick); ticking again re-copies. */}
+                      {i === 0 && children.length > 1 && (() => {
+                        const others = children.map((_, idx) => idx).filter((idx) => idx !== 0);
+                        const allSame = others.every((idx) => sameSchoolSiblingIndexFor(idx) === 0);
+                        const otherNames = others
+                          .map((idx) => displayNameForChild(children[idx]) || `Child ${idx + 1}`)
+                          .join(others.length === 2 ? " and " : ", ");
+                        return (
+                          <div className="hh-field-full same-as-toggle" data-field-key={`school-${i}-siblings_same_school`}>
+                            <label className="hh-checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={allSame}
+                                disabled={!school.school_name}
+                                onChange={(e) => {
+                                  others.forEach((idx) => {
+                                    if (e.target.checked) handleSameSchoolToggle(idx, 0);
+                                    else if (sameSchoolSiblingIndexFor(idx) === 0) clearSameSchoolAsSibling(idx);
+                                  });
+                                }}
+                              />
+                              {otherNames} {others.length === 1 ? "goes" : "go"} to this school too
+                            </label>
+                            <p className="hh-hint-text">
+                              {school.school_name
+                                ? allSame
+                                  ? `${school.school_name} is copied onto ${otherNames}'s Current school tab. Change anything above? Untick and tick again to re-copy.`
+                                  : `Copies these school details onto ${otherNames}'s Current school tab. Year group applying for and term are still set separately for each child.`
+                                : "Fill in the school above first, then tick this to copy it to the others."}
+                            </p>
+                          </div>
+                        );
+                      })()}
                     </FormSection>
                     </div>
 

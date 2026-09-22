@@ -59,6 +59,20 @@ function formatDob(dob) {
   return `DOB ${d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })}`;
 }
 
+function orderParents(list) {
+  const byRole = { Mother: null, Father: null };
+  (list || []).forEach((p) => {
+    if (p.relationship === "Mother" || p.relationship === "Father") byRole[p.relationship] = p;
+  });
+  const unassigned = (list || []).filter((p) => p.relationship !== "Mother" && p.relationship !== "Father");
+  if (!byRole.Mother && unassigned.length) byRole.Mother = unassigned.shift();
+  if (!byRole.Father && unassigned.length) byRole.Father = unassigned.shift();
+  return [
+    { ...(byRole.Mother || {}), relationship: "Mother" },
+    { ...(byRole.Father || {}), relationship: "Father" },
+  ];
+}
+
 function statusFor(pct) {
   if (pct >= 100) return { label: "Complete", tone: "done" };
   if (pct > 0) return { label: "In progress", tone: "progress" };
@@ -70,21 +84,40 @@ export default function DashboardPage() {
   const navigate = useNavigate();
 
   const children = data?.children || [];
-  const parents = data?.parents || [];
+  const rawParents = data?.parents || [];
+  // Same [Mother, Father] order the Application form uses (see
+  // buildInitialParents there), so "parent-0"/"parent-1" in a missing
+  // item's link points at the same person's card on both pages. Straight
+  // database order could put Father first and send the family to the wrong
+  // card.
+  const parents = orderParents(rawParents);
+  const family = data?.family || {};
+  const familyAnswers = {
+    schoolPriorities: family.school_priorities || [],
+    comfortableFeeRange: family.comfortable_fee_range || "",
+    budgetStatus: family.budget_status || "",
+  };
   const documentsByOwner = data?.documentsByOwner || {};
   // Same shape ApplicationForm builds — schoolsByChild is keyed by child id,
   // this lines it up as one array parallel to `children` by index.
   const currentSchools = children.map((c) => data?.schoolsByChild?.[c.id] || {});
 
-  const holder = parents.find((p) => p.user_id === user?.id) || parents[0];
+  const holder = rawParents.find((p) => p.user_id === user?.id) || rawParents[0];
   const accountHolderRole = holder?.relationship === "Father" ? "Father" : "Mother";
-  const mother = parents.find((p) => p.relationship === "Mother");
-  const father = parents.find((p) => p.relationship === "Father");
+  const mother = rawParents.find((p) => p.relationship === "Mother");
+  const father = rawParents.find((p) => p.relationship === "Father");
 
-  const missingFields = getMissingItems({ parents, accountHolderRole, children, currentSchools });
+  const missingFields = getMissingItems({ parents, accountHolderRole, children, currentSchools, ...familyAnswers });
   const outstandingDocs = getOutstandingDocuments({ parents, accountHolderRole, children, documentsByOwner });
-  const overallPct = getReadinessPct({ parents, accountHolderRole, children, currentSchools, documentsByOwner });
-  const breakdown = getStepBreakdown({ parents, accountHolderRole, children, currentSchools, documentsByOwner });
+  const overallPct = getReadinessPct({ parents, accountHolderRole, children, currentSchools, documentsByOwner, ...familyAnswers });
+  const breakdown = getStepBreakdown({
+    parents,
+    accountHolderRole,
+    children,
+    currentSchools,
+    documentsByOwner,
+    budgetStatus: familyAnswers.budgetStatus,
+  });
 
   const isSubmitted = (data?.family?.intake_status || "draft") === "submitted";
   const submittedAt = data?.family?.intake_submitted_at;
