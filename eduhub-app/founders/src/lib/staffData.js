@@ -807,17 +807,28 @@ export async function deleteCalendarEvent(eventId) {
 // Email Routing + a Worker); this is just the CRM's side of it.
 // ---------------------------------------------------------------------------
 
-// A short, readable, collision-resistant slug — surname (or "family" if none
-// is on file yet) plus 4 digits. Uniqueness is enforced by the database
-// column itself; a retry with a new suffix handles the rare collision.
-function slugFor(familyDisplayNameValue) {
-  const base = (familyDisplayNameValue || "family")
-    .toLowerCase()
-    .replace(/^the\s+/, "")
-    .replace(/\s+family$/, "")
-    .replace(/[^a-z]/g, "") || "family";
-  const suffix = Math.floor(1000 + Math.random() * 9000);
-  return `${base}${suffix}`;
+// The address is just the person's name, lower case, letters only --
+// "Asma Khanam" -> asmakhanam (founders, 22 Sept 2026: "no numbers, no
+// symbols, don't complicate it"). Accents are folded to plain letters
+// ("Zoë" -> zoe). Uniqueness is still enforced by the database column; if
+// the name is already taken there is deliberately no automatic number
+// tacked on -- staff get a clear message instead and decide what to do.
+function slugFor(name, fallback = "family") {
+  return (
+    (name || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/^the\s+/, "")
+      .replace(/\s+family$/, "")
+      .replace(/[^a-z]/g, "") || fallback
+  );
+}
+
+function aliasTakenError(alias) {
+  return new Error(
+    `${alias}@applications.heatherharries.com is already used by someone else. Check the name on this record, or ask Heather which address to use.`
+  );
 }
 
 // Addendum 43 — one password generated alongside the alias itself, reused
@@ -839,19 +850,17 @@ function randomApplicationPassword() {
 }
 
 export async function generateApplicationAlias(familyId, familyDisplayNameValue) {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const alias = slugFor(familyDisplayNameValue);
-    const { data, error } = await supabase
-      .from("families")
-      .update({ application_alias: alias, application_alias_status: "active", application_password: randomApplicationPassword() })
-      .eq("id", familyId)
-      .select()
-      .single();
-    if (!error) return data;
-    // 23505 = unique_violation — someone else already has this exact slug.
-    if (error.code !== "23505") throw error;
-  }
-  throw new Error("Couldn't find a free application address after several tries — try again.");
+  const alias = slugFor(familyDisplayNameValue, "family");
+  const { data, error } = await supabase
+    .from("families")
+    .update({ application_alias: alias, application_alias_status: "active", application_password: randomApplicationPassword() })
+    .eq("id", familyId)
+    .select()
+    .single();
+  // 23505 = unique_violation — someone else already has this exact name.
+  if (error?.code === "23505") throw aliasTakenError(alias);
+  if (error) throw error;
+  return data;
 }
 
 export async function setApplicationAliasStatus(familyId, status) {
@@ -889,20 +898,22 @@ export async function regenerateApplicationPassword(familyId) {
 // Falls back to "parent" if this row has no name yet.
 // Addendum 43 — generates the one password that goes with it, same as the
 // family-wide alias above.
-export async function generateParentApplicationAlias(parentId, parentFullName, relationship) {
-  const suffix = relationship === "Father" ? "f" : relationship === "Mother" ? "m" : "";
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const alias = `${slugFor(parentFullName || "parent")}${suffix}`;
-    const { data, error } = await supabase
-      .from("parents")
-      .update({ application_alias: alias, application_alias_status: "active", application_password: randomApplicationPassword() })
-      .eq("id", parentId)
-      .select()
-      .single();
-    if (!error) return data;
-    if (error.code !== "23505") throw error;
+// `relationship` is no longer part of the address (it used to add an m/f
+// suffix); the parameter stays so existing callers don't change.
+export async function generateParentApplicationAlias(parentId, parentFullName, _relationship) {
+  if (!(parentFullName || "").trim()) {
+    throw new Error("Add this parent's name first — the application email is made from it.");
   }
-  throw new Error("Couldn't find a free application address after several tries — try again.");
+  const alias = slugFor(parentFullName, "parent");
+  const { data, error } = await supabase
+    .from("parents")
+    .update({ application_alias: alias, application_alias_status: "active", application_password: randomApplicationPassword() })
+    .eq("id", parentId)
+    .select()
+    .single();
+  if (error?.code === "23505") throw aliasTakenError(alias);
+  if (error) throw error;
+  return data;
 }
 
 export async function setParentApplicationAliasStatus(parentId, status) {
