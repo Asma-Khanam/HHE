@@ -64,6 +64,49 @@ export function applicationStatus(key) {
   return APPLICATION_STATUSES.find((s) => s.key === key) || APPLICATION_STATUSES[0];
 }
 
+// The Applications tab's stage tracker (September 2026 redesign) -- one
+// application card is a 5-node horizontal track, each node covering one or
+// more of the statuses above. This is deliberately a SEPARATE, coarser
+// grouping from APPLICATION_STATUSES: "Awaiting decision" and "Waitlisted"
+// read as the same waiting-on-the-school moment on the track even though
+// they're different statuses, and "Decision" covers all three ways an
+// application can end (offer, offer accepted, declined). withdrawn isn't on
+// the track at all -- a withdrawn application shows a compact summary
+// instead of the tracker (see ApplicationsPanel). Each node's own panel is
+// where OpenApply sync data (assessment dates, decision dates, ...) will
+// eventually land once addendum 60's application_events/application_fees
+// tables are wired into the UI -- one clear place per stage for that to go,
+// rather than one long flat form.
+export const APPLICATION_TRACK_STEPS = [
+  { key: "not_submitted", label: "Not submitted", shortLabel: "Not submitted", statuses: ["draft"] },
+  { key: "submitted", label: "Submitted", shortLabel: "Submitted", statuses: ["submitted"] },
+  { key: "assessment", label: "Assessment", shortLabel: "Assessment", statuses: ["assessment_booked"] },
+  { key: "awaiting_decision", label: "Awaiting decision", shortLabel: "Awaiting", statuses: ["under_review", "waitlisted"] },
+  { key: "decision", label: "Decision", shortLabel: "Decision", statuses: ["offer", "offer_accepted", "rejected"] },
+];
+
+// Which track node a given application.status belongs to (index into
+// APPLICATION_TRACK_STEPS). withdrawn has no node -- callers should check
+// for that status separately and show the withdrawn summary instead.
+export function trackStepIndex(status) {
+  const i = APPLICATION_TRACK_STEPS.findIndex((step) => step.statuses.includes(status));
+  return i === -1 ? 0 : i;
+}
+
+// Tone for a track node relative to the application's actual current
+// status -- "done" (already passed), "current" (where it actually is),
+// or "upcoming" (not reached yet). The Decision node also carries its own
+// outcome tone (good/bad/warn) once reached, handled by the caller via
+// applicationStatus(status).key since "offer" vs "rejected" vs "waitlisted"
+// need different colours even though they can share a node.
+export function trackStepState(nodeIndex, status) {
+  if (status === "withdrawn") return "withdrawn";
+  const current = trackStepIndex(status);
+  if (nodeIndex < current) return "done";
+  if (nodeIndex === current) return "current";
+  return "upcoming";
+}
+
 // Suggested (not enforced) reasons for a "rejected" application -- a
 // datalist on the free-text rejected_reason column, not a fixed list, since
 // schools reject for reasons nobody can fully anticipate.

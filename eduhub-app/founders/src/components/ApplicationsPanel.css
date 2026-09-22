@@ -307,3 +307,283 @@
 .ap-log-date { color: #7a6f4d; white-space: nowrap; min-width: 88px; }
 .ap-log-src { color: #9a947a; font-size: 0.78rem; }
 @media (max-width: 760px) { .ap-portal { grid-template-columns: 1fr; } }
+
+/* ---------------------------------------------------------------------
+   Stage-track redesign (September 2026) -- replaces the flat ap-card
+   grid above for anything that isn't withdrawn. Kept in the same file
+   since it's the same tab; ap-card (old) stays for reference/withdrawn
+   styling reuse (.is-withdrawn, .is-highlight, .ap-avatar, etc.).
+   --------------------------------------------------------------------- */
+
+.ap-card2 {
+  padding: 16px 18px 18px;
+  background: var(--hh-white);
+  border: 1px solid rgba(83, 1, 38, 0.1);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: box-shadow var(--hh-transition), border-color var(--hh-transition), opacity var(--hh-transition);
+}
+.ap-card2:hover {
+  border-color: rgba(83, 1, 38, 0.22);
+  box-shadow: 0 4px 14px rgba(83, 1, 38, 0.07);
+}
+.ap-card2.is-highlight {
+  border-color: var(--hh-gold);
+  box-shadow: 0 0 0 3px rgba(184, 154, 90, 0.25);
+}
+.ap-card2.is-withdrawn {
+  background: #f6f4f4;
+  opacity: 0.72;
+}
+.ap-card2.is-withdrawn .ap-avatar {
+  background: #9a8f93;
+}
+.ap-card2.is-withdrawn .ap-school-name {
+  text-decoration: line-through;
+  text-decoration-color: rgba(42, 17, 25, 0.35);
+}
+
+.ap-card2-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.ap-card2-visit {
+  flex: none;
+  width: 150px;
+}
+.ap-withdraw-link {
+  flex: none;
+  background: none;
+  border: none;
+  color: var(--hh-error);
+  opacity: 0.65;
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px 0;
+  align-self: center;
+}
+.ap-withdraw-link:hover {
+  opacity: 1;
+}
+
+.ap-withdrawn-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ap-withdrawn-badge {
+  align-self: flex-start;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #6d6367;
+  background: #ececec;
+  border-radius: 999px;
+  padding: 3px 12px;
+}
+.ap-withdraw-undo {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--hh-burgundy);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+/* The stage track itself -- a row of nodes joined by a line that fills in
+   as the application moves along. */
+.ap-track {
+  display: flex;
+  align-items: center;
+  padding: 4px 2px;
+}
+.ap-track-item {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+}
+.ap-track-item:last-child {
+  flex: 0 0 auto;
+}
+.ap-track-line {
+  flex: 1 1 auto;
+  height: 2px;
+  min-width: 12px;
+  background: rgba(83, 1, 38, 0.12);
+  margin: 0 2px;
+}
+.ap-track-line.is-filled {
+  background: var(--hh-gold);
+}
+.ap-track-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+}
+.ap-track-node {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(83, 1, 38, 0.18);
+  background: var(--hh-white);
+  color: var(--hh-ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color var(--hh-transition), background var(--hh-transition), transform var(--hh-transition);
+  padding: 0;
+}
+.ap-track-node:hover {
+  transform: scale(1.08);
+}
+.ap-track-dot {
+  line-height: 1;
+}
+.ap-track-label {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--hh-ink);
+  opacity: 0.5;
+  white-space: nowrap;
+}
+.ap-track-step.is-done .ap-track-node {
+  background: var(--hh-gold);
+  border-color: var(--hh-gold);
+  color: var(--hh-white);
+}
+.ap-track-step.is-done .ap-track-label {
+  opacity: 0.7;
+}
+.ap-track-step.is-current .ap-track-node {
+  border-color: var(--hh-burgundy);
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  box-shadow: 0 0 0 4px rgba(83, 1, 38, 0.14);
+}
+.ap-track-step.is-current .ap-track-label {
+  opacity: 1;
+  color: var(--hh-burgundy);
+}
+.ap-track-step.is-open .ap-track-node {
+  transform: scale(1.1);
+}
+.ap-track-step.is-current.ap-tone-good .ap-track-node {
+  border-color: var(--hh-good);
+  background: var(--hh-good);
+  box-shadow: 0 0 0 4px rgba(47, 107, 79, 0.16);
+}
+.ap-track-step.is-current.ap-tone-good .ap-track-label {
+  color: var(--hh-good);
+}
+.ap-track-step.is-current.ap-tone-warn .ap-track-node {
+  border-color: #c8821e;
+  background: #c8821e;
+  box-shadow: 0 0 0 4px rgba(200, 130, 30, 0.16);
+}
+.ap-track-step.is-current.ap-tone-warn .ap-track-label {
+  color: #8a5a10;
+}
+.ap-track-step.is-current.ap-tone-bad .ap-track-node {
+  border-color: var(--hh-error);
+  background: var(--hh-error);
+  box-shadow: 0 0 0 4px rgba(179, 38, 30, 0.16);
+}
+.ap-track-step.is-current.ap-tone-bad .ap-track-label {
+  color: var(--hh-error);
+}
+
+/* The panel for whichever stage is open. */
+.ap-stagepanel {
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--hh-cream);
+  border: 1px solid rgba(83, 1, 38, 0.08);
+}
+.ap-stagepanel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.ap-stagepanel-title {
+  font-family: var(--hh-font-heading);
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--hh-burgundy);
+}
+.ap-stagepanel-flag {
+  font-size: 0.72rem;
+  color: var(--hh-ink);
+  opacity: 0.5;
+  font-style: italic;
+}
+.ap-stagepanel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ap-stagepanel-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--hh-ink);
+  opacity: 0.7;
+}
+.ap-stagepanel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.ap-stagepanel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ap-stagepanel.ap-tone-good {
+  background: var(--hh-good-bg);
+  border-color: rgba(47, 107, 79, 0.2);
+}
+.ap-stagepanel.ap-tone-warn {
+  background: #fbf1e0;
+  border-color: rgba(200, 130, 30, 0.25);
+}
+.ap-stagepanel.ap-tone-bad {
+  background: #fbeceb;
+  border-color: rgba(179, 38, 30, 0.2);
+}
+
+.panel-btn-danger {
+  background: var(--hh-white);
+  border-color: rgba(179, 38, 30, 0.35);
+  color: var(--hh-error);
+}
+.panel-btn-danger:hover:not(:disabled) {
+  background: #fbeceb;
+}
+
+@media (max-width: 640px) {
+  .ap-track-label {
+    display: none;
+  }
+  .ap-stagepanel-grid {
+    grid-template-columns: 1fr;
+  }
+  .ap-card2-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
