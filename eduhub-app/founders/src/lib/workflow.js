@@ -107,6 +107,62 @@ export function trackStepState(nodeIndex, status) {
   return "upcoming";
 }
 
+// How many days is "too long" to sit at a stage before it's flagged as
+// needing attention on its own, with no one having to notice by hand.
+// Rough starting points (per the redesign plan, Sept 2026) -- easy to
+// retune per stage once we've seen it run against real cases; not
+// exposed in the UI yet, just constants here.
+const ATTENTION_THRESHOLD_DAYS = {
+  submitted: 5,
+  assessment: 7,
+  awaiting_decision: 14,
+};
+
+// The automatic half of "needs attention" -- time-based for most stages
+// (been sitting here longer than normal), but for Decision it's the offer
+// deadline itself rather than a generic day count, since that's the one
+// stage with its own explicit date to check against. Returns false (never
+// null) so callers can OR it straight with the manual flag.
+export function autoNeedsAttention(application, days) {
+  if (!application || application.status === "withdrawn") return false;
+  const step = APPLICATION_TRACK_STEPS[trackStepIndex(application.status)];
+  if (step.key === "decision") {
+    if (application.status !== "offer" || !application.offer_decision_by) return false;
+    const today = new Date(new Date().toDateString());
+    return new Date(application.offer_decision_by + "T00:00:00") < today;
+  }
+  const threshold = ATTENTION_THRESHOLD_DAYS[step.key];
+  if (threshold == null || days == null) return false;
+  return days > threshold;
+}
+
+// The single tone that drives colour everywhere on an application card --
+// the track's current node, the collapsed card's status pill, all of it.
+// "declined" only ever means an actual decline, never "this took a
+// while" (see the redesign plan's open decision on red vs grey). "done"
+// nodes stay neutral even if they were flagged attention while active --
+// the colour is about what needs doing NOW.
+// A short, human reason the AUTOMATIC flag fired (not the manual one) --
+// shown in the stage panel next to the manual toggle so a consultant can
+// tell "the system flagged this because it's been 12 days" apart from
+// "someone flagged this by hand." Returns null when auto-flagging hasn't
+// fired (including when the manual flag is the only reason it's orange).
+export function autoNeedsAttentionNote(application, days) {
+  if (!autoNeedsAttention(application, days)) return null;
+  const step = APPLICATION_TRACK_STEPS[trackStepIndex(application.status)];
+  if (step.key === "decision") return "past the decision-needed-by date";
+  const threshold = ATTENTION_THRESHOLD_DAYS[step.key];
+  return `${days} days at this stage, past the usual ${threshold}`;
+}
+
+export function currentStageTone(application, days) {
+  if (!application || application.status === "withdrawn") return "withdrawn";
+  const step = APPLICATION_TRACK_STEPS[trackStepIndex(application.status)];
+  if (step.key === "decision" && application.status === "rejected") return "declined";
+  if (application.needs_attention || autoNeedsAttention(application, days)) return "attention";
+  return "ontrack";
+}
+
 // Suggested (not enforced) reasons for a "rejected" application -- a
 // datalist on the free-text rejected_reason column, not a fixed list, since
 // schools reject for reasons nobody can fully anticipate.

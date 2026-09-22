@@ -182,57 +182,6 @@
   align-self: flex-start;
 }
 
-/* Stage dropdown, tinted by where the application is up to. */
-.ap-stage {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 100%;
-  font-family: var(--hh-font-body);
-  font-size: 0.86rem;
-  font-weight: 600;
-  padding: 8px 32px 8px 12px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  outline: none;
-  background-repeat: no-repeat;
-  background-position: right 11px center;
-  background-size: 10px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23530126' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
-.ap-stage:focus {
-  box-shadow: 0 0 0 3px rgba(184, 154, 90, 0.3);
-}
-.ap-tone-neutral {
-  background-color: var(--hh-cream);
-  border-color: rgba(83, 1, 38, 0.15);
-  color: var(--hh-burgundy);
-}
-.ap-tone-progress {
-  background-color: #f3ecdc;
-  border-color: rgba(184, 154, 90, 0.5);
-  color: #6b531f;
-}
-.ap-tone-good {
-  background-color: var(--hh-good-bg);
-  border-color: rgba(47, 107, 79, 0.35);
-  color: var(--hh-good);
-}
-.ap-tone-warn {
-  background-color: #fbf1e0;
-  border-color: rgba(200, 130, 30, 0.4);
-  color: #8a5a10;
-}
-.ap-tone-bad {
-  background-color: #fbeceb;
-  border-color: rgba(179, 38, 30, 0.3);
-  color: var(--hh-error);
-}
-.ap-tone-muted {
-  background-color: #ececec;
-  border-color: rgba(0, 0, 0, 0.12);
-  color: #6d6367;
-}
 
 @media (max-width: 900px) {
   .ap-card {
@@ -347,14 +296,67 @@
 
 .ap-card2-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ap-card2-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex: none;
+}
+.ap-pill {
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 3px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.ap-hint {
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.ap-chevron {
+  flex: none;
+  font-size: 0.9rem;
+  color: var(--hh-ink);
+  opacity: 0.45;
+  transition: transform var(--hh-transition);
+}
+.ap-chevron.is-open {
+  transform: rotate(180deg);
+}
+.ap-card2-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 14px;
+  margin-top: 2px;
+  border-top: 1px solid rgba(83, 1, 38, 0.08);
+}
+.ap-card2-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
 }
 .ap-card2-visit {
   flex: none;
   width: 150px;
+}
+.ap-card2.is-collapsed .ap-card2-head:hover .ap-school-name {
+  text-decoration: underline;
 }
 .ap-withdraw-link {
   flex: none;
@@ -399,46 +401,38 @@
   padding: 0;
 }
 
-/* The stage track itself -- a row of nodes joined by a line that fills in
-   as the application moves along. */
-.ap-track {
+/* Vertical stage timeline (September 2026 redesign) -- one row per stage,
+   connected by a line down the left. Tone (ontrack/attention/declined)
+   colours only the CURRENT row; done/upcoming stay neutral grey, per the
+   redesign plan (colour = what needs doing now, not history). */
+.ap-vtrack-wrap {
   display: flex;
-  align-items: center;
-  padding: 4px 2px;
+  flex-direction: column;
+  gap: 0;
 }
-.ap-track-item {
+.ap-vtrack {
   display: flex;
-  align-items: center;
-  flex: 1 1 auto;
+  flex-direction: column;
 }
-.ap-track-item:last-child {
-  flex: 0 0 auto;
+.ap-vtrack-row {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
 }
-.ap-track-line {
-  flex: 1 1 auto;
-  height: 2px;
-  min-width: 12px;
-  background: rgba(83, 1, 38, 0.12);
-  margin: 0 2px;
-}
-.ap-track-line.is-filled {
-  background: var(--hh-gold);
-}
-.ap-track-step {
+.ap-vtrack-rail {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
   flex: none;
 }
-.ap-track-node {
-  width: 28px;
-  height: 28px;
+.ap-vtrack-node {
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: 2px solid rgba(83, 1, 38, 0.18);
   background: var(--hh-white);
   color: var(--hh-ink);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -446,65 +440,102 @@
   cursor: pointer;
   transition: border-color var(--hh-transition), background var(--hh-transition), transform var(--hh-transition);
   padding: 0;
+  flex: none;
 }
-.ap-track-node:hover {
+.ap-vtrack-node:hover {
   transform: scale(1.08);
 }
-.ap-track-dot {
+.ap-vtrack-dot {
   line-height: 1;
 }
-.ap-track-label {
-  font-size: 0.66rem;
+.ap-vtrack-line {
+  width: 2px;
+  flex: 1 1 auto;
+  min-height: 18px;
+  background: rgba(83, 1, 38, 0.12);
+  margin: 2px 0;
+}
+.ap-vtrack-line.is-filled {
+  background: var(--hh-gold);
+}
+.ap-vtrack-line.ap-tone-declined {
+  background: var(--hh-error);
+}
+.ap-vtrack-label {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  margin-bottom: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 0.86rem;
   font-weight: 600;
   color: var(--hh-ink);
-  opacity: 0.5;
-  white-space: nowrap;
+  opacity: 0.55;
+  cursor: pointer;
+  text-align: left;
 }
-.ap-track-step.is-done .ap-track-node {
+.ap-vtrack-label.is-open {
+  opacity: 1;
+  color: var(--hh-burgundy);
+}
+.ap-vtrack-label.is-upcoming {
+  opacity: 0.4;
+}
+.ap-vtrack-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+.ap-vtrack-node.is-done {
   background: var(--hh-gold);
   border-color: var(--hh-gold);
   color: var(--hh-white);
 }
-.ap-track-step.is-done .ap-track-label {
-  opacity: 0.7;
-}
-.ap-track-step.is-current .ap-track-node {
+.ap-vtrack-node.is-current {
   border-color: var(--hh-burgundy);
   background: var(--hh-burgundy);
   color: var(--hh-white);
   box-shadow: 0 0 0 4px rgba(83, 1, 38, 0.14);
 }
-.ap-track-step.is-current .ap-track-label {
-  opacity: 1;
-  color: var(--hh-burgundy);
+.ap-vtrack-node.is-open {
+  transform: scale(1.12);
 }
-.ap-track-step.is-open .ap-track-node {
-  transform: scale(1.1);
-}
-.ap-track-step.is-current.ap-tone-good .ap-track-node {
+.ap-vtrack-node.is-current.ap-tone-ontrack {
   border-color: var(--hh-good);
   background: var(--hh-good);
   box-shadow: 0 0 0 4px rgba(47, 107, 79, 0.16);
 }
-.ap-track-step.is-current.ap-tone-good .ap-track-label {
-  color: var(--hh-good);
-}
-.ap-track-step.is-current.ap-tone-warn .ap-track-node {
+.ap-vtrack-node.is-current.ap-tone-attention {
   border-color: #c8821e;
   background: #c8821e;
   box-shadow: 0 0 0 4px rgba(200, 130, 30, 0.16);
 }
-.ap-track-step.is-current.ap-tone-warn .ap-track-label {
-  color: #8a5a10;
-}
-.ap-track-step.is-current.ap-tone-bad .ap-track-node {
+.ap-vtrack-node.is-current.ap-tone-declined {
   border-color: var(--hh-error);
   background: var(--hh-error);
   box-shadow: 0 0 0 4px rgba(179, 38, 30, 0.16);
 }
-.ap-track-step.is-current.ap-tone-bad .ap-track-label {
-  color: var(--hh-error);
+.ap-vtrack-pip.ap-tone-attention {
+  background: #c8821e;
 }
+
+/* Status pill + hint on the collapsed card header, and tone text colours
+   shared with the stage panel/timeline above. One place, four meanings:
+   grey = done/withdrawn, green = on track, orange = needs attention,
+   red = declined (never anything else -- see the redesign plan). */
+.ap-pill.ap-tone-ontrack { background: var(--hh-good-bg); color: var(--hh-good); }
+.ap-pill.ap-tone-attention { background: #fbf1e0; color: #8a5a10; }
+.ap-pill.ap-tone-declined { background: #fbeceb; color: var(--hh-error); }
+.ap-pill.ap-tone-withdrawn { background: #ececec; color: #6d6367; }
+.ap-hint.ap-tone-ontrack { color: var(--hh-good); opacity: 0.85; }
+.ap-hint.ap-tone-attention { color: #8a5a10; }
+.ap-hint.ap-tone-declined { color: var(--hh-error); opacity: 0.85; }
 
 /* The panel for whichever stage is open. */
 .ap-stagepanel {
@@ -553,17 +584,38 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.ap-stagepanel.ap-tone-good {
+.ap-stagepanel.ap-tone-ontrack {
   background: var(--hh-good-bg);
   border-color: rgba(47, 107, 79, 0.2);
 }
-.ap-stagepanel.ap-tone-warn {
+.ap-stagepanel.ap-tone-attention {
   background: #fbf1e0;
   border-color: rgba(200, 130, 30, 0.25);
 }
-.ap-stagepanel.ap-tone-bad {
+.ap-stagepanel.ap-tone-declined {
   background: #fbeceb;
   border-color: rgba(179, 38, 30, 0.2);
+}
+
+.ap-attention-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--hh-ink);
+  padding-bottom: 4px;
+  cursor: pointer;
+}
+.ap-attention-toggle input {
+  cursor: pointer;
+}
+.ap-attention-auto {
+  font-weight: 400;
+  font-size: 0.76rem;
+  color: #8a5a10;
+  opacity: 0.85;
 }
 
 .panel-btn-danger {
@@ -576,13 +628,22 @@
 }
 
 @media (max-width: 640px) {
-  .ap-track-label {
-    display: none;
-  }
   .ap-stagepanel-grid {
     grid-template-columns: 1fr;
   }
   .ap-card2-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ap-card2-status {
+    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .ap-chevron {
+    display: none;
+  }
+  .ap-card2-row {
     flex-direction: column;
     align-items: stretch;
   }
