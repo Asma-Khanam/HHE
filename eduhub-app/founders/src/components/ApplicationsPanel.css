@@ -442,6 +442,17 @@
 .ap-stage-tabs .ap-stage-tab.is-done {
   color: #7d7377;
 }
+/* A passed stage stays visually "done/read-only" even while you're
+   looking at it -- founder feedback (Sept 2026): once an application is
+   actually submitted, "Not submitted" shouldn't look like the live,
+   actionable tab just because it's the one open. No white pill, no
+   shadow, just the same muted grey as an unopened done tab. */
+.ap-stage-tabs .ap-stage-tab.is-done.is-active {
+  background: rgba(125, 115, 119, 0.14);
+  box-shadow: none;
+  color: #7d7377;
+  font-weight: 600;
+}
 .ap-stage-tabs .ap-stage-tab.ap-tone-ontrack {
   color: var(--hh-good);
   opacity: 1;

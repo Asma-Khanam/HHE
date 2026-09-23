@@ -625,8 +625,15 @@ export default function ApplicationsPanel({
 
                                   {stepMeta.key === "not_submitted" && (
                                     <div className="ap-stagepanel-body">
+                                      {/* Founder feedback (Sept 2026): this used to show the same
+                                          "nothing to submit yet" line even once the application had
+                                          actually moved on -- confusing since there's no button here
+                                          to act on once it's passed. Now it says what actually
+                                          happened, same as every other passed stage. */}
                                       <p className="ap-stagepanel-hint">
-                                        Nothing to submit yet — once the application goes in, mark it submitted below.
+                                        {openStep === currentStep
+                                          ? "Nothing to submit yet — once the application goes in, mark it submitted below."
+                                          : "Submitted."}
                                       </p>
                                       {openStep === currentStep && (
                                         <button
