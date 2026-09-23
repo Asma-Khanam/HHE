@@ -9,6 +9,9 @@ import {
   listApplicationFees,
   listChecklistItems,
   updateSchool,
+  listPlacements,
+  createPlacement,
+  updatePlacementDate,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import {
@@ -295,6 +298,44 @@ export default function ApplicationsPanel({
   // OpenApply sync data (checklist items + invoices), per application.
   const [checklistByApp, setChecklistByApp] = useState({});
   const [feesByApp, setFeesByApp] = useState({});
+  // "Accepted on" / "Placed?" / "Start date" cards on the Decision stage --
+  // reuses the same family_placements rows the Overview's Placement panel
+  // shows, matched to this application by child + school name.
+  const [placements, setPlacements] = useState([]);
+  useEffect(() => {
+    if (!familyId) return;
+    let cancelled = false;
+    listPlacements(familyId)
+      .then((rows) => !cancelled && setPlacements(rows || []))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [familyId]);
+  function placementFor(childId, schoolName) {
+    return placements.find((p) => p.child_id === childId && p.school_name === schoolName);
+  }
+  async function savePlacementDate(child, childIndex, schoolName, value) {
+    if (!value) return;
+    const existing = placementFor(child.id, schoolName);
+    try {
+      if (existing) {
+        const updated = await updatePlacementDate(existing, value);
+        setPlacements((list) => list.map((p) => (p.id === updated.id ? updated : p)));
+      } else {
+        const row = await createPlacement({
+          familyId,
+          childId: child.id,
+          childName: displayNameForChild(child, childIndex),
+          schoolName,
+          startDate: value,
+        });
+        setPlacements((list) => [...list, row]);
+      }
+    } catch (err) {
+      setError(err.message || "Couldn't save the start date.");
+    }
+  }
   // Which stage panel is open per application (September 2026 redesign) --
   // defaults to wherever the application actually is; a consultant can
   // click back/forward on the track to preview another stage without that
@@ -870,6 +911,40 @@ export default function ApplicationsPanel({
                                             <span className="ap-stagepanel-hint">Offer accepted.</span>
                                           )}
                                         </>
+                                      )}
+                                      {application.status === "offer_accepted" && (
+                                        <div className="ap-decision-extra">
+                                          <label className="ap-field">
+                                            <span className="ap-label">Accepted on</span>
+                                            <input
+                                              type="date"
+                                              className="panel-input"
+                                              value={application.offer_accepted_on || ""}
+                                              onChange={(e) =>
+                                                patch(child.id, application, { offer_accepted_on: e.target.value || null })
+                                              }
+                                            />
+                                          </label>
+                                          <label className="ap-field">
+                                            <span className="ap-label">Start date</span>
+                                            <input
+                                              type="date"
+                                              className="panel-input"
+                                              defaultValue={placementFor(child.id, school?.name)?.start_date || ""}
+                                              onBlur={(e) => savePlacementDate(child, i, school?.name || "School", e.target.value)}
+                                            />
+                                          </label>
+                                          <div className="ap-field">
+                                            <span className="ap-label">Placed?</span>
+                                            <span
+                                              className={
+                                                "ap-placed-pill" + (placementFor(child.id, school?.name) ? " is-yes" : "")
+                                              }
+                                            >
+                                              {placementFor(child.id, school?.name) ? "Yes — send the congrats email" : "Not yet"}
+                                            </span>
+                                          </div>
+                                        </div>
                                       )}
                                       {application.status === "rejected" && (
                                         <>

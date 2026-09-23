@@ -23,6 +23,12 @@ export default function ApplicationStageTrack({ status, openIndex, currentTone, 
         const state = trackStepState(i, status);
         const isOpen = i === openIndex;
         const tone = state === "current" ? currentTone : null;
+        // "Not submitted" is dropped once the application has moved past it --
+        // once it's done, there's nothing left to do there, so it's just
+        // clutter (founder feedback: "why would we need a not submitted
+        // button?"). Every other done stage still shows, since those hold
+        // real history (assessment notes, decision date, etc).
+        if (i === 0 && state === "done") return null;
         return (
           <button
             key={step.key}
