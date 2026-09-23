@@ -2668,9 +2668,18 @@ function CardListView({
         )}
       </div>
 
-      <section className="app-section">
+      <section className="app-section app-section-plain">
         <div className="app-section-head">
           <span className="app-section-num">1</span>
+          <h3>Your move</h3>
+        </div>
+        <MoveDetailsCard familyId={familyId} family={family} onFamilyChange={onFamilyChange} />
+        <ReferralCard familyId={familyId} family={family} onFamilyChange={onFamilyChange} />
+      </section>
+
+      <section className="app-section">
+        <div className="app-section-head">
+          <span className="app-section-num">2</span>
           <h3>Parents</h3>
           <div className="app-section-aside account-holder-picker">
             <span className="app-section-aside-label">Filling this in:</span>
@@ -2711,7 +2720,7 @@ function CardListView({
 
       <section className="app-section">
         <div className="app-section-head">
-          <span className="app-section-num">2</span>
+          <span className="app-section-num">3</span>
           <h3>Budget and relocation planning</h3>
         </div>
         <StepCard
@@ -2724,7 +2733,7 @@ function CardListView({
 
       <section className="app-section">
         <div className="app-section-head">
-          <span className="app-section-num">3</span>
+          <span className="app-section-num">4</span>
           <h3>Children</h3>
           {canAddChildren && (
             <div className="app-section-aside">
@@ -2793,14 +2802,6 @@ function CardListView({
         </div>
       </section>
 
-      <section className="app-section app-section-plain">
-        <div className="app-section-head">
-          <span className="app-section-num">4</span>
-          <h3>Your move</h3>
-        </div>
-        <MoveDetailsCard familyId={familyId} family={family} onFamilyChange={onFamilyChange} />
-        <ReferralCard familyId={familyId} family={family} onFamilyChange={onFamilyChange} />
-      </section>
     </div>
   );
 }

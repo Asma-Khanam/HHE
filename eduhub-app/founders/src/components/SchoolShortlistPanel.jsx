@@ -600,6 +600,16 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                   <div className="svt-cell svt-cell-school">
                     <div className="svt-school-name">{row.school?.name || "Unknown school"}</div>
                     {row.school?.area && <div className="svt-school-area">{row.school.area}</div>}
+                    {/* Addendum 75: what the family said on their own "Your schools" page. */}
+                    {row.family_interest && (
+                      <div
+                        className={"svt-family-view is-" + row.family_interest}
+                        title={row.family_interest_note || "Set by the family"}
+                      >
+                        Family: {{ keen: "Keen", maybe: "Maybe", not_for_us: "Not for us" }[row.family_interest]}
+                        {row.family_interest_note ? " · “" + row.family_interest_note + "”" : ""}
+                      </div>
+                    )}
                     <div className="svt-priority-toggle" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"

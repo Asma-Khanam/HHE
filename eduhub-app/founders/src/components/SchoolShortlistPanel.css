@@ -925,3 +925,9 @@
   background: #fff;
   min-height: 150px;
 }
+
+/* Addendum 75 -- the family's own Keen / Maybe / Not for us. */
+.svt-family-view { display: inline-block; margin-top: 4px; font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #f1ecec; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.svt-family-view.is-keen { background: #e4f3e9; color: #1f7a44; }
+.svt-family-view.is-maybe { background: #f6eedb; color: #7a5f22; }
+.svt-family-view.is-not_for_us { background: #f8e3e1; color: #b3261e; }

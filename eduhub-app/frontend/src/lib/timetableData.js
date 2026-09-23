@@ -8,19 +8,25 @@ import { supabase } from "./supabaseClient";
 // push, so a tour a consultant just booked shows up here on next load —
 // which is what "within a minute" means in a project with no notification
 // service (see addendum 38's own header note on that).
-export async function fetchFamilyTimetable(familyId) {
-  const { data, error } = await supabase
-    .from("school_shortlist")
-    .select(
-      `id, school_id, availability_status, availability_replied_at,
+const SHORTLIST_COLUMNS = `id, school_id, availability_status, availability_replied_at,
        tour_date, tour_start_time, tour_end_time, tour_status,
        tour2_date, tour2_start_time, tour2_end_time, tour2_status,
        tour_gate, tour_building, tour_parking, tour_ask_for, tour_bring,
        feedback_text, feedback_rating, feedback_at,
        priority, family_decision, family_decision_note,
-       school:schools ( id, name, area, address, fees_url, admissions_contact_phone )`
-    )
+       school:schools ( id, name, area, address, fees_url, admissions_contact_phone )`;
+
+export async function fetchFamilyTimetable(familyId) {
+  // Addendum 75 adds the family's own Keen / Maybe / Not for us. If that
+  // hasn't been run yet, fall back to the old column list so the page
+  // still loads.
+  let { data, error } = await supabase
+    .from("school_shortlist")
+    .select(SHORTLIST_COLUMNS + ", family_interest, family_interest_note, family_interest_at")
     .eq("family_id", familyId);
+  if (error) {
+    ({ data, error } = await supabase.from("school_shortlist").select(SHORTLIST_COLUMNS).eq("family_id", familyId));
+  }
 
   if (error) throw error;
 
@@ -49,4 +55,15 @@ export async function fetchFamilyApplications(childIds) {
 
   if (error) throw error;
   return data || [];
+}
+
+// Addendum 75: the family's own view of a school. Goes through an RPC
+// because families can only read school_shortlist directly.
+export async function setSchoolInterest(shortlistId, interest, note) {
+  const { error } = await supabase.rpc("family_set_school_interest", {
+    p_shortlist_id: shortlistId,
+    p_interest: interest,
+    p_note: note || null,
+  });
+  if (error) throw error;
 }

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApplicationData } from "../context/ApplicationDataContext";
-import DocumentVaultCard from "../components/DocumentVaultCard";
 import SchoolUpdatesCard from "../components/SchoolUpdatesCard";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import { IconCheckCircle, IconChevronDown, IconChevronRight } from "../components/icons";
@@ -341,13 +340,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <DocumentVaultCard
-        mother={mother}
-        father={father}
-        children={children}
-        documentsByOwner={documentsByOwner}
-        displayNameForChild={displayNameForChild}
-      />
+
     </div>
   );
 }

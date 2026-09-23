@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
+import { IconChevronDown } from "./icons";
 import "./SchoolUpdatesCard.css";
 
 // School updates (September 2026) -- what the consultant has told the
@@ -38,6 +39,8 @@ function shortDate(iso) {
 export default function SchoolUpdatesCard() {
   const { familyId, data } = useApplicationData();
   const [rows, setRows] = useState(null);
+  // Closed by default so it isn't always in the family's face (Sept 2026).
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!familyId) return;
@@ -66,14 +69,26 @@ export default function SchoolUpdatesCard() {
     (a, b) => new Date(b.updates.at(-1).created_at) - new Date(a.updates.at(-1).created_at)
   );
 
+  const newest = schools[0];
+
   return (
-    <section className="dash-card su-card">
+    <section className={"dash-card su-card" + (open ? " is-open" : "")}>
       <div className="dash-card-head">
-        <h2>School updates</h2>
-        {schools.length > 0 && <span className="dash-count">{schools.length}</span>}
+        <button type="button" className="su-toggle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+          <h2>School updates</h2>
+          {schools.length > 0 && <span className="dash-count">{schools.length}</span>}
+          {!open && newest && (
+            <span className="su-peek">
+              Latest: {newest.school?.name || "School"} — {STAGE_LABEL[newest.updates.at(-1).stage]}
+            </span>
+          )}
+          <span className="su-caret">
+            <IconChevronDown size={18} />
+          </span>
+        </button>
       </div>
 
-      {schools.length === 0 ? (
+      {!open ? null : schools.length === 0 ? (
         <p className="su-empty">Your consultant will post updates here as each school moves along.</p>
       ) : (
         <ul className="su-list">
@@ -105,6 +120,7 @@ export default function SchoolUpdatesCard() {
                   })}
                 </ol>
 
+                {latest.note && (
                 <p className="su-latest">
                   <span className="su-latest-tag">{STAGE_LABEL[latest.stage]}</span>
                   {latest.child_id && childName(latest.child_id) && (
@@ -112,6 +128,7 @@ export default function SchoolUpdatesCard() {
                   )}
                   {latest.note}
                 </p>
+                )}
               </li>
             );
           })}
