@@ -134,7 +134,8 @@ async function extractChecklist(page) {
     const done = /\bcompleted\b/.test(cls);
     const title = ((await row.locator(CONFIG.checklist.titleSelector).first().innerText().catch(() => "")) || "").trim();
     const dueText = ((await row.locator(CONFIG.checklist.dueDateSelector).first().innerText().catch(() => "")) || "").trim() || null;
-    items.push({ title, done, dueText });
+    const rowId = (await row.getAttribute("id")) || "";
+    items.push({ title, done, dueText, externalRef: rowId || `title-${title}` });
     if (done && CONFIG.checklist.submitItemTitleMatch.test(title) && dueText) {
       submittedAt = dueText;
     }
@@ -170,7 +171,7 @@ async function loadSyncTargets() {
 
   let appsQuery = supabase
     .from("applications")
-    .select("id, child_id, school_id, status, openapply_student_id")
+    .select("id, child_id, school_id, status, submitted_at, openapply_student_id")
     .in("school_id", schools.map((s) => s.id));
   if (DEBUG_ONLY_APPLICATION_ID) appsQuery = appsQuery.eq("id", DEBUG_ONLY_APPLICATION_ID);
   const { data: applications, error: appsErr } = await appsQuery;
@@ -302,6 +303,7 @@ async function syncOne(browser, target, debugDir) {
     }
     if (!studentId) {
       console.warn(`  Could not tell which OpenApply student is ${child?.first_name || "this child"} -- skipping.`);
+      process.exitCode = 1;
       if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, app.id, "dashboard");
       return;
     }
@@ -334,10 +336,11 @@ async function syncOne(browser, target, debugDir) {
       console.log("  Writes are switched off (WRITES_ENABLED=false) -- nothing saved.");
       return;
     }
-    await applyChecklist(app, checklist);
+    await applyChecklist(app, checklist, studentId);
     await applyFees(app, feeRows, existingFees);
   } catch (err) {
     console.error(`  Failed on ${label}:`, err.message);
+    process.exitCode = 1; // shows the GitHub run as failed instead of a green tick
     if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, app.id, "error").catch(() => {});
   } finally {
     await context.close();
@@ -408,28 +411,72 @@ async function extractFeeRows(page, child) {
   return results;
 }
 
-// The ONLY status transition this sync ever makes on its own: draft ->
-// submitted, when the Checklist's "Submit Application Form" item is done.
-// Never moves an application past that by itself -- assessment/decision
-// stages still need a consultant to set them, since nothing seen on
-// OpenApply's own pages ties reliably to those yet.
-async function applyChecklist(app, checklist) {
-  if (app.status !== "draft" || !checklist.submittedAt) return;
+// What the Checklist page tells us, written onto the application:
+// - the application's submitted date (filled in if empty, never overwritten)
+// - draft -> submitted once "Submit Application Form" is done (the ONLY
+//   status move this sync makes -- never past submitted, never backwards)
+// - every checklist item into application_checklist_items (addendum 65),
+//   so the Applications tab can show what's done and what's still missing
+// - when it last synced.
+async function applyChecklist(app, checklist, studentId) {
   const submittedIso = parseOpenApplyDate(checklist.submittedAt);
-  const { error: updateErr } = await supabase
-    .from("applications")
-    .update({ status: "submitted", submitted_at: submittedIso })
-    .eq("id", app.id);
+  const patch = { openapply_last_synced_at: new Date().toISOString() };
+  if (studentId) patch.openapply_student_id = String(studentId);
+  if (submittedIso) patch.openapply_applied_at = submittedIso;
+  if (submittedIso && !app.submitted_at) patch.submitted_at = submittedIso;
+  const movesToSubmitted = app.status === "draft" && !!checklist.submittedAt;
+  if (movesToSubmitted) patch.status = "submitted";
+
+  const { error: updateErr } = await supabase.from("applications").update(patch).eq("id", app.id);
   if (updateErr) throw updateErr;
-  const { error: eventErr } = await supabase.from("application_events").insert({
-    application_id: app.id,
-    event_type: "status_change",
-    new_status: "submitted",
-    description: `Application form submitted (synced from OpenApply, ${checklist.submittedAt})`,
-    source: "openapply_sync",
-  });
-  if (eventErr) throw eventErr;
-  console.log(`  Status: draft -> submitted (${checklist.submittedAt})`);
+  console.log(`  Application updated: ${JSON.stringify(patch)}`);
+
+  if (movesToSubmitted) {
+    const { error: eventErr } = await supabase.from("application_events").insert({
+      application_id: app.id,
+      event_type: "status_change",
+      new_status: "submitted",
+      description: `Application form submitted (synced from OpenApply, ${checklist.submittedAt})`,
+      source: "openapply_sync",
+    });
+    if (eventErr) throw eventErr;
+  }
+
+  // Checklist items -- select-then-insert/update rather than upsert: the
+  // unique index behind external_ref is partial (WHERE ... IS NOT NULL),
+  // which PostgREST's ON CONFLICT can't target.
+  const { data: existing, error: listErr } = await supabase
+    .from("application_checklist_items")
+    .select("id, external_ref, status")
+    .eq("application_id", app.id);
+  if (listErr) throw listErr;
+  const byRef = Object.fromEntries((existing || []).map((r) => [r.external_ref, r]));
+  for (const item of checklist.items) {
+    const row = {
+      application_id: app.id,
+      title: item.title,
+      required: true,
+      status: item.done ? "done" : "pending",
+      completed_at: item.done ? parseOpenApplyDate(item.dueText) : null,
+      external_ref: item.externalRef,
+      source: "openapply_sync",
+      updated_at: new Date().toISOString(),
+    };
+    const prev = byRef[item.externalRef];
+    const { error } = prev
+      ? await supabase.from("application_checklist_items").update(row).eq("id", prev.id)
+      : await supabase.from("application_checklist_items").insert(row);
+    if (error) throw error;
+    if (prev && prev.status !== "done" && item.done) {
+      await supabase.from("application_events").insert({
+        application_id: app.id,
+        event_type: "document_received",
+        description: `${item.title} done on OpenApply (synced)`,
+        source: "openapply_sync",
+      });
+    }
+  }
+  console.log(`  Checklist saved: ${checklist.completed}/${checklist.total} done`);
 }
 
 async function applyFees(app, feeRows, existingFees) {
@@ -447,12 +494,13 @@ async function applyFees(app, feeRows, existingFees) {
       source: "openapply_sync",
       external_invoice_ref: row.external_invoice_ref,
     };
-    const { data: saved, error: upsertErr } = await supabase
-      .from("application_fees")
-      .upsert(payload, { onConflict: "application_id,external_invoice_ref" })
-      .select()
-      .single();
-    if (upsertErr) throw upsertErr;
+    // Not .upsert(): the unique index on (application_id, external_invoice_ref)
+    // is partial, which PostgREST's ON CONFLICT can't target -- that's what
+    // made every earlier write fail silently.
+    const { error: saveErr } = previous
+      ? await supabase.from("application_fees").update(payload).eq("id", previous.id)
+      : await supabase.from("application_fees").insert(payload);
+    if (saveErr) throw saveErr;
 
     if (!previous) {
       await supabase.from("application_events").insert({
@@ -471,7 +519,6 @@ async function applyFees(app, feeRows, existingFees) {
       });
       console.log(`  Fee paid: ${row.label}`);
     }
-    void saved;
   }
 }
 

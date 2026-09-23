@@ -438,6 +438,20 @@ export async function createApplicationEvent({ applicationId, eventType, newStat
   );
 }
 
+// OpenApply checklist items per application (addendum 65), written by the
+// OpenApply sync job. Read-only in the app -- the school's portal is the
+// source of truth. Fails soft (empty) if addendum 65 hasn't been run.
+export async function listChecklistItems(applicationIds) {
+  if (!applicationIds || !applicationIds.length) return [];
+  const { data, error } = await supabase
+    .from("application_checklist_items")
+    .select("*")
+    .in("application_id", applicationIds)
+    .order("created_at", { ascending: true });
+  if (error) return [];
+  return data || [];
+}
+
 export async function listApplicationFees(applicationIds) {
   if (!applicationIds || !applicationIds.length) return [];
   return (

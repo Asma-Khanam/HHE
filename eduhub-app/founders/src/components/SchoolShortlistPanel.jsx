@@ -67,10 +67,8 @@ function daysBetween(a, b) {
 }
 
 // Full "Monday, 9 September 2026" style date, with a relative marker for
-// tour dates specifically -- founder feedback (Sept 2026): once a
-// consultant books a tour date, the line under the date picker should read
-// out the weekday and full month name plus how soon it is, not just a
-// short "23 Sep 2026".
+// tour dates specifically -- founder feedback (Sept 2026): used on the
+// Tour schedule list under the table (not in the table's tour columns).
 function formatTourDate(dateStr, timeStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr + "T00:00:00");
@@ -740,7 +738,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         {row.tour_date ? (
                           <span className="svt-tour-chip">
                             <span className="svt-dot is-ok" />
-                            {formatTourDate(row.tour_date, row.tour_start_time)}
+                            {formatDateTime(row.tour_date, row.tour_start_time)}
                           </span>
                         ) : (
                           <span className="svt-muted">Not booked</span>
@@ -835,7 +833,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         {row.tour2_date ? (
                           <span className="svt-tour-chip">
                             <span className="svt-dot is-ok" />
-                            {formatTourDate(row.tour2_date, row.tour2_start_time)}
+                            {formatDateTime(row.tour2_date, row.tour2_start_time)}
                           </span>
                         ) : (
                           <span className="svt-muted">Not booked</span>
@@ -1233,7 +1231,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
               .sort((a, b) => (a.date + (a.start || "")).localeCompare(b.date + (b.start || "")))
               .map((t) => (
                 <li key={t.id} className="svt-schedule-row">
-                  <span className="svt-schedule-when">{formatDateTime(t.date, t.start)}</span>
+                  <span className="svt-schedule-when">{formatTourDate(t.date, t.start)}</span>
                   <span className="svt-schedule-school">{t.school?.name}</span>
                   <span className="svt-tour-chip-inline">{t.kind}</span>
                   {t.status && <span className="svt-tour-chip-inline">{TOUR_STATUS_LABEL[t.status]}</span>}

@@ -599,3 +599,21 @@
     align-items: stretch;
   }
 }
+
+/* What the OpenApply sync pulled in -- checklist + invoices, read-only. */
+.ap-oa { border: 1px solid #e3d9b8; background: #fffaf0; border-radius: 10px; padding: 12px 14px; }
+.ap-oa-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.ap-oa-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a6d1a; }
+.ap-oa-when { font-size: 0.72rem; color: var(--hh-ink); opacity: 0.55; }
+.ap-oa-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ap-oa-box { background: var(--hh-white); border: 1px solid rgba(83, 1, 38, 0.08); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+.ap-oa-box-title { display: flex; justify-content: space-between; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; margin-bottom: 6px; }
+.ap-oa-count { text-transform: none; letter-spacing: 0; }
+.ap-oa-list { list-style: none; margin: 0; padding: 0; }
+.ap-oa-row { display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(83, 1, 38, 0.05); font-size: 0.82rem; }
+.ap-oa-row:last-child { border-bottom: none; }
+.ap-oa-row.is-done .ap-oa-ic { color: var(--hh-good); }
+.ap-oa-row.is-missing .ap-oa-ic, .ap-oa-row.is-missing .ap-oa-status { color: #8a5a10; }
+.ap-oa-status { font-size: 0.74rem; white-space: nowrap; opacity: 0.85; }
+.ap-oa-empty { margin: 0; font-size: 0.8rem; opacity: 0.55; }
+@media (max-width: 760px) { .ap-oa-grid { grid-template-columns: 1fr; } }

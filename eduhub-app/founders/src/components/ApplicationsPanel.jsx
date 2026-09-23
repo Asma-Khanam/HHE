@@ -6,6 +6,8 @@ import {
   listShortlistForFamily,
   listApplicationEvents,
   createApplicationEvent,
+  listApplicationFees,
+  listChecklistItems,
   updateSchool,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
@@ -187,6 +189,78 @@ function PortalAndLog({ application, school, parents, events, onEventAdded, onPo
   );
 }
 
+function refNumber(ref) {
+  const m = String(ref || "").match(/(\d+)/);
+  return m ? Number(m[1]) : 0;
+}
+
+// What the OpenApply sync pulled for this application: the school's own
+// checklist (done / still missing) and its invoices. Read-only -- the
+// school's portal is the source of truth, the sync refreshes it.
+function OpenApplySynced({ application, items, fees }) {
+  const synced = application.openapply_last_synced_at;
+  if (!items.length && !fees.length && !synced) return null;
+  const sorted = [...items].sort((a, b) => refNumber(a.external_ref) - refNumber(b.external_ref));
+  const done = sorted.filter((i) => i.status === "done").length;
+  const syncedFees = fees.filter((f) => f.source === "openapply_sync");
+  return (
+    <div className="ap-oa">
+      <div className="ap-oa-head">
+        <span className="ap-oa-title">From OpenApply</span>
+        {synced && (
+          <span className="ap-oa-when">
+            Last synced{" "}
+            {new Date(synced).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+          </span>
+        )}
+      </div>
+      <div className="ap-oa-grid">
+        <div className="ap-oa-box">
+          <div className="ap-oa-box-title">
+            Checklist {sorted.length > 0 && <span className="ap-oa-count">{done}/{sorted.length} done</span>}
+          </div>
+          {sorted.length === 0 ? (
+            <p className="ap-oa-empty">Nothing synced yet.</p>
+          ) : (
+            <ul className="ap-oa-list">
+              {sorted.map((i) => (
+                <li key={i.id} className={"ap-oa-row" + (i.status === "done" ? " is-done" : " is-missing")}>
+                  <span className="ap-oa-ic">{i.status === "done" ? "✓" : "○"}</span>
+                  <span className="ap-oa-label">{i.title}</span>
+                  <span className="ap-oa-status">
+                    {i.status === "done" ? (i.completed_at ? formatShortDate(i.completed_at) : "Done") : "Missing"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="ap-oa-box">
+          <div className="ap-oa-box-title">Fees</div>
+          {syncedFees.length === 0 ? (
+            <p className="ap-oa-empty">No invoices on OpenApply.</p>
+          ) : (
+            <ul className="ap-oa-list">
+              {syncedFees.map((f) => (
+                <li key={f.id} className={"ap-oa-row" + (f.status === "paid" ? " is-done" : " is-missing")}>
+                  <span className="ap-oa-ic">{f.status === "paid" ? "✓" : "○"}</span>
+                  <span className="ap-oa-label">
+                    {f.label}
+                    {f.amount != null ? ` · ${f.currency || "AED"} ${Number(f.amount).toLocaleString()}` : ""}
+                  </span>
+                  <span className="ap-oa-status">
+                    {f.status === "paid" ? "Paid" : f.due_date ? `Due ${formatShortDate(f.due_date)}` : "Unpaid"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Where each child has applied and how far along each application is.
 // Applications are never deleted from here -- a school that falls away is
 // set to Withdrawn (with a reason) or Declined instead, so the record stays.
@@ -218,6 +292,9 @@ export default function ApplicationsPanel({
   const [tourBySchool, setTourBySchool] = useState({});
   // Status-change history, only used for the "days at this stage" figure.
   const [eventsByApp, setEventsByApp] = useState({});
+  // OpenApply sync data (checklist items + invoices), per application.
+  const [checklistByApp, setChecklistByApp] = useState({});
+  const [feesByApp, setFeesByApp] = useState({});
   // Which stage panel is open per application (September 2026 redesign) --
   // defaults to wherever the application actually is; a consultant can
   // click back/forward on the track to preview another stage without that
@@ -270,6 +347,19 @@ export default function ApplicationsPanel({
         });
         setEventsByApp(map);
       })
+      .catch(() => {});
+    const group = (rows) => {
+      const map = {};
+      (rows || []).forEach((r) => {
+        (map[r.application_id] = map[r.application_id] || []).push(r);
+      });
+      return map;
+    };
+    listChecklistItems(ids)
+      .then((rows) => !cancelled && setChecklistByApp(group(rows)))
+      .catch(() => {});
+    listApplicationFees(ids)
+      .then((rows) => !cancelled && setFeesByApp(group(rows)))
       .catch(() => {});
     return () => {
       cancelled = true;
@@ -818,6 +908,12 @@ export default function ApplicationsPanel({
                                   )}
                                 </div>
                               </div>
+
+                              <OpenApplySynced
+                                application={application}
+                                items={checklistByApp[application.id] || []}
+                                fees={feesByApp[application.id] || []}
+                              />
 
                               <AutosaveField
                                 collapsible
