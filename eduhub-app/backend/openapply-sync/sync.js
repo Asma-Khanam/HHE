@@ -154,7 +154,9 @@ async function extractChecklist(page) {
 // why: small row counts, each query stays obvious about what it needs).
 // ----------------------------------------------------------------------------
 const ALIAS_DOMAIN = "applications.heatherharries.com";
-const WRITES_ENABLED = false;
+// Flipped on 22 Sept 2026 -- selectors confirmed against a real debug run
+// (Layla Hadley / Queen Elizabeth's School), see the CONFIG comment above.
+const WRITES_ENABLED = true;
 
 async function loadSyncTargets() {
   const { data: schools, error: schoolsErr } = await supabase
