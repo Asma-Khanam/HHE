@@ -44,6 +44,9 @@ export default function StaffShell() {
           <NavLink to="/staff/today" className={({ isActive }) => "staff-nav-item" + (isActive ? " is-active" : "")}>
             Today
           </NavLink>
+          <NavLink to="/staff/dashboard" className={({ isActive }) => "staff-nav-item" + (isActive ? " is-active" : "")}>
+            Dashboard
+          </NavLink>
           <NavLink to="/staff/families" className={({ isActive }) => "staff-nav-item" + (isActive ? " is-active" : "")}>
             Caseload
           </NavLink>

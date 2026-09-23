@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import TodayPage from "./pages/TodayPage";
+import InsightsPage from "./pages/InsightsPage";
 import FamiliesListPage from "./pages/FamiliesListPage";
 import FamilyDetailPage from "./pages/FamilyDetailPage";
 import CalendarPage from "./pages/CalendarPage";
@@ -33,6 +34,7 @@ function App() {
       >
         <Route index element={<Navigate to="/staff/today" replace />} />
         <Route path="today" element={<TodayPage />} />
+        <Route path="dashboard" element={<InsightsPage />} />
         <Route path="families" element={<FamiliesListPage />} />
         <Route path="families/:familyId" element={<FamilyDetailPage />} />
         <Route path="calendar" element={<CalendarPage />} />
