@@ -1537,3 +1537,32 @@ export async function updatePlacementDate(placement, startDate) {
   }
   return row;
 }
+
+// Addendum 74: "Update family" -- school progress the family sees on their
+// Dashboard as a timeline. Insert-only; a wrong update is fixed by sending
+// the right one, never by deleting.
+export async function listFamilySchoolUpdates(familyId) {
+  const { data, error } = await supabase
+    .from("family_school_updates")
+    .select("*")
+    .eq("family_id", familyId)
+    .order("created_at", { ascending: true });
+  if (error) return [];
+  return data || [];
+}
+
+export async function createFamilySchoolUpdate({ familyId, schoolId, childId, stage, note }) {
+  return unwrap(
+    await supabase
+      .from("family_school_updates")
+      .insert({
+        family_id: familyId,
+        school_id: schoolId,
+        child_id: childId || null,
+        stage,
+        note: note?.trim() || null,
+      })
+      .select()
+      .single()
+  );
+}

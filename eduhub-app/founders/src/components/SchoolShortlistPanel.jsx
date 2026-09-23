@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import UpdateFamilyButton from "./UpdateFamilyButton";
 import { Link } from "react-router-dom";
 import {
   listShortlistForFamily,
@@ -993,6 +994,13 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
 
                 {expanded && (
                   <div className="svt-detail">
+                    <UpdateFamilyButton
+                      familyId={familyId}
+                      schoolId={row.school_id}
+                      suggested={
+                        row.tour_status === "completed" || row.tour2_status === "completed" ? "toured" : "shortlisted"
+                      }
+                    />
                     {/* Founder feedback (Sept 2026): "when they click on
                         the dropdown, it should only show the details
                         under admissions" -- the tour form, feedback box

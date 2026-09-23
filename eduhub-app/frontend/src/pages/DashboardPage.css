@@ -679,3 +679,31 @@
     margin-left: 54px;
   }
 }
+
+/* ---------------- September 2026: one column when nothing's left to fill */
+@media (min-width: 1060px) {
+  .dash-grid.is-single { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* "Your family" as a dropdown -- click the header to open/close. */
+.dash-family:not(.is-open) .dash-card-head { border-bottom: none; }
+.dash-family:not(.is-open) { padding-bottom: 6px; }
+.dash-family-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.dash-family-faces { display: inline-flex; margin-left: auto; }
+.dash-family-faces .dash-family-face { width: 28px; height: 28px; font-size: 0.66rem; border-radius: 50%; border: 2px solid var(--hh-white); margin-left: -8px; }
+.dash-family-faces .dash-family-face:first-child { margin-left: 0; }
+.dash-family.is-open .dash-family-faces { display: none; }
+.dash-family-caret { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--hh-cream); color: var(--hh-burgundy); transition: transform 0.2s ease; }
+.dash-family.is-open .dash-family-caret { transform: rotate(180deg); margin-left: auto; }

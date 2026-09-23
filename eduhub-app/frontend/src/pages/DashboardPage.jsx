@@ -1,13 +1,12 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import DocumentVaultCard from "../components/DocumentVaultCard";
-import PaymentsCard from "../components/PaymentsCard";
-import KeyDatesCard from "../components/KeyDatesCard";
+import SchoolUpdatesCard from "../components/SchoolUpdatesCard";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
-import { IconCheckCircle, IconChevronRight } from "../components/icons";
+import { IconCheckCircle, IconChevronDown, IconChevronRight } from "../components/icons";
 import {
   getMissingItems,
-  getOutstandingDocuments,
   getReadinessPct,
   getStepBreakdown,
   displayNameForChild,
@@ -82,6 +81,8 @@ function statusFor(pct) {
 export default function DashboardPage() {
   const { data, user } = useApplicationData();
   const navigate = useNavigate();
+  // "Your family" opens and closes like a dropdown (September 2026).
+  const [familyOpen, setFamilyOpen] = useState(false);
 
   const children = data?.children || [];
   const rawParents = data?.parents || [];
@@ -108,7 +109,6 @@ export default function DashboardPage() {
   const father = rawParents.find((p) => p.relationship === "Father");
 
   const missingFields = getMissingItems({ parents, accountHolderRole, children, currentSchools, ...familyAnswers });
-  const outstandingDocs = getOutstandingDocuments({ parents, accountHolderRole, children, documentsByOwner });
   const overallPct = getReadinessPct({ parents, accountHolderRole, children, currentSchools, documentsByOwner, ...familyAnswers });
   const breakdown = getStepBreakdown({
     parents,
@@ -247,16 +247,41 @@ export default function DashboardPage() {
       </section>
 
 
-      <div className="dash-grid">
+      <div className={"dash-grid" + (missingFields.length ? "" : " is-single")}>
         {/* ---------- main column ---------- */}
         <div className="dash-main">
-          <section className="dash-card">
+          <section className={"dash-card dash-family" + (familyOpen ? " is-open" : "")}>
             <div className="dash-card-head">
-              <h2>Your family</h2>
-              <button type="button" className="dash-card-link" onClick={() => openForm()}>
-                Edit <IconChevronRight size={14} />
+              <button
+                type="button"
+                className="dash-family-toggle"
+                onClick={() => setFamilyOpen((o) => !o)}
+                aria-expanded={familyOpen}
+              >
+                <h2>Your family</h2>
+                <span className="dash-family-faces" aria-hidden="true">
+                  {people.map((person) => (
+                    <PersonAvatar
+                      key={person.key}
+                      doc={person.photo}
+                      name={person.name}
+                      fallback={person.role}
+                      isChild={person.isChild}
+                      className="dash-family-face"
+                    />
+                  ))}
+                </span>
+                <span className="dash-family-caret">
+                  <IconChevronDown size={18} />
+                </span>
               </button>
+              {familyOpen && (
+                <button type="button" className="dash-card-link" onClick={() => openForm()}>
+                  Edit <IconChevronRight size={14} />
+                </button>
+              )}
             </div>
+            {familyOpen && (
             <div className="dash-rows">
               {people.map((person) => {
                 const status = statusFor(person.pct);
@@ -284,9 +309,14 @@ export default function DashboardPage() {
                 );
               })}
             </div>
+            )}
           </section>
 
-          {missingFields.length > 0 && (
+          <SchoolUpdatesCard />
+        </div>
+
+        {missingFields.length > 0 && (
+          <aside className="dash-side">
             <section className="dash-card">
               <div className="dash-card-head">
                 <h2>Still to fill in</h2>
@@ -307,54 +337,9 @@ export default function DashboardPage() {
                 <p className="dash-note">+ {missingFields.length - 8} more, once these are done.</p>
               )}
             </section>
-          )}
-        </div>
-
-        {/* ---------- side rail ---------- */}
-        <aside className="dash-side">
-          <section className="dash-card">
-            <div className="dash-card-head">
-              <h2>Outstanding documents</h2>
-              {outstandingDocs.length > 0 && <span className="dash-count">{outstandingDocs.length}</span>}
-            </div>
-            {outstandingDocs.length === 0 ? (
-              <div className="dash-allclear">
-                <IconCheckCircle size={18} />
-                <p>Every document we've asked for is on file.</p>
-              </div>
-            ) : (
-              <>
-                <ul className="dash-docs">
-                  {outstandingDocs.slice(0, 8).map((item) => (
-                    <li key={item.fieldKey}>
-                      <button type="button" onClick={() => openForm(item.stepKey, item.fieldKey)}>
-                        <span className="dash-doc-mark" aria-hidden="true" />
-                        <span className="dash-row-text">
-                          <span className="dash-doc-label">{item.docLabel}</span>
-                          <span className="dash-row-detail">
-                            {item.personName} · {item.personTag}
-                          </span>
-                        </span>
-                        <span className="dash-pill tone-pending">Needed</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                {outstandingDocs.length > 8 && (
-                  <p className="dash-note">+ {outstandingDocs.length - 8} more, once these are in.</p>
-                )}
-                <p className="dash-note dash-note-soft">
-                  None of these stop you submitting — upload them whenever you get hold of them.
-                </p>
-              </>
-            )}
-          </section>
-        </aside>
+          </aside>
+        )}
       </div>
-
-      <PaymentsCard userId={user?.id} payments={data?.payments || []} />
-
-      <KeyDatesCard events={data?.events || []} />
 
       <DocumentVaultCard
         mother={mother}

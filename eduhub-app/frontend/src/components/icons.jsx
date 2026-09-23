@@ -101,3 +101,30 @@ export function IconLogout(props) {
     </Svg>
   );
 }
+
+export function IconWallet(props) {
+  return (
+    <Svg {...props}>
+      <rect x="3.5" y="6" width="17" height="13" rx="2" />
+      <path d="M3.5 10h17" />
+      <path d="M15.5 14.5h2" />
+      <path d="M6 6l9-2.5a1.2 1.2 0 0 1 1.5 1.1V6" />
+    </Svg>
+  );
+}
+
+export function IconFolder(props) {
+  return (
+    <Svg {...props}>
+      <path d="M3.5 7A1.5 1.5 0 0 1 5 5.5h4.2l2 2H19A1.5 1.5 0 0 1 20.5 9v9A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18Z" />
+    </Svg>
+  );
+}
+
+export function IconChevronDown(props) {
+  return (
+    <Svg {...props}>
+      <path d="M5.5 9 12 15.5 18.5 9" />
+    </Svg>
+  );
+}

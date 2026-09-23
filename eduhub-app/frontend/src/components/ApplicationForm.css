@@ -534,3 +534,67 @@
 .save-status.is-error{background:#fbe4e4;color:#a11a1a}
 .save-status-spinner{width:11px;height:11px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:save-spin .8s linear infinite}
 @keyframes save-spin{to{transform:rotate(360deg)}}
+
+/* ------------------------------------------------------------------
+   September 2026 redesign of the Application overview: a progress hero
+   with one "Continue" button, then numbered section panels. */
+.app-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: linear-gradient(135deg, var(--hh-burgundy) 0%, var(--hh-burgundy-light) 100%);
+  color: var(--hh-white);
+  border-radius: 16px;
+  padding: 22px 26px;
+  margin-bottom: 22px;
+  box-shadow: var(--hh-shadow);
+}
+.app-hero-text { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.app-hero-eyebrow { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
+.app-hero-title { font-family: var(--hh-font-heading); font-size: 1.3rem; font-weight: 600; }
+.app-hero-sub { font-size: 0.86rem; opacity: 0.85; }
+.app-hero-bar { margin-top: 10px; height: 7px; max-width: 420px; border-radius: 99px; background: rgba(255, 255, 255, 0.2); overflow: hidden; }
+.app-hero-bar span { display: block; height: 100%; background: var(--hh-gold); border-radius: inherit; transition: width 0.3s ease; }
+.application-form .app-hero-cta { width: auto; background: var(--hh-white); color: var(--hh-burgundy); white-space: nowrap; padding: 12px 22px; }
+.application-form .app-hero-cta:hover { background: var(--hh-cream); }
+
+.app-section {
+  background: var(--hh-white);
+  border: 1px solid var(--hh-track);
+  border-radius: 16px;
+  padding: 18px 20px 8px;
+  margin-bottom: 18px;
+}
+.app-section-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.app-section-head h3 { margin: 0; font-family: var(--hh-font-heading); font-size: 1.05rem; font-weight: 600; color: var(--hh-burgundy); }
+.app-section-num {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--hh-burgundy); color: var(--hh-white);
+  font-size: 0.78rem; font-weight: 600;
+}
+.app-section-aside { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.app-section-aside-label { font-size: 0.8rem; opacity: 0.6; }
+.app-section .account-holder-picker { margin: 0 0 0 auto; }
+.app-section-hint { margin: 0 0 12px; }
+.app-section-plain { padding-bottom: 18px; }
+.app-section-plain > :not(.app-section-head) { box-shadow: none; border: 1px solid var(--hh-track); margin-bottom: 12px; }
+.app-section-plain > :last-child { margin-bottom: 0; }
+
+/* Step cards inside a section: flatter, fully clickable, status pill. */
+.app-section .step-card { box-shadow: none; border: 1px solid var(--hh-track); cursor: pointer; }
+.app-section .step-card:hover { border-color: rgba(83, 1, 38, 0.3); box-shadow: 0 6px 18px rgba(83, 1, 38, 0.08); }
+.app-section .step-card:focus-visible { outline: 2px solid var(--hh-burgundy); outline-offset: 2px; }
+.step-card.is-done .step-card-index { background: var(--hh-good); border-color: var(--hh-good); color: var(--hh-white); }
+.step-card.is-done .step-card-bar-fill { background: var(--hh-good); }
+.step-card-pill { flex-shrink: 0; font-size: 0.72rem; font-weight: 600; padding: 4px 10px; border-radius: 99px; background: var(--hh-track); color: var(--hh-ink); white-space: nowrap; }
+.step-card.is-done .step-card-pill { background: var(--hh-good-bg); color: var(--hh-good); }
+.step-card.is-progress .step-card-pill { background: rgba(184, 154, 90, 0.18); color: #7a5f22; }
+.step-card.is-empty .step-card-pill { opacity: 0.7; }
+
+@media (max-width: 720px) {
+  .app-hero { flex-direction: column; align-items: stretch; }
+  .app-section-aside, .app-section .account-holder-picker { margin-left: 0; width: 100%; }
+  .step-card-pill { display: none; }
+}

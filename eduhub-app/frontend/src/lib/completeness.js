@@ -80,7 +80,7 @@ function childSenNeedsSupportingDocs(child) {
   );
 }
 
-function expectedChildDocTypes(child) {
+export function expectedChildDocTypes(child) {
   return CHILD_DOCUMENT_TYPES.filter((d) => {
     if (!d.expected) return false;
     if (d.key === "leaving_certificate") return child?.has_transfer_certificate === "Yes";
@@ -92,7 +92,7 @@ function expectedChildDocTypes(child) {
 // Parent document slots only count once that parent actually exists on the
 // application — an unnamed second parent shouldn't generate outstanding
 // document rows for a person who may not be part of this application at all.
-function expectedParentDocTypes(parent, isHolder) {
+export function expectedParentDocTypes(parent, isHolder) {
   if (!isHolder && !isFilled(parent?.full_name)) return [];
   return PARENT_DOCUMENT_TYPES.filter((d) => d.expected);
 }

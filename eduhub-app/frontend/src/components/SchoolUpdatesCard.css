@@ -1,0 +1,53 @@
+.su-empty { margin: 14px 0 4px; font-size: 0.88rem; opacity: 0.65; }
+.su-list { list-style: none; margin: 0; padding: 0; }
+.su-school { padding: 16px 0; border-bottom: 1px solid var(--hh-track); }
+.su-school:last-child { border-bottom: none; padding-bottom: 4px; }
+.su-school-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.su-school-head strong { color: var(--hh-burgundy); font-size: 0.98rem; }
+.su-school-when { font-size: 0.75rem; opacity: 0.55; white-space: nowrap; }
+
+/* Horizontal timeline: dots joined by a line; grey until updated. */
+.su-track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.su-step { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; }
+.su-step::before {
+  content: "";
+  position: absolute;
+  top: 11px;
+  right: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--hh-track);
+  z-index: 0;
+}
+.su-step:first-child::before { display: none; }
+.su-step:not(.is-off)::before { background: var(--hh-good); }
+.su-dot {
+  position: relative;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--hh-white);
+  border: 2px solid var(--hh-track);
+  color: var(--hh-white);
+}
+.su-step.is-good .su-dot { background: var(--hh-good); border-color: var(--hh-good); }
+.su-step.is-wait .su-dot { background: var(--hh-gold); border-color: var(--hh-gold); }
+.su-step.is-bad .su-dot { background: var(--hh-error); border-color: var(--hh-error); }
+.su-step.is-bad::before { background: var(--hh-error); }
+.su-step-label { font-size: 0.74rem; font-weight: 600; line-height: 1.25; }
+.su-step.is-off .su-step-label { opacity: 0.4; font-weight: 500; }
+.su-step.is-bad .su-step-label { color: var(--hh-error); }
+.su-step-date { font-size: 0.68rem; opacity: 0.55; min-height: 1em; }
+
+.su-latest { margin: 14px 0 0; padding: 10px 12px; background: var(--hh-cream); border-radius: 8px; font-size: 0.85rem; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.su-latest-tag { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--hh-burgundy); }
+.su-latest-child { font-size: 0.72rem; padding: 2px 8px; border-radius: 99px; background: var(--hh-white); }
+
+@media (max-width: 560px) {
+  .su-step-label { font-size: 0.66rem; }
+}

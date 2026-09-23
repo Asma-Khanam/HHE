@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import PersonAvatar, { findProfilePhoto } from "./PersonAvatar";
-import { IconClipboard, IconGrid, IconLogout, IconSchool } from "./icons";
+import { IconClipboard, IconFolder, IconGrid, IconLogout, IconSchool, IconWallet } from "./icons";
 import logo from "../assets/brand/logo-vertical-burgundy.png";
 import "./AppShell.css";
 
@@ -17,6 +17,10 @@ const NAV_ITEMS = [
   // September 2026 redesign: this page grew from just tours into the full
   // per-school journey (tours + applications), so the nav label follows.
   { to: "/app/timetable", label: "Your schools", Icon: IconSchool },
+  // September 2026: documents and billing got their own pages, off the
+  // Dashboard, so each has one clear home.
+  { to: "/app/documents", label: "Documents", Icon: IconFolder },
+  { to: "/app/billing", label: "Billing", Icon: IconWallet },
 ];
 
 // The whole logged-in app lives inside this shell: content on the right,

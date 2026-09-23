@@ -27,6 +27,7 @@ import {
 } from "../lib/workflow";
 import CopyButton from "./CopyButton";
 import ApplicationStageTrack from "./ApplicationStageTrack";
+import UpdateFamilyButton from "./UpdateFamilyButton";
 import "./panels.css";
 import AutosaveField from "./Autosave";
 import "./ApplicationsPanel.css";
@@ -983,6 +984,23 @@ export default function ApplicationsPanel({
                                   )}
                                 </div>
                               </div>
+
+                              <UpdateFamilyButton
+                                familyId={familyId}
+                                schoolId={application.school_id}
+                                childId={child.id}
+                                suggested={
+                                  {
+                                    submitted: "applied",
+                                    assessment_booked: "assessment",
+                                    under_review: "assessment",
+                                    offer: "offer",
+                                    offer_accepted: "placed",
+                                    waitlisted: "waitlisted",
+                                    rejected: "declined",
+                                  }[application.status] || "applied"
+                                }
+                              />
 
                               <OpenApplySynced
                                 application={application}

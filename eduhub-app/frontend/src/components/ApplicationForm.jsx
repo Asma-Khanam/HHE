@@ -1009,6 +1009,15 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
     setShowingList(false);
   }
 
+  // "Continue where you left off": the step holding the first missing
+  // required field, or failing that the first section not yet complete.
+  function continueWhereLeftOff() {
+    const key = missingItems[0]?.stepKey;
+    let idx = key ? steps.findIndex((st) => st.key === key) : -1;
+    if (idx === -1) idx = steps.findIndex((st) => (stepBreakdown[st.key]?.pct ?? 0) < 100);
+    openCard(idx === -1 ? 0 : idx);
+  }
+
   function backToList() {
     setShowingList(true);
   }
@@ -1581,7 +1590,7 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
         title="Application"
         subtitle={
           showingList
-            ? "Work through the blocks in order. Everything saves as a draft — you can come back and edit any block later."
+            ? "Four short sections. Everything saves as you type — come back any time."
             : undefined
         }
       />
@@ -1611,6 +1620,8 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
             stepBreakdown={stepBreakdown}
             onEditCard={openCard}
             steps={steps}
+            missingCount={missingItems.length}
+            onContinue={continueWhereLeftOff}
           />
         ) : (
           <>
@@ -2620,40 +2631,64 @@ function CardListView({
   stepBreakdown,
   onEditCard,
   steps,
+  missingCount,
+  onContinue,
 }) {
+  // September 2026 redesign ("more aesthetic, direct and easy to use"):
+  // one progress summary with a single "Continue" button up top, then
+  // numbered sections -- Parents, Budget, Children, Your move -- each in
+  // its own panel. The account-holder toggle and the child count now sit
+  // inside the section they belong to instead of as separate blocks.
   const budgetIndex = steps.findIndex((s) => s.key === "budget");
+  const doneCount = steps.filter((s) => (stepBreakdown[s.key]?.pct ?? 0) >= 100).length;
+  const overallPct = steps.length ? Math.round((doneCount / steps.length) * 100) : 0;
+  const canAddChildren = parents[primaryIndex]?.full_name?.trim() || children.length > 0;
+
   return (
     <div className="card-list-view">
-      <MoveDetailsCard familyId={familyId} family={family} onFamilyChange={onFamilyChange} />
-      <ReferralCard familyId={familyId} family={family} onFamilyChange={onFamilyChange} />
-
-      <FormSection title="Parents" description="Tell us who's who, and who's actually filling this in.">
-        <div className="hh-field-full account-holder-picker">
-          <label>Who is creating this account? *</label>
-          <div className="account-holder-toggle">
-            <button
-              type="button"
-              className={"account-holder-btn" + (accountHolderRole === "Mother" ? " is-active" : "")}
-              onClick={() => setAccountHolderRole("Mother")}
-            >
-              Mother
-            </button>
-            <button
-              type="button"
-              className={"account-holder-btn" + (accountHolderRole === "Father" ? " is-active" : "")}
-              onClick={() => setAccountHolderRole("Father")}
-            >
-              Father
-            </button>
+      <div className="app-hero">
+        <div className="app-hero-text">
+          <span className="app-hero-eyebrow">Your progress</span>
+          <strong className="app-hero-title">
+            {doneCount} of {steps.length} sections complete
+          </strong>
+          <span className="app-hero-sub">
+            {missingCount
+              ? `${missingCount} required field${missingCount === 1 ? "" : "s"} left · everything saves as you type`
+              : "Everything required is in — submit whenever you're ready"}
+          </span>
+          <div className="app-hero-bar">
+            <span style={{ width: `${overallPct}%` }} />
           </div>
         </div>
-      </FormSection>
+        {missingCount > 0 && (
+          <button type="button" className="hh-btn-primary app-hero-cta" onClick={onContinue}>
+            Continue where you left off →
+          </button>
+        )}
+      </div>
 
-      <div className="card-list-group">
-        <h3 className="card-list-heading">Step 1 — Parents</h3>
-        {/* Whoever ticked "who is creating this account" is shown first — it's
-            their form, so their card shouldn't sit second. The two sit side by
-            side rather than stacked, since they're a pair. */}
+      <section className="app-section">
+        <div className="app-section-head">
+          <span className="app-section-num">1</span>
+          <h3>Parents</h3>
+          <div className="app-section-aside account-holder-picker">
+            <span className="app-section-aside-label">Filling this in:</span>
+            <div className="account-holder-toggle">
+              {["Mother", "Father"].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  className={"account-holder-btn" + (accountHolderRole === r ? " is-active" : "")}
+                  onClick={() => setAccountHolderRole(r)}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* Whoever is filling it in is shown first -- it's their form. */}
         <div className="card-list-pair">
           {[primaryIndex, 1 - primaryIndex].map((idx, position) => {
             const role = idx === 0 ? "Mother" : "Father";
@@ -2663,72 +2698,62 @@ function CardListView({
             return (
               <StepCard
                 key={role}
-                index={position + 1}
                 title={role}
                 subtitle={parents[idx].full_name}
                 pct={pct}
-                emptyHint={
-                  position === 1 && pct === 0 ? `Use "Same as ${otherRole}" to copy shared details.` : null
-                }
+                emptyHint={position === 1 && pct === 0 ? `Tip: "Same as ${otherRole}" copies shared details.` : null}
                 onEdit={() => onEditCard(idx)}
               />
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* Section 3, "Budget and relocation planning" (September 2026 change
-          request) — its own card, sitting after the account holder details
-          and before the children, per the document. */}
-      <div className="card-list-group">
-        <h3 className="card-list-heading">Budget and relocation planning</h3>
+      <section className="app-section">
+        <div className="app-section-head">
+          <span className="app-section-num">2</span>
+          <h3>Budget and relocation planning</h3>
+        </div>
         <StepCard
-          index={3}
           title="Budget"
           subtitle="Money and moving plans"
           pct={stepBreakdown.budget?.pct ?? 0}
           onEdit={() => onEditCard(budgetIndex)}
         />
-      </div>
+      </section>
 
-      {/* AH-07 (September 2026 change request): "Your children" only appears
-          once the account holder has actually entered their own name — not
-          once BOTH parents exist, since plenty of families only ever have
-          one parent to add and shouldn't be blocked from reaching this
-          section. Once any children exist (a returning family), it stays
-          visible regardless, so nobody's already-entered children vanish if
-          a name field is ever cleared by mistake. */}
-      {!(parents[primaryIndex]?.full_name?.trim() || children.length > 0) && (
-        <p className="hh-hint-text card-list-children-locked-hint">
-          Add your own name above to add children.
-        </p>
-      )}
-      {(parents[primaryIndex]?.full_name?.trim() || children.length > 0) && (
-      <>
-      <div className="card-list-group">
-        <h3 className="card-list-heading">Your children</h3>
-        <div className="child-count-block">
-          <p className="hh-hint-text">A block is created below for each child.</p>
-          <div className="child-count-stepper">
-            <button
-              type="button"
-              onClick={() => onChildCountChange(children.length - 1)}
-              disabled={children.length <= 0 || removingChild}
-              aria-label="Fewer children"
-            >
-              −
-            </button>
-            <span>{children.length}</span>
-            <button
-              type="button"
-              onClick={() => onChildCountChange(children.length + 1)}
-              disabled={children.length >= MAX_CHILDREN}
-              aria-label="More children"
-            >
-              +
-            </button>
-          </div>
+      <section className="app-section">
+        <div className="app-section-head">
+          <span className="app-section-num">3</span>
+          <h3>Children</h3>
+          {canAddChildren && (
+            <div className="app-section-aside">
+              <span className="app-section-aside-label">How many?</span>
+              <div className="child-count-stepper">
+                <button
+                  type="button"
+                  onClick={() => onChildCountChange(children.length - 1)}
+                  disabled={children.length <= 0 || removingChild}
+                  aria-label="Fewer children"
+                >
+                  −
+                </button>
+                <span>{children.length}</span>
+                <button
+                  type="button"
+                  onClick={() => onChildCountChange(children.length + 1)}
+                  disabled={children.length >= MAX_CHILDREN}
+                  aria-label="More children"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
         </div>
+
+        {!canAddChildren && <p className="hh-hint-text app-section-hint">Add your own name under Parents first, then add your children here.</p>}
+
         {pendingRemoveChild && (
           <div className="child-remove-confirm">
             <p>
@@ -2746,43 +2771,60 @@ function CardListView({
             </div>
           </div>
         )}
-      </div>
 
-      <div className="card-list-group">
-        <h3 className="card-list-heading">Children</h3>
-        {children.map((child, i) => {
-          const name = displayNameForChild(child);
-          const breakdown = stepBreakdown[`child-${i}`];
-          const childStepIndex = steps.findIndex((s) => s.key === `child-${i}`);
-          return (
-            <StepCard
-              key={i}
-              index={4 + i}
-              title={children.length > 1 ? `Child ${i + 1}` : "Child"}
-              subtitle={name}
-              trailingText={child.year_group_applying_for || undefined}
-              pct={breakdown?.pct ?? 0}
-              onEdit={() => onEditCard(childStepIndex)}
-            />
-          );
-        })}
-      </div>
-      </>
-      )}
+        {canAddChildren && children.length === 0 && (
+          <p className="hh-hint-text app-section-hint">Press + to add a child — each one gets their own section.</p>
+        )}
+        <div className="card-list-pair">
+          {children.map((child, i) => {
+            const breakdown = stepBreakdown[`child-${i}`];
+            const childStepIndex = steps.findIndex((s) => s.key === `child-${i}`);
+            return (
+              <StepCard
+                key={i}
+                title={children.length > 1 ? `Child ${i + 1}` : "Child"}
+                subtitle={displayNameForChild(child)}
+                trailingText={child.year_group_applying_for || undefined}
+                pct={breakdown?.pct ?? 0}
+                onEdit={() => onEditCard(childStepIndex)}
+              />
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="app-section app-section-plain">
+        <div className="app-section-head">
+          <span className="app-section-num">4</span>
+          <h3>Your move</h3>
+        </div>
+        <MoveDetailsCard familyId={familyId} family={family} onFamilyChange={onFamilyChange} />
+        <ReferralCard familyId={familyId} family={family} onFamilyChange={onFamilyChange} />
+      </section>
     </div>
   );
 }
 
-// One row in the card list — a numbered badge, the person's role/label +
-// name, a slim progress bar, and an Edit button that opens their full
-// section. `trailingText`, when given, replaces the "N% complete" caption
-// (used for a child's year group); `emptyHint` overrides it entirely for a
-// card that's still essentially blank (Father, before anything's filled).
-function StepCard({ index, title, subtitle, pct, trailingText, emptyHint, onEdit }) {
+// One person/section as a card: a status badge (✓ once complete), their
+// name, a slim progress bar and a status pill. The whole card is clickable.
+function StepCard({ title, subtitle, pct, trailingText, emptyHint, onEdit }) {
+  const done = pct >= 100;
+  const status = done ? "Complete" : pct > 0 ? "In progress" : "Not started";
   const caption = emptyHint || trailingText || `${pct}% complete`;
   return (
-    <div className="step-card">
-      <div className="step-card-index">{index}</div>
+    <div
+      className={"step-card" + (done ? " is-done" : pct > 0 ? " is-progress" : " is-empty")}
+      role="button"
+      tabIndex={0}
+      onClick={onEdit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onEdit();
+        }
+      }}
+    >
+      <div className="step-card-index">{done ? "✓" : title.charAt(0)}</div>
       <div className="step-card-main">
         <div className="step-card-title">
           <strong>{title}</strong>
@@ -2795,9 +2837,10 @@ function StepCard({ index, title, subtitle, pct, trailingText, emptyHint, onEdit
           <span className="step-card-caption">{caption}</span>
         </div>
       </div>
-      <button type="button" className="step-card-edit" onClick={onEdit}>
-        {pct > 0 ? "Edit" : "Add"} ›
-      </button>
+      <span className={"step-card-pill"}>{status}</span>
+      <span className="step-card-edit" aria-hidden="true">
+        {pct > 0 ? "Edit" : "Start"} ›
+      </span>
     </div>
   );
 }

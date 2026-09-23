@@ -1,0 +1,24 @@
+.docs-page { display: flex; flex-direction: column; gap: 18px; padding: clamp(16px, 2.2vw, 32px) clamp(16px, 2.6vw, 40px) 60px; min-width: 0; }
+.page-head h1 { font-family: var(--hh-font-heading); font-weight: 600; color: var(--hh-burgundy); font-size: 1.9rem; margin: 0 0 4px; }
+.page-head p { margin: 0; color: var(--hh-ink); opacity: 0.7; }
+
+.docs-summary { background: var(--hh-white); border-radius: var(--hh-radius); box-shadow: 0 4px 16px rgba(83, 1, 38, 0.06); padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+.docs-summary-text { font-size: 0.95rem; }
+.docs-summary-text strong { color: var(--hh-burgundy); font-size: 1.1rem; }
+.docs-summary-bar { height: 8px; border-radius: 99px; background: var(--hh-track); overflow: hidden; }
+.docs-summary-bar span { display: block; height: 100%; background: var(--hh-good); border-radius: inherit; transition: width 0.3s ease; }
+
+.docs-person { background: var(--hh-white); border-radius: var(--hh-radius); box-shadow: 0 4px 16px rgba(83, 1, 38, 0.06); padding: 20px 22px; }
+.docs-person-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid rgba(83, 1, 38, 0.08); }
+.docs-person-head h2 { font-family: var(--hh-font-heading); font-size: 1.1rem; color: var(--hh-burgundy); margin: 0; display: inline; }
+.docs-person-tag { margin-left: 8px; font-size: 0.75rem; opacity: 0.6; }
+.docs-person-count { font-size: 0.78rem; font-weight: 600; padding: 4px 10px; border-radius: 99px; background: rgba(179, 38, 30, 0.1); color: var(--hh-error); white-space: nowrap; }
+.docs-person-count.is-done { background: var(--hh-good-bg); color: var(--hh-good); }
+
+.docs-optional { margin-top: 14px; }
+.docs-optional summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; color: var(--hh-burgundy); padding: 6px 0; }
+.docs-optional summary::-webkit-details-marker { display: none; }
+.docs-optional[open] summary svg { transform: rotate(180deg); }
+.docs-optional summary svg { transition: transform 0.18s ease; }
+.docs-optional[open] summary { margin-bottom: 10px; }
+.docs-empty { opacity: 0.7; }
