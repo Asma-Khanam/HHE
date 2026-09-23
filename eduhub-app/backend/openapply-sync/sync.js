@@ -18,17 +18,21 @@
 // This script is additive, never the only way information gets in.
 //
 // ----------------------------------------------------------------------------
-// SELECTORS BELOW ARE A FIRST GUESS, NOT VERIFIED AGAINST THE REAL SITE.
-// I (Claude) have only seen screenshots of OpenApply's Checklist and
-// Invoices & Fees pages, never its actual HTML -- and I'm not able to log
-// into a family's real portal myself to check (that's credential-entry,
-// which I don't do). So this ships in DEBUG_MODE by default: it logs in,
-// takes a full-page screenshot and saves the page's HTML for the Checklist
-// and Invoices & Fees pages into ./debug-output/, and does NOT write
-// anything to Supabase. Run it once in debug mode, download the screenshots
-// from the GitHub Actions run (see the workflow file), send them to me, and
-// I'll fill in the real selectors below from what they actually look like.
-// Flip DEBUG_MODE off (see README) once that's done.
+// SELECTOR STATUS (22 Sept 2026): confirmed against a real Queen
+// Elizabeth's School (OpenApply) Checklist and Invoices & Fees page --
+// openapply-debug-output/5712009d-.../checklist.html + invoices.html, a
+// debug run against Layla Hadley's application. Login, the checklist's
+// "Submit Application Form" item -> draft/submitted signal, and the
+// per-child-filtered Invoices table are all real selectors now, not
+// guesses. Still unconfirmed: anything past "submitted" (assessment
+// booked, under review, offer, rejected -- nothing seen on OpenApply's own
+// pages ties to those yet, so this script never sets them) and whether a
+// Paid/closed invoices table exists somewhere on the Invoices & Fees page
+// (only seen a family with nothing paid so far -- every fee row read here
+// is treated as unpaid until a paid one is seen). DEBUG_MODE and
+// WRITES_ENABLED both still default to off/false: run a debug pass, check
+// the console output against what's actually true for that application,
+// and only then flip them (see README).
 // ----------------------------------------------------------------------------
 
 import { createClient } from "@supabase/supabase-js";
@@ -62,51 +66,85 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 // ----------------------------------------------------------------------------
 const CONFIG = {
   login: {
-    // Guesses -- OpenApply's login form field names vary by deployment.
+    // Confirmed 22 Sept 2026 against a real Queen Elizabeth's School
+    // (OpenApply) login page -- see openapply-debug-output/5712009d-.../
+    // login-uncertain.html from an earlier run. Real fields are
+    // input#parent_email / input#parent_password, but the type-based
+    // selectors below already matched them correctly (that run's login
+    // failure was bad credentials, not a selector miss -- confirmed by a
+    // later run with the same selectors succeeding).
     emailSelector: 'input[type="email"], input[name="email"], input#email',
     passwordSelector: 'input[type="password"], input[name="password"], input#password',
     submitSelector: 'button[type="submit"], input[type="submit"]',
-    // Something on the page that only appears once logged in -- used to
-    // confirm login succeeded rather than assuming it did.
     loggedInIndicator: 'text=Checklist',
   },
+  // Confirmed against a real Checklist page, 22 Sept 2026 (see
+  // openapply-debug-output/5712009d-.../checklist.html). The Checklist page
+  // is per-STUDENT (URL /students/<id>/profile): each required item is a
+  // div.item, id="checklist-<n>", carrying a "completed" class once done,
+  // plus a .due-state with the completion date. Only one item maps onto our
+  // own application status today -- "Submit Application Form" being done is
+  // the one reliable signal the application itself has gone in. The rest
+  // (Emirates ID, passport copies, school reports, ...) are document
+  // checklist items -- read and logged, not mapped to a status, since
+  // nothing we've seen ties them to assessment/decision stages.
   checklist: {
-    // Text link/tab that opens the Checklist page from wherever login lands.
-    navLinkText: "Checklist",
-    // A row selector for each checklist item -- guessed as a table row.
-    itemRowSelector: "table tr",
+    containerSelector: ".content-items.checklist",
+    itemSelector: ".content-items.checklist .item",
+    titleSelector: ".title-head > span",
+    dueDateSelector: ".due-state",
+    submitItemTitleMatch: /submit application form/i,
   },
+  // Confirmed against the same run's Invoices & Fees page. That page is
+  // per-FAMILY, not per-student -- it lists every child's fees in one
+  // table, so rows have to be matched to the right child by the "Student
+  // Name" column (extractFeeRows does this). Only the "Open Invoices"
+  // table has been seen so far, for a family with nothing paid yet -- a
+  // paid/closed invoices table may exist elsewhere on the page or behind a
+  // filter, not yet confirmed. Every row read from here is treated as
+  // unpaid until that's checked against a family that has actually paid.
   invoices: {
-    navLinkText: "Invoices",
-    rowSelector: "table tr",
+    rowSelector: "table.js-open-invoices tbody tr",
   },
-  // Best-effort mapping from whatever status text OpenApply shows to our
-  // own applications.status values (must be one of the values in
-  // founders/src/lib/workflow.js APPLICATION_STATUSES). Matching is
-  // case-insensitive substring match, checked in order -- put more specific
-  // phrases first. UNVERIFIED against real OpenApply wording.
-  statusTextMap: [
-    { match: "offer", status: "offer" },
-    { match: "accepted", status: "offer" },
-    { match: "reject", status: "rejected" },
-    { match: "declined", status: "rejected" },
-    { match: "withdraw", status: "withdrawn" },
-    { match: "under review", status: "under_review" },
-    { match: "assessment", status: "under_review" },
-    { match: "reference", status: "reference_requested" },
-    { match: "document", status: "documents_pending" },
-    { match: "submitted", status: "submitted" },
-    { match: "complete", status: "submitted" },
-  ],
 };
 
-function mapStatusText(text) {
+// Parses OpenApply's "17 September, 2026" style date into an ISO
+// yyyy-mm-dd, or null if it doesn't look like that shape -- never guesses.
+function parseOpenApplyDate(text) {
   if (!text) return null;
-  const lower = text.toLowerCase();
-  for (const rule of CONFIG.statusTextMap) {
-    if (lower.includes(rule.match)) return rule.status;
+  const m = text.match(/(\d{1,2})\s+([A-Za-z]+)\s*,?\s*(\d{4})/);
+  if (!m) return null;
+  const d = new Date(`${m[2]} ${m[1]}, ${m[3]}`);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+// Reads the per-student Checklist page into {completed, total, submittedAt,
+// items}. submittedAt (a raw OpenApply date string) is only set when the
+// "Submit Application Form" item is done -- everything else on this page is
+// a document checklist item, not an application status.
+async function extractChecklist(page) {
+  const container = page.locator(CONFIG.checklist.containerSelector).first();
+  const dataCompleted = await container.getAttribute("data-completed").catch(() => null);
+  const rows = await page.locator(CONFIG.checklist.itemSelector).all();
+  const items = [];
+  let submittedAt = null;
+  for (const row of rows) {
+    const cls = (await row.getAttribute("class")) || "";
+    const done = /\bcompleted\b/.test(cls);
+    const title = ((await row.locator(CONFIG.checklist.titleSelector).first().innerText().catch(() => "")) || "").trim();
+    const dueText = ((await row.locator(CONFIG.checklist.dueDateSelector).first().innerText().catch(() => "")) || "").trim() || null;
+    items.push({ title, done, dueText });
+    if (done && CONFIG.checklist.submitItemTitleMatch.test(title) && dueText) {
+      submittedAt = dueText;
+    }
   }
-  return null;
+  return {
+    completed: dataCompleted != null ? Number(dataCompleted) : items.filter((i) => i.done).length,
+    total: items.length,
+    submittedAt,
+    items,
+  };
 }
 
 // ----------------------------------------------------------------------------
@@ -270,30 +308,31 @@ async function syncOne(browser, target, debugDir) {
     // --- Checklist page ---
     await page.goto(`${origin}/students/${studentId}/profile`, { waitUntil: "networkidle", timeout: 30000 }).catch(() => {});
     if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, app.id, "checklist");
-    const checklistText = await page.locator("body").innerText();
-    const mappedStatus = mapStatusText(checklistText);
+    const checklist = await extractChecklist(page);
 
     // --- Invoices & Fees page ---
     await page.goto(`${origin}/fees`, { waitUntil: "networkidle", timeout: 30000 }).catch(() => {});
     if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, app.id, "invoices");
-    const feeRows = await extractFeeRows(page);
+    const feeRows = await extractFeeRows(page, child);
 
     if (DEBUG_MODE) {
-      console.log(`  [debug] mapped status: ${mappedStatus || "(no match)"}`);
+      console.log(
+        `  [debug] checklist: ${checklist.completed}/${checklist.total} complete` +
+          (checklist.submittedAt ? `, application form submitted ${checklist.submittedAt}` : "")
+      );
       console.log(`  [debug] fee rows found: ${JSON.stringify(feeRows, null, 2)}`);
       console.log(`  [debug] no writes performed -- OPENAPPLY_SYNC_DEBUG is on.`);
       return;
     }
 
     // Writes stay OFF until the page parsing above has been checked against
-    // real saved pages: the status guess is a keyword match and the fee rows
-    // are a placeholder parse, and a wrong guess must never overwrite what a
-    // consultant has set. Flip WRITES_ENABLED only after that check.
+    // a real debug run's output, and a wrong guess must never overwrite what
+    // a consultant has set by hand. Flip WRITES_ENABLED only after that check.
     if (!WRITES_ENABLED) {
       console.log("  Writes are switched off (WRITES_ENABLED=false) -- nothing saved.");
       return;
     }
-    await applyStatus(app, mappedStatus);
+    await applyChecklist(app, checklist);
     await applyFees(app, feeRows, existingFees);
   } catch (err) {
     console.error(`  Failed on ${label}:`, err.message);
@@ -328,45 +367,67 @@ async function clickNavLink(page, text) {
   await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
 }
 
-// Guessed extraction: every table row with at least 2 cells is treated as
-// "label | amount | [due date] | [status]". UNVERIFIED -- this is exactly
-// what a debug run's saved HTML lets us replace with something exact.
-async function extractFeeRows(page) {
+// The Invoices & Fees table is per-FAMILY, listing every child's fees
+// together -- rows are filtered down to this child's own by the "Student
+// Name" column so one child's fee never lands on a sibling's application.
+// Columns confirmed 22 Sept 2026 (td[data-label="..."] is exact, not
+// positional -- see CONFIG.invoices' comment on what's still unconfirmed).
+async function extractFeeRows(page, child) {
+  const childName = `${child?.first_name || ""} ${child?.last_name || ""}`.trim().toLowerCase();
   const rows = await page.locator(CONFIG.invoices.rowSelector).all();
   const results = [];
   for (const row of rows) {
-    const cells = await row.locator("td, th").allInnerTexts();
-    if (cells.length < 2) continue;
-    const [label, amountText, dueDateText, statusText] = cells;
-    if (!label || /^(item|invoice|description|fee)$/i.test(label.trim())) continue; // skip header row
-    const amount = parseFloat((amountText || "").replace(/[^0-9.]/g, "")) || null;
+    const studentText = (
+      (await row.locator('td[data-label="Student Name"]').innerText().catch(() => "")) || ""
+    )
+      .trim()
+      .toLowerCase();
+    if (childName && studentText && !studentText.includes(childName) && !childName.includes(studentText)) continue;
+
+    const label =
+      ((await row.locator('td[data-label="Invoice"] a').first().innerText().catch(() => "")) || "").trim() || "Invoice";
+    const type = ((await row.locator('td[data-label="Type"]').innerText().catch(() => "")) || "").trim();
+    const amountText = (await row.locator('td[data-label="Amount Due"]').innerText().catch(() => "")) || "";
+    const amount = parseFloat(amountText.replace(/[^0-9.]/g, "")) || null;
+    const dueDateText =
+      ((await row.locator('td[data-label="Due Date"]').innerText().catch(() => "")) || "").trim() || null;
+    // The "Pay Now" link is /fees/<id> -- a stable id, unlike the filename,
+    // so upserts don't create a duplicate row if the filename ever changes.
+    const payHref = (await row.locator('a[href^="/fees/"]').first().getAttribute("href").catch(() => "")) || "";
+    const feeId = (payHref.match(/\/fees\/(\d+)/) || [])[1] || label;
     results.push({
-      label: label.trim(),
+      label: type ? `${type} — ${label}` : label,
       amount,
-      due_date_text: (dueDateText || "").trim() || null,
-      paid: /paid/i.test(statusText || ""),
-      external_invoice_ref: label.trim(), // placeholder ref until we see real invoice numbers
+      due_date_text: dueDateText,
+      paid: false, // every row here comes from the Open Invoices table -- see CONFIG.invoices comment
+      external_invoice_ref: `openapply-${feeId}`,
     });
   }
   return results;
 }
 
-async function applyStatus(app, mappedStatus) {
-  if (!mappedStatus || mappedStatus === app.status) return;
+// The ONLY status transition this sync ever makes on its own: draft ->
+// submitted, when the Checklist's "Submit Application Form" item is done.
+// Never moves an application past that by itself -- assessment/decision
+// stages still need a consultant to set them, since nothing seen on
+// OpenApply's own pages ties reliably to those yet.
+async function applyChecklist(app, checklist) {
+  if (app.status !== "draft" || !checklist.submittedAt) return;
+  const submittedIso = parseOpenApplyDate(checklist.submittedAt);
   const { error: updateErr } = await supabase
     .from("applications")
-    .update({ status: mappedStatus })
+    .update({ status: "submitted", submitted_at: submittedIso })
     .eq("id", app.id);
   if (updateErr) throw updateErr;
   const { error: eventErr } = await supabase.from("application_events").insert({
     application_id: app.id,
     event_type: "status_change",
-    new_status: mappedStatus,
-    description: `Status changed to ${mappedStatus} (synced from OpenApply)`,
+    new_status: "submitted",
+    description: `Application form submitted (synced from OpenApply, ${checklist.submittedAt})`,
     source: "openapply_sync",
   });
   if (eventErr) throw eventErr;
-  console.log(`  Status: ${app.status} -> ${mappedStatus}`);
+  console.log(`  Status: draft -> submitted (${checklist.submittedAt})`);
 }
 
 async function applyFees(app, feeRows, existingFees) {
@@ -378,7 +439,7 @@ async function applyFees(app, feeRows, existingFees) {
       application_id: app.id,
       label: row.label,
       amount: row.amount,
-      due_date: null, // due_date_text isn't parsed to a real date yet -- needs a real sample to know the format
+      due_date: parseOpenApplyDate(row.due_date_text),
       status: nextStatus,
       paid_at: row.paid ? new Date().toISOString() : null,
       source: "openapply_sync",

@@ -6,14 +6,31 @@ the same `application_events` / `application_fees` tables the founders app's
 GitHub Actions (`.github/workflows/openapply-sync.yml`) -- every 4 hours once
 it's live.
 
-## Before this can do anything real
+## Status (22 Sept 2026)
 
-The CSS selectors in `sync.js` (the `CONFIG` object near the top) are
-guesses -- nobody has checked them against OpenApply's actual page markup
-yet. That's why it ships in **debug mode by default**: it logs in, saves a
-screenshot and the full HTML of the Checklist and Invoices & Fees pages for
-each application, and writes nothing to the database. Once we've seen a real
-run's output, the selectors get corrected and it's safe to flip live.
+The selectors in `sync.js` are now confirmed against a real page -- a debug
+run against Layla Hadley's Queen Elizabeth's School application logged in
+successfully and reached both the Checklist and Invoices & Fees pages. What
+that run showed, and what's still open:
+
+- **Login** -- works with the parent's stored application email/password.
+- **Checklist** -- read correctly (5/12 items complete for that run). The
+  script only ever acts on ONE signal from it: the "Submit Application
+  Form" item being done, which moves an application draft -> submitted and
+  records the date OpenApply shows. It never sets any status past that --
+  nothing on OpenApply's own pages has been seen to reliably signal
+  assessment booked / under review / offer / declined yet, so those stay
+  manual, same as always.
+- **Invoices & Fees** -- read correctly, matched to the right child by the
+  "Student Name" column (this page lists the whole family's fees together).
+  Only ever seen a family with nothing paid yet, so every fee row is
+  currently treated as unpaid -- a family with a paid invoice hasn't been
+  seen to confirm what that looks like on the page.
+
+It still ships in **debug mode by default** (logs in, saves screenshots and
+HTML, writes nothing) until a debug run's actual console output has been
+checked against what's really true for that application -- see "Running a
+debug pass" below.
 
 ## One-time setup
 
@@ -46,14 +63,19 @@ run's output, the selectors get corrected and it's safe to flip live.
 Repo -> Actions tab -> "OpenApply sync" -> "Run workflow". Leave "Debug
 mode" checked. Optionally paste one `applications.id` into
 "debug_application_id" to only test one family/school instead of every
-OpenApply application at once (recommended for the very first run).
+OpenApply application at once (recommended).
 
-When it finishes, open the run and download the `openapply-debug-output`
-artifact at the bottom of the page -- it's a zip of screenshots and raw HTML
-per application, one subfolder per `applications.id`. Send me (Claude) the
-`checklist.png`/`checklist.html` and `invoices.png`/`invoices.html` files (or
-just describe what you see) and I'll fix the selectors in `sync.js` to match
-the real page instead of my current guesses.
+Two things to check once it finishes:
+
+1. **The run's own log** (click into the run -> the "Run sync" step) now
+   prints exactly what it read, e.g. `checklist: 5/12 complete, application
+   form submitted 17 September, 2026` and the fee rows found as JSON.
+   Compare that against what you see logged into OpenApply yourself for
+   that same application -- if the numbers match, the parsing is right.
+2. If something looks off, download the `openapply-debug-output` artifact
+   at the bottom of the run page (a zip of screenshots + raw HTML per
+   application) and send me the `checklist.html`/`invoices.html` files (or
+   just describe the mismatch) so I can adjust the selectors in `sync.js`.
 
 ## Going live
 
