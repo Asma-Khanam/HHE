@@ -270,6 +270,13 @@
 .sv-row:first-of-type{border-top:0}
 .sv-label{font-size:11.5px;color:#8b8570}
 .sv-value{font-size:14px;color:#2b2a26;overflow-wrap:anywhere}
+.sv-contact-card{border-color:#e6d9a8;background:#fffaf0}
+.sv-contact-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media(max-width:900px){.sv-contact-grid{grid-template-columns:1fr}}
+.sv-contact-card .sv-row{padding:4px 0}
+.sv-copy-line{display:flex;align-items:center;gap:6px;min-width:0}
+.sv-copy-line a,.sv-copy-line span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv-copy-line .copy-btn{flex:none;margin-left:0}
 .sv-empty{color:#b9b29a;font-style:italic;font-size:13px}
 .sv-pills{display:flex;flex-wrap:wrap;gap:6px}
 .sv-pill{background:#f3e9c6;color:#6b5312;border-radius:999px;padding:2px 9px;font-size:12.5px;font-weight:600}

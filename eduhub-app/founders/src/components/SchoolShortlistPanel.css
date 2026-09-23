@@ -221,6 +221,16 @@
 
 .svt-cell-caret {
   text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.svt-note-flag {
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.85;
 }
 
 .svt-caret {

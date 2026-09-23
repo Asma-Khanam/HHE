@@ -20,6 +20,7 @@ import { relativeDay } from "../lib/workflow";
 import { displayNameForChild } from "../lib/completeness";
 import GenericDocumentsPanel from "../components/GenericDocumentsPanel";
 import AutosaveField from "../components/Autosave";
+import CopyButton from "../components/CopyButton";
 import "../components/panels.css";
 import "./FamilyDetailPage.css";
 import "./SchoolDetailPage.css";
@@ -230,6 +231,29 @@ function SvRow({ label, children }) {
   );
 }
 
+// Same read-line-with-copy-icon pattern as the family Overview tab
+// (OverviewPanel.jsx's ReadLine) -- founder feedback (Sept 2026): the
+// School record's contact details should stand on their own, easy to
+// glance at and copy-paste, same as the family's contact info does.
+function SvContactRow({ label, value, href }) {
+  if (!value) return <SvRow label={label} />;
+  return (
+    <div className="sv-row">
+      <span className="sv-label">{label}</span>
+      <span className="sv-value sv-copy-line">
+        {href ? (
+          <a href={href} title={href.startsWith("mailto:") ? "Opens in Titan" : undefined}>
+            {value}
+          </a>
+        ) : (
+          <span>{value}</span>
+        )}
+        <CopyButton text={value} label={"Copy " + label.toLowerCase()} />
+      </span>
+    </div>
+  );
+}
+
 function SchoolRecordView({ school }) {
   const links = [
     ["Website", school.website_url],
@@ -290,8 +314,23 @@ function SchoolRecordView({ school }) {
           </SvRow>
           <SvRow label="Application fee">{school.application_fee != null ? `${school.fee_currency || "AED"} ${school.application_fee}` : ""}</SvRow>
           <SvRow label="Deposit">{school.deposit_amount != null ? `${school.fee_currency || "AED"} ${school.deposit_amount}` : ""}</SvRow>
-          <SvRow label="Contact">{contact.length > 0 && contact.join(" · ")}</SvRow>
         </div>
+      </div>
+      <div className="sv-card sv-wide sv-contact-card">
+        <h3>Contact</h3>
+        {contact.length === 0 ? (
+          <p className="sv-empty">Not added</p>
+        ) : (
+          <div className="sv-contact-grid">
+            <SvContactRow label="Name" value={school.admissions_contact_name} />
+            <SvContactRow
+              label="Email"
+              value={school.admissions_contact_email}
+              href={school.admissions_contact_email ? `mailto:${school.admissions_contact_email}` : undefined}
+            />
+            <SvContactRow label="Phone" value={school.admissions_contact_phone} />
+          </div>
+        )}
       </div>
       <div className="sv-card sv-wide">
         <h3>Documents required</h3>

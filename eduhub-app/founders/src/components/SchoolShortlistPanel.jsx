@@ -66,6 +66,31 @@ function daysBetween(a, b) {
   return Math.round((new Date(b).getTime() - new Date(a).getTime()) / (1000 * 60 * 60 * 24));
 }
 
+// Full "Monday, 9 September 2026" style date, with a relative marker for
+// tour dates specifically -- founder feedback (Sept 2026): once a
+// consultant books a tour date, the line under the date picker should read
+// out the weekday and full month name plus how soon it is, not just a
+// short "23 Sep 2026".
+function formatTourDate(dateStr, timeStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  let out = d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  if (timeStr) {
+    const [h, m] = timeStr.split(":");
+    const hour = Number(h);
+    const suffix = hour >= 12 ? "pm" : "am";
+    const hour12 = ((hour + 11) % 12) + 1;
+    out += `, ${hour12}${m && m !== "00" ? ":" + m : ""}${suffix}`;
+  }
+  const days = daysBetween(new Date().toISOString().slice(0, 10), dateStr);
+  if (days === 0) out += " (today)";
+  else if (days === 1) out += " (tomorrow)";
+  else if (days === -1) out += " (yesterday)";
+  else if (days > 1) out += ` (in ${days} days)`;
+  else if (days < -1) out += ` (${Math.abs(days)} days ago)`;
+  return out;
+}
+
 function relativeToNow(iso, futureLabel) {
   if (!iso) return "";
   const days = daysBetween(new Date().toISOString(), iso);
@@ -715,7 +740,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         {row.tour_date ? (
                           <span className="svt-tour-chip">
                             <span className="svt-dot is-ok" />
-                            {formatDateTime(row.tour_date, row.tour_start_time)}
+                            {formatTourDate(row.tour_date, row.tour_start_time)}
                           </span>
                         ) : (
                           <span className="svt-muted">Not booked</span>
@@ -810,7 +835,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                         {row.tour2_date ? (
                           <span className="svt-tour-chip">
                             <span className="svt-dot is-ok" />
-                            {formatDateTime(row.tour2_date, row.tour2_start_time)}
+                            {formatTourDate(row.tour2_date, row.tour2_start_time)}
                           </span>
                         ) : (
                           <span className="svt-muted">Not booked</span>
@@ -956,6 +981,14 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                   </div>
 
                   <div className="svt-cell svt-cell-caret">
+                    {/* Founder feedback (Sept 2026): a note left in
+                        Admissions used to be invisible until the row was
+                        opened -- this small dot shows on the collapsed bar
+                        whenever there's a note inside, so consultants know
+                        to check without opening every row. */}
+                    {(notesById[row.id] || "").trim() && (
+                      <span className="svt-note-flag" title="Has a note">📝</span>
+                    )}
                     <span className={"svt-caret" + (expanded ? " is-open" : "")}>▾</span>
                   </div>
                 </div>
