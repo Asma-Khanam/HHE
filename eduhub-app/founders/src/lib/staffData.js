@@ -637,6 +637,14 @@ export async function updateCaseNote(noteId, patch) {
   return unwrap(await supabase.from("case_notes").update(row).eq("id", noteId).select().single());
 }
 
+// Attachments a school sent with an email (addendum 77) live in the private
+// "email-attachments" bucket -- staff get a short-lived link to open one.
+export async function getEmailAttachmentUrl(path) {
+  const { data, error } = await supabase.storage.from("email-attachments").createSignedUrl(path, 120);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
 export async function deleteCaseNote(noteId) {
   const { error } = await supabase.from("case_notes").delete().eq("id", noteId);
   if (error) throw error;

@@ -44,8 +44,60 @@
 //   4. Test by emailing any address at applications.heatherharries.com and
 //      checking the family's Emails tab.
 //
+// Addendum 77 (24 Sept 2026): the whole email is now kept -- full HTML,
+// full text, to/cc, sender name -- via log_application_email_full, plus
+// attachments uploaded to the private "email-attachments" bucket. Inline
+// images (cid:) are folded straight into the HTML so the email renders as
+// sent. If addendum 77 hasn't been run yet, this quietly falls back to the
+// old 4-argument log_application_email so nothing stops logging.
+//
 // Never logs a raw request body anywhere -- it can contain a school's full
 // message.
+
+const MAX_HTML = 900_000; // chars -- far above any normal email
+const MAX_INLINE_IMAGE = 400_000; // bytes of base64 we're happy to inline
+
+function sbHeaders(extra = {}) {
+  return {
+    apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+    ...extra,
+  };
+}
+
+const addr = (list) =>
+  (Array.isArray(list) ? list : list ? [list] : [])
+    .map((p) => (typeof p === "string" ? p : p?.name ? `${p.name} <${p.email}>` : p?.email))
+    .filter(Boolean)
+    .join(", ");
+
+function headerValue(headers, name) {
+  if (!headers) return null;
+  if (Array.isArray(headers)) {
+    const hit = headers.find((h) => String(h?.[0] ?? h?.name ?? "").toLowerCase() === name);
+    return hit ? hit[1] ?? hit.value : null;
+  }
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === name);
+  return key ? headers[key] : null;
+}
+
+const safeName = (n) => String(n || "attachment").replace(/[^\w.\- ]+/g, "_").slice(0, 120);
+
+async function callRpc(name, args) {
+  const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: sbHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(args),
+  });
+  const text = await r.text();
+  let json = null;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    /* not json */
+  }
+  return { ok: r.ok, status: r.status, json, text };
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -60,9 +112,11 @@ export default async function handler(req, res) {
 
   const body = req.body || {};
   // ImprovMX's "to" field is an array of { name, email } -- the alias that
-  // was actually dialled is the local part before the @.
-  const toEmail = Array.isArray(body.to) ? body.to[0]?.email : null;
-  const alias = toEmail ? toEmail.split("@")[0].toLowerCase() : null;
+  // was actually dialled is the local part before the @. A school may cc
+  // several people, so pick the first recipient on our own domain.
+  const recipients = [...(Array.isArray(body.to) ? body.to : []), ...(Array.isArray(body.cc) ? body.cc : [])];
+  const ours = recipients.find((r) => /@applications\.heatherharries\.com$/i.test(r?.email || "")) || recipients[0];
+  const alias = ours?.email ? ours.email.split("@")[0].toLowerCase() : null;
 
   if (!alias) {
     // Nothing we can log against -- still 200 so ImprovMX doesn't retry
@@ -71,31 +125,89 @@ export default async function handler(req, res) {
     return;
   }
 
+  const fromEmail = body.from?.email || (typeof body.from === "string" ? body.from : "") || "(unknown sender)";
+  const text = typeof body.text === "string" ? body.text : "";
+  let html = typeof body.html === "string" ? body.html : "";
+  const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+
+  // Fold inline (cid:) images into the HTML so logos/signatures render.
+  const fileAttachments = [];
+  for (const a of attachments) {
+    const cid = String(a?.cid || a?.contentId || "").replace(/[<>]/g, "");
+    const b64 = typeof a?.content === "string" ? a.content : "";
+    if (cid && html && b64 && b64.length <= MAX_INLINE_IMAGE && html.includes(`cid:${cid}`)) {
+      html = html.split(`cid:${cid}`).join(`data:${a.type || "image/png"};base64,${b64}`);
+    } else if (b64) {
+      fileAttachments.push(a);
+    }
+  }
+  if (html.length > MAX_HTML) html = ""; // absurdly large -- fall back to text
+
+  const messageId =
+    body["message-id"] || body.messageId || body.message_id || headerValue(body.headers, "message-id") || null;
+
   try {
-    const supaRes = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/log_application_email`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-      },
-      body: JSON.stringify({
-        p_alias: alias,
-        p_from: body.from?.email || "(unknown sender)",
-        p_subject: body.subject || "(no subject)",
-        p_snippet: (body.text || "").replace(/\s+/g, " ").trim().slice(0, 400),
-      }),
+    let result = await callRpc("log_application_email_full", {
+      p_alias: alias,
+      p_from: fromEmail,
+      p_from_name: body.from?.name || null,
+      p_to: addr(body.to),
+      p_cc: addr(body.cc),
+      p_subject: body.subject || "(no subject)",
+      p_text: text,
+      p_html: html || null,
+      p_message_id: messageId ? String(messageId).slice(0, 500) : null,
     });
 
-    if (!supaRes.ok) {
-      console.error("log_application_email failed", supaRes.status, await supaRes.text());
+    if (!result.ok && (result.status === 404 || /PGRST202|Could not find the function/i.test(result.text))) {
+      // Addendum 77 not run yet -- old behaviour.
+      result = await callRpc("log_application_email", {
+        p_alias: alias,
+        p_from: fromEmail,
+        p_subject: body.subject || "(no subject)",
+        p_snippet: text.replace(/\s+/g, " ").trim().slice(0, 400),
+      });
+      res.status(200).json({ logged: result.ok, legacy: true });
+      return;
+    }
+
+    if (!result.ok) {
+      console.error("log_application_email_full failed", result.status, result.text.slice(0, 300));
       res.status(200).json({ logged: false });
       return;
     }
 
-    res.status(200).json({ logged: true });
+    const out = result.json || {};
+    if (out.logged && out.note_id && !out.duplicate && fileAttachments.length) {
+      const saved = [];
+      for (const a of fileAttachments) {
+        try {
+          const name = safeName(a.name || a.filename);
+          const path = `${out.family_id}/${out.note_id}/${saved.length + 1}-${name}`;
+          const buf = Buffer.from(a.content, "base64");
+          const up = await fetch(`${process.env.SUPABASE_URL}/storage/v1/object/email-attachments/${encodeURI(path)}`, {
+            method: "POST",
+            headers: sbHeaders({ "Content-Type": a.type || "application/octet-stream", "x-upsert": "true" }),
+            body: buf,
+          });
+          if (up.ok) saved.push({ name, type: a.type || null, size: buf.length, path });
+          else console.error("attachment upload failed", up.status);
+        } catch (e) {
+          console.error("attachment upload error", e?.message);
+        }
+      }
+      if (saved.length) {
+        await fetch(`${process.env.SUPABASE_URL}/rest/v1/case_notes?id=eq.${out.note_id}`, {
+          method: "PATCH",
+          headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+          body: JSON.stringify({ email_attachments: saved }),
+        });
+      }
+    }
+
+    res.status(200).json({ logged: !!out.logged });
   } catch (err) {
-    console.error("application-email-webhook error", err);
+    console.error("application-email-webhook error", err?.message);
     // Still 200: this only logs a case note. It never affects whether the
     // school's email itself gets through -- ImprovMX forwards that
     // independently, in parallel, regardless of what happens here.

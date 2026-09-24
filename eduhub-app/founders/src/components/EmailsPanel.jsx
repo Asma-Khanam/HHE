@@ -1,33 +1,25 @@
-import { useState } from "react";
-import { createCaseNote, friendlyError } from "../lib/staffData";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createCaseNote, friendlyError, getEmailAttachmentUrl } from "../lib/staffData";
 import "./panels.css";
+import "./EmailsPanel.css";
 
-// The Emails tab (September 2026 change request) -- every school reply that
-// lands on this family's application alias(es) shows up here automatically,
-// logged by the Cloudflare Email Worker via log_application_email (addendum
-// 7) whenever a school writes back to <alias>@applications.heatherharries.com.
-// Staff can also log an email they sent by hand (a reply that didn't go
-// through an alias, or a call summarised as an email) -- that's the compose
-// box below, which just writes a normal kind="email" case_notes row with
-// direction="outbound".
+// The Emails tab -- an Outlook-style mailbox for ONE family.
 //
-// This only reads/writes case_notes -- it's the same table School visits'
-// Case notes panel uses, filtered down to kind="email" and given its own
-// inbox-style look instead of the general activity-log one.
+// Left: a searchable list grouped by Today / Yesterday / This week / month,
+// each row showing sender, subject, a one-line preview, date and a paperclip
+// when there are attachments. Right: the reading pane, showing the email
+// exactly as it was sent (addendum 77 keeps the full HTML) inside a sandboxed
+// iframe -- no scripts can run, links open in a new tab.
+//
+// Rows logged before addendum 77 only have a 400-character plain-text
+// preview; those are cleaned up (the "![](https://...)" junk removed, links
+// made clickable) so they still read tidily.
+//
+// Data is still just case_notes rows with kind="email" -- inbound ones come
+// from the ImprovMX webhook, outbound ones from "Log an email" below.
 
-function relativeDay(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const days = Math.round((Date.now() - d.getTime()) / 86400000);
-  if (days <= 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days} days ago`;
-  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-}
+// ------------------------------------------------------------------ helpers
 
-// Inbound rows (logged by the Worker) store the body as "<snippet>\n\nFrom:
-// <address>" -- split that back apart so the sender shows as its own line
-// instead of trailing the message text.
 function splitInboundBody(body) {
   const marker = "\n\nFrom: ";
   const idx = body?.lastIndexOf(marker) ?? -1;
@@ -35,115 +27,536 @@ function splitInboundBody(body) {
   return { snippet: body.slice(0, idx), from: body.slice(idx + marker.length) };
 }
 
-function EmailRow({ note }) {
-  const { snippet, from } = splitInboundBody(note.body);
-  const inbound = note.direction === "inbound";
+// Plain-text versions of HTML emails come with markdown-ish leftovers.
+function cleanText(text) {
+  return (text || "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "") // image references
+    .replace(/\[([^\]]*)\]\((https?:[^)\s]+)\)/g, (_, label, url) => (label.trim() ? `${label} (${url})` : url))
+    .replace(/\[\s*\]/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function previewLine(note) {
+  const raw = note.email_text || splitInboundBody(note.body).snippet;
+  return cleanText(raw)
+    .replace(/\(?https?:\/\/[^\s)]+\)?/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 160);
+}
+
+function senderOf(note) {
+  if (note.direction === "outbound") return { name: "Heather Harries team", email: "" };
+  const email = note.email_from || splitInboundBody(note.body).from || "";
+  const name = note.email_from_name || (email ? email.split("@")[0] : "Unknown sender");
+  return { name, email };
+}
+
+function initials(name) {
+  const parts = String(name || "?")
+    .replace(/[^A-Za-z\s]/g, " ")
+    .trim()
+    .split(/\s+/);
+  return ((parts[0]?.[0] || "?") + (parts[1]?.[0] || "")).toUpperCase();
+}
+
+const AVATAR_TONES = ["#7a1743", "#2f6b4f", "#8a6a22", "#3d5a80", "#6b4f7a", "#9a4a2f"];
+function toneFor(key) {
+  let h = 0;
+  for (const c of String(key)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return AVATAR_TONES[h % AVATAR_TONES.length];
+}
+
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+function groupLabel(iso) {
+  const d = new Date(iso);
+  const today = startOfDay(new Date());
+  const days = Math.round((today - startOfDay(d)) / 86400000);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) return "This week";
+  if (days < 14) return "Last week";
+  const now = new Date();
+  if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) return "Earlier this month";
+  return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
+function listDate(iso) {
+  const d = new Date(iso);
+  const today = startOfDay(new Date());
+  const days = Math.round((today - startOfDay(d)) / 86400000);
+  if (days <= 0) return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  if (days === 1) return "Yesterday";
+  if (days < 7) return d.toLocaleDateString(undefined, { weekday: "short" });
+  return d.toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "2-digit" });
+}
+
+function fullDate(iso) {
+  return new Date(iso).toLocaleString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function fileSize(n) {
+  if (!n) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function searchHaystack(note) {
+  const s = senderOf(note);
+  return [note.subject, s.name, s.email, note.email_to, note.email_cc, note.email_text, note.body,
+    ...(note.email_attachments || []).map((a) => a.name)]
+    .filter(Boolean)
+    .join(" \n ")
+    .toLowerCase();
+}
+
+// Turn bare URLs in plain text into links (display shortened to the domain).
+function Linkified({ text }) {
+  const parts = [];
+  const re = /(https?:\/\/[^\s)]+)/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(text))) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    let host = m[1];
+    try {
+      host = new URL(m[1]).hostname.replace(/^www\./, "");
+    } catch {
+      /* keep raw */
+    }
+    parts.push(
+      <a key={m.index} href={m[1]} target="_blank" rel="noopener noreferrer" title={m[1]}>
+        {host}
+      </a>
+    );
+    last = m.index + m[1].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <div className="mx-text-body">{parts}</div>;
+}
+
+// ------------------------------------------------------------ HTML renderer
+
+const FRAME_HEAD = `<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline' https:; font-src https: data:;">
+<base target="_blank">
+<style>
+  html,body{margin:0;background:#fff}
+  body{padding:4px 2px 24px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:14px;line-height:1.5;color:#2a1119;overflow-wrap:anywhere}
+  img{max-width:100%;height:auto}
+  table{max-width:100%!important}
+  a{color:#7a1743}
+  blockquote{margin:0 0 0 8px;padding-left:10px;border-left:3px solid #ece3e6;color:#6b5a60}
+  pre{white-space:pre-wrap}
+</style>`;
+
+function EmailFrame({ html }) {
+  const ref = useRef(null);
+  const [height, setHeight] = useState(240);
+
+  useEffect(() => {
+    const frame = ref.current;
+    if (!frame) return undefined;
+    let ro;
+    const measure = () => {
+      const doc = frame.contentDocument;
+      if (!doc?.documentElement) return;
+      setHeight(Math.max(120, doc.documentElement.scrollHeight + 4));
+    };
+    const onLoad = () => {
+      measure();
+      const doc = frame.contentDocument;
+      doc?.querySelectorAll("img").forEach((img) => img.addEventListener("load", measure));
+      if (doc?.body && "ResizeObserver" in window) {
+        ro = new ResizeObserver(measure);
+        ro.observe(doc.body);
+      }
+    };
+    frame.addEventListener("load", onLoad);
+    return () => {
+      frame.removeEventListener("load", onLoad);
+      ro?.disconnect();
+    };
+  }, [html]);
+
   return (
-    <li className={"email-row" + (inbound ? " is-inbound" : " is-outbound")}>
-      <div className="email-row-top">
-        <span className={"email-direction-badge" + (inbound ? " is-inbound" : " is-outbound")}>
-          {inbound ? "Received" : "Sent"}
-        </span>
-        <span className="email-subject">{note.subject || "(no subject)"}</span>
-        <span className="email-row-date">{relativeDay(note.occurred_at)}</span>
-      </div>
-      {from && <p className="email-from">From: {from}</p>}
-      <p className="email-snippet">{snippet}</p>
-    </li>
+    <iframe
+      ref={ref}
+      title="Email"
+      className="mx-frame"
+      style={{ height }}
+      // No allow-scripts: nothing in the email can run. allow-same-origin is
+      // only so we can measure the content height from here.
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      srcDoc={`<!doctype html><html><head>${FRAME_HEAD}</head><body>${html}</body></html>`}
+    />
   );
 }
 
-export default function EmailsPanel({ familyId, notes: allNotes }) {
-  const [notes, setNotes] = useState((allNotes || []).filter((n) => n.kind === "email"));
-  const [composing, setComposing] = useState(false);
+// ------------------------------------------------------------------ pieces
+
+function Avatar({ name, email, size = 38 }) {
+  return (
+    <span
+      className="mx-avatar"
+      style={{ width: size, height: size, background: toneFor(email || name), fontSize: size * 0.36 }}
+      aria-hidden="true"
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
+function PaperclipIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M21 11.5l-8.6 8.6a5.5 5.5 0 01-7.8-7.8l9.2-9.2a3.7 3.7 0 015.2 5.2l-9.2 9.2a1.8 1.8 0 01-2.6-2.6l8.5-8.5" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </svg>
+  );
+}
+
+function Attachments({ items }) {
+  const [busy, setBusy] = useState(null);
+  const [err, setErr] = useState("");
+  if (!items?.length) return null;
+  async function open(a) {
+    setBusy(a.path);
+    setErr("");
+    try {
+      window.open(await getEmailAttachmentUrl(a.path), "_blank", "noopener");
+    } catch (e) {
+      setErr(friendlyError(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+  return (
+    <div className="mx-attachments">
+      {items.map((a) => (
+        <button key={a.path} type="button" className="mx-attachment" onClick={() => open(a)} disabled={busy === a.path}>
+          <PaperclipIcon />
+          <span className="mx-attachment-name">{a.name}</span>
+          <span className="mx-attachment-size">{busy === a.path ? "Opening…" : fileSize(a.size)}</span>
+        </button>
+      ))}
+      {err && <p className="mx-error">{err}</p>}
+    </div>
+  );
+}
+
+function ReadingPane({ note, onBack }) {
+  if (!note) {
+    return (
+      <div className="mx-reading mx-reading-empty">
+        <p>Select an email to read it here.</p>
+      </div>
+    );
+  }
+  const sender = senderOf(note);
+  const outbound = note.direction === "outbound";
+  const legacySnippet = splitInboundBody(note.body).snippet;
+  const plain = cleanText(note.email_text || legacySnippet);
+  const isLegacy = !outbound && !note.email_html && !note.email_text;
+
+  return (
+    <article className="mx-reading">
+      <button type="button" className="mx-back" onClick={onBack}>
+        ‹ All emails
+      </button>
+      <h3 className="mx-read-subject">{note.subject || "(no subject)"}</h3>
+      <header className="mx-read-head">
+        <Avatar name={sender.name} email={sender.email} size={44} />
+        <div className="mx-read-meta">
+          <div className="mx-read-from">
+            <strong>{sender.name}</strong>
+            {sender.email && <span className="mx-read-addr">&lt;{sender.email}&gt;</span>}
+          </div>
+          {note.email_to && (
+            <div className="mx-read-line">
+              <span>To:</span> {note.email_to}
+            </div>
+          )}
+          {note.email_cc && (
+            <div className="mx-read-line">
+              <span>Cc:</span> {note.email_cc}
+            </div>
+          )}
+        </div>
+        <div className="mx-read-side">
+          <span className={"mx-tag" + (outbound ? " is-sent" : " is-received")}>{outbound ? "Sent" : "Received"}</span>
+          <time dateTime={note.occurred_at}>{fullDate(note.occurred_at)}</time>
+        </div>
+      </header>
+
+      <Attachments items={note.email_attachments} />
+
+      <div className="mx-read-body">
+        {note.email_html ? <EmailFrame html={note.email_html} /> : <Linkified text={plain} />}
+        {isLegacy && (
+          <p className="mx-legacy-note">
+            This email arrived before full emails were being saved, so only the first few lines were kept. The full
+            message is in relocate@heatherharries.com.
+          </p>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function ComposeForm({ familyId, onDone, onCancel }) {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleLog(e) {
+  async function submit(e) {
     e.preventDefault();
     if (!body.trim()) return;
     setSaving(true);
     setError("");
     try {
-      const note = await createCaseNote({
-        familyId,
-        kind: "email",
-        subject: subject.trim(),
-        body,
-        direction: "outbound",
-      });
-      setNotes((prev) => [note, ...prev]);
-      setSubject("");
-      setBody("");
-      setComposing(false);
+      const note = await createCaseNote({ familyId, kind: "email", subject: subject.trim(), body, direction: "outbound" });
+      onDone(note);
     } catch (err) {
       setError(friendlyError(err));
-    } finally {
       setSaving(false);
     }
   }
 
   return (
-    <section className="family-detail-card">
-      <h2>
-        Emails
-        {notes.length > 0 && <span className="family-detail-card-count">{notes.length}</span>}
-      </h2>
+    <form className="mx-compose" onSubmit={submit}>
+      <p className="mx-compose-title">Log an email you sent or received outside the family&apos;s addresses</p>
+      <input className="panel-input" placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+      <textarea
+        className="panel-input"
+        placeholder="What did the email say?"
+        rows={5}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+      />
+      {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
+      <div className="email-compose-actions">
+        <button type="submit" className="panel-btn panel-btn-primary" disabled={saving || !body.trim()}>
+          {saving ? "Logging…" : "Log email"}
+        </button>
+        <button type="button" className="panel-btn panel-btn-quiet" onClick={onCancel} disabled={saving}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// -------------------------------------------------------------------- main
+
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "inbound", label: "Received" },
+  { key: "outbound", label: "Sent" },
+  { key: "files", label: "Attachments" },
+];
+
+export default function EmailsPanel({ familyId, notes: allNotes }) {
+  const [notes, setNotes] = useState(() =>
+    (allNotes || [])
+      .filter((n) => n.kind === "email")
+      .sort((a, b) => new Date(b.occurred_at) - new Date(a.occurred_at))
+  );
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [selectedId, setSelectedId] = useState(null);
+  const [mobileReading, setMobileReading] = useState(false);
+  const [composing, setComposing] = useState(false);
+  const listRef = useRef(null);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return notes.filter((n) => {
+      if (filter === "inbound" && n.direction !== "inbound") return false;
+      if (filter === "outbound" && n.direction !== "outbound") return false;
+      if (filter === "files" && !(n.email_attachments || []).length) return false;
+      return !q || q.split(/\s+/).every((word) => searchHaystack(n).includes(word));
+    });
+  }, [notes, query, filter]);
+
+  const groups = useMemo(() => {
+    const out = [];
+    visible.forEach((n) => {
+      const label = groupLabel(n.occurred_at);
+      if (!out.length || out[out.length - 1].label !== label) out.push({ label, items: [] });
+      out[out.length - 1].items.push(n);
+    });
+    return out;
+  }, [visible]);
+
+  const selected = visible.find((n) => n.id === selectedId) || visible[0] || null;
+
+  function select(id) {
+    setSelectedId(id);
+    setMobileReading(true);
+  }
+
+  function onKeyDown(e) {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const idx = visible.findIndex((n) => n.id === selected?.id);
+    const next = visible[Math.min(visible.length - 1, Math.max(0, idx + (e.key === "ArrowDown" ? 1 : -1)))];
+    if (next) {
+      setSelectedId(next.id);
+      listRef.current?.querySelector(`[data-id="${next.id}"]`)?.scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  const counts = {
+    all: notes.length,
+    inbound: notes.filter((n) => n.direction === "inbound").length,
+    outbound: notes.filter((n) => n.direction === "outbound").length,
+    files: notes.filter((n) => (n.email_attachments || []).length).length,
+  };
+
+  return (
+    <section className="family-detail-card mx-card">
+      <div className="mx-top">
+        <h2>
+          Emails
+          {notes.length > 0 && <span className="family-detail-card-count">{notes.length}</span>}
+        </h2>
+        <button type="button" className="panel-btn" onClick={() => setComposing((v) => !v)}>
+          {composing ? "Close" : "Log an email"}
+        </button>
+      </div>
       <p className="family-detail-hint">
-        School replies to any of this family&apos;s application addresses land here on their own. Log one by hand
-        below if you sent or received something outside that.
+        Every reply to this family&apos;s application addresses lands here on its own, exactly as it was sent.
       </p>
 
-      {composing ? (
-        <form className="email-compose" onSubmit={handleLog}>
-          <input
-            type="text"
-            className="panel-input"
-            placeholder="Subject"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-          />
-          <textarea
-            className="panel-input"
-            placeholder="What did the email say?"
-            rows={4}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-          />
-          {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
-          <div className="email-compose-actions">
-            <button type="submit" className="panel-btn panel-btn-primary" disabled={saving || !body.trim()}>
-              {saving ? "Logging…" : "Log email"}
-            </button>
-            <button
-              type="button"
-              className="panel-btn panel-btn-quiet"
-              onClick={() => {
-                setComposing(false);
-                setError("");
-              }}
-              disabled={saving}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      ) : (
-        <button type="button" className="panel-btn" onClick={() => setComposing(true)}>
-          Log an email
-        </button>
+      {composing && (
+        <ComposeForm
+          familyId={familyId}
+          onCancel={() => setComposing(false)}
+          onDone={(note) => {
+            setNotes((prev) => [note, ...prev]);
+            setComposing(false);
+            setSelectedId(note.id);
+            setFilter("all");
+            setQuery("");
+          }}
+        />
       )}
 
       {notes.length === 0 ? (
-        <p className="family-detail-hint email-empty-hint">No emails logged yet.</p>
+        <div className="mx-empty">
+          <p>No emails yet.</p>
+          <p className="family-detail-hint">
+            When a school writes to one of this family&apos;s @applications.heatherharries.com addresses it will
+            appear here automatically.
+          </p>
+        </div>
       ) : (
-        <ul className="email-list">
-          {notes.map((note) => (
-            <EmailRow key={note.id} note={note} />
-          ))}
-        </ul>
+        <div className={"mx-shell" + (mobileReading ? " is-reading" : "")}>
+          <div className="mx-list-col">
+            <label className="mx-search">
+              <SearchIcon />
+              <input
+                type="search"
+                placeholder="Search emails"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+            <div className="mx-filters" role="tablist" aria-label="Filter emails">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === f.key}
+                  className={"mx-filter" + (filter === f.key ? " is-active" : "")}
+                  onClick={() => setFilter(f.key)}
+                  disabled={f.key !== "all" && counts[f.key] === 0}
+                >
+                  {f.label}
+                  <span className="mx-filter-count">{counts[f.key]}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mx-list" ref={listRef} tabIndex={0} onKeyDown={onKeyDown} aria-label="Emails">
+              {visible.length === 0 && (
+                <p className="mx-no-results">
+                  Nothing matches{query ? ` “${query}”` : ""}.{" "}
+                  <button
+                    type="button"
+                    className="mx-link-btn"
+                    onClick={() => {
+                      setQuery("");
+                      setFilter("all");
+                    }}
+                  >
+                    Clear search
+                  </button>
+                </p>
+              )}
+              {groups.map((g) => (
+                <div key={g.label} className="mx-group">
+                  <div className="mx-group-label">{g.label}</div>
+                  {g.items.map((n) => {
+                    const s = senderOf(n);
+                    const active = selected?.id === n.id;
+                    return (
+                      <button
+                        key={n.id}
+                        type="button"
+                        data-id={n.id}
+                        className={"mx-row" + (active ? " is-active" : "")}
+                        onClick={() => select(n.id)}
+                      >
+                        <Avatar name={s.name} email={s.email} size={34} />
+                        <span className="mx-row-main">
+                          <span className="mx-row-line1">
+                            <span className="mx-row-sender">{s.name}</span>
+                            <span className="mx-row-date">{listDate(n.occurred_at)}</span>
+                          </span>
+                          <span className="mx-row-line2">
+                            {n.direction === "outbound" && <span className="mx-mini-tag">Sent</span>}
+                            <span className="mx-row-subject">{n.subject || "(no subject)"}</span>
+                            {(n.email_attachments || []).length > 0 && (
+                              <span className="mx-row-clip" title="Has attachments">
+                                <PaperclipIcon />
+                              </span>
+                            )}
+                          </span>
+                          <span className="mx-row-preview">{previewLine(n) || "(no preview)"}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <ReadingPane note={selected} onBack={() => setMobileReading(false)} />
+        </div>
       )}
     </section>
   );
