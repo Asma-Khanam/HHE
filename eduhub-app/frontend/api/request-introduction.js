@@ -11,8 +11,11 @@ import nodemailer from "nodemailer";
 // that already handles our inbound mail.
 //
 // SETUP
-//   1. ImprovMX -> the domain -> SMTP Credentials -> add one, e.g.
-//      relocate@heatherharries.com, and copy its password.
+//   1. ImprovMX -> applications.heatherharries.com -> SMTP Credentials ->
+//      add one, e.g. introductions@applications.heatherharries.com, and copy
+//      its password. (Use the domain that is ALREADY on ImprovMX -- moving
+//      heatherharries.com itself onto ImprovMX would reroute the main inbox.)
+//      Add the SPF/DKIM DNS records ImprovMX shows so mail doesn't hit spam.
 //   2. Client Vercel project -> Settings -> Environment Variables:
 //        SUPABASE_URL               -- same as VITE_SUPABASE_URL
 //        SUPABASE_SERVICE_ROLE_KEY  -- Supabase -> Settings -> API (service_role)
@@ -101,8 +104,12 @@ export default async function handler(req, res) {
 
     const [family] = await sb(`families?account_user_id=eq.${user.id}&select=id,origin,dubai_available_from`);
     if (!family) return res.status(404).json({ error: "No family found" });
-    const parents = await sb(`parents?family_id=eq.${family.id}&select=full_name,email,phone,user_id,relationship`);
-    const holder = parents.find((p) => p.user_id === user.id) || parents.find((p) => p.full_name) || {};
+    // parents has no user_id column -- match the signed-in account by email,
+    // otherwise use the first named parent.
+    const parents = await sb(`parents?family_id=eq.${family.id}&select=full_name,email,phone,relationship&order=created_at`);
+    const me = String(user.email || "").toLowerCase();
+    const holder =
+      parents.find((p) => String(p.email || "").toLowerCase() === me) || parents.find((p) => p.full_name) || {};
     const client = {
       name: holder.full_name || "our client",
       email: holder.email || user.email,
@@ -161,6 +168,13 @@ export default async function handler(req, res) {
     return res.status(200).json({ requests: results });
   } catch (err) {
     console.error("request-introduction error", err.message);
-    return res.status(500).json({ error: "Couldn't send that — please try again." });
+    // Most likely cause on a fresh setup: addendum 76 not run yet.
+    const notSetUp = /partner_services|family_service_requests|schema cache|does not exist/i.test(err.message || "");
+    return res.status(500).json({
+      error: notSetUp
+        ? "This isn't switched on yet — please let your consultant know."
+        : "Couldn't send that — please try again.",
+      detail: String(err.message || "").slice(0, 200),
+    });
   }
 }
