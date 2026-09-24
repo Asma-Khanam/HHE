@@ -105,6 +105,44 @@ function fullDate(iso) {
   });
 }
 
+// Real attachments only -- images pasted into the body (inline) are shown
+// in place, not as chips.
+const filesOf = (note) => (note.email_attachments || []).filter((a) => !a.inline);
+
+// "a@b.com <a@b.com>" -> "a@b.com"
+const tidyAddresses = (s) => (s || "").replace(/([^\s,<>]+@[^\s,<>]+)\s*<\1>/gi, "$1");
+
+const MISSING_IMAGE =
+  '<span style="display:inline-block;padding:6px 10px;border:1px dashed #d8c9ce;border-radius:6px;color:#8a7a80;font-size:12px">Image not available</span>';
+
+// Swap cid: references for private links to the stored image; anything
+// still unresolved becomes a small placeholder instead of a huge empty box.
+function useResolvedHtml(note) {
+  const [state, setState] = useState({ id: null, html: null });
+  useEffect(() => {
+    if (!note?.email_html) return undefined;
+    let cancelled = false;
+    const inlines = (note.email_attachments || []).filter((a) => a.inline && a.cid && a.path);
+    (async () => {
+      let html = note.email_html;
+      for (const a of inlines) {
+        try {
+          const url = await getEmailAttachmentUrl(a.path, 3600);
+          html = html.split(`cid:${a.cid}`).join(url);
+        } catch {
+          /* leave it -- becomes the placeholder below */
+        }
+      }
+      html = html.replace(/<img\b[^>]*\bsrc\s*=\s*(["'])cid:[^"']*\1[^>]*>/gi, MISSING_IMAGE);
+      if (!cancelled) setState({ id: note.id, html });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [note]);
+  return state.id === note?.id ? state.html : null;
+}
+
 function fileSize(n) {
   if (!n) return "";
   if (n < 1024) return `${n} B`;
@@ -115,7 +153,7 @@ function fileSize(n) {
 function searchHaystack(note) {
   const s = senderOf(note);
   return [note.subject, s.name, s.email, note.email_to, note.email_cc, note.email_text, note.body,
-    ...(note.email_attachments || []).map((a) => a.name)]
+    ...filesOf(note).map((a) => a.name)]
     .filter(Boolean)
     .join(" \n ")
     .toLowerCase();
@@ -240,6 +278,7 @@ function Attachments({ items }) {
   const [err, setErr] = useState("");
   if (!items?.length) return null;
   async function open(a) {
+    if (!a.path) return;
     setBusy(a.path);
     setErr("");
     try {
@@ -252,11 +291,20 @@ function Attachments({ items }) {
   }
   return (
     <div className="mx-attachments">
-      {items.map((a) => (
-        <button key={a.path} type="button" className="mx-attachment" onClick={() => open(a)} disabled={busy === a.path}>
+      {items.map((a, i) => (
+        <button
+          key={a.path || `${a.name}-${i}`}
+          type="button"
+          className={"mx-attachment" + (a.path ? "" : " is-missing")}
+          onClick={() => open(a)}
+          disabled={!a.path || busy === a.path}
+          title={a.path ? `Open ${a.name}` : "This file couldn't be saved -- it's still in relocate@heatherharries.com"}
+        >
           <PaperclipIcon />
           <span className="mx-attachment-name">{a.name}</span>
-          <span className="mx-attachment-size">{busy === a.path ? "Opening…" : fileSize(a.size)}</span>
+          <span className="mx-attachment-size">
+            {!a.path ? "couldn't be saved" : busy === a.path ? "Opening…" : fileSize(a.size)}
+          </span>
         </button>
       ))}
       {err && <p className="mx-error">{err}</p>}
@@ -265,6 +313,7 @@ function Attachments({ items }) {
 }
 
 function ReadingPane({ note, onBack }) {
+  const resolvedHtml = useResolvedHtml(note);
   if (!note) {
     return (
       <div className="mx-reading mx-reading-empty">
@@ -293,12 +342,12 @@ function ReadingPane({ note, onBack }) {
           </div>
           {note.email_to && (
             <div className="mx-read-line">
-              <span>To:</span> {note.email_to}
+              <span>To:</span> {tidyAddresses(note.email_to)}
             </div>
           )}
           {note.email_cc && (
             <div className="mx-read-line">
-              <span>Cc:</span> {note.email_cc}
+              <span>Cc:</span> {tidyAddresses(note.email_cc)}
             </div>
           )}
         </div>
@@ -308,10 +357,18 @@ function ReadingPane({ note, onBack }) {
         </div>
       </header>
 
-      <Attachments items={note.email_attachments} />
+      <Attachments items={filesOf(note)} />
 
       <div className="mx-read-body">
-        {note.email_html ? <EmailFrame html={note.email_html} /> : <Linkified text={plain} />}
+        {note.email_html ? (
+          resolvedHtml !== null ? (
+            <EmailFrame html={resolvedHtml} />
+          ) : (
+            <p className="mx-loading">Loading email…</p>
+          )
+        ) : (
+          <Linkified text={plain} />
+        )}
         {isLegacy && (
           <p className="mx-legacy-note">
             This email arrived before full emails were being saved, so only the first few lines were kept. The full
@@ -394,7 +451,7 @@ export default function EmailsPanel({ familyId, notes: allNotes }) {
     return notes.filter((n) => {
       if (filter === "inbound" && n.direction !== "inbound") return false;
       if (filter === "outbound" && n.direction !== "outbound") return false;
-      if (filter === "files" && !(n.email_attachments || []).length) return false;
+      if (filter === "files" && !filesOf(n).length) return false;
       return !q || q.split(/\s+/).every((word) => searchHaystack(n).includes(word));
     });
   }, [notes, query, filter]);
@@ -431,7 +488,7 @@ export default function EmailsPanel({ familyId, notes: allNotes }) {
     all: notes.length,
     inbound: notes.filter((n) => n.direction === "inbound").length,
     outbound: notes.filter((n) => n.direction === "outbound").length,
-    files: notes.filter((n) => (n.email_attachments || []).length).length,
+    files: notes.filter((n) => filesOf(n).length).length,
   };
 
   return (
@@ -539,7 +596,7 @@ export default function EmailsPanel({ familyId, notes: allNotes }) {
                           <span className="mx-row-line2">
                             {n.direction === "outbound" && <span className="mx-mini-tag">Sent</span>}
                             <span className="mx-row-subject">{n.subject || "(no subject)"}</span>
-                            {(n.email_attachments || []).length > 0 && (
+                            {filesOf(n).length > 0 && (
                               <span className="mx-row-clip" title="Has attachments">
                                 <PaperclipIcon />
                               </span>

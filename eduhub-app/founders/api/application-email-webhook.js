@@ -67,7 +67,13 @@ function sbHeaders(extra = {}) {
 
 const addr = (list) =>
   (Array.isArray(list) ? list : list ? [list] : [])
-    .map((p) => (typeof p === "string" ? p : p?.name ? `${p.name} <${p.email}>` : p?.email))
+    .map((p) =>
+      typeof p === "string"
+        ? p
+        : p?.name && p.name.toLowerCase() !== String(p.email || "").toLowerCase()
+          ? `${p.name} <${p.email}>`
+          : p?.email
+    )
     .filter(Boolean)
     .join(", ");
 
@@ -79,6 +85,13 @@ function headerValue(headers, name) {
   }
   const key = Object.keys(headers).find((k) => k.toLowerCase() === name);
   return key ? headers[key] : null;
+}
+
+// ImprovMX sends file content base64-encoded; fall back to raw bytes if a
+// payload ever arrives that clearly isn't base64.
+function toBuffer(content) {
+  const c = String(content || "");
+  return /^[A-Za-z0-9+/=\r\n]+$/.test(c) ? Buffer.from(c, "base64") : Buffer.from(c, "binary");
 }
 
 const safeName = (n) => String(n || "attachment").replace(/[^\w.\- ]+/g, "_").slice(0, 120);
@@ -128,17 +141,22 @@ export default async function handler(req, res) {
   const fromEmail = body.from?.email || (typeof body.from === "string" ? body.from : "") || "(unknown sender)";
   const text = typeof body.text === "string" ? body.text : "";
   let html = typeof body.html === "string" ? body.html : "";
-  const attachments = Array.isArray(body.attachments) ? body.attachments : [];
-
-  // Fold inline (cid:) images into the HTML so logos/signatures render.
-  const fileAttachments = [];
-  for (const a of attachments) {
-    const cid = String(a?.cid || a?.contentId || "").replace(/[<>]/g, "");
+  // ImprovMX splits files in two: "attachments" (real files) and "inlines"
+  // (images pasted into the body, referenced from the HTML as cid:...).
+  const toSave = []; // { item, inline, cid }
+  for (const a of Array.isArray(body.attachments) ? body.attachments : []) {
+    if (a?.content) toSave.push({ item: a, inline: false, cid: null });
+  }
+  for (const a of Array.isArray(body.inlines) ? body.inlines : []) {
+    const cid = String(a?.cid || "").replace(/[<>]/g, "");
     const b64 = typeof a?.content === "string" ? a.content : "";
-    if (cid && html && b64 && b64.length <= MAX_INLINE_IMAGE && html.includes(`cid:${cid}`)) {
-      html = html.split(`cid:${cid}`).join(`data:${a.type || "image/png"};base64,${b64}`);
-    } else if (b64) {
-      fileAttachments.push(a);
+    if (!b64) continue;
+    if (cid && html && b64.length <= MAX_INLINE_IMAGE && /^[A-Za-z0-9+/=\r\n]+$/.test(b64)) {
+      // Small image: fold straight into the HTML.
+      html = html.split(`cid:${cid}`).join(`data:${a.type || "image/png"};base64,${b64.replace(/\s+/g, "")}`);
+    } else {
+      // Big photo: store it; the Emails tab swaps cid: for a private link.
+      toSave.push({ item: a, inline: true, cid: cid || null });
     }
   }
   if (html.length > MAX_HTML) html = ""; // absurdly large -- fall back to text
@@ -178,23 +196,33 @@ export default async function handler(req, res) {
     }
 
     const out = result.json || {};
-    if (out.logged && out.note_id && !out.duplicate && fileAttachments.length) {
+    if (out.logged && out.note_id && !out.duplicate && toSave.length) {
+      // Every file gets a row -- if an upload fails the Emails tab still
+      // shows its name with "couldn't be saved", so nothing goes missing
+      // silently.
       const saved = [];
-      for (const a of fileAttachments) {
+      for (const { item: a, inline, cid } of toSave) {
+        const name = safeName(a.name || a.filename || (inline ? "image" : "attachment"));
+        const entry = { name, type: a.type || null, size: 0, path: null, inline, cid };
         try {
-          const name = safeName(a.name || a.filename);
+          const buf = toBuffer(a.content);
+          entry.size = buf.length;
           const path = `${out.family_id}/${out.note_id}/${saved.length + 1}-${name}`;
-          const buf = Buffer.from(a.content, "base64");
           const up = await fetch(`${process.env.SUPABASE_URL}/storage/v1/object/email-attachments/${encodeURI(path)}`, {
             method: "POST",
             headers: sbHeaders({ "Content-Type": a.type || "application/octet-stream", "x-upsert": "true" }),
             body: buf,
           });
-          if (up.ok) saved.push({ name, type: a.type || null, size: buf.length, path });
-          else console.error("attachment upload failed", up.status);
+          if (up.ok) entry.path = path;
+          else {
+            entry.error = `upload failed (${up.status})`;
+            console.error("attachment upload failed", up.status, (await up.text()).slice(0, 200));
+          }
         } catch (e) {
+          entry.error = "upload error";
           console.error("attachment upload error", e?.message);
         }
+        saved.push(entry);
       }
       if (saved.length) {
         await fetch(`${process.env.SUPABASE_URL}/rest/v1/case_notes?id=eq.${out.note_id}`, {
