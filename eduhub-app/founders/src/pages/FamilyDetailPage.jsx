@@ -70,8 +70,10 @@ const PARENT_FIELDS = [
   { key: "religion", label: "Religion", type: "select", options: RELIGIONS },
   { key: "first_language", label: "First language", type: "select", options: LANGUAGES },
   { key: "second_language", label: "Second language", type: "select", options: LANGUAGES },
-  { key: "employer_name", label: "Employer name" },
+  { key: "highest_qualification", label: "Highest qualification" },
   { key: "occupation_designation", label: "Job title" },
+  { key: "employer_name", label: "Company" },
+  { key: "move_type", label: "New position / international transfer" },
   { key: "address", label: "Their address", wide: true },
 ];
 

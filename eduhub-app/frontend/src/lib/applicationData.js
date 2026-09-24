@@ -91,6 +91,9 @@ const PARENT_COLUMNS = [
   "second_language",
   "employer_name",
   "occupation_designation",
+  // Addendum 76 (founder request, Sept 2026).
+  "highest_qualification",
+  "move_type",
   "eid",
   // Added by eduhub_schema_addendum_4.sql (2026-09-02).
   "address",
@@ -288,8 +291,22 @@ function withoutSchoolSiblingColumn(payload) {
   return out;
 }
 
+// Addendum 76 -- same "might not exist yet" guard as the others.
+let parentWorkColumnsMissing = false;
+function isMissingParentWorkColumnsError(error) {
+  const msg = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+  return (msg.includes("highest_qualification") || msg.includes("move_type")) && (msg.includes("does not exist") || msg.includes("could not find"));
+}
+function withoutParentWorkColumns(p) {
+  const rest = { ...p };
+  delete rest.highest_qualification;
+  delete rest.move_type;
+  return rest;
+}
+
 function applyColumnGuards(payload) {
   let out = payload;
+  if (parentWorkColumnsMissing) out = withoutParentWorkColumns(out);
   if (addressColumnsMissing) out = withoutAddressColumns(out);
   if (childNewColumnsMissing) out = withoutChildNewColumns(out);
   if (childSenColumnsMissing) out = withoutChildSenColumns(out);
@@ -308,6 +325,11 @@ async function saveRow(payload, run) {
   const first = await run(applyColumnGuards(payload));
   if (!first.error) return first.data;
 
+  if (!parentWorkColumnsMissing && isMissingParentWorkColumnsError(first.error)) {
+    console.warn("parents.highest_qualification / move_type missing — run eduhub_schema_addendum_76. Saving everything else for now.");
+    parentWorkColumnsMissing = true;
+    return saveRow(payload, run);
+  }
   if (!addressColumnsMissing && isMissingAddressColumnError(first.error)) {
     console.warn(
       "Address columns are missing from this database — run eduhub_schema_addendum_4_addresses.sql in the Supabase SQL editor. Saving everything else for now."

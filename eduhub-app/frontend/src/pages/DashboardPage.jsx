@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import SchoolUpdatesCard from "../components/SchoolUpdatesCard";
+import IntroductionsCard from "../components/IntroductionsCard";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import { IconCheckCircle, IconChevronDown, IconChevronRight } from "../components/icons";
 import {
@@ -312,6 +313,8 @@ export default function DashboardPage() {
           </section>
 
           <SchoolUpdatesCard />
+
+          <IntroductionsCard />
         </div>
 
         {missingFields.length > 0 && (

@@ -1082,3 +1082,16 @@
 .pl-date{width:auto}
 .gdp-desc{margin-top:6px}
 .panel-field-hint{margin:6px 0 0;font-size:.78rem;opacity:.7}
+
+/* Addendum 76 -- trusted partners + introductions. */
+.partners-table { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.partners-row { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1.4fr 40px; gap: 8px; align-items: center; font-size: 0.85rem; }
+.partners-head { font-size: 0.72rem; font-weight: 600; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.04em; }
+.partners-row.is-off > *:not(input[type="checkbox"]) { opacity: 0.45; }
+.partners-row .panel-input { width: 100%; min-width: 0; }
+.partners-row .panel-input.is-saved { border-color: #2f6b4f; }
+@media (max-width: 900px) { .partners-row { grid-template-columns: 1fr 1fr; } .partners-head { display: none; } }
+.intro-status { font-size: 0.72rem; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.intro-status.is-good { background: #e4f3e9; color: #1f7a44; }
+.intro-status.is-warn { background: #f6eedb; color: #7a5f22; }
+.intro-status.is-bad { background: #f8e3e1; color: #b3261e; }

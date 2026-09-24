@@ -1566,3 +1566,42 @@ export async function createFamilySchoolUpdate({ familyId, schoolId, childId, st
       .single()
   );
 }
+
+// Addendum 76: trusted partner introductions.
+export async function listPartnerServices() {
+  const { data, error } = await supabase.from("partner_services").select("*").order("sort_order");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function updatePartnerService(key, changes) {
+  return unwrap(
+    await supabase
+      .from("partner_services")
+      .update({ ...changes, updated_at: new Date().toISOString() })
+      .eq("key", key)
+      .select()
+      .single()
+  );
+}
+
+export async function listFamilyServiceRequests(familyId) {
+  const { data, error } = await supabase
+    .from("family_service_requests")
+    .select("*, service:partner_services ( label )")
+    .eq("family_id", familyId)
+    .order("requested_at", { ascending: false });
+  if (error) return [];
+  return data || [];
+}
+
+export async function markServiceRequestIntroduced(id) {
+  return unwrap(
+    await supabase
+      .from("family_service_requests")
+      .update({ email_status: "sent", email_sent_at: new Date().toISOString(), email_error: "Introduced by the team" })
+      .eq("id", id)
+      .select("*, service:partner_services ( label )")
+      .single()
+  );
+}

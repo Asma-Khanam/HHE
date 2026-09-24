@@ -180,6 +180,8 @@ const emptyParent = {
   second_language: "",
   employer_name: "",
   occupation_designation: "",
+  highest_qualification: "",
+  move_type: "",
   eid: "",
   address: "",
   address_same_as: "",
@@ -445,6 +447,23 @@ const SCHOOL_PRIORITY_OPTIONS = [
 // AH-10: options for "What is your comfortable annual fee range, per child?"
 // — fixed list, family-level, asked once under the account holder alongside
 // AH-09. No "Other" in the document's spec, so this is a StrictSelect.
+// Founder request (Sept 2026): two extra work questions per parent.
+const QUALIFICATION_OPTIONS = [
+  "Secondary school (GCSE / high school)",
+  "A-levels / IB / equivalent",
+  "Vocational or trade qualification",
+  "Bachelor's degree",
+  "Master's degree",
+  "Doctorate (PhD)",
+  "Professional qualification (e.g. ACCA, CFA, law, medicine)",
+];
+const MOVE_TYPE_OPTIONS = [
+  "New position",
+  "International transfer (same company)",
+  "Starting my own business",
+  "Not working / accompanying partner",
+];
+
 const FEE_RANGE_OPTIONS = [
   "Up to AED 30,000",
   "AED 30,000 to 50,000",
@@ -3031,11 +3050,25 @@ function ParentSection({
         placeholder="Select language"
         disabled={synced}
       />
-      <FormField label="Employer name" value={parent.employer_name} onChange={(v) => onChange("employer_name", v)} />
+      <FormSelect
+        label="Highest qualification achieved"
+        value={parent.highest_qualification}
+        onChange={(v) => onChange("highest_qualification", v)}
+        options={QUALIFICATION_OPTIONS}
+        placeholder="Select qualification"
+      />
       <FormField
         label="Job title"
         value={parent.occupation_designation}
         onChange={(v) => onChange("occupation_designation", v)}
+      />
+      <FormField label="Company" value={parent.employer_name} onChange={(v) => onChange("employer_name", v)} />
+      <FormSelect
+        label="Is this a new position or an international transfer?"
+        value={parent.move_type}
+        onChange={(v) => onChange("move_type", v)}
+        options={MOVE_TYPE_OPTIONS}
+        placeholder="Select an option"
       />
       </FormSection>
       </div>

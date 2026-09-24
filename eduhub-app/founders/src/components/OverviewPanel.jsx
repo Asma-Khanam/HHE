@@ -4,6 +4,7 @@ import SchoolPipelinePanel from "./SchoolPipelinePanel";
 import CopyButton from "./CopyButton";
 import { householdAddress } from "../lib/address";
 import ReferralsPanel from "./ReferralsPanel";
+import IntroductionsPanel from "./IntroductionsPanel";
 import PlacementPanel from "./PlacementPanel";
 import CaseNotesPanel from "./CaseNotesPanel";
 import GenericDocumentsPanel from "./GenericDocumentsPanel";
@@ -166,6 +167,8 @@ export default function OverviewPanel({
       )}
 
       <ReferralsPanel family={family} />
+
+      <IntroductionsPanel family={family} />
 
       <CaseNotesPanel
         familyId={family.id}

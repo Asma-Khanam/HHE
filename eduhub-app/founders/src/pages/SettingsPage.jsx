@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getYearGroupCutoff, updateYearGroupCutoff, friendlyError } from "../lib/staffData";
 import "../components/panels.css";
 import "./TeamPage.css";
+import PartnersSettings from "../components/PartnersSettings";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -100,6 +101,8 @@ export default function SettingsPage() {
           </button>
         </div>
       </section>
+
+      <PartnersSettings />
     </div>
   );
 }
