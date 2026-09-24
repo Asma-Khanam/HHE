@@ -1,0 +1,563 @@
+/* Harri -- the consultant site's robot sidekick */
+
+/* --------------------------------------------------------------- robot */
+
+.harri-bot {
+  display: block;
+  overflow: visible;
+}
+
+.harri-bot .harri-bulb {
+  animation: harri-glow 2.4s ease-in-out infinite;
+}
+
+.harri-bot.is-thinking .harri-bulb {
+  animation: harri-glow 0.5s ease-in-out infinite;
+}
+
+@keyframes harri-glow {
+  0%,
+  100% {
+    fill: #f4c96b;
+    filter: none;
+  }
+  50% {
+    fill: #fff1b8;
+    filter: drop-shadow(0 0 6px #f4c96b);
+  }
+}
+
+.harri-bot .harri-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: harri-blink 4.2s infinite;
+}
+
+@keyframes harri-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+
+.harri-bot.is-thinking .harri-eyes {
+  animation: harri-look 1.1s ease-in-out infinite;
+}
+
+@keyframes harri-look {
+  0%,
+  100% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+
+.harri-bot .harri-happy-eyes,
+.harri-bot .harri-smile {
+  display: none;
+}
+
+.harri-bot.is-happy .harri-happy-eyes,
+.harri-bot.is-happy .harri-smile {
+  display: inline;
+}
+
+.harri-bot.is-happy .harri-eyes,
+.harri-bot.is-happy .harri-mouth {
+  display: none;
+}
+
+.harri-bot .harri-mouth {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.harri-bot.is-talking .harri-mouth {
+  animation: harri-talk 0.28s ease-in-out infinite alternate;
+}
+
+@keyframes harri-talk {
+  from {
+    transform: scaleY(0.6);
+  }
+  to {
+    transform: scaleY(2.4);
+  }
+}
+
+.harri-bot .harri-heart {
+  animation: harri-glow 3s ease-in-out infinite;
+}
+
+.harri-bot .harri-arm-r {
+  transform-box: fill-box;
+  transform-origin: 50% 10%;
+}
+
+.harri-launcher:hover .harri-bot.is-waving .harri-arm-r,
+.harri-bot.is-happy .harri-arm-r {
+  animation: harri-wave 0.5s ease-in-out 3 alternate;
+}
+
+@keyframes harri-wave {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-150deg);
+  }
+}
+
+/* ------------------------------------------------------------ launcher */
+
+.harri-launcher {
+  position: fixed;
+  right: 22px;
+  bottom: 18px;
+  z-index: 60;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  filter: drop-shadow(0 8px 14px rgba(83, 1, 38, 0.3));
+  animation: harri-bob 3.2s ease-in-out infinite;
+}
+
+.harri-launcher:focus-visible {
+  outline: 3px solid var(--hh-gold);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+@keyframes harri-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.harri-greet {
+  position: fixed;
+  right: 22px;
+  bottom: 104px;
+  z-index: 60;
+  max-width: 250px;
+  padding: 12px 30px 12px 14px;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--hh-white);
+  box-shadow: var(--hh-shadow);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--hh-ink);
+  animation: harri-pop 0.35s ease-out;
+}
+
+.harri-greet strong {
+  display: block;
+  color: var(--hh-burgundy);
+}
+
+.harri-greet-x {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  padding: 3px;
+  border: none;
+  background: none;
+  color: rgba(42, 17, 25, 0.45);
+  cursor: pointer;
+}
+
+@keyframes harri-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------- panel */
+
+.harri-panel {
+  position: fixed;
+  right: 22px;
+  bottom: 18px;
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  width: 400px;
+  height: min(640px, calc(100vh - 36px));
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--hh-cream);
+  box-shadow: 0 24px 60px rgba(83, 1, 38, 0.28);
+  font-family: var(--hh-font-body);
+  animation: harri-pop 0.25s ease-out;
+}
+
+.harri-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px 10px 14px;
+  background: linear-gradient(135deg, var(--hh-burgundy), var(--hh-burgundy-light));
+  color: var(--hh-white);
+}
+
+.harri-head-bot {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.harri-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.harri-name {
+  font-family: var(--hh-font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.harri-sub {
+  font-size: 0.74rem;
+  opacity: 0.8;
+}
+
+.harri-head-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.harri-head-actions button {
+  display: inline-flex;
+  padding: 7px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--hh-white);
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+.harri-head-actions button:hover {
+  background: rgba(255, 255, 255, 0.14);
+  opacity: 1;
+}
+
+.harri-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.harri-msg {
+  display: flex;
+  flex-direction: column;
+  max-width: 88%;
+}
+
+.harri-msg.is-user {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.harri-msg.is-harri {
+  align-self: flex-start;
+}
+
+.harri-bubble {
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--hh-ink);
+  overflow-wrap: anywhere;
+}
+
+.is-harri .harri-bubble {
+  background: var(--hh-white);
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 2px 8px rgba(83, 1, 38, 0.06);
+}
+
+.is-user .harri-bubble {
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  border-bottom-right-radius: 4px;
+}
+
+.is-error .harri-bubble {
+  background: #fdf0ef;
+  color: var(--hh-error);
+}
+
+.harri-bubble p {
+  margin: 0 0 6px;
+}
+
+.harri-bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.harri-bubble .harri-h {
+  font-weight: 700;
+  color: var(--hh-burgundy);
+}
+
+.harri-bubble ul,
+.harri-bubble ol {
+  margin: 4px 0 6px;
+  padding-left: 20px;
+}
+
+.harri-bubble li {
+  margin: 2px 0;
+}
+
+.harri-bubble code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #f6f0ee;
+  font-size: 0.8rem;
+}
+
+.harri-bubble a {
+  color: var(--hh-burgundy-light);
+}
+
+.harri-small {
+  font-size: 0.74rem;
+  color: rgba(42, 17, 25, 0.55);
+}
+
+.harri-family-link {
+  display: inline;
+  padding: 0 4px;
+  border: none;
+  border-radius: 5px;
+  background: rgba(83, 1, 38, 0.08);
+  font: inherit;
+  font-weight: 600;
+  color: var(--hh-burgundy);
+  cursor: pointer;
+}
+
+.harri-family-link:hover {
+  background: rgba(83, 1, 38, 0.16);
+}
+
+.harri-sources {
+  margin-top: 3px;
+  padding-left: 4px;
+  font-size: 0.68rem;
+  color: rgba(42, 17, 25, 0.5);
+}
+
+.harri-copy {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 1px 4px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.68rem;
+  color: rgba(42, 17, 25, 0.45);
+  cursor: pointer;
+}
+
+.harri-copy:hover {
+  color: var(--hh-burgundy);
+}
+
+.harri-retry {
+  margin-top: 6px;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 0.76rem;
+  color: inherit;
+  cursor: pointer;
+}
+
+.harri-typing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.harri-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hh-burgundy-light);
+  animation: harri-dot 1s ease-in-out infinite;
+}
+
+.harri-typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.harri-typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.harri-typing em {
+  margin-left: 6px;
+  font-size: 0.76rem;
+  font-style: normal;
+  color: rgba(42, 17, 25, 0.55);
+}
+
+@keyframes harri-dot {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.harri-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.harri-suggest button {
+  padding: 7px 12px;
+  border: 1px solid rgba(122, 23, 67, 0.25);
+  border-radius: 999px;
+  background: var(--hh-white);
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--hh-burgundy);
+  cursor: pointer;
+  transition: background var(--hh-transition);
+}
+
+.harri-suggest button:hover {
+  background: rgba(83, 1, 38, 0.06);
+}
+
+.harri-input {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 10px 10px 12px;
+  border-top: 1px solid var(--hh-track);
+  background: var(--hh-white);
+}
+
+.harri-input textarea {
+  flex: 1;
+  min-height: 40px;
+  max-height: 120px;
+  padding: 10px 12px;
+  border: 1px solid var(--hh-track);
+  border-radius: 12px;
+  resize: none;
+  font: inherit;
+  font-size: 0.86rem;
+  color: var(--hh-ink);
+  outline: none;
+}
+
+.harri-input textarea:focus {
+  border-color: var(--hh-burgundy-light);
+  box-shadow: 0 0 0 3px rgba(122, 23, 67, 0.12);
+}
+
+.harri-mic,
+.harri-send {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.harri-mic {
+  background: #f6f0ee;
+  color: var(--hh-burgundy);
+}
+
+.harri-mic.is-on {
+  background: var(--hh-error);
+  color: var(--hh-white);
+  animation: harri-glowbox 1s ease-in-out infinite;
+}
+
+@keyframes harri-glowbox {
+  50% {
+    box-shadow: 0 0 0 5px rgba(179, 38, 30, 0.2);
+  }
+}
+
+.harri-send {
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+}
+
+.harri-send:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (max-width: 700px) {
+  .harri-panel {
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .harri-launcher {
+    right: 14px;
+    bottom: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .harri-launcher,
+  .harri-bot *,
+  .harri-panel,
+  .harri-greet {
+    animation: none !important;
+  }
+}

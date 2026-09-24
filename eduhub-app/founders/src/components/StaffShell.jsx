@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import logoWhite from "../assets/brand/relocate-logo-white.png";
+import Harri from "./Harri";
 import "./StaffShell.css";
 
 // The sidebar shell every /staff page sits inside — styled after the
@@ -82,6 +83,9 @@ export default function StaffShell() {
       <main className="staff-main">
         <Outlet />
       </main>
+
+      {/* Harri, the robot sidekick -- bottom-right on every staff page */}
+      <Harri staffName={me?.full_name || ""} />
     </div>
   );
 }
