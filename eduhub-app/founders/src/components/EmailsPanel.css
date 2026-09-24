@@ -518,3 +518,141 @@
     justify-content: space-between;
   }
 }
+
+/* ------------------------------------------------------ Claude summary */
+
+.mx-ai {
+  margin: 14px 0 4px;
+  padding: 14px 16px;
+  border: 1px solid rgba(122, 23, 67, 0.18);
+  border-radius: var(--hh-radius);
+  background: linear-gradient(180deg, #fbf4f7, #fdfafb);
+}
+
+.mx-ai.is-urgent {
+  border-color: rgba(179, 38, 30, 0.35);
+}
+
+.mx-ai-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mx-ai-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.mx-ai-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--hh-burgundy-light);
+}
+
+.mx-ai-cat {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+}
+
+.mx-ai-urgent {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(179, 38, 30, 0.1);
+  color: var(--hh-error);
+}
+
+.mx-ai-refresh {
+  margin-left: auto;
+  font-size: 0.74rem;
+}
+
+.mx-ai-summary {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--hh-ink);
+}
+
+.mx-ai-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.mx-ai-date {
+  font-size: 0.76rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--hh-white);
+  border: 1px solid var(--hh-track);
+  color: var(--hh-ink);
+}
+
+.mx-ai-tasks {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mx-ai-tasks li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--hh-white);
+  border: 1px solid var(--hh-track);
+}
+
+.mx-ai-task-title {
+  font-size: 0.82rem;
+  color: var(--hh-ink);
+  min-width: 0;
+}
+
+.mx-ai-task-due {
+  color: rgba(42, 17, 25, 0.55);
+}
+
+.mx-ai-added {
+  flex-shrink: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--hh-good);
+}
+
+.mx-ai-foot {
+  margin: 10px 0 0;
+  font-size: 0.7rem;
+  color: rgba(42, 17, 25, 0.5);
+}
+
+.mx-mini-tag.is-ai {
+  background: rgba(83, 1, 38, 0.08);
+  color: var(--hh-burgundy);
+}
+
+.mx-mini-tag.is-ai.is-urgent {
+  background: rgba(179, 38, 30, 0.1);
+  color: var(--hh-error);
+}

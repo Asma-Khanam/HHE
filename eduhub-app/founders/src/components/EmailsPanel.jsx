@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createCaseNote, friendlyError, getEmailAttachmentUrl } from "../lib/staffData";
+import {
+  createCaseNote,
+  createTask,
+  friendlyError,
+  getEmailAttachmentUrl,
+  requestEmailInsight,
+  saveEmailInsight,
+} from "../lib/staffData";
 import "./panels.css";
 import "./EmailsPanel.css";
 
@@ -150,9 +157,135 @@ function fileSize(n) {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
+const CATEGORY_LABELS = {
+  assessment_invite: "Assessment",
+  offer: "Offer",
+  waitlist: "Waitlist",
+  rejection: "Not offered",
+  documents_requested: "Documents needed",
+  fees_payment: "Fees",
+  tour_or_visit: "Tour / visit",
+  interview: "Interview",
+  application_received: "Application received",
+  general_info: "Info",
+  other: "Other",
+};
+
+function prettyDate(ymd, time) {
+  if (!ymd) return "";
+  const d = new Date(`${ymd}T${time || "00:00"}`);
+  if (Number.isNaN(d.getTime())) return ymd;
+  const day = d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  return time ? `${day}, ${time}` : day;
+}
+
+function SparkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+      <path d="M12 2l1.8 5.6L19.5 9l-5.7 1.6L12 16l-1.8-5.4L4.5 9l5.7-1.4zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z" />
+    </svg>
+  );
+}
+
+// Claude's reading of the email -- summary, dates, suggested to-dos. Only
+// suggestions: nothing happens until a consultant clicks "Add as task".
+function InsightBox({ note, familyId, onUpdate }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [adding, setAdding] = useState(null);
+  const ins = note.ai_insight;
+
+  async function run() {
+    setBusy(true);
+    setErr("");
+    try {
+      onUpdate(await requestEmailInsight(note.id));
+    } catch (e) {
+      setErr(friendlyError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addTask(i) {
+    const t = ins.suggested_tasks[i];
+    setAdding(i);
+    setErr("");
+    try {
+      await createTask({ familyId, title: t.title, dueDate: t.due_date || null });
+      const next = { ...ins, suggested_tasks: ins.suggested_tasks.map((x, j) => (j === i ? { ...x, added: true } : x)) };
+      onUpdate(await saveEmailInsight(note.id, next));
+    } catch (e) {
+      setErr(friendlyError(e));
+    } finally {
+      setAdding(null);
+    }
+  }
+
+  if (!ins) {
+    return (
+      <div className="mx-ai mx-ai-empty">
+        <span className="mx-ai-title">
+          <SparkIcon /> Claude can summarise this email and suggest next steps
+        </span>
+        <button type="button" className="panel-btn" onClick={run} disabled={busy}>
+          {busy ? "Reading…" : "Summarise"}
+        </button>
+        {(err || note.ai_insight_error) && <p className="mx-error">{err || note.ai_insight_error}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className={"mx-ai" + (ins.urgency === "high" ? " is-urgent" : "")}>
+      <div className="mx-ai-head">
+        <span className="mx-ai-title">
+          <SparkIcon /> Claude&apos;s summary
+        </span>
+        <span className="mx-ai-cat">{CATEGORY_LABELS[ins.category] || "Other"}</span>
+        {ins.urgency === "high" && <span className="mx-ai-urgent">Needs action soon</span>}
+        <button type="button" className="mx-link-btn mx-ai-refresh" onClick={run} disabled={busy}>
+          {busy ? "Reading…" : "Refresh"}
+        </button>
+      </div>
+      <p className="mx-ai-summary">{ins.summary}</p>
+      {ins.key_dates?.length > 0 && (
+        <div className="mx-ai-dates">
+          {ins.key_dates.map((d, i) => (
+            <span key={i} className="mx-ai-date">
+              <strong>{d.label}</strong> {prettyDate(d.date, d.time)}
+            </span>
+          ))}
+        </div>
+      )}
+      {ins.suggested_tasks?.length > 0 && (
+        <ul className="mx-ai-tasks">
+          {ins.suggested_tasks.map((t, i) => (
+            <li key={i}>
+              <span className="mx-ai-task-title">
+                {t.title}
+                {t.due_date && <span className="mx-ai-task-due"> · by {prettyDate(t.due_date)}</span>}
+              </span>
+              {t.added ? (
+                <span className="mx-ai-added">Added ✓</span>
+              ) : (
+                <button type="button" className="panel-btn" onClick={() => addTask(i)} disabled={adding !== null}>
+                  {adding === i ? "Adding…" : "Add as task"}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {err && <p className="mx-error">{err}</p>}
+      <p className="mx-ai-foot">AI-generated from the email above — check before acting.</p>
+    </div>
+  );
+}
+
 function searchHaystack(note) {
   const s = senderOf(note);
-  return [note.subject, s.name, s.email, note.email_to, note.email_cc, note.email_text, note.body,
+  return [note.subject, note.ai_insight?.summary, CATEGORY_LABELS[note.ai_insight?.category], s.name, s.email, note.email_to, note.email_cc, note.email_text, note.body,
     ...filesOf(note).map((a) => a.name)]
     .filter(Boolean)
     .join(" \n ")
@@ -312,7 +445,7 @@ function Attachments({ items }) {
   );
 }
 
-function ReadingPane({ note, onBack }) {
+function ReadingPane({ note, onBack, familyId, onUpdate }) {
   const resolvedHtml = useResolvedHtml(note);
   if (!note) {
     return (
@@ -356,6 +489,8 @@ function ReadingPane({ note, onBack }) {
           <time dateTime={note.occurred_at}>{fullDate(note.occurred_at)}</time>
         </div>
       </header>
+
+      {!outbound && <InsightBox key={note.id} note={note} familyId={familyId} onUpdate={onUpdate} />}
 
       <Attachments items={filesOf(note)} />
 
@@ -595,6 +730,11 @@ export default function EmailsPanel({ familyId, notes: allNotes }) {
                           </span>
                           <span className="mx-row-line2">
                             {n.direction === "outbound" && <span className="mx-mini-tag">Sent</span>}
+                            {n.ai_insight?.category && n.ai_insight.category !== "other" && (
+                              <span className={"mx-mini-tag is-ai" + (n.ai_insight.urgency === "high" ? " is-urgent" : "")}>
+                                {CATEGORY_LABELS[n.ai_insight.category]}
+                              </span>
+                            )}
                             <span className="mx-row-subject">{n.subject || "(no subject)"}</span>
                             {filesOf(n).length > 0 && (
                               <span className="mx-row-clip" title="Has attachments">
@@ -602,7 +742,7 @@ export default function EmailsPanel({ familyId, notes: allNotes }) {
                               </span>
                             )}
                           </span>
-                          <span className="mx-row-preview">{previewLine(n) || "(no preview)"}</span>
+                          <span className="mx-row-preview">{n.ai_insight?.summary || previewLine(n) || "(no preview)"}</span>
                         </span>
                       </button>
                     );
@@ -612,7 +752,12 @@ export default function EmailsPanel({ familyId, notes: allNotes }) {
             </div>
           </div>
 
-          <ReadingPane note={selected} onBack={() => setMobileReading(false)} />
+          <ReadingPane
+            note={selected}
+            familyId={familyId}
+            onBack={() => setMobileReading(false)}
+            onUpdate={(updated) => setNotes((prev) => prev.map((n) => (n.id === updated.id ? { ...n, ...updated } : n)))}
+          />
         </div>
       )}
     </section>

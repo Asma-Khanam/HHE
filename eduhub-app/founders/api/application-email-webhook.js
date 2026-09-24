@@ -1,3 +1,5 @@
+import { getEmailInsight, insightEnabled } from "./_lib/emailInsight.js";
+
 // Vercel serverless function — receives ImprovMX's webhook POST for mail
 // sent to *@applications.heatherharries.com and logs it against the right
 // family (addendum 7 + 49's log_application_email).
@@ -230,6 +232,27 @@ export default async function handler(req, res) {
           headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
           body: JSON.stringify({ email_attachments: saved }),
         });
+      }
+    }
+
+    // Claude's reading of the email (summary, dates, suggested to-dos) --
+    // best effort, never blocks logging. Staff can re-run it from the tab.
+    if (out.logged && out.note_id && !out.duplicate && insightEnabled()) {
+      try {
+        const insight = await getEmailInsight({
+          subject: body.subject,
+          email_from: fromEmail,
+          email_from_name: body.from?.name,
+          email_text: text,
+          email_html: html,
+        });
+        await fetch(`${process.env.SUPABASE_URL}/rest/v1/case_notes?id=eq.${out.note_id}`, {
+          method: "PATCH",
+          headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+          body: JSON.stringify({ ai_insight: insight, ai_insight_at: new Date().toISOString() }),
+        });
+      } catch (e) {
+        console.error("email insight failed", e?.message);
       }
     }
 

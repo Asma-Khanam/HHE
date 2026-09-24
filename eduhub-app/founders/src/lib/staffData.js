@@ -645,6 +645,27 @@ export async function getEmailAttachmentUrl(path, seconds = 120) {
   return data.signedUrl;
 }
 
+// Claude's reading of one email (addendum 78) -- runs server-side in
+// /api/email-insight so the API key never reaches the browser.
+export async function requestEmailInsight(noteId) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const res = await fetch("/api/email-insight", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
+    body: JSON.stringify({ noteId }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || "Couldn't summarise that email");
+  return body.note;
+}
+
+// Remember which of Claude's suggested tasks were turned into real tasks.
+export async function saveEmailInsight(noteId, insight) {
+  return unwrap(await supabase.from("case_notes").update({ ai_insight: insight }).eq("id", noteId).select().single());
+}
+
 export async function deleteCaseNote(noteId) {
   const { error } = await supabase.from("case_notes").delete().eq("id", noteId);
   if (error) throw error;
