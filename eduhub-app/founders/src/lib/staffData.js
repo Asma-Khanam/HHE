@@ -1733,7 +1733,13 @@ export async function sendFamilyEmail(payload) {
     body: JSON.stringify(payload),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Couldn't send that email.");
+  if (!res.ok) {
+    // detail is the raw SMTP/server error -- worth showing alongside the
+    // friendly message so a login/config problem can be diagnosed without
+    // needing to go dig through the Vercel function logs.
+    const message = data.error || "Couldn't send that email.";
+    throw new Error(data.detail && data.detail !== message ? `${message} (${data.detail})` : message);
+  }
   return data.note;
 }
 
