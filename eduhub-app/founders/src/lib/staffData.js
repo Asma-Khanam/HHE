@@ -697,33 +697,50 @@ export async function deleteCaseNote(noteId) {
 // refuses to let it change on update.
 // ---------------------------------------------------------------------------
 
-// Pulls calendar_events AND tasks into one merged, calendar-shaped list.
-// Tasks are not copied anywhere — this reads the exact same `tasks` rows
-// TasksPanel and the Today page use, so a task added on the family page
-// shows up here automatically, and a "Task" added from the calendar shows
-// up on the family page automatically. Nothing here is ever written to
-// `calendar_events` for a task; the two tables stay exactly what they were.
-export async function loadCalendarEvents({ from, to } = {}) {
-  // Founders (25 Sept 2026): the calendar is for tours and assessments --
-  // the to-do list lives on each family's Tasks list instead, not here.
-  let eventsQuery = supabase.from("calendar_events").select("*").order("starts_at");
-  let visitsQuery = supabase.from("applications").select("*").not("visit_date", "is", null).order("visit_date");
-  let assessmentsQuery = supabase.from("applications").select("*").not("assessment_date", "is", null).order("assessment_date");
-  if (from) {
-    eventsQuery = eventsQuery.gte("starts_at", new Date(from).toISOString());
-    visitsQuery = visitsQuery.gte("visit_date", toDateOnly(from));
-    assessmentsQuery = assessmentsQuery.gte("assessment_date", toDateOnly(from));
-  }
-  if (to) {
-    eventsQuery = eventsQuery.lt("starts_at", new Date(to).toISOString());
-    visitsQuery = visitsQuery.lt("visit_date", toDateOnly(to));
-    assessmentsQuery = assessmentsQuery.lt("assessment_date", toDateOnly(to));
-  }
+// Everything the consultant calendar shows, in one calendar-shaped list
+// (founders, 25 Sept 2026: "the calendar needs to be for us to know when
+// tours and assessments are"). Read-merge only -- nothing is copied into
+// calendar_events:
+//   - tours:        school_shortlist.tour_date / tour2_date (+ times)
+//   - visits:       applications.visit_date (older visits, same colour as tours)
+//   - assessments:  applications.assessment_date (+ assessment_time)
+//   - everything else: calendar_events (reminders, deadlines, team events)
+// Every row comes back with the same shape: date "YYYY-MM-DD", start/end
+// "HH:MM" (null = all day), category tour | assessment | other, and the
+// family's owner, so the "Everyone" filter works on tours too.
+const hhmm = (t) => (t ? String(t).slice(0, 5) : null);
+function localDateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function localHHMM(d) {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
 
-  const [events, visits, assessments, families, parents, staff, children, schools] = await Promise.all([
+export async function loadCalendarEvents({ from, to } = {}) {
+  const fromDay = from ? toDateOnly(from) : null;
+  const toDay = to ? toDateOnly(to) : null;
+  const range = (q, col) => {
+    if (fromDay) q = q.gte(col, fromDay);
+    if (toDay) q = q.lt(col, toDay);
+    return q;
+  };
+  let eventsQuery = supabase.from("calendar_events").select("*").order("starts_at");
+  if (from) eventsQuery = eventsQuery.gte("starts_at", new Date(from).toISOString());
+  if (to) eventsQuery = eventsQuery.lt("starts_at", new Date(to).toISOString());
+  const visitsQuery = range(supabase.from("applications").select("*").not("visit_date", "is", null), "visit_date");
+  const assessmentsQuery = range(
+    supabase.from("applications").select("*").not("assessment_date", "is", null),
+    "assessment_date"
+  );
+  const tours1Query = range(supabase.from("school_shortlist").select("*").not("tour_date", "is", null), "tour_date");
+  const tours2Query = range(supabase.from("school_shortlist").select("*").not("tour2_date", "is", null), "tour2_date");
+
+  const [events, visits, assessments, tours1, tours2, families, parents, staff, children, schools] = await Promise.all([
     eventsQuery.then(unwrap),
     visitsQuery.then(unwrap),
     assessmentsQuery.then(unwrap).catch(() => []), // addendum 80 may not have run yet
+    tours1Query.then(unwrap).catch(() => []),
+    tours2Query.then(unwrap).catch(() => []), // addendum 58 (second tour slot)
     supabase.from("families").select("*").then(unwrap),
     supabase.from("parents").select("id, family_id, relationship, full_name, user_id").then(unwrap),
     listStaff(),
@@ -732,74 +749,130 @@ export async function loadCalendarEvents({ from, to } = {}) {
   ]);
 
   const parentsByFamily = groupBy(parents, "family_id");
+  const familyById = Object.fromEntries((families || []).map((f) => [f.id, f]));
   const familyNames = Object.fromEntries(
     (families || []).map((f) => [f.id, familyDisplayName(f, parentsByFamily[f.id] || [])])
   );
   const staffById = Object.fromEntries((staff || []).map((s) => [s.user_id, s]));
   const childById = Object.fromEntries((children || []).map((c) => [c.id, c]));
-  const schoolNameById = Object.fromEntries((schools || []).map((s) => [s.id, s.name]));
+  const schoolById = Object.fromEntries((schools || []).map((s) => [s.id, s]));
+  const childName = (c) => (c ? c.preferred_name || c.first_name || c.full_name : "Unknown child");
+  const familyBits = (familyId) => ({
+    family_id: familyId || null,
+    familyName: familyId ? familyNames[familyId] || "Unknown family" : null,
+    ownerId: familyId ? familyById[familyId]?.owner_staff_id || null : null,
+  });
 
-  const decoratedEvents = (events || []).map((e) => ({
-    ...e,
-    source: "calendar_event",
-    familyName: e.family_id ? familyNames[e.family_id] || "Unknown family" : null,
-    consultantName: e.created_by ? staffName(staffById[e.created_by]) : "Unassigned",
-  }));
+  const out = [];
 
-  // School visits — read straight off applications.visit_date, same
-  // read-merge approach as tasks. No family_id column on applications
-  // itself, so it's looked up via the child.
-  const decoratedVisits = (visits || []).map((v) => {
+  (events || []).forEach((e) => {
+    const s = new Date(e.starts_at);
+    const en = e.ends_at ? new Date(e.ends_at) : null;
+    out.push({
+      ...e,
+      key: `ev-${e.id}`,
+      source: "calendar_event",
+      category: "other",
+      date: localDateKey(s),
+      start: e.all_day ? null : localHHMM(s),
+      end: e.all_day || !en ? null : localHHMM(en),
+      ...familyBits(e.family_id),
+      consultantName: e.created_by ? staffName(staffById[e.created_by]) : "Unassigned",
+    });
+  });
+
+  // Tours -- two independent slots per shortlisted school.
+  const tourSeen = new Set();
+  const addTour = (r, slot) => {
+    const p = slot === 2 ? "tour2_" : "tour_";
+    const date = r[`${p}date`];
+    if (!date) return;
+    const school = schoolById[r.school_id]?.name || "Unknown school";
+    tourSeen.add(`${r.family_id}|${r.school_id}|${date}`);
+    out.push({
+      id: r.id,
+      key: `tour${slot}-${r.id}`,
+      source: "shortlist_tour",
+      slot,
+      kind: "tour",
+      category: "tour",
+      title: `${school} ${slot === 2 ? "2nd tour" : "tour"}`,
+      schoolName: school,
+      school_id: r.school_id,
+      date,
+      start: hhmm(r[`${p}start_time`]),
+      end: hhmm(r[`${p}end_time`]),
+      status: r[`${p}status`] || "offered",
+      notes: "",
+      all_day: !r[`${p}start_time`],
+      visible_to_client: true,
+      ...familyBits(r.family_id),
+    });
+  };
+  (tours1 || []).forEach((r) => addTour(r, 1));
+  (tours2 || []).forEach((r) => addTour(r, 2));
+
+  // Older visit dates on applications -- skipped when the same school
+  // already has a tour that day, so nothing shows twice.
+  (visits || []).forEach((v) => {
     const child = childById[v.child_id];
-    const childName = child ? child.full_name || child.preferred_name || child.first_name : "Unknown child";
-    const schoolName = schoolNameById[v.school_id] || "Unknown school";
-    return {
+    const familyId = child?.family_id || null;
+    if (tourSeen.has(`${familyId}|${v.school_id}|${v.visit_date}`)) return;
+    const school = schoolById[v.school_id]?.name || "Unknown school";
+    out.push({
       id: v.id,
+      key: `visit-${v.id}`,
       source: "application_visit",
       kind: "school_visit",
-      title: `${schoolName} visit — ${childName}`,
+      category: "tour",
+      title: `${school} visit`,
+      schoolName: school,
+      school_id: v.school_id,
+      childName: childName(child),
       notes: v.visit_notes || "",
-      starts_at: `${v.visit_date}T00:00:00`,
+      date: v.visit_date,
+      start: null,
+      end: null,
       all_day: true,
       status: "upcoming",
-      visible_to_client: false,
-      family_id: child ? child.family_id : null,
       child_id: v.child_id,
       application_id: v.id,
-      familyName: child && childById[v.child_id]
-        ? familyNames[child.family_id] || "Unknown family"
-        : null,
-      consultantName: null,
-    };
+      ...familyBits(familyId),
+    });
   });
 
-  // Assessments -- read straight off applications.assessment_date, same
-  // read-merge approach as visits above.
-  const decoratedAssessments = (assessments || []).map((a) => {
+  (assessments || []).forEach((a) => {
     const child = childById[a.child_id];
-    const childName = child ? child.full_name || child.preferred_name || child.first_name : "Unknown child";
-    const schoolName = schoolNameById[a.school_id] || "Unknown school";
-    return {
+    const school = schoolById[a.school_id]?.name || "Unknown school";
+    out.push({
       id: a.id,
+      key: `assess-${a.id}`,
       source: "application_assessment",
       kind: "assessment",
-      title: `${schoolName} assessment — ${childName}`,
+      category: "assessment",
+      title: `${school} assessment`,
+      schoolName: school,
+      school_id: a.school_id,
+      childName: childName(child),
       notes: a.assessment_notes || "",
-      starts_at: `${a.assessment_date}T00:00:00`,
-      all_day: true,
+      link: a.assessment_link || "",
+      meetingId: a.assessment_meeting_id || "",
+      passcode: a.assessment_passcode || "",
+      date: a.assessment_date,
+      start: hhmm(a.assessment_time),
+      end: null,
+      all_day: !a.assessment_time,
       status: "upcoming",
-      visible_to_client: false,
-      family_id: child ? child.family_id : null,
       child_id: a.child_id,
       application_id: a.id,
-      familyName: child ? familyNames[child.family_id] || "Unknown family" : null,
-      consultantName: null,
-    };
+      ...familyBits(child?.family_id),
+    });
   });
 
-  return [...decoratedEvents, ...decoratedVisits, ...decoratedAssessments].sort(
-    (a, b) => new Date(a.starts_at) - new Date(b.starts_at)
-  );
+  out.forEach((e) => {
+    e.starts_at = `${e.date}T${e.start || "00:00"}:00`;
+  });
+  return out.sort((a, b) => a.starts_at.localeCompare(b.starts_at));
 }
 
 function toDateOnly(d) {
