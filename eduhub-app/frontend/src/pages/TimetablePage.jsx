@@ -4,6 +4,8 @@ import { fetchFamilyTimetable, fetchFamilyApplications, setSchoolInterest } from
 import { displayNameForChild } from "../lib/completeness";
 import { childPhaseFor, nearestTourInfo } from "../lib/schoolJourney";
 import { IconSchool, IconChevronDown } from "../components/icons";
+import TourDetailsCard from "../components/TourDetailsCard";
+import { downloadTourIcs } from "../lib/tourDetails";
 import "./TimetablePage.css";
 
 // "Your schools" -- rebuilt September 2026 ("every feature should have a
@@ -70,34 +72,6 @@ function mapsUrl(school) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
-// A real .ics file, so "Add to calendar" works with Apple, Google and
-// Outlook calendars alike.
-function downloadIcs(tour) {
-  const d = tour.date.replace(/-/g, "");
-  const t = (x) => x.replace(/:/g, "").slice(0, 6).padEnd(6, "0");
-  const lines = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//Heather Harries//School tours//EN",
-    "BEGIN:VEVENT",
-    `UID:${tour.key}@heatherharries`,
-    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
-    tour.start ? `DTSTART:${d}T${t(tour.start)}` : `DTSTART;VALUE=DATE:${d}`,
-    tour.start && tour.end ? `DTEND:${d}T${t(tour.end)}` : null,
-    `SUMMARY:School tour: ${tour.school?.name || "School"}`,
-    tour.school?.address ? `LOCATION:${tour.school.address.replace(/[,;]/g, "\\$&")}` : null,
-    tour.notes ? `DESCRIPTION:${tour.notes.replace(/\n/g, "\\n").replace(/[,;]/g, "\\$&")}` : null,
-    "END:VEVENT",
-    "END:VCALENDAR",
-  ].filter(Boolean);
-  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `${(tour.school?.name || "school").replace(/[^a-z0-9]+/gi, "-")}-tour.ics`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
 function toursOf(row) {
   const logistics = [
     row.tour_gate && `Gate: ${row.tour_gate}`,
@@ -110,9 +84,9 @@ function toursOf(row) {
     .join("\n");
   const list = [];
   if (row.tour_date && row.tour_status !== "cancelled")
-    list.push({ key: `${row.id}-1`, rowId: row.id, school: row.school, date: row.tour_date, start: row.tour_start_time, end: row.tour_end_time, status: row.tour_status, notes: logistics });
+    list.push({ key: `${row.id}-1`, rowId: row.id, row, school: row.school, date: row.tour_date, start: row.tour_start_time, end: row.tour_end_time, status: row.tour_status, notes: logistics });
   if (row.tour2_date && row.tour2_status !== "cancelled")
-    list.push({ key: `${row.id}-2`, rowId: row.id, school: row.school, date: row.tour2_date, start: row.tour2_start_time, end: row.tour2_end_time, status: row.tour2_status, notes: logistics });
+    list.push({ key: `${row.id}-2`, rowId: row.id, row, school: row.school, date: row.tour2_date, start: row.tour2_start_time, end: row.tour2_end_time, status: row.tour2_status, notes: logistics });
   return list;
 }
 
@@ -149,6 +123,7 @@ export default function TimetablePage() {
   const [error, setError] = useState("");
   const [openId, setOpenId] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [detailsKey, setDetailsKey] = useState(null);
   const cardRefs = useRef({});
 
   const children = data?.children || [];
@@ -278,13 +253,23 @@ export default function TimetablePage() {
                         </span>
                       </div>
                       <div className="ys-tour-actions">
-                        <button type="button" className="ys-btn" onClick={() => downloadIcs(t)}>
+                        <button
+                          type="button"
+                          className="ys-btn"
+                          onClick={() => setDetailsKey(detailsKey === t.key ? null : t.key)}
+                          aria-expanded={detailsKey === t.key}
+                        >
+                          {detailsKey === t.key ? "Hide details" : "Tour details"}
+                        </button>
+                        <button type="button" className="ys-btn" onClick={() => downloadTourIcs(t)}>
                           Add to calendar
                         </button>
-                        <a className="ys-btn" href={mapsUrl(t.school)} target="_blank" rel="noopener noreferrer">
-                          Directions
-                        </a>
                       </div>
+                      {detailsKey === t.key && (
+                        <div className="ys-tour-details">
+                          <TourDetailsCard tour={t} />
+                        </div>
+                      )}
                     </li>
                   );
                 })}
@@ -420,37 +405,20 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
                     </span>
                     <span className={"ys-chip is-" + t.status}>{TOUR_STATUS_LABEL[t.status] || "Booked"}</span>
                     {t.status !== "completed" && (
-                      <button type="button" className="ys-link" onClick={() => downloadIcs(t)}>
+                      <button type="button" className="ys-link" onClick={() => downloadTourIcs(t)}>
                         Add to calendar
                       </button>
                     )}
                   </div>
                 ))
               )}
-              {[
-                ["Gate", row.tour_gate],
-                ["Building", row.tour_building],
-                ["Parking", row.tour_parking],
-                ["Ask for", row.tour_ask_for],
-                ["Bring", row.tour_bring],
-              ].some(([, v]) => v) && (
-                <dl className="ys-kv">
-                  {[
-                    ["Gate", row.tour_gate],
-                    ["Building", row.tour_building],
-                    ["Parking", row.tour_parking],
-                    ["Ask for", row.tour_ask_for],
-                    ["Bring", row.tour_bring],
-                  ]
-                    .filter(([, v]) => v)
-                    .map(([k, v]) => (
-                      <div key={k}>
-                        <dt>{k}</dt>
-                        <dd>{v}</dd>
-                      </div>
-                    ))}
-                </dl>
-              )}
+              {tours
+                .filter((t) => t.status !== "completed")
+                .map((t) => (
+                  <div key={`d-${t.key}`} className="ys-tour-details">
+                    <TourDetailsCard tour={t} />
+                  </div>
+                ))}
             </div>
 
             <div className="ys-block">

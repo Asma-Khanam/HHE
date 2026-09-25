@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import UpdateFamilyButton from "./UpdateFamilyButton";
+import TourDetailsEditor from "./TourDetailsEditor";
 import { Link } from "react-router-dom";
 import {
   listShortlistForFamily,
@@ -1010,6 +1011,10 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                       suggested={
                         row.tour_status === "completed" || row.tour2_status === "completed" ? "toured" : "shortlisted"
                       }
+                    />
+                    <TourDetailsEditor
+                      row={row}
+                      onUpdated={(updated) => setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, ...updated, school: r.school } : r)))}
                     />
                     {/* Founder feedback (Sept 2026): "when they click on
                         the dropdown, it should only show the details

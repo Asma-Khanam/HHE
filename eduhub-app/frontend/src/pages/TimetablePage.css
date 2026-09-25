@@ -140,3 +140,14 @@
   .ys-track-row { flex-direction: column; align-items: stretch; gap: 6px; }
   .ys-step-label { font-size: 0.64rem; }
 }
+
+/* School Tour Details (addendum 79) */
+.ys-tour {
+  flex-wrap: wrap;
+}
+
+.ys-tour-details {
+  flex-basis: 100%;
+  width: 100%;
+  margin-top: 12px;
+}

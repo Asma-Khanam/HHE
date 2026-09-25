@@ -20,12 +20,26 @@ export async function fetchFamilyTimetable(familyId) {
   // Addendum 75 adds the family's own Keen / Maybe / Not for us. If that
   // hasn't been run yet, fall back to the old column list so the page
   // still loads.
-  let { data, error } = await supabase
-    .from("school_shortlist")
-    .select(SHORTLIST_COLUMNS + ", family_interest, family_interest_note, family_interest_at")
-    .eq("family_id", familyId);
-  if (error) {
-    ({ data, error } = await supabase.from("school_shortlist").select(SHORTLIST_COLUMNS).eq("family_id", familyId));
+  // Addendum 79 adds the "School Tour Details" fields (Maps link, on
+  // arrival, arrival note + school defaults). Newest column set first,
+  // falling back one addendum at a time so the page never breaks while a
+  // migration hasn't been run yet.
+  const attempts = [
+    SHORTLIST_COLUMNS.replace(
+      "school:schools ( id, name, area, address, fees_url, admissions_contact_phone )",
+      `tour_maps_url, tour_on_arrival, tour_arrival_note,
+       school:schools ( id, name, area, address, fees_url, admissions_contact_phone,
+         default_tour_gate, default_tour_building, default_tour_parking, default_tour_ask_for,
+         default_tour_bring, default_tour_maps_url, default_tour_on_arrival )`
+    ) + ", family_interest, family_interest_note, family_interest_at",
+    SHORTLIST_COLUMNS + ", family_interest, family_interest_note, family_interest_at",
+    SHORTLIST_COLUMNS,
+  ];
+  let data;
+  let error;
+  for (const cols of attempts) {
+    ({ data, error } = await supabase.from("school_shortlist").select(cols).eq("family_id", familyId));
+    if (!error) break;
   }
 
   if (error) throw error;

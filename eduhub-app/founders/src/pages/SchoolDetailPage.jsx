@@ -267,6 +267,8 @@ function SchoolRecordView({ school }) {
     ["Parking", school.default_tour_parking],
     ["Ask for", school.default_tour_ask_for],
     ["Bring", school.default_tour_bring],
+    ["On arrival", school.default_tour_on_arrival],
+    ["Maps link", school.default_tour_maps_url],
   ].filter(([, v]) => v);
   const reqs = [
     school.requires_cat4 && "CAT4",
@@ -409,6 +411,8 @@ export default function SchoolDetailPage() {
       default_tour_parking: school.default_tour_parking || "",
       default_tour_ask_for: school.default_tour_ask_for || "",
       default_tour_bring: school.default_tour_bring || "",
+      default_tour_on_arrival: school.default_tour_on_arrival || "",
+      default_tour_maps_url: school.default_tour_maps_url || "",
       website_url: school.website_url || "",
       fees_url: school.fees_url || "",
       admissions_contact_name: school.admissions_contact_name || "",
@@ -808,6 +812,30 @@ export default function SchoolDetailPage() {
                   className="panel-input"
                   value={draft.default_tour_bring}
                   onChange={(e) => setDraft((d) => ({ ...d, default_tour_bring: e.target.value }))}
+                />
+              </div>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-tour-arrival">
+                  On-the-day: On arrival
+                </label>
+                <input
+                  id="sch-tour-arrival"
+                  className="panel-input"
+                  placeholder="e.g. Tell reception you are here for a school tour with Admissions"
+                  value={draft.default_tour_on_arrival}
+                  onChange={(e) => setDraft((d) => ({ ...d, default_tour_on_arrival: e.target.value }))}
+                />
+              </div>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-tour-maps">
+                  On-the-day: Google Maps link
+                </label>
+                <input
+                  id="sch-tour-maps"
+                  className="panel-input"
+                  placeholder="https://maps.app.goo.gl/…"
+                  value={draft.default_tour_maps_url}
+                  onChange={(e) => setDraft((d) => ({ ...d, default_tour_maps_url: e.target.value }))}
                 />
               </div>
               <div className="rec-field">
