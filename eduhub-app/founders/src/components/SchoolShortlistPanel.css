@@ -1114,15 +1114,15 @@
   color: #fff;
 }
 .svt-child-placed.is-elsewhere {
-  background: #6d6468;
+  background: #e3dcdf;
   color: #f1eced;
 }
 .svt-row-wrap.is-closed .svt-row {
-  background: #3b3437;
+  background: #f6f3f4;
   color: #d8d0d3;
 }
 .svt-row-wrap.is-closed .svt-row:hover {
-  background: #453d41;
+  background: #efeaec;
 }
 .svt-row-wrap.is-closed .svt-school-name {
   color: #f1eced;
@@ -1132,14 +1132,14 @@
   margin-top: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #6d6468;
+  background: #e3dcdf;
   color: #fff;
   font-size: 11px;
   font-weight: 600;
 }
 .svt-closed-text {
   font-size: 12px;
-  color: #c9bfc3;
+  color: #9d9296;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -1150,7 +1150,7 @@ fieldset.svt-closed-detail {
   margin: 0;
   min-width: 0;
   border: 0;
-  border-top: 1px solid #3b3437;
+  border-top: 1px solid #e7e0e3;
   background: #efebec;
   opacity: 0.9;
 }
@@ -1193,4 +1193,18 @@ fieldset.svt-closed-detail {
   display: flex;
   flex-wrap: wrap;
   gap: 2px 12px;
+}
+/* Closed = soft and quiet, not dark (26 Sept 2026) */
+.svt-row-wrap.is-closed .svt-row {
+  color: #8a7e83;
+}
+.svt-row-wrap.is-closed .svt-school-name {
+  color: #8a7e83;
+}
+.svt-closed-tag,
+.svt-child-placed.is-elsewhere {
+  color: #6f6468;
+}
+fieldset.svt-closed-detail {
+  background: #faf8f9;
 }

@@ -1687,3 +1687,38 @@ export async function getFamilyStages(familyId) {
     await supabase.from("families").select("id, pipeline_stage, client_stage").eq("id", familyId).single()
   );
 }
+
+// ---------------------------------------------------------------------------
+// Sending email to schools from a family's Emails tab (26 Sept 2026).
+// Runs server-side in /api/send-email (SMTP password never reaches the browser).
+// ---------------------------------------------------------------------------
+export async function sendFamilyEmail(payload) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const res = await fetch("/api/send-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Couldn't send that email.");
+  return data.note;
+}
+
+// Everyone at the family's shortlisted schools, for the To box.
+export async function listSchoolRecipients(familyId) {
+  const shortlist = await listShortlistForFamily(familyId);
+  const schoolIds = [...new Set(shortlist.map((r) => r.school_id))];
+  const contacts = (await listSchoolContacts(schoolIds).catch(() => null)) || [];
+  const out = [];
+  shortlist.forEach((r) => {
+    const school = r.school || {};
+    const own = contacts.filter((c) => c.school_id === r.school_id && !c.archived_at && c.email);
+    if (own.length)
+      own.forEach((c) => out.push({ email: c.email, name: c.full_name || "", title: c.job_title || "", school: school.name || "" }));
+    else if (school.admissions_contact_email)
+      out.push({ email: school.admissions_contact_email, name: school.admissions_contact_name || "Admissions", title: "", school: school.name || "" });
+  });
+  return out;
+}

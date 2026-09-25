@@ -1000,7 +1000,31 @@ export default function FamilyDetailPage() {
         </div>
       )}
 
-      {activeTab === "emails" && <EmailsPanel familyId={family.id} notes={caseNotes} />}
+      {activeTab === "emails" && (
+        <EmailsPanel
+          familyId={family.id}
+          notes={caseNotes}
+          familyName={displayName}
+          familyChildren={children}
+          familyAddress={(() => {
+            const alias = (parents || []).find((p) => p.application_alias)?.application_alias || family.application_alias;
+            return alias ? `${alias}@applications.heatherharries.com` : "";
+          })()}
+          documents={[
+            ...(parents || []).map((p) => ({ owner: `parent:${p.id}`, name: p.full_name || p.relationship || "Parent" })),
+            ...(children || []).map((c, i) => ({ owner: `child:${c.id}`, name: c.preferred_name || c.first_name || c.full_name || `Child ${i + 1}` })),
+          ].flatMap(({ owner, name }) =>
+            (documentsByOwner[owner] || [])
+              .filter((d) => d.file_url)
+              .map((d) => ({
+                id: d.id,
+                label: `${name} · ${String(d.document_type || "Document").replace(/_/g, " ")}${
+                  d.original_filename ? ` (${d.original_filename})` : ""
+                }`,
+              }))
+          )}
+        />
+      )}
 
       {activeTab === "meetings" && <MeetingsPanel familyId={family.id} notes={caseNotes} />}
 

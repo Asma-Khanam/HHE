@@ -163,10 +163,12 @@
   background: var(--hh-good-bg, #e9f2ed); color: var(--hh-good, #2f6b4f); font-size: 0.92rem;
 }
 .ys-placed-sub { display: block; margin-top: 2px; font-size: 0.82rem; opacity: 0.85; }
-.ys-school.is-closed > .ys-school-head { background: #3b3437; color: #e6dfe2; }
-.ys-school.is-closed .ys-school-name, .ys-school.is-closed .ys-school-meta { color: #e6dfe2; }
-.ys-school.is-closed .ys-school-icon { background: #6d6468; color: #fff; }
-.ys-school.is-closed .ys-pill { background: #6d6468; color: #f1eced; }
+.ys-school.is-closed > .ys-school-head { background: #f6f3f4; color: #8a7e83; }
+.ys-school.is-closed .ys-school-name, .ys-school.is-closed .ys-school-meta { color: #8a7e83; }
+.ys-school.is-closed .ys-school-icon { background: #e3dcdf; color: #fff; }
+.ys-school.is-closed .ys-pill { background: #e3dcdf; color: #f1eced; }
 .ys-school.is-closed .ys-school-body { background: #f2efef; opacity: 0.9; }
 .ys-note.is-closed { background: #e2dddf; }
 .ys-pill.is-closed { background: #e2dddf; color: #5a5155; }
+.ys-school.is-closed { border-style: dashed; }
+.ys-school.is-closed .ys-school-icon, .ys-school.is-closed .ys-pill { color: #6f6468; }

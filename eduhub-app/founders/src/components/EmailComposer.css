@@ -1,0 +1,272 @@
+/* Email composer (26 Sept 2026) -- Outlook-style */
+.ec {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--hh-track, #ece3e6);
+  border-radius: 12px;
+  background: #fff;
+  min-width: 0;
+}
+.ec-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--hh-track, #ece3e6);
+  color: var(--hh-burgundy, #530126);
+}
+.ec-x {
+  border: 0;
+  background: none;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: rgba(42, 17, 25, 0.5);
+}
+.ec-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #f3eef0;
+  position: relative;
+  font-size: 0.88rem;
+}
+.ec-label {
+  width: 56px;
+  flex: none;
+  color: rgba(42, 17, 25, 0.55);
+  font-size: 0.82rem;
+}
+.ec-from em {
+  font-style: normal;
+  color: rgba(42, 17, 25, 0.55);
+  font-size: 0.8rem;
+}
+.ec-chips {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  cursor: text;
+}
+.ec-chips input {
+  flex: 1;
+  min-width: 160px;
+  border: 0;
+  outline: none;
+  font: inherit;
+  padding: 4px 0;
+  background: none;
+}
+.ec-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 999px;
+  background: #f3e9ed;
+  color: var(--hh-burgundy, #530126);
+  font-size: 0.8rem;
+  font-weight: 500;
+  max-width: 100%;
+}
+.ec-chip button {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  color: inherit;
+  padding: 0 4px;
+}
+.ec-suggest {
+  position: absolute;
+  z-index: 20;
+  left: 80px;
+  right: 16px;
+  top: 100%;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--hh-track, #ece3e6);
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(83, 1, 38, 0.14);
+  max-height: 280px;
+  overflow: auto;
+}
+.ec-suggest button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.ec-suggest button:hover {
+  background: #f8f2f4;
+}
+.ec-suggest em {
+  display: block;
+  font-style: normal;
+  font-size: 0.76rem;
+  color: rgba(42, 17, 25, 0.55);
+}
+.ec-options {
+  gap: 16px;
+}
+.ec-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--hh-burgundy, #530126);
+  cursor: pointer;
+}
+.ec-check {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.82rem;
+  color: rgba(42, 17, 25, 0.7);
+}
+.ec-subject {
+  flex: 1;
+  border: 0;
+  outline: none;
+  font: inherit;
+  font-weight: 600;
+  padding: 4px 0;
+}
+.ec-templates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 10px 16px 0;
+  font-size: 0.78rem;
+  color: rgba(42, 17, 25, 0.55);
+}
+.ec-templates button {
+  border: 1px solid var(--hh-track, #ece3e6);
+  background: #fbf7f4;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  color: var(--hh-ink, #2a1119);
+}
+.ec-body {
+  border: 0;
+  outline: none;
+  resize: vertical;
+  min-height: 220px;
+  padding: 12px 16px;
+  font: inherit;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+.ec-sig {
+  margin: 0;
+  padding: 0 16px 10px;
+  font-size: 0.78rem;
+  color: rgba(42, 17, 25, 0.5);
+}
+.ec-files {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ec-files li {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid var(--hh-track, #ece3e6);
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+.ec-files li span {
+  color: rgba(42, 17, 25, 0.5);
+}
+.ec-files button {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-size: 15px;
+}
+.ec-docs {
+  margin: 0 16px 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fbf7f4;
+  font-size: 0.85rem;
+}
+.ec-docs p {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+.ec-docs .ec-muted {
+  font-weight: 400;
+  color: rgba(42, 17, 25, 0.55);
+}
+.ec-docs-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 4px 12px;
+  max-height: 180px;
+  overflow: auto;
+}
+.ec-docs-list label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.ec-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid var(--hh-track, #ece3e6);
+}
+.ec-send {
+  min-width: 96px;
+}
+.ec-attach {
+  cursor: pointer;
+}
+.ec-hint {
+  font-size: 0.75rem;
+  color: rgba(42, 17, 25, 0.45);
+}
+.ec-discard {
+  margin-left: auto;
+  color: rgba(42, 17, 25, 0.55);
+}
+@media (max-width: 700px) {
+  .ec-suggest {
+    left: 16px;
+  }
+  .ec-hint {
+    display: none;
+  }
+}
+.ec-actions {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  border-radius: 0 0 12px 12px;
+}

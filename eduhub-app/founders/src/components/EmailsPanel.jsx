@@ -6,7 +6,9 @@ import {
   getEmailAttachmentUrl,
   requestEmailInsight,
   saveEmailInsight,
+  getCurrentStaff,
 } from "../lib/staffData";
+import EmailComposer from "./EmailComposer";
 import "./panels.css";
 import "./EmailsPanel.css";
 
@@ -55,10 +57,58 @@ function previewLine(note) {
 }
 
 function senderOf(note) {
-  if (note.direction === "outbound") return { name: "Heather Harries team", email: "" };
+  if (note.direction === "outbound") return { name: note.email_from_name || "Heather Harries team", email: "" };
   const email = note.email_from || splitInboundBody(note.body).from || "";
   const name = note.email_from_name || (email ? email.split("@")[0] : "Unknown sender");
   return { name, email };
+}
+
+const addrOf = (s) => (String(s || "").match(/<([^>]+)>/)?.[1] || String(s || "")).trim();
+const splitAddrs = (s) => String(s || "").split(/,(?![^<]*>)/).map(addrOf).filter((x) => /@/.test(x));
+
+// Reply / Reply all / Forward, prefilled like Outlook.
+function replyDraft(note, mode, familyAddress) {
+  const outbound = note.direction === "outbound";
+  const from = outbound ? "" : addrOf(note.email_from || splitInboundBody(note.body).from);
+  const mine = (e) => /@applications\.heatherharries\.com$/i.test(e) || e === familyAddress;
+  const original = cleanText(note.email_text || splitInboundBody(note.body).snippet || note.body || "");
+  const when = new Date(note.occurred_at).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const who = outbound ? "Heather Harries Education" : note.email_from_name || from || "they";
+  const quoted = `\n\n\nOn ${when}, ${who} wrote:\n` + original.split("\n").map((l) => `> ${l}`).join("\n");
+  const subj = note.subject || "";
+  if (mode === "forward")
+    return { mode, to: [], subject: /^fw(d)?:/i.test(subj) ? subj : `Fw: ${subj}`, text: `\n\n\n---------- Forwarded message ----------\nFrom: ${who}\nDate: ${when}\nSubject: ${subj}\n\n${original}` };
+  const to = outbound ? splitAddrs(note.email_to) : [from].filter(Boolean);
+  const cc =
+    mode === "replyAll"
+      ? [...splitAddrs(note.email_to), ...splitAddrs(note.email_cc)].filter((e) => e && !mine(e) && !to.includes(e))
+      : [];
+  return {
+    mode: "reply",
+    to: to.filter((e) => !mine(e)),
+    cc: [...new Set(cc)],
+    subject: /^re:/i.test(subj) ? subj : `Re: ${subj}`,
+    text: quoted,
+    inReplyTo: note.email_message_id || null,
+  };
+}
+
+function ReplyIcon({ all }) {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {all && <path d="M7 8 2 13l5 5" />}
+      <path d={all ? "M12 8l-5 5 5 5" : "M9 8l-5 5 5 5"} />
+      <path d={all ? "M7 13h9a5 5 0 0 1 5 5v1" : "M4 13h11a5 5 0 0 1 5 5v1"} />
+    </svg>
+  );
+}
+function ForwardIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m15 8 5 5-5 5" />
+      <path d="M20 13H9a5 5 0 0 0-5 5v1" />
+    </svg>
+  );
 }
 
 function initials(name) {
@@ -445,7 +495,7 @@ function Attachments({ items }) {
   );
 }
 
-function ReadingPane({ note, onBack, familyId, onUpdate }) {
+function ReadingPane({ note, onBack, familyId, onUpdate, onReply }) {
   const resolvedHtml = useResolvedHtml(note);
   if (!note) {
     return (
@@ -465,7 +515,22 @@ function ReadingPane({ note, onBack, familyId, onUpdate }) {
       <button type="button" className="mx-back" onClick={onBack}>
         ‹ All emails
       </button>
-      <h3 className="mx-read-subject">{note.subject || "(no subject)"}</h3>
+      <div className="mx-read-titlebar">
+        <h3 className="mx-read-subject">{note.subject || "(no subject)"}</h3>
+        {onReply && (
+          <div className="mx-read-actions">
+            <button type="button" onClick={() => onReply(note, "reply")} title="Reply">
+              <ReplyIcon /> <span>Reply</span>
+            </button>
+            <button type="button" onClick={() => onReply(note, "replyAll")} title="Reply all">
+              <ReplyIcon all /> <span>Reply all</span>
+            </button>
+            <button type="button" onClick={() => onReply(note, "forward")} title="Forward">
+              <ForwardIcon /> <span>Forward</span>
+            </button>
+          </div>
+        )}
+      </div>
       <header className="mx-read-head">
         <Avatar name={sender.name} email={sender.email} size={44} />
         <div className="mx-read-meta">
@@ -568,7 +633,14 @@ const FILTERS = [
   { key: "files", label: "Attachments" },
 ];
 
-export default function EmailsPanel({ familyId, notes: allNotes }) {
+export default function EmailsPanel({
+  familyId,
+  notes: allNotes,
+  familyName = "",
+  familyChildren = [],
+  documents = [],
+  familyAddress = "",
+}) {
   const [notes, setNotes] = useState(() =>
     (allNotes || [])
       .filter((n) => n.kind === "email")
@@ -579,7 +651,31 @@ export default function EmailsPanel({ familyId, notes: allNotes }) {
   const [selectedId, setSelectedId] = useState(null);
   const [mobileReading, setMobileReading] = useState(false);
   const [composing, setComposing] = useState(false);
+  // Sending: null, or what the composer opens with (new / reply / forward).
+  const [writing, setWriting] = useState(null);
+  const [staffName, setStaffName] = useState("");
+  useEffect(() => {
+    getCurrentStaff()
+      .then((s) => setStaffName(s?.full_name || s?.email || ""))
+      .catch(() => {});
+  }, []);
   const listRef = useRef(null);
+  const childLines = familyChildren.map((c) =>
+    [c.preferred_name || c.first_name || (c.full_name || "").split(" ")[0], c.year_group_applying_for?.split(" /")[0]].filter(Boolean).join(", ")
+  );
+
+  function openComposer(initial) {
+    setWriting(initial);
+    setComposing(false);
+    setMobileReading(true);
+  }
+  function onSent(note) {
+    setNotes((prev) => [note, ...prev]);
+    setWriting(null);
+    setSelectedId(note.id);
+    setFilter("all");
+    setQuery("");
+  }
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -633,12 +729,25 @@ export default function EmailsPanel({ familyId, notes: allNotes }) {
           Emails
           {notes.length > 0 && <span className="family-detail-card-count">{notes.length}</span>}
         </h2>
-        <button type="button" className="panel-btn" onClick={() => setComposing((v) => !v)}>
-          {composing ? "Close" : "Log an email"}
-        </button>
+        <div className="mx-top-actions">
+          <button type="button" className="panel-btn panel-btn-primary mx-new" onClick={() => openComposer({ mode: "new" })}>
+            ✎ New email
+          </button>
+          <button
+            type="button"
+            className="panel-btn"
+            onClick={() => {
+              setWriting(null);
+              setComposing((v) => !v);
+            }}
+          >
+            {composing ? "Close" : "Log an email"}
+          </button>
+        </div>
       </div>
       <p className="family-detail-hint">
-        Every reply to this family&apos;s application addresses lands here on its own, exactly as it was sent.
+        Send to schools from here. Replies to this family&apos;s application addresses land here on their own, exactly as
+        they were sent.
       </p>
 
       {composing && (
@@ -655,7 +764,23 @@ export default function EmailsPanel({ familyId, notes: allNotes }) {
         />
       )}
 
-      {notes.length === 0 ? (
+      {notes.length === 0 && writing ? (
+        <EmailComposer
+          key={JSON.stringify(writing).slice(0, 200)}
+          familyId={familyId}
+          familyName={familyName}
+          childLines={childLines}
+          documents={documents}
+          staffName={staffName}
+          familyAddress={familyAddress}
+          initial={writing}
+          onSent={onSent}
+          onClose={() => {
+            setWriting(null);
+            setMobileReading(false);
+          }}
+        />
+      ) : notes.length === 0 ? (
         <div className="mx-empty">
           <p>No emails yet.</p>
           <p className="family-detail-hint">
@@ -720,12 +845,17 @@ export default function EmailsPanel({ familyId, notes: allNotes }) {
                         type="button"
                         data-id={n.id}
                         className={"mx-row" + (active ? " is-active" : "")}
-                        onClick={() => select(n.id)}
+                        onClick={() => {
+                          setWriting(null);
+                          select(n.id);
+                        }}
                       >
                         <Avatar name={s.name} email={s.email} size={34} />
                         <span className="mx-row-main">
                           <span className="mx-row-line1">
-                            <span className="mx-row-sender">{s.name}</span>
+                            <span className="mx-row-sender">
+                              {n.direction === "outbound" && n.email_to ? `To: ${splitAddrs(n.email_to)[0] || n.email_to}` : s.name}
+                            </span>
                             <span className="mx-row-date">{listDate(n.occurred_at)}</span>
                           </span>
                           <span className="mx-row-line2">
@@ -752,12 +882,33 @@ export default function EmailsPanel({ familyId, notes: allNotes }) {
             </div>
           </div>
 
-          <ReadingPane
-            note={selected}
-            familyId={familyId}
-            onBack={() => setMobileReading(false)}
-            onUpdate={(updated) => setNotes((prev) => prev.map((n) => (n.id === updated.id ? { ...n, ...updated } : n)))}
-          />
+          {writing ? (
+            <div className="mx-reading mx-writing">
+              <EmailComposer
+          key={JSON.stringify(writing).slice(0, 200)}
+          familyId={familyId}
+          familyName={familyName}
+          childLines={childLines}
+          documents={documents}
+          staffName={staffName}
+          familyAddress={familyAddress}
+          initial={writing}
+          onSent={onSent}
+          onClose={() => {
+            setWriting(null);
+            setMobileReading(false);
+          }}
+        />
+            </div>
+          ) : (
+            <ReadingPane
+              note={selected}
+              familyId={familyId}
+              onBack={() => setMobileReading(false)}
+              onUpdate={(updated) => setNotes((prev) => prev.map((n) => (n.id === updated.id ? { ...n, ...updated } : n)))}
+              onReply={(n, mode) => openComposer(replyDraft(n, mode, familyAddress))}
+            />
+          )}
         </div>
       )}
     </section>

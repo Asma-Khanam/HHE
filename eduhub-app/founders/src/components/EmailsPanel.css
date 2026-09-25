@@ -656,3 +656,55 @@
   background: rgba(179, 38, 30, 0.1);
   color: var(--hh-error);
 }
+
+/* Sending (26 Sept 2026) */
+.mx-top-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mx-new {
+  font-weight: 600;
+}
+.mx-read-titlebar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.mx-read-titlebar .mx-read-subject {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.mx-read-actions {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+.mx-read-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--hh-track, #ece3e6);
+  background: #fff;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--hh-burgundy, #530126);
+  cursor: pointer;
+}
+.mx-read-actions button:hover {
+  background: #f8f2f4;
+}
+.mx-writing {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+@media (max-width: 700px) {
+  .mx-read-actions span {
+    display: none;
+  }
+}
