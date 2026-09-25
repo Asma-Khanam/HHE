@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { updateFamily, listFamilyStageHistory } from "../lib/staffData";
-import { PIPELINE_STAGES, CLIENT_STAGES, clientStageLabel } from "../lib/workflow";
+import { PIPELINE_STAGES, CLIENT_STAGES, clientStageLabel, stageIndex } from "../lib/workflow";
 import { PACKAGES } from "../data/packages";
 import "./panels.css";
 import { CaseIcon } from "./icons";
@@ -34,6 +34,15 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
       dubai_available_until: family.dubai_available_until || "",
     }));
   }, [family.origin, family.destination, family.dubai_available_from, family.dubai_available_until]);
+  // Both stages are moved by the database as the family's schools progress
+  // (addendum 80) -- follow whatever the family row now says.
+  useEffect(() => {
+    setValues((v) => ({
+      ...v,
+      pipeline_stage: family.pipeline_stage || "enquiry",
+      client_stage: family.client_stage || "",
+    }));
+  }, [family.pipeline_stage, family.client_stage]);
   const [history, setHistory] = useState([]);
   useEffect(() => {
     let alive = true;
@@ -86,24 +95,23 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
       <div className="case-settings-grid">
-        <div>
-          <label className="panel-field-label">Pipeline stage</label>
-          <select
-            className="panel-select"
-            value={values.pipeline_stage}
-            onChange={(e) => save({ pipeline_stage: e.target.value })}
-          >
-            {PIPELINE_STAGES.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          {/* Addendum 48 (September 2026 change request): this now moves
-              itself forward as an application progresses or the family
-              submits their form, so staff mostly won't need to touch it —
-              except to mark Placed, which stays a manual call since nothing
-              in the schema can tell us a family actually accepted. */}
+        <div className="case-progress">
+          <label className="panel-field-label">
+            Progress <span className="case-auto">updates itself</span>
+          </label>
+          <div className="case-progress-track" title="Worked out from the School visits and Applications tabs">
+            {PIPELINE_STAGES.map((s, i) => {
+              const at = stageIndex(values.pipeline_stage);
+              return (
+                <span
+                  key={s.key}
+                  className={"case-progress-step" + (i < at ? " is-done" : i === at ? " is-current" : "")}
+                >
+                  {s.label}
+                </span>
+              );
+            })}
+          </div>
         </div>
 
         <div>
@@ -120,9 +128,11 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
               </option>
             ))}
           </select>
-          {values.client_stage === "placed" && (
-            <p className="panel-field-hint">Add each child's school start date under Placement on the Overview tab.</p>
-          )}
+          <p className="panel-field-hint">
+            {values.client_stage === "placed"
+              ? "Set to Placed by itself when an offer is accepted or a start date is saved."
+              : "Moves to Placed by itself once a child is placed."}
+          </p>
         </div>
 
         <div>

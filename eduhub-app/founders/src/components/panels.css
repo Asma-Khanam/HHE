@@ -1095,3 +1095,48 @@
 .intro-status.is-good { background: #e4f3e9; color: #1f7a44; }
 .intro-status.is-warn { background: #f6eedb; color: #7a5f22; }
 .intro-status.is-bad { background: #f8e3e1; color: #b3261e; }
+
+/* Progress (pipeline stage) -- read-only, the database moves it (addendum 80) */
+.case-progress {
+  grid-column: 1 / -1;
+}
+.case-auto {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--hh-good-bg, #e9f2ed);
+  color: var(--hh-good, #2f6b4f);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.case-progress-track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.case-progress-step {
+  flex: 1 1 110px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--hh-track, #ece3e6);
+  color: rgba(42, 17, 25, 0.55);
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+.case-progress-step.is-done {
+  background: #d9c7ce;
+  color: var(--hh-burgundy, #530126);
+}
+.case-progress-step.is-current {
+  background: var(--hh-burgundy, #530126);
+  color: #fff;
+  font-weight: 600;
+}
+.pl-checkin {
+  display: block;
+  font-size: 12px;
+  color: rgba(42, 17, 25, 0.6);
+}

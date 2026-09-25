@@ -16,8 +16,11 @@ import {
   autoCompletePastTours,
   listShortlistNotes,
   saveShortlistNote,
+  listPlacements,
+  listSchoolContacts,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
+import { placedByChild, rowClosed, placedHere, closedForChild, shortDate } from "../lib/placement";
 import "./panels.css";
 import AutosaveField from "./Autosave";
 import "./SchoolShortlistPanel.css";
@@ -145,7 +148,14 @@ function admissionsProcessText(school) {
 // underneath the new Phase 2 layer (per-child availability, tours,
 // feedback) rather than replaced by it. (Addendum 44 removed the same-day
 // tour clash check that used to sit alongside these.)
-export default function SchoolShortlistPanel({ familyId, familyChildren, applicationsByChild, onFamilyRefresh, onGoToApplications }) {
+export default function SchoolShortlistPanel({
+  familyId,
+  familyChildren,
+  applicationsByChild,
+  onFamilyRefresh,
+  onGoToApplications,
+  onProgressChange,
+}) {
   const [rows, setRows] = useState([]);
   const [childStatus, setChildStatus] = useState([]);
   const [otherFeedback, setOtherFeedback] = useState({});
@@ -169,6 +179,8 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
   // uses elsewhere on this panel, so there's no separate browser dialog to
   // get stuck on at all.
   const [removingId, setRemovingId] = useState(null);
+  const [placements, setPlacements] = useState([]);
+  const [contactsBySchool, setContactsBySchool] = useState({});
 
   const children = familyChildren || [];
 
@@ -182,16 +194,22 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
       setAllSchools(schools);
       const shortlistIds = shortlist.map((r) => r.id);
       const schoolIds = [...new Set(shortlist.map((r) => r.school_id))];
-      const [cs, other, notes] = await Promise.all([
+      const [cs, other, notes, placementRows, contacts] = await Promise.all([
         listChildAvailabilityForShortlistIds(shortlistIds),
         listOtherFeedbackForSchools(schoolIds, familyId),
         // Notes failing to load (e.g. addendum 63 not run yet) shouldn't
         // take the whole shortlist down with it.
         listShortlistNotes(shortlistIds).catch(() => ({})),
+        listPlacements(familyId).catch(() => []),
+        listSchoolContacts(schoolIds).catch(() => null),
       ]);
       setChildStatus(cs);
       setOtherFeedback(other);
       setNotesById(notes);
+      setPlacements(placementRows || []);
+      const bySchool = {};
+      (contacts || []).filter((c) => !c.archived_at).forEach((c) => (bySchool[c.school_id] = bySchool[c.school_id] || []).push(c));
+      setContactsBySchool(bySchool);
     } catch (err) {
       setError(friendlyError(err));
     } finally {
@@ -205,6 +223,16 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
   }, [familyId]);
 
   const allApplications = useMemo(() => Object.values(applicationsByChild || {}).flat(), [applicationsByChild]);
+
+  // Founders (25 Sept 2026): once children are placed, the other schools
+  // close. A row is per family, so it only closes when every child is placed
+  // (see lib/placement.js); until then just that child's column says so.
+  const placed = useMemo(
+    () => placedByChild({ children, applicationsByChild: applicationsByChild || {}, placements, schools: allSchools }),
+    [children, applicationsByChild, placements, allSchools]
+  );
+  const isRowClosed = (row) => rowClosed(placed, children, row.school_id, row.school?.name);
+  const placedKids = Object.entries(placed);
 
   // The interconnection the founders asked for: once a tour is done and the
   // family wants to move forward with a school, this is the one click that
@@ -337,7 +365,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
 
   // One entry per booked tour slot, so a school with both a primary and a
   // secondary tour shows both in the Tour schedule underneath.
-  const tours = rows.flatMap((r) =>
+  const tours = rows.filter((r) => !isRowClosed(r)).flatMap((r) =>
     [
       r.tour_date && {
         id: r.id + "-primary",
@@ -367,6 +395,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
       await addToShortlist({ familyId, schoolId: addingSchoolId });
       setAddingSchoolId("");
       await load();
+      onProgressChange?.();
     } catch (err) {
       setError(friendlyError(err));
     } finally {
@@ -487,6 +516,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
       };
       const updated = await updateShortlistTour(row.id, patch);
       setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, ...updated } : r)));
+      onProgressChange?.();
       cancelTourEdit(row.id);
       setSavedNoteId(row.id);
       setTimeout(() => setSavedNoteId((id) => (id === row.id ? null : id)), 2000);
@@ -502,13 +532,15 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
   // between -- Array.sort is stable, so this only moves those two groups.
   const sortedRows = useMemo(() => {
     const rank = (row) => {
+      if (rowClosed(placed, children, row.school_id, row.school?.name)) return 4;
+      if (placedHere(placed, children, row.school_id, row.school?.name).length) return -1;
       if (row.family_decision === "declined") return 3;
       if (row.priority === "primary") return 0;
       if (row.priority === "secondary") return 1;
       return 2;
     };
     return [...rows].sort((a, b) => rank(a) - rank(b));
-  }, [rows]);
+  }, [rows, placed, children]);
 
   const shortlistedIds = new Set(rows.map((r) => r.school_id));
   const addableSchools = allSchools.filter((s) => !shortlistedIds.has(s.id));
@@ -521,6 +553,29 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
           {rows.length > 0 && <span className="panel-count">{rows.length}</span>}
         </h2>
       </div>
+
+      {placedKids.length > 0 && (
+        <div className="svt-placed-banner">
+          <span aria-hidden="true">🎓</span>
+          <span>
+            {placedKids.map(([childId, p], i) => {
+              const idx = children.findIndex((c) => c.id === childId);
+              return (
+                <span key={childId}>
+                  {i > 0 && " · "}
+                  <strong>{idx === -1 ? "Child" : displayNameForChild(children[idx], idx)}</strong> placed at {p.schoolName}
+                  {p.startDate ? ` (starts ${shortDate(p.startDate)})` : ""}
+                </span>
+              );
+            })}
+            <span className="svt-placed-banner-sub">
+              {placedKids.length >= children.length
+                ? "Every child is placed, so the other schools are closed and kept at the bottom for reference."
+                : "Schools stay open until every child is placed. Placed children show as placed in their column."}
+            </span>
+          </span>
+        </div>
+      )}
 
       {rows.length > 0 && (
         <div className="svt-stats-row">
@@ -581,6 +636,22 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
             const feedbackRows = otherFeedback[row.school_id] || [];
             const process = admissionsProcessText(row.school || {});
             const declined = row.family_decision === "declined";
+            const closed = isRowClosed(row);
+            const kidsPlacedHere = placedHere(placed, children, row.school_id, row.school?.name);
+            if (closed) {
+              return (
+                <ClosedRow
+                  key={row.id}
+                  row={row}
+                  children={children}
+                  placed={placed}
+                  expanded={expanded}
+                  onToggle={() => setExpandedId(expanded ? null : row.id)}
+                  contacts={contactsBySchool[row.school_id]}
+                  note={notesById[row.id] || ""}
+                />
+              );
+            }
             // Founder feedback (Sept 2026): "seperate columsn for primary
             // tour and secondary tour... and then last column can just be
             // proceed to application or not proceed" -- Proceed used to be
@@ -592,7 +663,10 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
             // tour to be completed -- the gate this used to feed is gone.
 
             return (
-              <div key={row.id} className={"svt-row-wrap" + (declined ? " is-declined" : "")}>
+              <div
+                key={row.id}
+                className={"svt-row-wrap" + (declined ? " is-declined" : "") + (kidsPlacedHere.length ? " is-placed" : "")}
+              >
                 <div
                   className="svt-row"
                   style={{ gridTemplateColumns: svtColumns(children.length) }}
@@ -601,6 +675,12 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                   <div className="svt-cell svt-cell-school">
                     <div className="svt-school-name">{row.school?.name || "Unknown school"}</div>
                     {row.school?.area && <div className="svt-school-area">{row.school.area}</div>}
+                    {kidsPlacedHere.length > 0 && (
+                      <div className="svt-placed-tag">
+                        🎓 Placed:{" "}
+                        {kidsPlacedHere.map((c) => displayNameForChild(c, children.indexOf(c))).join(", ")}
+                      </div>
+                    )}
                     {/* Addendum 75: what the family said on their own "Your schools" page. */}
                     {row.family_interest && (
                       <div
@@ -635,6 +715,19 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                   {children.map((c) => {
                     const cs = rowChildStatuses.find((r) => r.child_id === c.id);
                     const value = cs?.availability_status || "awaiting";
+                    if (placed[c.id]) {
+                      const elsewhere = closedForChild(placed, c.id, row.school_id, row.school?.name);
+                      return (
+                        <div className="svt-cell" key={c.id}>
+                          <span
+                            className={"svt-child-placed" + (elsewhere ? " is-elsewhere" : " is-here")}
+                            title={elsewhere ? `Placed at ${placed[c.id].schoolName}` : "Placed here"}
+                          >
+                            {elsewhere ? "Placed elsewhere" : "Placed ✓"}
+                          </span>
+                        </div>
+                      );
+                    }
                     return (
                       <div className="svt-cell" key={c.id}>
                         {/* Founder feedback (Sept 2026): "instead of having
@@ -1027,31 +1120,7 @@ export default function SchoolShortlistPanel({ familyId, familyChildren, applica
                       <div className="svt-detail-main">
                       <h3 className="svt-detail-heading">Admissions</h3>
                       <dl className="svt-kv">
-                        {row.school?.admissions_contact_name && (
-                          <>
-                            <dt>Contact</dt>
-                            <dd>{row.school.admissions_contact_name}</dd>
-                          </>
-                        )}
-                        {row.school?.admissions_contact_email && (
-                          <>
-                            <dt>Email</dt>
-                            <dd>
-                              {/* A mailto link: opens in Titan once Titan is set as the browser's
-                                  default email app (Titan webmail > Settings > "Set Titan as the
-                                  default email app"). Titan documents no compose URL of its own. */}
-                              <a href={`mailto:${row.school.admissions_contact_email}`} title="Opens in Titan">
-                                {row.school.admissions_contact_email}
-                              </a>
-                            </dd>
-                          </>
-                        )}
-                        {row.school?.admissions_contact_phone && (
-                          <>
-                            <dt>Phone</dt>
-                            <dd>{row.school.admissions_contact_phone}</dd>
-                          </>
-                        )}
+                        <SchoolContactsInline school={row.school} contacts={contactsBySchool[row.school_id]} />
                         {row.school?.address && (
                           <>
                             <dt>Address</dt>
@@ -1274,4 +1343,110 @@ function svtColumns(childCount) {
   // tour slots, feedback and proceed decision to each get their own
   // always-visible column instead of being buried in the expanded row.
   return `minmax(150px,2fr) repeat(${childCount || 0}, minmax(80px,1fr)) minmax(150px,1.3fr) minmax(150px,1.3fr) minmax(160px,1.4fr) minmax(150px,1.3fr) 24px`;
+}
+
+// Every current contact at the school, each with their job title
+// (addendum 80). Falls back to the single contact on the school row if the
+// contacts list isn't set up yet.
+function SchoolContactsInline({ school, contacts }) {
+  const list =
+    contacts && contacts.length
+      ? contacts
+      : school?.admissions_contact_name || school?.admissions_contact_email || school?.admissions_contact_phone
+      ? [
+          {
+            id: "legacy",
+            full_name: school.admissions_contact_name,
+            email: school.admissions_contact_email,
+            phone: school.admissions_contact_phone,
+          },
+        ]
+      : [];
+  if (!list.length) return null;
+  return (
+    <>
+      <dt>{list.length === 1 ? "Contact" : "Contacts"}</dt>
+      <dd>
+        <ul className="svt-contacts">
+          {list.map((c) => (
+            <li key={c.id}>
+              <span className="svt-contact-name">
+                {c.full_name || (c.id === "legacy" ? "Admissions" : "No name")}
+                {c.job_title && <span className="svt-contact-title"> · {c.job_title}</span>}
+                {c.is_main && contacts?.length > 1 && <span className="svt-contact-main">Main</span>}
+              </span>
+              <span className="svt-contact-lines">
+                {c.email && (
+                  <a href={`mailto:${c.email}`} title="Opens in Titan">
+                    {c.email}
+                  </a>
+                )}
+                {c.phone && <span>{c.phone}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </dd>
+    </>
+  );
+}
+
+// A school that's closed because every child is placed somewhere else:
+// dark grey, at the bottom, view-only (founders, 25 Sept 2026). Opens to
+// show what was recorded, nothing can be changed from here.
+function ClosedRow({ row, children, placed, expanded, onToggle, contacts, note }) {
+  const tourLine = (date, time, status) =>
+    date ? `${formatDateTime(date, time)}${status ? ` · ${TOUR_STATUS_LABEL[status]}` : ""}` : "Not booked";
+  return (
+    <div className="svt-row-wrap is-closed">
+      <div className="svt-row" style={{ gridTemplateColumns: svtColumns(children.length) }} onClick={onToggle}>
+        <div className="svt-cell svt-cell-school">
+          <div className="svt-school-name">{row.school?.name || "Unknown school"}</div>
+          <div className="svt-closed-tag">Closed</div>
+        </div>
+        {children.map((c) => (
+          <div className="svt-cell" key={c.id}>
+            <span className="svt-child-placed is-elsewhere" title={`Placed at ${placed[c.id]?.schoolName}`}>
+              Placed elsewhere
+            </span>
+          </div>
+        ))}
+        <div className="svt-cell svt-closed-text">{tourLine(row.tour_date, row.tour_start_time, row.tour_status)}</div>
+        <div className="svt-cell svt-closed-text">{tourLine(row.tour2_date, row.tour2_start_time, row.tour2_status)}</div>
+        <div className="svt-cell svt-closed-text">{row.feedback_text || "No feedback"}</div>
+        <div className="svt-cell svt-closed-text">
+          {row.family_decision === "proceeding" ? "Applied" : row.family_decision === "declined" ? "Not proceeding" : "—"}
+        </div>
+        <div className="svt-cell svt-cell-caret">
+          <span className={"svt-caret" + (expanded ? " is-open" : "")}>▾</span>
+        </div>
+      </div>
+      {expanded && (
+        <fieldset className="svt-detail svt-closed-detail" disabled>
+          <p className="svt-closed-note">
+            View only. Every child is placed at another school, so this school is closed. If a placement falls through, it
+            opens again by itself.
+          </p>
+          <TourDetailsEditor row={row} onUpdated={() => {}} readOnly />
+          <div className="svt-detail-single">
+            <div className="svt-detail-main">
+              <h3 className="svt-detail-heading">Admissions</h3>
+              <dl className="svt-kv">
+                <SchoolContactsInline school={row.school} contacts={contacts} />
+              </dl>
+              <Link className="panel-btn" to={`/staff/schools/${row.school_id}`}>
+                Full school record
+              </Link>
+            </div>
+            {note.trim() && (
+              <div className="svt-notes">
+                <h3 className="svt-detail-heading">Notes</h3>
+                <p className="svt-closed-notes-text">{note}</p>
+              </div>
+            )}
+          </div>
+        </fieldset>
+      )}
+    </div>
+  );
 }

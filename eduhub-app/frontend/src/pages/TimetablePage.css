@@ -151,3 +151,22 @@
   width: 100%;
   margin-top: 12px;
 }
+
+/* Assessments + placed / closed schools (founders, 25 Sept 2026) */
+.ys-btn.ys-btn-primary { background: var(--hh-burgundy); border-color: var(--hh-burgundy); color: #fff; }
+.ys-assessments { margin-bottom: 10px; }
+.ys-tour.is-assessment .ys-tour-date { background: var(--hh-burgundy); color: #fff; }
+.ys-tour.is-assessment .ys-tour-date span, .ys-tour.is-assessment .ys-tour-date strong { color: #fff; }
+.ys-placed-banner {
+  display: flex; gap: 10px; align-items: flex-start;
+  margin: 0 0 14px; padding: 12px 14px; border-radius: 12px;
+  background: var(--hh-good-bg, #e9f2ed); color: var(--hh-good, #2f6b4f); font-size: 0.92rem;
+}
+.ys-placed-sub { display: block; margin-top: 2px; font-size: 0.82rem; opacity: 0.85; }
+.ys-school.is-closed > .ys-school-head { background: #3b3437; color: #e6dfe2; }
+.ys-school.is-closed .ys-school-name, .ys-school.is-closed .ys-school-meta { color: #e6dfe2; }
+.ys-school.is-closed .ys-school-icon { background: #6d6468; color: #fff; }
+.ys-school.is-closed .ys-pill { background: #6d6468; color: #f1eced; }
+.ys-school.is-closed .ys-school-body { background: #f2efef; opacity: 0.9; }
+.ys-note.is-closed { background: #e2dddf; }
+.ys-pill.is-closed { background: #e2dddf; color: #5a5155; }

@@ -969,3 +969,228 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Tour details as the family sees them (25 Sept 2026) */
+.svt-tour-details-warn {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fff4dc;
+  color: #7a5200;
+  font-size: 0.82rem;
+}
+.svt-td-list {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+.svt-td-row {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid var(--hh-track);
+  align-items: baseline;
+}
+.svt-td-row:first-child {
+  border-top: 0;
+}
+.svt-td-row dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(42, 17, 25, 0.6);
+}
+.svt-td-row dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: baseline;
+  font-size: 0.9rem;
+}
+.svt-td-value {
+  flex: 1 1 220px;
+  min-width: 0;
+  white-space: pre-wrap;
+}
+.svt-td-empty {
+  color: rgba(42, 17, 25, 0.4);
+  font-style: italic;
+}
+.svt-td-source {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--hh-track);
+  color: rgba(42, 17, 25, 0.65);
+  white-space: nowrap;
+}
+.svt-td-source.is-family {
+  background: #f3e3ea;
+  color: var(--hh-burgundy);
+}
+.svt-td-source.is-school {
+  background: var(--hh-good-bg, #e9f2ed);
+  color: var(--hh-good, #2f6b4f);
+}
+.svt-td-actions {
+  display: inline-flex;
+  gap: 10px;
+}
+.svt-td-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--hh-burgundy);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.svt-td-link:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.svt-td-edit {
+  flex: 1 1 100%;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.svt-td-edit > :first-child {
+  flex: 1;
+}
+@media (max-width: 700px) {
+  .svt-td-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+}
+
+/* Placed / closed (founders, 25 Sept 2026) */
+.svt-placed-banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: var(--hh-radius);
+  background: var(--hh-good-bg, #e9f2ed);
+  color: var(--hh-good, #2f6b4f);
+  font-size: 0.9rem;
+}
+.svt-placed-banner-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+.svt-row-wrap.is-placed .svt-row {
+  background: #f3faf6;
+  box-shadow: inset 4px 0 0 var(--hh-good, #2f6b4f);
+}
+.svt-placed-tag {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--hh-good, #2f6b4f);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+.svt-child-placed {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.svt-child-placed.is-here {
+  background: var(--hh-good, #2f6b4f);
+  color: #fff;
+}
+.svt-child-placed.is-elsewhere {
+  background: #6d6468;
+  color: #f1eced;
+}
+.svt-row-wrap.is-closed .svt-row {
+  background: #3b3437;
+  color: #d8d0d3;
+}
+.svt-row-wrap.is-closed .svt-row:hover {
+  background: #453d41;
+}
+.svt-row-wrap.is-closed .svt-school-name {
+  color: #f1eced;
+}
+.svt-closed-tag {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #6d6468;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+.svt-closed-text {
+  font-size: 12px;
+  color: #c9bfc3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+fieldset.svt-closed-detail {
+  margin: 0;
+  min-width: 0;
+  border: 0;
+  border-top: 1px solid #3b3437;
+  background: #efebec;
+  opacity: 0.9;
+}
+.svt-closed-note {
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #e2dddf;
+  font-size: 0.82rem;
+}
+.svt-closed-notes-text {
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+.svt-contacts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.svt-contact-name {
+  display: block;
+  font-weight: 600;
+}
+.svt-contact-title {
+  font-weight: 400;
+  color: rgba(42, 17, 25, 0.6);
+}
+.svt-contact-main {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #f3e3ea;
+  color: var(--hh-burgundy);
+  font-size: 10px;
+  font-weight: 600;
+}
+.svt-contact-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}

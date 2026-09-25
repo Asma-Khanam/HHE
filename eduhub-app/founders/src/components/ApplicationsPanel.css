@@ -624,3 +624,89 @@
 .ap-decision-extra .ap-field { flex: 1 1 140px; min-width: 140px; }
 .ap-placed-pill { display: inline-block; font-size: 0.8rem; padding: 6px 10px; border-radius: 6px; background: #f1ecec; color: var(--hh-ink); opacity: 0.7; }
 .ap-placed-pill.is-yes { background: #e4f3e9; color: #1f7a44; opacity: 1; font-weight: 600; }
+
+/* ---- Placed / closed (founders, 25 Sept 2026) ---------------------------- */
+.ap-placed-banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: var(--hh-radius);
+  background: var(--hh-good-bg, #e9f2ed);
+  color: var(--hh-good, #2f6b4f);
+  font-size: 0.9rem;
+}
+.ap-placed-banner-icon {
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+.ap-placed-banner-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+fieldset.ap-card2-body {
+  margin: 0;
+  border: 0;
+  min-width: 0;
+}
+.ap-card2.is-placed {
+  border-color: #9cc9b1;
+  box-shadow: 0 0 0 1px #9cc9b1 inset;
+}
+.ap-pill-placed {
+  background: var(--hh-good, #2f6b4f);
+  color: #fff;
+}
+.ap-hint-placed {
+  color: var(--hh-good, #2f6b4f);
+}
+.ap-card2.is-closed {
+  background: #3b3437;
+  border-color: #3b3437;
+  color: #e6dfe2;
+}
+.ap-card2.is-closed .ap-school-name,
+.ap-card2.is-closed .ap-school-meta,
+.ap-card2.is-closed .ap-chevron {
+  color: #e6dfe2;
+}
+.ap-card2.is-closed .ap-avatar {
+  background: #6d6468;
+}
+.ap-pill-closed {
+  background: #6d6468;
+  color: #fff;
+}
+.ap-hint-closed {
+  color: #c9bfc3;
+}
+.ap-card2.is-closed .ap-card2-body {
+  background: #f2efef;
+  color: var(--hh-ink);
+  opacity: 0.85;
+  border-radius: 0 0 var(--hh-radius) var(--hh-radius);
+}
+.ap-closed-note {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #e2dddf;
+  font-size: 0.82rem;
+}
+.ap-family-sees {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  color: var(--hh-good, #2f6b4f);
+}
+.ap-assess-grid {
+  margin-bottom: 8px;
+}
+/* Closed = view only: hide the buttons that would move it on, and the stage clock. */
+.ap-card2.is-closed .ap-card2-body .panel-btn,
+.ap-card2.is-closed .ap-days,
+.ap-card2.is-closed .ap-stagepanel-flag {
+  display: none;
+}

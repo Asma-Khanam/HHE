@@ -60,12 +60,24 @@ export async function fetchFamilyTimetable(familyId) {
 // schema) already lets a family read/write their own children's rows; this
 // only ever reads. childIds scopes the query to the family's own children
 // (applications has no family_id column of its own, only child_id).
+const APPLICATION_COLUMNS = "id, child_id, school_id, status, fit, visit_date, rejected_reason, submitted_at";
+
 export async function fetchFamilyApplications(childIds) {
   if (!childIds || childIds.length === 0) return [];
-  const { data, error } = await supabase
-    .from("applications")
-    .select("id, child_id, school_id, status, fit, visit_date, rejected_reason, submitted_at")
-    .in("child_id", childIds);
+  // Addendum 80 adds the assessment time / meeting ID / passcode, addendum
+  // 64 the date, link and details. Newest first, falling back so the page
+  // never breaks while a migration hasn't been run yet.
+  const attempts = [
+    `${APPLICATION_COLUMNS}, assessment_date, assessment_time, assessment_link, assessment_meeting_id, assessment_passcode, assessment_notes`,
+    `${APPLICATION_COLUMNS}, assessment_date, assessment_link, assessment_notes`,
+    APPLICATION_COLUMNS,
+  ];
+  let data;
+  let error;
+  for (const cols of attempts) {
+    ({ data, error } = await supabase.from("applications").select(cols).in("child_id", childIds));
+    if (!error) break;
+  }
 
   if (error) throw error;
   return data || [];

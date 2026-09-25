@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { getFamilyDetail, getCurrentStaff, shortId, friendlyError, touchFamilyActivity } from "../lib/staffData";
+import { getFamilyDetail, getCurrentStaff, shortId, friendlyError, touchFamilyActivity, getFamilyStages } from "../lib/staffData";
 import { getMissingItems, getOutstandingDocuments, displayNameForChild } from "../lib/completeness";
 import { householdAddress } from "../lib/address";
 import CaseSettingsPanel from "../components/CaseSettingsPanel";
@@ -510,6 +510,14 @@ export default function FamilyDetailPage() {
     touchFamilyActivity(familyId);
     return refreshFamily();
   }
+  // Addendum 80: the database moves the stage as tours, applications and
+  // placements change -- re-read it straight after, so the Case bar above
+  // the tabs is never behind what's just happened.
+  function refreshStages() {
+    getFamilyStages(familyId)
+      .then((row) => row && setDetail((d) => (d ? { ...d, family: { ...d.family, ...row } } : d)))
+      .catch(() => {});
+  }
   function handleFamilyFieldChange(updated) {
     setDetail((d) => ({ ...d, family: { ...d.family, ...updated } }));
     touchFamilyActivity(familyId);
@@ -720,6 +728,7 @@ export default function FamilyDetailPage() {
           onFamilyRefresh={refreshFamily}
           onGoToVisits={() => setActiveTab("visits")}
           onGoToApplications={() => setActiveTab("applications")}
+          onProgressChange={refreshStages}
           caseNotes={caseNotes}
           staff={staff}
           currentSchools={currentSchools}
@@ -949,6 +958,7 @@ export default function FamilyDetailPage() {
             applicationsByChild={applicationsByChild}
             onFamilyRefresh={refreshFamily}
             onGoToApplications={() => setActiveTab("applications")}
+            onProgressChange={refreshStages}
           />
         </div>
       )}
@@ -963,6 +973,7 @@ export default function FamilyDetailPage() {
             schoolCatalog={schoolCatalog}
             parents={parents || []}
             highlightSchoolId={searchParams.get("school") || null}
+            onProgressChange={refreshStages}
           />
 
           <div id="application-email-section" />

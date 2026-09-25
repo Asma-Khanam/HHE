@@ -30,6 +30,8 @@ import ApplicationStageTrack from "./ApplicationStageTrack";
 import UpdateFamilyButton from "./UpdateFamilyButton";
 import "./panels.css";
 import AutosaveField from "./Autosave";
+import { placedByChild, closedForChild, shortDate } from "../lib/placement";
+import { parseMeetingInvite, looksLikeInvite, meetingPlatform } from "../lib/meetingLink";
 import "./ApplicationsPanel.css";
 
 const TOUR_STATUS_LABEL = { offered: "booked", confirmed: "booked", completed: "toured", cancelled: "cancelled" };
@@ -276,6 +278,7 @@ export default function ApplicationsPanel({
   schoolCatalog,
   highlightSchoolId,
   parents = [],
+  onProgressChange,
 }) {
   const [apps, setApps] = useState(applicationsByChild || {});
   // Every change made here is reported to the page above, so leaving this tab
@@ -333,6 +336,7 @@ export default function ApplicationsPanel({
         });
         setPlacements((list) => [...list, row]);
       }
+      onProgressChange?.();
     } catch (err) {
       setError(err.message || "Couldn't save the start date.");
     }
@@ -464,7 +468,7 @@ export default function ApplicationsPanel({
   // Changing the stage also writes a timeline event in the background, so
   // "days at this stage" stays accurate and the history is kept.
   async function changeStatus(childId, application, nextStatus) {
-    patch(childId, application, { status: nextStatus });
+    patch(childId, application, { status: nextStatus }).then((ok) => ok && onProgressChange?.());
     try {
       const label = APPLICATION_STATUSES.find((s) => s.key === nextStatus)?.label || nextStatus;
       const event = await createApplicationEvent({
@@ -511,6 +515,25 @@ export default function ApplicationsPanel({
     }
   }
 
+  // Founders (25 Sept 2026): once a child is placed, their other schools
+  // close -- dark grey, at the bottom, view-only. Worked out, never saved,
+  // so undoing the placement reopens them.
+  const placed = placedByChild({ children: familyChildren, applicationsByChild: apps, placements, schools });
+
+  // Paste a whole Teams / Zoom invite into the link box and the meeting ID
+  // and passcode fill themselves in.
+  async function saveMeetingLink(childId, application, value) {
+    const text = (value || "").trim();
+    if (text && looksLikeInvite(text)) {
+      const parsed = parseMeetingInvite(text);
+      const changes = { assessment_link: parsed.link || text };
+      if (parsed.meetingId) changes.assessment_meeting_id = parsed.meetingId;
+      if (parsed.passcode) changes.assessment_passcode = parsed.passcode;
+      return patch(childId, application, changes);
+    }
+    return patch(childId, application, { assessment_link: text || null });
+  }
+
   if (!familyChildren.length) {
     return (
       <section className="panel">
@@ -531,10 +554,13 @@ export default function ApplicationsPanel({
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
       {familyChildren.map((child, i) => {
-        // Withdrawn applications sit at the bottom, greyed out.
-        const childApps = [...(apps[child.id] || [])].sort(
-          (a, b) => (a.status === "withdrawn") - (b.status === "withdrawn")
-        );
+        // The school they're placed at first, then open applications, then
+        // closed ones (placed elsewhere, withdrawn) at the bottom.
+        const childPlaced = placed[child.id];
+        const isClosedApp = (a) => closedForChild(placed, child.id, a.school_id, a.schoolName);
+        const rankApp = (a) =>
+          a.status === "offer_accepted" ? 0 : a.status === "withdrawn" ? 3 : isClosedApp(a) ? 2 : 1;
+        const childApps = [...(apps[child.id] || [])].sort((a, b) => rankApp(a) - rankApp(b));
         const name = displayNameForChild(child, i);
         return (
           <div key={child.id} className="ap-child">
@@ -554,6 +580,21 @@ export default function ApplicationsPanel({
                 {addingFor === child.id ? "Cancel" : "+ Add school"}
               </button>
             </div>
+
+            {childPlaced && (
+              <div className="ap-placed-banner">
+                <span className="ap-placed-banner-icon" aria-hidden="true">
+                  🎓
+                </span>
+                <span>
+                  <strong>
+                    {name} is placed at {childPlaced.schoolName}
+                  </strong>
+                  {childPlaced.startDate ? ` · starts ${shortDate(childPlaced.startDate)}` : " · add the start date under Decision"}
+                  <span className="ap-placed-banner-sub">Their other schools are closed and kept below for reference.</span>
+                </span>
+              </div>
+            )}
 
             {addingFor === child.id && (
               <form className="ap-add" onSubmit={(e) => handleAdd(e, child)}>
@@ -605,6 +646,8 @@ export default function ApplicationsPanel({
                     highlightActive && String(highlightSchoolId) === String(application.school_id);
                   const reasonField = reasonFieldFor(application.status);
                   const isWithdrawn = application.status === "withdrawn";
+                  const isClosed = !isWithdrawn && isClosedApp(application);
+                  const isPlacedHere = childPlaced && !isClosed && !isWithdrawn && application.status === "offer_accepted";
                   const currentStep = trackStepIndex(application.status);
                   const openStep = openStepByApp[application.id] ?? currentStep;
                   const stepMeta = APPLICATION_TRACK_STEPS[openStep];
@@ -614,6 +657,8 @@ export default function ApplicationsPanel({
                   const stageLabel = APPLICATION_STATUSES.find((s) => s.key === application.status)?.label || application.status;
                   const hint = isWithdrawn
                     ? "Withdrawn"
+                    : isClosed
+                    ? `Closed — ${name} placed at ${childPlaced.schoolName}`
                     : attentionTone === "declined"
                       ? application.rejected_reason || "Declined"
                       : attentionTone === "attention"
@@ -630,6 +675,8 @@ export default function ApplicationsPanel({
                       className={
                         "ap-card2" +
                         (isWithdrawn ? " is-withdrawn" : "") +
+                        (isClosed ? " is-closed" : "") +
+                        (isPlacedHere ? " is-placed" : "") +
                         (isHighlighted ? " is-highlight" : "") +
                         (expanded ? " is-expanded" : " is-collapsed")
                       }
@@ -657,11 +704,27 @@ export default function ApplicationsPanel({
                           </span>
                         </div>
 
-                        {!isWithdrawn && (
+                        {isClosed ? (
                           <div className="ap-card2-status">
-                            <span className={"ap-pill ap-tone-" + attentionTone}>{stageLabel}</span>
-                            <span className={"ap-hint ap-tone-" + attentionTone}>{hint}</span>
+                            <span className="ap-pill ap-pill-closed">Closed</span>
+                            <span className="ap-hint ap-hint-closed">
+                              Was: {stageLabel} · {name} placed at {childPlaced.schoolName}
+                            </span>
                           </div>
+                        ) : isPlacedHere ? (
+                          <div className="ap-card2-status">
+                            <span className="ap-pill ap-pill-placed">Placed</span>
+                            <span className="ap-hint ap-hint-placed">
+                              {childPlaced.startDate ? `Starts ${shortDate(childPlaced.startDate)}` : "Add the start date"}
+                            </span>
+                          </div>
+                        ) : (
+                          !isWithdrawn && (
+                            <div className="ap-card2-status">
+                              <span className={"ap-pill ap-tone-" + attentionTone}>{stageLabel}</span>
+                              <span className={"ap-hint ap-tone-" + attentionTone}>{hint}</span>
+                            </div>
+                          )
                         )}
 
                         <span className={"ap-chevron" + (expanded ? " is-open" : "")} aria-hidden="true">
@@ -670,7 +733,13 @@ export default function ApplicationsPanel({
                       </button>
 
                       {expanded && (
-                        <div className="ap-card2-body">
+                        <fieldset className="ap-card2-body" disabled={isClosed}>
+                          {isClosed && (
+                            <p className="ap-closed-note">
+                              View only. {name} was placed at {childPlaced.schoolName}, so this application is closed. If
+                              that placement falls through, it opens again by itself.
+                            </p>
+                          )}
                           <div className="ap-card2-row">
                             <label className="ap-field ap-field-date ap-card2-visit">
                               <span className="ap-label">Visit date</span>
@@ -682,7 +751,7 @@ export default function ApplicationsPanel({
                                 title="Also shows on the shared calendar"
                               />
                             </label>
-                            {!isWithdrawn && (
+                            {!isWithdrawn && !isClosed && (
                               <button
                                 type="button"
                                 className="ap-withdraw-link"
@@ -739,7 +808,7 @@ export default function ApplicationsPanel({
                                     )}
                                   </div>
 
-                                  {openStep === currentStep && stepMeta.key !== "decision" && (
+                                  {openStep === currentStep && stepMeta.key !== "decision" && !isClosed && (
                                     <label className="ap-attention-toggle">
                                       <input
                                         type="checkbox"
@@ -804,7 +873,11 @@ export default function ApplicationsPanel({
 
                                   {stepMeta.key === "assessment" && (
                                     <div className="ap-stagepanel-body">
-                                      <div className="ap-stagepanel-grid">
+                                      <p className="ap-family-sees">
+                                        The family sees these on their Dashboard and Your schools page as soon as they
+                                        save. No need to press Update family.
+                                      </p>
+                                      <div className="ap-stagepanel-grid ap-assess-grid">
                                         <label className="ap-field">
                                           <span className="ap-label">Assessment date</span>
                                           <input
@@ -814,18 +887,49 @@ export default function ApplicationsPanel({
                                             onChange={(e) => patch(child.id, application, { assessment_date: e.target.value || null })}
                                           />
                                         </label>
-                                        <div>
-                                          <AutosaveField
-                                            collapsible
-                                            label="Assessment meeting link"
-                                            placeholder="Paste the Zoom / Teams link"
-                                            value={application.assessment_link}
-                                            onSave={async (v) => {
-                                              const ok = await patch(child.id, application, { assessment_link: v });
-                                              if (!ok) throw new Error("check the message above, then Retry");
-                                            }}
+                                        <label className="ap-field">
+                                          <span className="ap-label">Time</span>
+                                          <input
+                                            type="time"
+                                            className="panel-input"
+                                            value={(application.assessment_time || "").slice(0, 5)}
+                                            onChange={(e) => patch(child.id, application, { assessment_time: e.target.value || null })}
                                           />
-                                        </div>
+                                        </label>
+                                      </div>
+                                      <AutosaveField
+                                        collapsible
+                                        label={
+                                          application.assessment_link
+                                            ? `Join link (${meetingPlatform(application.assessment_link)})`
+                                            : "Join link — paste the whole Teams / Zoom invite"
+                                        }
+                                        placeholder="Paste the invite. The meeting ID and passcode fill themselves in. Leave blank if it's at the school."
+                                        value={application.assessment_link}
+                                        onSave={async (v) => {
+                                          const ok = await saveMeetingLink(child.id, application, v);
+                                          if (!ok) throw new Error("check the message above, then Retry");
+                                        }}
+                                      />
+                                      <div className="ap-stagepanel-grid">
+                                        <AutosaveField
+                                          label="Meeting ID"
+                                          placeholder="e.g. 312 456 789 012"
+                                          value={application.assessment_meeting_id}
+                                          onSave={async (v) => {
+                                            const ok = await patch(child.id, application, { assessment_meeting_id: v });
+                                            if (!ok) throw new Error("check the message above, then Retry");
+                                          }}
+                                        />
+                                        <AutosaveField
+                                          label="Passcode"
+                                          placeholder="e.g. aB3cD4"
+                                          value={application.assessment_passcode}
+                                          onSave={async (v) => {
+                                            const ok = await patch(child.id, application, { assessment_passcode: v });
+                                            if (!ok) throw new Error("check the message above, then Retry");
+                                          }}
+                                        />
                                       </div>
                                       <AutosaveField
                                         collapsible
@@ -985,6 +1089,7 @@ export default function ApplicationsPanel({
                                 </div>
                               </div>
 
+                              {!isClosed && (
                               <UpdateFamilyButton
                                 familyId={familyId}
                                 schoolId={application.school_id}
@@ -1001,6 +1106,7 @@ export default function ApplicationsPanel({
                                   }[application.status] || "applied"
                                 }
                               />
+                              )}
 
                               <OpenApplySynced
                                 application={application}
@@ -1044,7 +1150,7 @@ export default function ApplicationsPanel({
                               </details>
                             </>
                           )}
-                        </div>
+                        </fieldset>
                       )}
                     </li>
                   );

@@ -65,6 +65,7 @@ export default function OverviewPanel({
   onFamilyRefresh,
   onGoToVisits,
   onGoToApplications,
+  onProgressChange,
   caseNotes,
   staff,
   schoolCatalog,
@@ -163,7 +164,7 @@ export default function OverviewPanel({
       />
 
       {family.client_stage === "placed" && (
-        <PlacementPanel family={family} familyChildren={familyChildren} />
+        <PlacementPanel family={family} familyChildren={familyChildren} onChanged={onProgressChange} />
       )}
 
       <ReferralsPanel family={family} />

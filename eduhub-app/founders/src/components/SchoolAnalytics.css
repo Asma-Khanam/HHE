@@ -1,0 +1,76 @@
+.sa {
+  margin-top: 8px;
+}
+.sa-title {
+  margin: 0;
+  font-size: 1.3rem;
+}
+.sa-chase,
+.sa-score {
+  margin: 16px 0;
+}
+.sa-table {
+  width: 100%;
+}
+.sa-table tbody tr {
+  cursor: pointer;
+}
+.sa-table tbody tr:hover {
+  background: #fbf7f8;
+}
+.sa-table .is-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sa-late {
+  color: #9a3412;
+  font-weight: 600;
+}
+.sa-sub {
+  display: block;
+  font-size: 11px;
+  color: rgba(42, 17, 25, 0.55);
+}
+.sa-sort {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.sa-sort.is-on {
+  color: var(--hh-burgundy, #530126);
+  font-weight: 700;
+}
+.sa-more {
+  margin-top: 8px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--hh-burgundy, #530126);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.sa-scroll {
+  overflow-x: auto;
+}
+.sa-table th,
+.sa-table td {
+  text-align: left;
+}
+.sa-table th.is-num,
+.sa-table td.is-num {
+  text-align: right;
+}
+.sa-table a {
+  color: var(--hh-burgundy, #530126);
+  font-weight: 600;
+  text-decoration: none;
+}
+.sa-table a:hover {
+  text-decoration: underline;
+}

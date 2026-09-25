@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useApplicationData } from "../context/ApplicationDataContext";
-import { fetchFamilyTimetable } from "../lib/timetableData";
+import { fetchFamilyTimetable, fetchFamilyApplications } from "../lib/timetableData";
+import { placedByChild, schoolClosed } from "../lib/placement";
 import { parseDay, timeRange, toursOfRow } from "../lib/tourDetails";
 import TourDetailsCard from "./TourDetailsCard";
 import { IconChevronDown } from "./icons";
@@ -11,18 +12,24 @@ import "./UpcomingToursCard.css";
 // for the soonest booked tour, with any other upcoming tours listed below it
 // (tap one to see its details). Hidden entirely when nothing is booked.
 export default function UpcomingToursCard() {
-  const { familyId } = useApplicationData();
+  const { familyId, data } = useApplicationData();
+  const childKey = (data?.children || []).map((c) => c.id).join(",");
   const [tours, setTours] = useState([]);
   const [openKey, setOpenKey] = useState(null);
 
   useEffect(() => {
     if (!familyId) return undefined;
     let cancelled = false;
-    fetchFamilyTimetable(familyId)
-      .then(({ shortlist }) => {
+    const childIds = childKey ? childKey.split(",") : [];
+    Promise.all([fetchFamilyTimetable(familyId), fetchFamilyApplications(childIds).catch(() => [])])
+      .then(([{ shortlist }, apps]) => {
         if (cancelled) return;
         const today = new Date().toLocaleDateString("en-CA");
+        // No tour reminders for a school that's closed because every child
+        // has been placed somewhere else.
+        const placed = placedByChild(apps);
         const upcoming = shortlist
+          .filter((r) => !schoolClosed(placed, childIds, r.school_id))
           .flatMap(toursOfRow)
           .filter((t) => t.date >= today && t.status !== "completed")
           .sort((a, b) => (a.date + (a.start || "")).localeCompare(b.date + (b.start || "")));
@@ -33,7 +40,7 @@ export default function UpcomingToursCard() {
     return () => {
       cancelled = true;
     };
-  }, [familyId]);
+  }, [familyId, childKey]);
 
   if (!tours.length) return null;
 

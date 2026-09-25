@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listSchoolsWithStats, createSchool, friendlyError } from "../lib/staffData";
+import SchoolAnalytics from "../components/SchoolAnalytics";
 import "../components/panels.css";
 import "./FamiliesListPage.css";
 import "./SchoolsPage.css";
@@ -21,6 +22,11 @@ export default function SchoolsPage() {
   const [newName, setNewName] = useState("");
   const [newArea, setNewArea] = useState("");
   const [saving, setSaving] = useState(false);
+  const [view, setView] = useState(() => (window.location.hash === "#analytics" ? "analytics" : "list"));
+  function switchView(next) {
+    setView(next);
+    window.history.replaceState(null, "", next === "analytics" ? "#analytics" : window.location.pathname);
+  }
 
   function load() {
     listSchoolsWithStats()
@@ -74,6 +80,22 @@ export default function SchoolsPage() {
           </p>
         </div>
         <div className="schools-page-header-actions">
+          <div className="in-seg schools-view-toggle" role="tablist" aria-label="View">
+            <button type="button" role="tab" aria-selected={view === "list"} className={view === "list" ? "is-on" : ""} onClick={() => switchView("list")}>
+              All schools
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "analytics"}
+              className={view === "analytics" ? "is-on" : ""}
+              onClick={() => switchView("analytics")}
+            >
+              Analytics
+            </button>
+          </div>
+          {view === "list" && (
+            <>
           <input
             type="text"
             className="families-search"
@@ -84,12 +106,16 @@ export default function SchoolsPage() {
           <button type="button" className="panel-btn panel-btn-primary" onClick={() => setAdding((v) => !v)}>
             {adding ? "Cancel" : "+ Add school"}
           </button>
+            </>
+          )}
         </div>
       </div>
 
-      {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
+      {view === "analytics" && <SchoolAnalytics />}
 
-      {adding && (
+      {view === "list" && error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
+
+      {view === "list" && adding && (
         <form className="schools-add-form" onSubmit={handleAdd}>
           <input
             type="text"
@@ -112,20 +138,20 @@ export default function SchoolsPage() {
         </form>
       )}
 
-      {schools && schools.length === 0 && !error && (
+      {view === "list" && schools && schools.length === 0 && !error && (
         <p className="families-empty-hint">No schools yet — add the first one above.</p>
       )}
 
-      {schools && schools.length > 0 && filtered.length === 0 && <p className="families-empty-hint">Nothing matches that.</p>}
+      {view === "list" && schools && schools.length > 0 && filtered.length === 0 && <p className="families-empty-hint">Nothing matches that.</p>}
 
-      {filtered.length > 0 && (
+      {view === "list" && filtered.length > 0 && (
         <div className="families-table-wrap">
           <table className="families-table">
             <thead>
               <tr>
                 <th>School</th>
                 <th>Curriculum</th>
-                <th>Admissions contact</th>
+                <th>Main contact</th>
                 <th>Shortlisted</th>
                 <th>Awaiting reply</th>
               </tr>

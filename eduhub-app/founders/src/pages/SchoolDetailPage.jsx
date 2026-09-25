@@ -20,7 +20,7 @@ import { relativeDay } from "../lib/workflow";
 import { displayNameForChild } from "../lib/completeness";
 import GenericDocumentsPanel from "../components/GenericDocumentsPanel";
 import AutosaveField from "../components/Autosave";
-import CopyButton from "../components/CopyButton";
+import SchoolContactsPanel from "../components/SchoolContactsPanel";
 import "../components/panels.css";
 import "./FamilyDetailPage.css";
 import "./SchoolDetailPage.css";
@@ -231,29 +231,6 @@ function SvRow({ label, children }) {
   );
 }
 
-// Same read-line-with-copy-icon pattern as the family Overview tab
-// (OverviewPanel.jsx's ReadLine) -- founder feedback (Sept 2026): the
-// School record's contact details should stand on their own, easy to
-// glance at and copy-paste, same as the family's contact info does.
-function SvContactRow({ label, value, href }) {
-  if (!value) return <SvRow label={label} />;
-  return (
-    <div className="sv-row">
-      <span className="sv-label">{label}</span>
-      <span className="sv-value sv-copy-line">
-        {href ? (
-          <a href={href} title={href.startsWith("mailto:") ? "Opens in Titan" : undefined}>
-            {value}
-          </a>
-        ) : (
-          <span>{value}</span>
-        )}
-        <CopyButton text={value} label={"Copy " + label.toLowerCase()} />
-      </span>
-    </div>
-  );
-}
-
 function SchoolRecordView({ school }) {
   const links = [
     ["Website", school.website_url],
@@ -276,7 +253,6 @@ function SchoolRecordView({ school }) {
     school.requires_interview && "Interview",
     school.requires_taster_day && "Taster day",
   ].filter(Boolean);
-  const contact = [school.admissions_contact_name, school.admissions_contact_email, school.admissions_contact_phone].filter(Boolean);
   return (
     <div className="sv">
       <div className="sv-links">
@@ -317,22 +293,6 @@ function SchoolRecordView({ school }) {
           <SvRow label="Application fee">{school.application_fee != null ? `${school.fee_currency || "AED"} ${school.application_fee}` : ""}</SvRow>
           <SvRow label="Deposit">{school.deposit_amount != null ? `${school.fee_currency || "AED"} ${school.deposit_amount}` : ""}</SvRow>
         </div>
-      </div>
-      <div className="sv-card sv-wide sv-contact-card">
-        <h3>Contact</h3>
-        {contact.length === 0 ? (
-          <p className="sv-empty">Not added</p>
-        ) : (
-          <div className="sv-contact-grid">
-            <SvContactRow label="Name" value={school.admissions_contact_name} />
-            <SvContactRow
-              label="Email"
-              value={school.admissions_contact_email}
-              href={school.admissions_contact_email ? `mailto:${school.admissions_contact_email}` : undefined}
-            />
-            <SvContactRow label="Phone" value={school.admissions_contact_phone} />
-          </div>
-        )}
       </div>
       <div className="sv-card sv-wide">
         <h3>Documents required</h3>
@@ -415,9 +375,6 @@ export default function SchoolDetailPage() {
       default_tour_maps_url: school.default_tour_maps_url || "",
       website_url: school.website_url || "",
       fees_url: school.fees_url || "",
-      admissions_contact_name: school.admissions_contact_name || "",
-      admissions_contact_email: school.admissions_contact_email || "",
-      admissions_contact_phone: school.admissions_contact_phone || "",
       tour_booking_url: school.tour_booking_url || "",
       application_url: school.application_url || "",
       application_platform: school.application_platform || "",
@@ -655,6 +612,10 @@ export default function SchoolDetailPage() {
           <div className="school-stat">
             <span className="school-stat-value">{stats.offers}</span>
             <span className="school-stat-label">offers</span>
+          </div>
+          <div className="school-stat">
+            <span className="school-stat-value">{stats.accepted ?? 0}</span>
+            <span className="school-stat-label">placed through us</span>
           </div>
         </div>
       )}
@@ -913,40 +874,6 @@ export default function SchoolDetailPage() {
                 />
               </div>
               <div className="rec-field">
-                <label className="rec-field-label" htmlFor="sch-admissions-name">
-                  Admissions contact name
-                </label>
-                <input
-                  id="sch-admissions-name"
-                  className="panel-input"
-                  value={draft.admissions_contact_name}
-                  onChange={(e) => setDraft((d) => ({ ...d, admissions_contact_name: e.target.value }))}
-                />
-              </div>
-              <div className="rec-field">
-                <label className="rec-field-label" htmlFor="sch-admissions-email">
-                  Admissions contact email
-                </label>
-                <input
-                  id="sch-admissions-email"
-                  type="email"
-                  className="panel-input"
-                  value={draft.admissions_contact_email}
-                  onChange={(e) => setDraft((d) => ({ ...d, admissions_contact_email: e.target.value }))}
-                />
-              </div>
-              <div className="rec-field">
-                <label className="rec-field-label" htmlFor="sch-admissions-phone">
-                  Admissions contact phone
-                </label>
-                <input
-                  id="sch-admissions-phone"
-                  className="panel-input"
-                  value={draft.admissions_contact_phone}
-                  onChange={(e) => setDraft((d) => ({ ...d, admissions_contact_phone: e.target.value }))}
-                />
-              </div>
-              <div className="rec-field">
                 <label className="rec-field-label" htmlFor="sch-currency">
                   Currency (application fee and deposit)
                 </label>
@@ -1048,6 +975,13 @@ export default function SchoolDetailPage() {
           </form>
         )}
       </section>
+      )}
+
+      {tab === "record" && (
+        <SchoolContactsPanel
+          school={school}
+          onSchoolChange={(patch) => setDetail((d) => ({ ...d, school: { ...d.school, ...patch } }))}
+        />
       )}
 
       {tab === "notes" && (

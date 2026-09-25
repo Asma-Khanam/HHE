@@ -1190,7 +1190,8 @@ export async function getSchoolDetail(schoolId) {
     applications: allApplicationStatuses.filter((a) => a.status !== "draft" && a.status !== "withdrawn").length,
     assessments: allApplicationStatuses.filter((a) => ["assessment_booked", "under_review"].includes(a.status)).length,
     offers: allApplicationStatuses.filter((a) => a.status === "offer" || a.status === "offer_accepted").length,
-    accepted: null,
+    // "Offer accepted" = placed here through us.
+    accepted: allApplicationStatuses.filter((a) => a.status === "offer_accepted").length,
   };
 
   return { school, availability: availability || [], shortlist: shortlistWithNames, stats };
@@ -1632,5 +1633,57 @@ export async function markServiceRequestIntroduced(id) {
       .eq("id", id)
       .select("*, service:partner_services ( label )")
       .single()
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Addendum 80: school contacts (many per school, each with a job title).
+// Nothing is deleted -- someone who leaves is archived. The main contact is
+// copied onto schools.admissions_contact_* by a database trigger.
+// ---------------------------------------------------------------------------
+
+export async function listSchoolContacts(schoolIds) {
+  const ids = (Array.isArray(schoolIds) ? schoolIds : [schoolIds]).filter(Boolean);
+  if (!ids.length) return [];
+  const { data, error } = await supabase
+    .from("school_contacts")
+    .select("*")
+    .in("school_id", ids)
+    .order("is_main", { ascending: false })
+    .order("created_at");
+  if (error) {
+    // Addendum 80 not run yet -- fall back to the single contact on the school row.
+    if (/school_contacts|PGRST205|42P01/i.test(error.message || error.code || "")) return null;
+    throw error;
+  }
+  return data || [];
+}
+
+export async function createSchoolContact(schoolId, fields = {}) {
+  return unwrap(
+    await supabase
+      .from("school_contacts")
+      .insert({ school_id: schoolId, ...fields })
+      .select()
+      .single()
+  );
+}
+
+export async function updateSchoolContact(contactId, patch) {
+  return unwrap(await supabase.from("school_contacts").update(patch).eq("id", contactId).select().single());
+}
+
+export async function setMainSchoolContact(schoolId, contactId) {
+  unwrap(
+    await supabase.from("school_contacts").update({ is_main: false }).eq("school_id", schoolId).neq("id", contactId).select()
+  );
+  return updateSchoolContact(contactId, { is_main: true, archived_at: null });
+}
+
+// The two stage columns only -- re-read after anything on the family page
+// that the database uses to work the stage out (addendum 80).
+export async function getFamilyStages(familyId) {
+  return unwrap(
+    await supabase.from("families").select("id, pipeline_stage, client_stage").eq("id", familyId).single()
   );
 }

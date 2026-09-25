@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { listPlacements, createPlacement, updatePlacementDate, friendlyError } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
+import { oneMonthAfter } from "../lib/placement";
 import "./panels.css";
 
 function fmt(d) {
@@ -10,7 +11,7 @@ function fmt(d) {
 // Shown on a Placed family's Overview: the school and start date for each
 // child. Saving one drops a "wish them good luck" reminder on the calendar
 // for that day; changing the date moves the same reminder.
-export default function PlacementPanel({ family, familyChildren }) {
+export default function PlacementPanel({ family, familyChildren, onChanged }) {
   const [rows, setRows] = useState(null);
   const [childId, setChildId] = useState("");
   const [school, setSchool] = useState("");
@@ -47,6 +48,7 @@ export default function PlacementPanel({ family, familyChildren }) {
       const childName = idx === -1 ? "" : displayNameForChild(familyChildren[idx], idx);
       const row = await createPlacement({ familyId: family.id, childId, childName, schoolName: school, startDate: date });
       setRows((l) => [...(l || []), row]);
+      onChanged?.();
       setSchool("");
       setDate("");
       setChildId("");
@@ -62,6 +64,7 @@ export default function PlacementPanel({ family, familyChildren }) {
     try {
       const updated = await updatePlacementDate(row, value);
       setRows((l) => l.map((r) => (r.id === row.id ? updated : r)));
+      onChanged?.();
     } catch (e) {
       setError(friendlyError(e, "Couldn't update that date."));
     }
@@ -73,7 +76,8 @@ export default function PlacementPanel({ family, familyChildren }) {
         <h2>Placement</h2>
       </div>
       <p className="family-detail-hint">
-        Add the school and first day for each child. It goes on the calendar as a reminder to wish them good luck.
+        Add the school and first day for each child. It goes on the calendar as a reminder to wish them good luck, and
+        a task is added for one month later to send the family a check-in email.
       </p>
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
@@ -83,6 +87,7 @@ export default function PlacementPanel({ family, familyChildren }) {
             <li key={r.id} className="ref-item">
               <span className="ref-main">
                 <strong>{nameOf(r.child_id)}</strong> · {r.school_name}
+                <span className="pl-checkin">One-month check-in: {fmt(oneMonthAfter(r.start_date))}</span>
               </span>
               <input
                 type="date"

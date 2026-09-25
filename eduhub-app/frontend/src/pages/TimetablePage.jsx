@@ -6,6 +6,9 @@ import { childPhaseFor, nearestTourInfo } from "../lib/schoolJourney";
 import { IconSchool, IconChevronDown } from "../components/icons";
 import TourDetailsCard from "../components/TourDetailsCard";
 import { downloadTourIcs } from "../lib/tourDetails";
+import AssessmentCard from "../components/AssessmentCard";
+import { hasAssessment, assessmentOf, assessmentWhen } from "../lib/assessment";
+import { placedByChild, schoolClosed, appClosed } from "../lib/placement";
 import "./TimetablePage.css";
 
 // "Your schools" -- rebuilt September 2026 ("every feature should have a
@@ -158,21 +161,53 @@ export default function TimetablePage() {
 
   const appsFor = (row) => applications.filter((a) => a.school_id === row.school_id && a.status !== "withdrawn");
 
+  // Founders (25 Sept 2026): once every child has accepted a place, the
+  // other schools close -- greyed out at the bottom, no more tour reminders.
+  const placed = placedByChild(applications);
+  const isClosed = (row) => schoolClosed(placed, childIds, row.school_id);
+  const schoolNameById = Object.fromEntries(rows.map((r) => [r.school_id, r.school?.name || "School"]));
+  const placedGroups = {};
+  childList
+    .filter((c) => placed[c.id])
+    .forEach((c) => (placedGroups[placed[c.id]] = placedGroups[placed[c.id]] || []).push(c.name));
+  const placedLines = Object.entries(placedGroups).map(([schoolId, names]) =>
+    names.length === 1
+      ? `${names[0]} has a place at ${schoolNameById[schoolId] || "their new school"}`
+      : `${names.slice(0, -1).join(", ")} and ${names.at(-1)} have places at ${schoolNameById[schoolId] || "their new school"}`
+  );
+  const placedCount = childList.filter((c) => placed[c.id]).length;
+  const childNameOf = (id) => childList.find((c) => c.id === id)?.name || "";
+
+  // Assessments the consultant has saved (date, join link, meeting ID,
+  // passcode), soonest first -- shown as soon as they're saved.
+  const ACTIVE = ["draft", "submitted", "assessment_booked", "under_review", "waitlisted"];
+  const assessmentsFor = (row) =>
+    appsFor(row)
+      .filter((a) => hasAssessment(a) && !appClosed(placed, a))
+      .map((a) => assessmentOf(a, { school: row.school, childName: childList.length > 1 ? childNameOf(a.child_id) : "" }));
+
   const sortedRows = useMemo(() => {
     const rank = (row) => {
+      if (schoolClosed(placedByChild(applications), childIds, row.school_id)) return 4;
       if (row.family_decision === "declined" || row.family_interest === "not_for_us") return 3;
       if (row.priority === "primary") return 0;
       if (row.priority === "secondary") return 1;
       return 2;
     };
     return [...rows].sort((a, b) => rank(a) - rank(b));
-  }, [rows]);
+  }, [rows, applications, childIds]);
 
   const todayKey = new Date().toISOString().slice(0, 10);
   const upcomingTours = rows
+    .filter((r) => !isClosed(r))
     .flatMap(toursOf)
     .filter((t) => t.status !== "completed" && t.date >= todayKey)
     .sort((a, b) => (a.date + (a.start || "")).localeCompare(b.date + (b.start || "")));
+  const upcomingAssessments = rows
+    .filter((r) => !isClosed(r))
+    .flatMap((r) => assessmentsFor(r).map((a) => ({ ...a, rowId: r.id })))
+    .filter((a) => ACTIVE.includes(a.app.status) && (!a.date || a.date >= todayKey))
+    .sort((x, y) => (x.date || "9999").localeCompare(y.date || "9999"));
 
   const categoryOf = (row) => {
     const apps = appsFor(row);
@@ -216,6 +251,18 @@ export default function TimetablePage() {
         </div>
       ) : (
         <>
+          {placedLines.length > 0 && (
+            <div className="ys-placed-banner">
+              <span aria-hidden="true">🎓</span>
+              <span>
+                <strong>{placedLines.join(" · ")}</strong>
+                {placedCount === childList.length && (
+                  <span className="ys-placed-sub">Your other schools are closed and kept at the bottom for reference.</span>
+                )}
+              </span>
+            </div>
+          )}
+
           <div className="ys-stats">
             <Stat label="Shortlisted" value={rows.length} />
             <Stat label="Tours booked" value={upcomingTours.length} />
@@ -226,9 +273,54 @@ export default function TimetablePage() {
           <section className="ys-card">
             <div className="ys-card-head">
               <h2>Coming up</h2>
-              <span className="ys-card-sub">Your booked school tours</span>
+              <span className="ys-card-sub">Your booked school tours and assessments</span>
             </div>
-            {upcomingTours.length === 0 ? (
+            {upcomingAssessments.length > 0 && (
+              <ul className="ys-tours ys-assessments">
+                {upcomingAssessments.map((a) => {
+                  const d = a.date ? formatDay(a.date) : null;
+                  return (
+                    <li key={a.key} className="ys-tour is-assessment">
+                      <div className="ys-tour-date">
+                        <span>{d ? d.toLocaleDateString(undefined, { month: "short" }) : "TBC"}</span>
+                        <strong>{d ? d.getDate() : "–"}</strong>
+                        <span>{d ? d.toLocaleDateString(undefined, { weekday: "short" }) : ""}</span>
+                      </div>
+                      <div className="ys-tour-main">
+                        <button type="button" className="ys-tour-school" onClick={() => openSchool(a.rowId)}>
+                          {a.school.name || "School"}
+                        </button>
+                        <span className="ys-tour-when">
+                          Assessment{a.childName ? ` for ${a.childName}` : ""} · {assessmentWhen(a)}
+                          {a.date && relativeDay(a.date) && <span className="ys-tour-rel">{relativeDay(a.date)}</span>}
+                        </span>
+                      </div>
+                      <div className="ys-tour-actions">
+                        {a.link && (
+                          <a className="ys-btn ys-btn-primary" href={a.link} target="_blank" rel="noopener noreferrer">
+                            Join
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          className="ys-btn"
+                          onClick={() => setDetailsKey(detailsKey === a.key ? null : a.key)}
+                          aria-expanded={detailsKey === a.key}
+                        >
+                          {detailsKey === a.key ? "Hide details" : "Details"}
+                        </button>
+                      </div>
+                      {detailsKey === a.key && (
+                        <div className="ys-tour-details">
+                          <AssessmentCard assessment={a} />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {upcomingTours.length === 0 && upcomingAssessments.length > 0 ? null : upcomingTours.length === 0 ? (
               <p className="ys-muted">No tours booked right now. We'll add them here as soon as a school confirms a date.</p>
             ) : (
               <ul className="ys-tours">
@@ -306,6 +398,10 @@ export default function TimetablePage() {
                   apps={appsFor(row)}
                   childList={childList}
                   childStatus={childStatus.filter((cs) => cs.shortlist_id === row.id)}
+                  closed={isClosed(row)}
+                  placed={placed}
+                  placedLines={placedLines}
+                  assessments={assessmentsFor(row)}
                   open={openId === row.id}
                   onToggle={() => setOpenId(openId === row.id ? null : row.id)}
                   onPatch={(changes) => patchRow(row.id, changes)}
@@ -329,13 +425,20 @@ function Stat({ label, value, good }) {
   );
 }
 
-function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch, refCb }) {
+function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch, refCb, closed, placed, placedLines, assessments }) {
   const declined = row.family_decision === "declined";
   const tours = toursOf(row);
   const interest = INTEREST.find((i) => i.key === row.family_interest);
 
   return (
-    <li ref={refCb} className={"ys-school" + (open ? " is-open" : "") + (declined || row.family_interest === "not_for_us" ? " is-faded" : "")}>
+    <li
+      ref={refCb}
+      className={
+        "ys-school" +
+        (open ? " is-open" : "") +
+        (closed ? " is-closed" : declined || row.family_interest === "not_for_us" ? " is-faded" : "")
+      }
+    >
       <button type="button" className="ys-school-head" onClick={onToggle} aria-expanded={open}>
         <span className="ys-school-icon">
           <IconSchool size={16} />
@@ -347,11 +450,22 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
             {row.priority === "secondary" && <span className="ys-badge">Backup</span>}
           </span>
           <span className="ys-school-meta">
-            {[row.school?.area, interest ? `You: ${interest.label}` : null].filter(Boolean).join(" · ") || "\u00a0"}
+            {closed
+              ? "Closed · every child has a place elsewhere"
+              : [row.school?.area, interest ? `You: ${interest.label}` : null].filter(Boolean).join(" · ") || "\u00a0"}
           </span>
         </span>
         <span className="ys-school-kids">
           {childList.map((c) => {
+            if (placed[c.id]) {
+              const here = String(placed[c.id]) === String(row.school_id);
+              return (
+                <span key={c.id} className={"ys-pill " + (here ? "is-good" : "is-closed")}>
+                  {childList.length > 1 && <em>{c.name}</em>}
+                  {here ? "Place accepted 🎓" : "Closed"}
+                </span>
+              );
+            }
             const { phase, tone } = childPhaseFor(row, apps.filter((a) => a.child_id === c.id));
             return (
               <span key={c.id} className={"ys-pill is-" + tone}>
@@ -368,6 +482,21 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
 
       {open && (
         <div className="ys-school-body">
+          {closed && (
+            <p className="ys-note is-closed">
+              This school is closed now: {placedLines.join(" · ")}. Everything below is kept for reference.
+            </p>
+          )}
+          {!closed && assessments.length > 0 && (
+            <div className="ys-block">
+              <h3>Assessment</h3>
+              {assessments.map((a) => (
+                <div key={a.key} className="ys-tour-details">
+                  <AssessmentCard assessment={a} showHeading={false} />
+                </div>
+              ))}
+            </div>
+          )}
           {declined && (
             <p className="ys-note is-muted">
               Not going ahead with this school{row.family_decision_note ? ` — ${row.family_decision_note}` : "."}
@@ -413,7 +542,7 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
                 ))
               )}
               {tours
-                .filter((t) => t.status !== "completed")
+                .filter((t) => !closed && t.status !== "completed")
                 .map((t) => (
                   <div key={`d-${t.key}`} className="ys-tour-details">
                     <TourDetailsCard tour={t} />
@@ -475,7 +604,7 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
             </p>
           )}
 
-          <YourView row={row} onPatch={onPatch} />
+          {!closed && <YourView row={row} onPatch={onPatch} />}
         </div>
       )}
     </li>
