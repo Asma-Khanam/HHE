@@ -510,7 +510,16 @@ export default function ApplicationsPanel({
           targetSchoolId = created.id;
         }
       }
-      const created = await createApplication({ childId: child.id, schoolId: targetSchoolId, status: "draft" });
+      // Adding a school for a child who's already placed elsewhere is the
+      // explicit signal that this one should stay open (a second school
+      // through us, e.g. the family isn't happy at the placement) -- the
+      // placement and every other closed school for this child are untouched.
+      const created = await createApplication({
+        childId: child.id,
+        schoolId: targetSchoolId,
+        status: "draft",
+        keepOpen: !!placed[child.id],
+      });
       const schoolName = schools.find((s) => s.id === targetSchoolId)?.name || typedName;
       setApps((map) => ({ ...map, [child.id]: [...(map[child.id] || []), { ...created, schoolName }] }));
       resetForm();
@@ -564,7 +573,7 @@ export default function ApplicationsPanel({
         // The school they're placed at first, then open applications, then
         // closed ones (placed elsewhere, withdrawn) at the bottom.
         const childPlaced = placed[child.id];
-        const isClosedApp = (a) => closedForChild(placed, child.id, a.school_id, a.schoolName);
+        const isClosedApp = (a) => closedForChild(placed, child.id, a.school_id, a.schoolName, a.keep_open);
         const rankApp = (a) =>
           a.status === "offer_accepted" && !isClosedApp(a)
             ? 0
@@ -772,22 +781,36 @@ export default function ApplicationsPanel({
 
                           {/* 2. The process, or why it's closed. */}
                           {placedElsewhere ? (
-                            <fieldset className="apx-readonly" disabled>
+                            <>
                               <p className="ap-closed-note">
                                 View only. {name} was placed at {childPlaced.schoolName}, so this application is closed. If
-                                that placement falls through, it opens again by itself.
+                                that placement falls through, it opens again by itself. If {name} is applying here as well
+                                (a second school through us), you can keep it open instead:
                               </p>
-                              <ApplicationProcess
-                                application={application}
-                                childName={name}
-                                placement={null}
-                                onPatch={async () => false}
-                                onStatus={() => {}}
-                                onMeetingLink={async () => false}
-                                onStartDate={() => {}}
-                                onLog={() => {}}
-                              />
-                            </fieldset>
+                              <button
+                                type="button"
+                                className="apx-link"
+                                onClick={() =>
+                                  patch(child.id, application, { keep_open: true }).then(
+                                    (ok) => ok && logEvent(application, "Kept open alongside the placement")
+                                  )
+                                }
+                              >
+                                Keep this application open too
+                              </button>
+                              <fieldset className="apx-readonly" disabled>
+                                <ApplicationProcess
+                                  application={application}
+                                  childName={name}
+                                  placement={null}
+                                  onPatch={async () => false}
+                                  onStatus={() => {}}
+                                  onMeetingLink={async () => false}
+                                  onStartDate={() => {}}
+                                  onLog={() => {}}
+                                />
+                              </fieldset>
+                            </>
                           ) : isDeclined || isWithdrawn ? (
                             <div className="apx-closed-box">
                               <p className="apx-closed-title">
@@ -835,17 +858,35 @@ export default function ApplicationsPanel({
                               </button>
                             </div>
                           ) : (
-                            <ApplicationProcess
-                              application={application}
-                              childName={name}
-                              portalUrl={portalUrl}
-                              placement={placementFor(child.id, school?.name || application.schoolName)}
-                              onPatch={(changes) => patch(child.id, application, changes)}
-                              onStatus={(next, extra) => changeStatus(child.id, application, next, extra)}
-                              onMeetingLink={(v) => saveMeetingLink(child.id, application, v)}
-                              onStartDate={(v) => savePlacementDate(child, i, school?.name || application.schoolName, v)}
-                              onLog={(text, type) => logEvent(application, text, type)}
-                            />
+                            <>
+                              {childPlaced && application.keep_open && (
+                                <p className="ap-closed-note">
+                                  Kept open even though {name} is placed at {childPlaced.schoolName}.{" "}
+                                  <button
+                                    type="button"
+                                    className="apx-link"
+                                    onClick={() =>
+                                      patch(child.id, application, { keep_open: false }).then(
+                                        (ok) => ok && logEvent(application, "No longer kept open -- closed with the placement")
+                                      )
+                                    }
+                                  >
+                                    Let it close instead
+                                  </button>
+                                </p>
+                              )}
+                              <ApplicationProcess
+                                application={application}
+                                childName={name}
+                                portalUrl={portalUrl}
+                                placement={placementFor(child.id, school?.name || application.schoolName)}
+                                onPatch={(changes) => patch(child.id, application, changes)}
+                                onStatus={(next, extra) => changeStatus(child.id, application, next, extra)}
+                                onMeetingLink={(v) => saveMeetingLink(child.id, application, v)}
+                                onStartDate={(v) => savePlacementDate(child, i, school?.name || application.schoolName, v)}
+                                onLog={(text, type) => logEvent(application, text, type)}
+                              />
+                            </>
                           )}
 
                           {/* 3. Everything else, kept small. */}

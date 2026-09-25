@@ -377,11 +377,17 @@ export async function updateSchool(schoolId, patch) {
   return unwrap(await supabase.from("schools").update(patch).eq("id", schoolId).select().single());
 }
 
-export async function createApplication({ childId, schoolId, fit, status }) {
+export async function createApplication({ childId, schoolId, fit, status, keepOpen }) {
   return unwrap(
     await supabase
       .from("applications")
-      .insert({ child_id: childId, school_id: schoolId, fit: fit || null, status: status || "draft" })
+      .insert({
+        child_id: childId,
+        school_id: schoolId,
+        fit: fit || null,
+        status: status || "draft",
+        ...(keepOpen ? { keep_open: true } : {}),
+      })
       .select()
       .single()
   );
@@ -389,6 +395,16 @@ export async function createApplication({ childId, schoolId, fit, status }) {
 
 export async function updateApplication(applicationId, patch) {
   return unwrap(await supabase.from("applications").update(patch).eq("id", applicationId).select().single());
+}
+
+// A second (or later) school after a placement, or an old closed one the
+// consultant wants to pursue again -- keep_open makes it show as live even
+// though the child is placed elsewhere. Nothing else about the family's
+// history changes.
+export async function setApplicationKeepOpen(applicationId, keepOpen) {
+  return unwrap(
+    await supabase.from("applications").update({ keep_open: !!keepOpen }).eq("id", applicationId).select().single()
+  );
 }
 
 export async function deleteApplication(applicationId) {
@@ -688,24 +704,26 @@ export async function deleteCaseNote(noteId) {
 // up on the family page automatically. Nothing here is ever written to
 // `calendar_events` for a task; the two tables stay exactly what they were.
 export async function loadCalendarEvents({ from, to } = {}) {
+  // Founders (25 Sept 2026): the calendar is for tours and assessments --
+  // the to-do list lives on each family's Tasks list instead, not here.
   let eventsQuery = supabase.from("calendar_events").select("*").order("starts_at");
-  let tasksQuery = supabase.from("tasks").select("*").not("due_date", "is", null).order("due_date");
   let visitsQuery = supabase.from("applications").select("*").not("visit_date", "is", null).order("visit_date");
+  let assessmentsQuery = supabase.from("applications").select("*").not("assessment_date", "is", null).order("assessment_date");
   if (from) {
     eventsQuery = eventsQuery.gte("starts_at", new Date(from).toISOString());
-    tasksQuery = tasksQuery.gte("due_date", toDateOnly(from));
     visitsQuery = visitsQuery.gte("visit_date", toDateOnly(from));
+    assessmentsQuery = assessmentsQuery.gte("assessment_date", toDateOnly(from));
   }
   if (to) {
     eventsQuery = eventsQuery.lt("starts_at", new Date(to).toISOString());
-    tasksQuery = tasksQuery.lt("due_date", toDateOnly(to));
     visitsQuery = visitsQuery.lt("visit_date", toDateOnly(to));
+    assessmentsQuery = assessmentsQuery.lt("assessment_date", toDateOnly(to));
   }
 
-  const [events, tasks, visits, families, parents, staff, children, schools] = await Promise.all([
+  const [events, visits, assessments, families, parents, staff, children, schools] = await Promise.all([
     eventsQuery.then(unwrap),
-    tasksQuery.then(unwrap),
     visitsQuery.then(unwrap),
+    assessmentsQuery.then(unwrap).catch(() => []), // addendum 80 may not have run yet
     supabase.from("families").select("*").then(unwrap),
     supabase.from("parents").select("id, family_id, relationship, full_name, user_id").then(unwrap),
     listStaff(),
@@ -726,23 +744,6 @@ export async function loadCalendarEvents({ from, to } = {}) {
     source: "calendar_event",
     familyName: e.family_id ? familyNames[e.family_id] || "Unknown family" : null,
     consultantName: e.created_by ? staffName(staffById[e.created_by]) : "Unassigned",
-  }));
-
-  const decoratedTasks = (tasks || []).map((t) => ({
-    id: t.id,
-    source: "task",
-    kind: "task",
-    title: t.title,
-    starts_at: `${t.due_date}T00:00:00`,
-    all_day: true,
-    status: t.done_at ? "done" : "upcoming",
-    visible_to_client: false,
-    family_id: t.family_id,
-    created_by: t.created_by,
-    assigned_to: t.assigned_to,
-    done_at: t.done_at,
-    familyName: t.family_id ? familyNames[t.family_id] || "Unknown family" : null,
-    consultantName: t.assigned_to ? staffName(staffById[t.assigned_to]) : "Anyone",
   }));
 
   // School visits — read straight off applications.visit_date, same
@@ -772,7 +773,31 @@ export async function loadCalendarEvents({ from, to } = {}) {
     };
   });
 
-  return [...decoratedEvents, ...decoratedTasks, ...decoratedVisits].sort(
+  // Assessments -- read straight off applications.assessment_date, same
+  // read-merge approach as visits above.
+  const decoratedAssessments = (assessments || []).map((a) => {
+    const child = childById[a.child_id];
+    const childName = child ? child.full_name || child.preferred_name || child.first_name : "Unknown child";
+    const schoolName = schoolNameById[a.school_id] || "Unknown school";
+    return {
+      id: a.id,
+      source: "application_assessment",
+      kind: "assessment",
+      title: `${schoolName} assessment — ${childName}`,
+      notes: a.assessment_notes || "",
+      starts_at: `${a.assessment_date}T00:00:00`,
+      all_day: true,
+      status: "upcoming",
+      visible_to_client: false,
+      family_id: child ? child.family_id : null,
+      child_id: a.child_id,
+      application_id: a.id,
+      familyName: child ? familyNames[child.family_id] || "Unknown family" : null,
+      consultantName: null,
+    };
+  });
+
+  return [...decoratedEvents, ...decoratedVisits, ...decoratedAssessments].sort(
     (a, b) => new Date(a.starts_at) - new Date(b.starts_at)
   );
 }
@@ -1278,11 +1303,11 @@ export async function listOtherFeedbackForSchools(schoolIds, excludeFamilyId) {
   return groupBy(withNames, "school_id");
 }
 
-export async function addToShortlist({ familyId, schoolId }) {
+export async function addToShortlist({ familyId, schoolId, keepOpen }) {
   return unwrap(
     await supabase
       .from("school_shortlist")
-      .insert({ family_id: familyId, school_id: schoolId })
+      .insert({ family_id: familyId, school_id: schoolId, ...(keepOpen ? { keep_open: true } : {}) })
       .select()
       .single()
   );
@@ -1290,6 +1315,12 @@ export async function addToShortlist({ familyId, schoolId }) {
 
 export async function updateShortlistEntry(shortlistId, patch) {
   return unwrap(await supabase.from("school_shortlist").update(patch).eq("id", shortlistId).select().single());
+}
+
+export async function setShortlistKeepOpen(shortlistId, keepOpen) {
+  return unwrap(
+    await supabase.from("school_shortlist").update({ keep_open: !!keepOpen }).eq("id", shortlistId).select().single()
+  );
 }
 
 export async function removeFromShortlist(shortlistId) {

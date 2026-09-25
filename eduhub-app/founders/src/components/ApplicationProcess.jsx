@@ -150,6 +150,11 @@ export default function ApplicationProcess({
             />
           </label>
         </div>
+        {a.assessment_link && (
+          <a className="panel-btn apx-portal-btn" href={a.assessment_link} target="_blank" rel="noreferrer">
+            Open join link ↗
+          </a>
+        )}
         <AutosaveField
           collapsible
           label={a.assessment_link ? `Join link (${meetingPlatform(a.assessment_link)})` : "Join link: paste the whole Teams / Zoom invite"}

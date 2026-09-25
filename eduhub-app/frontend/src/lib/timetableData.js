@@ -68,6 +68,7 @@ export async function fetchFamilyApplications(childIds) {
   // 64 the date, link and details. Newest first, falling back so the page
   // never breaks while a migration hasn't been run yet.
   const attempts = [
+    `${APPLICATION_COLUMNS}, assessment_date, assessment_time, assessment_link, assessment_meeting_id, assessment_passcode, assessment_notes, keep_open`,
     `${APPLICATION_COLUMNS}, assessment_date, assessment_time, assessment_link, assessment_meeting_id, assessment_passcode, assessment_notes`,
     `${APPLICATION_COLUMNS}, assessment_date, assessment_link, assessment_notes`,
     APPLICATION_COLUMNS,

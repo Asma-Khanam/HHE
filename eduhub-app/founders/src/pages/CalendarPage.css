@@ -199,6 +199,7 @@
 .kind-team { background: #3b5a7a; }
 .kind-other { background: #7a7a7a; }
 .kind-visit { background: #2f7a5c; }
+.kind-assessment { background: #7a4f9c; }
 
 .cal-pill.is-done {
   opacity: 0.55;

@@ -16,13 +16,17 @@ export function placedByChild(applications) {
 export function schoolClosed(placed, childIds, schoolId, apps = []) {
   if (!childIds.length) return false;
   return childIds.every((id) => {
-    if (placed[id]) return String(placed[id]) !== String(schoolId);
     const app = apps.find((a) => a.child_id === id && String(a.school_id) === String(schoolId));
+    if (app?.keep_open) return false;
+    if (placed[id]) return String(placed[id]) !== String(schoolId);
     return app?.status === "rejected" || app?.status === "withdrawn";
   });
 }
 
 // This child's application at this school is closed (placed elsewhere).
+// A consultant can mark an application "keep open" (a second school after
+// a placement) so it keeps showing here even though the child is placed.
 export function appClosed(placed, app) {
+  if (app.keep_open) return false;
   return !!placed[app.child_id] && String(placed[app.child_id]) !== String(app.school_id);
 }

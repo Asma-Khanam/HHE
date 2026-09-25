@@ -18,6 +18,7 @@ import {
   saveShortlistNote,
   listPlacements,
   listSchoolContacts,
+  setShortlistKeepOpen,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import { placedByChild, placedHere, shortDate, childClosedReason, rowClosedReason, CLOSED_TEXT } from "../lib/placement";
@@ -240,7 +241,8 @@ export default function SchoolShortlistPanel({
     [children, applicationsByChild, placements, allSchools]
   );
   // Closed = every child placed elsewhere, or declined / withdrawn here.
-  const closedReason = (row) => rowClosedReason(placed, children, row.school_id, row.school?.name, allApplications);
+  const closedReason = (row) =>
+    rowClosedReason(placed, children, row.school_id, row.school?.name, allApplications, row.keep_open);
   const isRowClosed = (row) => !!closedReason(row);
   const placedKids = Object.entries(placed);
 
@@ -396,13 +398,28 @@ export default function SchoolShortlistPanel({
     ].filter(Boolean)
   );
 
+  async function setRowKeepOpen(row, keepOpen) {
+    setRows((list) => list.map((r) => (r.id === row.id ? { ...r, keep_open: keepOpen } : r)));
+    try {
+      await setShortlistKeepOpen(row.id, keepOpen);
+    } catch (err) {
+      setError(friendlyError(err));
+      setRows((list) => list.map((r) => (r.id === row.id ? { ...r, keep_open: row.keep_open } : r)));
+    }
+  }
+
   async function handleAdd(e) {
     e.preventDefault();
     if (!addingSchoolId) return;
     setBusy(true);
     setError("");
     try {
-      await addToShortlist({ familyId, schoolId: addingSchoolId });
+      // Adding a school once a child is already placed elsewhere is the
+      // explicit "second school through us" signal -- keep it open instead
+      // of it being grey on arrival. The placement and every other closed
+      // school are untouched.
+      const anyChildPlaced = children.some((c) => placed[c.id]);
+      await addToShortlist({ familyId, schoolId: addingSchoolId, keepOpen: anyChildPlaced });
       setAddingSchoolId("");
       await load();
       onProgressChange?.();
@@ -542,7 +559,7 @@ export default function SchoolShortlistPanel({
   // between -- Array.sort is stable, so this only moves those two groups.
   const sortedRows = useMemo(() => {
     const rank = (row) => {
-      if (rowClosedReason(placed, children, row.school_id, row.school?.name, allApplications)) return 5;
+      if (rowClosedReason(placed, children, row.school_id, row.school?.name, allApplications, row.keep_open)) return 5;
       if (placedHere(placed, children, row.school_id, row.school?.name).length) return -1;
       if (row.family_decision === "declined") return 3;
       if (row.priority === "primary") return 0;
@@ -659,6 +676,7 @@ export default function SchoolShortlistPanel({
                   placed={placed}
                   expanded={expanded}
                   onToggle={() => setExpandedId(expanded ? null : row.id)}
+                  onKeepOpen={() => setRowKeepOpen(row, true)}
                   contacts={contactsBySchool[row.school_id]}
                   note={notesById[row.id] || ""}
                 />
@@ -727,7 +745,7 @@ export default function SchoolShortlistPanel({
                   {children.map((c) => {
                     const cs = rowChildStatuses.find((r) => r.child_id === c.id);
                     const value = cs?.availability_status || "awaiting";
-                    const why = childClosedReason(placed, c.id, row.school_id, row.school?.name, allApplications);
+                    const why = childClosedReason(placed, c.id, row.school_id, row.school?.name, allApplications, row.keep_open);
                     if (placed[c.id] || why) {
                       const here = placed[c.id] && !why;
                       return (
@@ -1407,7 +1425,7 @@ function SchoolContactsInline({ school, contacts }) {
 // A school that's closed because every child is placed somewhere else:
 // dark grey, at the bottom, view-only (founders, 25 Sept 2026). Opens to
 // show what was recorded, nothing can be changed from here.
-function ClosedRow({ row, children, placed, apps, reason, expanded, onToggle, contacts, note }) {
+function ClosedRow({ row, children, placed, apps, reason, expanded, onToggle, onKeepOpen, contacts, note }) {
   const tourLine = (date, time, status) =>
     date ? `${formatDateTime(date, time)}${status ? ` · ${TOUR_STATUS_LABEL[status]}` : ""}` : "Not booked";
   return (
@@ -1418,7 +1436,7 @@ function ClosedRow({ row, children, placed, apps, reason, expanded, onToggle, co
           <div className="svt-closed-tag">Closed · {CLOSED_TEXT[reason] || "closed"}</div>
         </div>
         {children.map((c) => {
-          const why = childClosedReason(placed, c.id, row.school_id, row.school?.name, apps);
+          const why = childClosedReason(placed, c.id, row.school_id, row.school?.name, apps, row.keep_open);
           return (
             <div className="svt-cell" key={c.id}>
               <span className="svt-child-placed is-elsewhere" title={why === "placed" ? `Placed at ${placed[c.id]?.schoolName}` : undefined}>
@@ -1438,11 +1456,23 @@ function ClosedRow({ row, children, placed, apps, reason, expanded, onToggle, co
         </div>
       </div>
       {expanded && (
-        <fieldset className="svt-detail svt-closed-detail" disabled>
+        <>
+        <div className="svt-closed-note-wrap">
           <p className="svt-closed-note">
             View only. This school is closed because {CLOSED_TEXT[reason] || "no child is going ahead here"}. If that
             changes on the Applications tab, it opens again by itself.
+            {reason === "placed" && (
+              <>
+                {" "}
+                Applying here as well?{" "}
+                <button type="button" className="apx-link" onClick={onKeepOpen}>
+                  Keep this school open too
+                </button>
+              </>
+            )}
           </p>
+        </div>
+        <fieldset className="svt-detail svt-closed-detail" disabled>
           <TourDetailsEditor row={row} onUpdated={() => {}} readOnly />
           <div className="svt-detail-single">
             <div className="svt-detail-main">
@@ -1462,6 +1492,7 @@ function ClosedRow({ row, children, placed, apps, reason, expanded, onToggle, co
             )}
           </div>
         </fieldset>
+        </>
       )}
     </div>
   );

@@ -4,10 +4,6 @@ import {
   createCalendarEvent,
   updateCalendarEvent,
   deleteCalendarEvent,
-  createTask,
-  updateTask,
-  setTaskDone,
-  deleteTask,
   updateApplication,
   listStaff,
   listFamilies,
@@ -16,29 +12,29 @@ import {
 import "./CalendarPage.css";
 
 const KIND_META = {
-  task: { label: "Task", dot: "kind-task" },
   // The database's own default kind for a plain calendar_events row
   // (eduhub_schema_addendum_6_calendar.sql) — needs an entry here so an
   // existing "reminder" event has a matching <option> to select. Without
   // one, the Kind <select> below falls back to showing its first option
-  // ("Task") for a reminder even though the actual value is untouched —
-  // confusing, and one accidental re-pick away from actually turning a
-  // calendar event into a task.
+  // for a reminder even though the actual value is untouched — confusing.
   reminder: { label: "Reminder", dot: "kind-reminder" },
   deadline: { label: "Deadline", dot: "kind-deadline" },
   team_event: { label: "Team event", dot: "kind-team" },
   other: { label: "Other", dot: "kind-other" },
-  // Not a real, pickable "kind" from the New event form — visits are only
-  // created from a family's Applications panel, where there's an actual
-  // child + school to attach the date to. Kept here purely so the calendar
-  // pill for one has a label and colour.
+  // Neither of these is a real, pickable "kind" from the New event form —
+  // visits and assessments are only created from a family's Applications
+  // panel, where there's an actual child + school to attach the date to.
+  // Kept here purely so the calendar pill for one has a label and colour.
   school_visit: { label: "School visit", dot: "kind-visit" },
+  assessment: { label: "Assessment", dot: "kind-assessment" },
 };
 
 // The subset of KIND_META that can actually be picked when creating or
-// editing a plain calendar entry — school_visit is excluded on purpose,
-// see the comment above.
-const PICKABLE_KINDS = Object.entries(KIND_META).filter(([key]) => key !== "school_visit");
+// editing a plain calendar entry — school_visit/assessment are excluded on
+// purpose, see the comment above. Founders (25 Sept 2026): the calendar is
+// for tours and assessments, so there's no "Task" kind here any more --
+// to-dos live on each family's Tasks list instead.
+const PICKABLE_KINDS = Object.entries(KIND_META).filter(([key]) => key !== "school_visit" && key !== "assessment");
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -72,7 +68,7 @@ const emptyForm = {
   id: null,
   source: "calendar_event",
   title: "",
-  kind: "task",
+  kind: "reminder",
   familyId: "",
   childId: "",
   assignedTo: "",
@@ -171,42 +167,32 @@ export default function CalendarPage() {
       }
       return;
     }
+    if (form.source === "application_assessment") {
+      try {
+        await updateApplication(form.id, { assessment_date: form.date, assessment_notes: form.notes });
+        setForm(null);
+        load();
+      } catch (err) {
+        setError(friendlyError(err, "Couldn't save that assessment."));
+      }
+      return;
+    }
     if (!form.title.trim()) return;
     try {
-      if (form.kind === "task") {
-        // Tasks live in the `tasks` table, same one the family page and
-        // Today page use — nothing calendar-specific about them.
-        if (form.id) {
-          await updateTask(form.id, {
-            title: form.title,
-            dueDate: form.date,
-            assignedTo: form.assignedTo,
-            familyId: form.familyId || null,
-          });
-        } else {
-          await createTask({
-            familyId: form.familyId || null,
-            title: form.title,
-            dueDate: form.date,
-            assignedTo: form.assignedTo,
-          });
-        }
+      const payload = {
+        familyId: form.familyId || null,
+        childId: form.childId || null,
+        kind: form.kind,
+        title: form.title,
+        notes: form.notes,
+        startsAt: `${form.date}T00:00:00`,
+        allDay: true,
+        visibleToClient: form.visibleToClient,
+      };
+      if (form.id) {
+        await updateCalendarEvent(form.id, { ...payload, status: form.status });
       } else {
-        const payload = {
-          familyId: form.familyId || null,
-          childId: form.childId || null,
-          kind: form.kind,
-          title: form.title,
-          notes: form.notes,
-          startsAt: `${form.date}T00:00:00`,
-          allDay: true,
-          visibleToClient: form.visibleToClient,
-        };
-        if (form.id) {
-          await updateCalendarEvent(form.id, { ...payload, status: form.status });
-        } else {
-          await createCalendarEvent(payload);
-        }
+        await createCalendarEvent(payload);
       }
       setForm(null);
       load();
@@ -222,8 +208,8 @@ export default function CalendarPage() {
         // The application itself stays — only the visit date/notes clear,
         // same as never having scheduled one.
         await updateApplication(form.id, { visit_date: null, visit_notes: null });
-      } else if (form.kind === "task") {
-        await deleteTask(form.id);
+      } else if (form.source === "application_assessment") {
+        await updateApplication(form.id, { assessment_date: null, assessment_notes: null });
       } else {
         await deleteCalendarEvent(form.id);
       }
@@ -231,17 +217,6 @@ export default function CalendarPage() {
       load();
     } catch (err) {
       setError(friendlyError(err, "Couldn't delete that."));
-    }
-  }
-
-  async function handleToggleDone() {
-    if (!form.id || form.kind !== "task") return;
-    try {
-      await setTaskDone(form.id, !form.doneAt);
-      setForm(null);
-      load();
-    } catch (err) {
-      setError(friendlyError(err, "Couldn't update that task."));
     }
   }
 
@@ -341,10 +316,10 @@ export default function CalendarPage() {
 
       {loading && <div className="cal-loading">Loading…</div>}
 
-      {form && form.source === "application_visit" && (
+      {form && (form.source === "application_visit" || form.source === "application_assessment") && (
         <div className="cal-modal-backdrop" onClick={() => setForm(null)}>
           <form className="cal-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSave}>
-            <h2>School visit</h2>
+            <h2>{form.source === "application_visit" ? "School visit" : "Assessment"}</h2>
             <p className="cal-hint">
               {form.title}
               {form.familyId && (
@@ -356,7 +331,7 @@ export default function CalendarPage() {
             </p>
 
             <label>
-              Visit date
+              {form.source === "application_visit" ? "Visit date" : "Assessment date"}
               <input
                 type="date"
                 value={form.date}
@@ -373,7 +348,7 @@ export default function CalendarPage() {
 
             <div className="cal-modal-actions">
               <button type="button" className="cal-delete-btn" onClick={handleDelete}>
-                Remove visit date
+                {form.source === "application_visit" ? "Remove visit date" : "Remove assessment date"}
               </button>
               <div className="cal-modal-actions-right">
                 <button type="button" onClick={() => setForm(null)}>
@@ -388,7 +363,7 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {form && form.source !== "application_visit" && (
+      {form && form.source !== "application_visit" && form.source !== "application_assessment" && (
         <div className="cal-modal-backdrop" onClick={() => setForm(null)}>
           <form className="cal-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSave}>
             <h2>{form.id ? "Edit event" : "New event"}</h2>
@@ -433,7 +408,7 @@ export default function CalendarPage() {
                   value={form.familyId}
                   onChange={(e) => setForm({ ...form, familyId: e.target.value, childId: "" })}
                 >
-                  <option value="">{form.kind === "task" ? "No family" : "No family — team event"}</option>
+                  <option value="">No family — team event</option>
                   {families.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.displayName}
@@ -441,49 +416,33 @@ export default function CalendarPage() {
                   ))}
                 </select>
               </label>
-              {form.kind === "task" ? (
-                <label>
-                  Assigned to
-                  <select value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}>
-                    <option value="">Anyone</option>
-                    {staff.map((s) => (
-                      <option key={s.user_id} value={s.user_id}>
-                        {s.full_name || s.email}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : (
-                <label>
-                  Child (optional)
-                  <select
-                    value={form.childId}
-                    onChange={(e) => setForm({ ...form, childId: e.target.value })}
-                    disabled={!form.familyId}
-                  >
-                    <option value="">Whole family</option>
-                    {childrenForFamily.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.full_name || c.preferred_name || c.first_name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
+              <label>
+                Child (optional)
+                <select
+                  value={form.childId}
+                  onChange={(e) => setForm({ ...form, childId: e.target.value })}
+                  disabled={!form.familyId}
+                >
+                  <option value="">Whole family</option>
+                  {childrenForFamily.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.full_name || c.preferred_name || c.first_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
 
-            {form.kind !== "task" && (
-              <label>
-                Notes
-                <textarea
-                  rows={2}
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                />
-              </label>
-            )}
+            <label>
+              Notes
+              <textarea
+                rows={2}
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              />
+            </label>
 
-            {form.id && form.kind !== "task" && (
+            {form.id && (
               <label>
                 Status
                 <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
@@ -494,29 +453,16 @@ export default function CalendarPage() {
               </label>
             )}
 
-            {form.kind !== "task" && (
-              <>
-                <label className="cal-checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={form.visibleToClient}
-                    onChange={(e) => setForm({ ...form, visibleToClient: e.target.checked })}
-                    disabled={!form.familyId}
-                  />
-                  Show on the family's dashboard
-                </label>
-                {!form.familyId && (
-                  <p className="cal-hint">Pick a family to be able to show this on their dashboard.</p>
-                )}
-              </>
-            )}
-
-            {form.kind === "task" && (
-              <p className="cal-hint">
-                Tasks are shared with the family's own Tasks list on their case page — adding one here is the
-                same as adding it there.
-              </p>
-            )}
+            <label className="cal-checkbox-row">
+              <input
+                type="checkbox"
+                checked={form.visibleToClient}
+                onChange={(e) => setForm({ ...form, visibleToClient: e.target.checked })}
+                disabled={!form.familyId}
+              />
+              Show on the family's dashboard
+            </label>
+            {!form.familyId && <p className="cal-hint">Pick a family to be able to show this on their dashboard.</p>}
 
             <div className="cal-modal-actions">
               {form.id && (
@@ -525,11 +471,6 @@ export default function CalendarPage() {
                 </button>
               )}
               <div className="cal-modal-actions-right">
-                {form.id && form.kind === "task" && (
-                  <button type="button" onClick={handleToggleDone}>
-                    {form.doneAt ? "Mark not done" : "Mark done"}
-                  </button>
-                )}
                 <button type="button" onClick={() => setForm(null)}>
                   Cancel
                 </button>

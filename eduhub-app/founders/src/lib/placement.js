@@ -28,8 +28,12 @@ export function placedByChild({ children = [], applicationsByChild = {}, placeme
 }
 
 // Is this child's application / row at this school closed because the
-// child was placed somewhere else?
-export function closedForChild(placed, childId, schoolId, schoolName) {
+// child was placed somewhere else? A consultant can mark a specific school
+// "keep open" (e.g. a second application after a placement) so it stays
+// live even though the child is placed elsewhere -- the placement and every
+// other closed school are untouched.
+export function closedForChild(placed, childId, schoolId, schoolName, keepOpen) {
+  if (keepOpen) return false;
   const p = placed[childId];
   if (!p) return false;
   if (p.schoolId && schoolId) return String(p.schoolId) !== String(schoolId);
@@ -65,9 +69,9 @@ export function oneMonthAfter(iso) {
 
 // Founders (25 Sept 2026): a declined (or withdrawn) application closes too.
 // For one child at one school: why is it closed, if it is?
-export function childClosedReason(placed, childId, schoolId, schoolName, apps = []) {
-  if (closedForChild(placed, childId, schoolId, schoolName)) return "placed";
+export function childClosedReason(placed, childId, schoolId, schoolName, apps = [], keepOpen) {
   const app = apps.find((a) => a.child_id === childId && String(a.school_id) === String(schoolId));
+  if (closedForChild(placed, childId, schoolId, schoolName, keepOpen || app?.keep_open)) return "placed";
   if (app?.status === "rejected") return "declined";
   if (app?.status === "withdrawn") return "withdrawn";
   return null;
@@ -75,9 +79,9 @@ export function childClosedReason(placed, childId, schoolId, schoolName, apps = 
 
 // A school visit row closes once every child is placed elsewhere or was
 // declined / withdrawn here. Returns null (open) or a short reason.
-export function rowClosedReason(placed, children, schoolId, schoolName, apps = []) {
+export function rowClosedReason(placed, children, schoolId, schoolName, apps = [], keepOpen) {
   if (!children.length) return null;
-  const reasons = children.map((c) => childClosedReason(placed, c.id, schoolId, schoolName, apps));
+  const reasons = children.map((c) => childClosedReason(placed, c.id, schoolId, schoolName, apps, keepOpen));
   if (reasons.some((r) => !r)) return null;
   if (reasons.every((r) => r === "placed")) return "placed";
   if (reasons.every((r) => r === "declined")) return "declined";
