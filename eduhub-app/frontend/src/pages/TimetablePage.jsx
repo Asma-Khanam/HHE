@@ -164,7 +164,7 @@ export default function TimetablePage() {
   // Founders (25 Sept 2026): once every child has accepted a place, the
   // other schools close -- greyed out at the bottom, no more tour reminders.
   const placed = placedByChild(applications);
-  const isClosed = (row) => schoolClosed(placed, childIds, row.school_id);
+  const isClosed = (row) => schoolClosed(placed, childIds, row.school_id, applications);
   const schoolNameById = Object.fromEntries(rows.map((r) => [r.school_id, r.school?.name || "School"]));
   const placedGroups = {};
   childList
@@ -188,7 +188,7 @@ export default function TimetablePage() {
 
   const sortedRows = useMemo(() => {
     const rank = (row) => {
-      if (schoolClosed(placedByChild(applications), childIds, row.school_id)) return 4;
+      if (schoolClosed(placedByChild(applications), childIds, row.school_id, applications)) return 4;
       if (row.family_decision === "declined" || row.family_interest === "not_for_us") return 3;
       if (row.priority === "primary") return 0;
       if (row.priority === "secondary") return 1;
@@ -451,7 +451,9 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
           </span>
           <span className="ys-school-meta">
             {closed
-              ? "Closed · every child has a place elsewhere"
+              ? Object.values(placed).some((sid) => String(sid) !== String(row.school_id))
+                ? "Closed · every child has a place elsewhere"
+                : "Closed · not going ahead with this school"
               : [row.school?.area, interest ? `You: ${interest.label}` : null].filter(Boolean).join(" · ") || "\u00a0"}
           </span>
         </span>
@@ -484,7 +486,8 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
         <div className="ys-school-body">
           {closed && (
             <p className="ys-note is-closed">
-              This school is closed now: {placedLines.join(" · ")}. Everything below is kept for reference.
+              This school is closed now{placedLines.length ? `: ${placedLines.join(" · ")}` : ""}. Everything below is kept for
+              reference.
             </p>
           )}
           {!closed && assessments.length > 0 && (

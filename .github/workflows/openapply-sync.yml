@@ -1,12 +1,13 @@
 name: OpenApply sync
 
-# Runs every 4 hours automatically (per Asma's answer: "a few times a day"),
+# Runs every other day at 7am Dubai time (founders, 25 Sept 2026: "pull
+# updates from it every other day"),
 # and can also be run on demand from the Actions tab for testing -- with a
 # checkbox to force debug mode on for that one run regardless of the repo
 # variable's default.
 on:
   schedule:
-    - cron: "0 */4 * * *"
+    - cron: "0 3 */2 * *"
   workflow_dispatch:
     inputs:
       debug:
@@ -43,7 +44,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           # Manual runs use the checkbox above; the scheduled run (no inputs)
           # falls back to the OPENAPPLY_SYNC_DEBUG repo variable so the
-          # every-4-hours job only goes live once that variable is set to
+          # every-other-day job only goes live once that variable is set to
           # "false" -- see README.md.
           OPENAPPLY_SYNC_DEBUG: ${{ github.event_name == 'workflow_dispatch' && inputs.debug || vars.OPENAPPLY_SYNC_DEBUG }}
           OPENAPPLY_SYNC_DEBUG_APPLICATION_ID: ${{ inputs.debug_application_id }}

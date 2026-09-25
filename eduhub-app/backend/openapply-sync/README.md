@@ -3,7 +3,7 @@
 Logs into each family's OpenApply portal and copies fee/status updates into
 the same `application_events` / `application_fees` tables the founders app's
 "Timeline & fees" panel already writes into by hand. Runs on a schedule via
-GitHub Actions (`.github/workflows/openapply-sync.yml`) -- every 4 hours once
+GitHub Actions (`.github/workflows/openapply-sync.yml`) -- every other day (7am Dubai) once
 it's live.
 
 ## Status (22 Sept 2026)
@@ -54,7 +54,7 @@ debug pass" below.
      secret slot.
 3. **Add one GitHub repo variable** (same Settings page, "Variables" tab
    instead of "Secrets"): `OPENAPPLY_SYNC_DEBUG` = `true`. This is what keeps
-   the automatic every-4-hours run in debug/no-write mode until it's been
+   the automatic every-other-day run in debug/no-write mode until it's been
    checked. A manual run's checkbox (see below) overrides this for that one
    run only.
 

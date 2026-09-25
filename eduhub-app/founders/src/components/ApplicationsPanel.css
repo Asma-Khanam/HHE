@@ -710,3 +710,181 @@ fieldset.ap-card2-body {
 .ap-card2.is-closed .ap-stagepanel-flag {
   display: none;
 }
+
+/* Process layout (founders, 25 Sept 2026) */
+.ap-card2-status .ps-mini {
+  margin-bottom: 4px;
+}
+.apx-family-sees {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  color: var(--hh-good, #2f6b4f);
+}
+.apx-back {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  color: rgba(42, 17, 25, 0.6);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.apx-foot {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hh-track, #ece3e6);
+  display: grid;
+  gap: 12px;
+}
+.apx-foot-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  font-size: 0.82rem;
+}
+.apx-foot-row .ap-withdraw-link {
+  margin-left: auto;
+}
+.apx-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(42, 17, 25, 0.7);
+}
+.apx-inline .panel-input {
+  width: auto;
+  padding: 5px 8px;
+  font-size: 0.82rem;
+}
+.apx-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--hh-burgundy, #530126);
+  font-weight: 600;
+  cursor: pointer;
+}
+.apx-link:hover {
+  text-decoration: underline;
+}
+.ap-oa-empty-card {
+  border-style: dashed;
+}
+
+/* ---- Applications, cleaner (founders, 25 Sept 2026) ------------------------ */
+.ap-card2-head .ps-flow {
+  margin-left: auto;
+}
+.apx-hint {
+  color: rgba(42, 17, 25, 0.6);
+}
+.apx-hint.is-attention {
+  color: #9a5b00;
+  font-weight: 600;
+}
+.ap-card2.is-placed .apx-hint {
+  color: var(--hh-good, #2f6b4f);
+  font-weight: 600;
+}
+.ap-card2.is-closed .apx-hint {
+  color: #c9bfc3;
+}
+/* Portal login & activity log: one card at the top that opens and closes */
+.apx-portal {
+  border: 1px solid #e3d9b8;
+  background: #fbf7ea;
+  border-radius: 10px;
+}
+.apx-portal > summary {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.apx-portal > summary::-webkit-details-marker {
+  display: none;
+}
+.apx-portal > summary::before {
+  content: "▸";
+  color: #8a6d1a;
+  margin-right: 2px;
+}
+.apx-portal[open] > summary::before {
+  content: "▾";
+}
+.apx-portal-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #5f4a0e;
+}
+.apx-portal-sub {
+  font-size: 0.8rem;
+  color: #8a7f5c;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.apx-portal-body {
+  padding: 0 14px 14px;
+  display: grid;
+  gap: 12px;
+}
+.apx-portal-body .ap-portal {
+  margin-top: 0;
+}
+.apx-portal-body .ap-portal-box {
+  background: #fff;
+}
+.apx-portal-btn {
+  display: inline-block;
+  margin-bottom: 10px;
+}
+.apx-closed-box {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 10px;
+  background: #f2efef;
+}
+.apx-closed-title {
+  margin: 0;
+  font-weight: 600;
+}
+fieldset.apx-readonly {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  opacity: 0.85;
+}
+fieldset.apx-readonly .ps-actions {
+  display: none;
+}
+.ap-card2.is-closed .ap-card2-body {
+  background: #fff;
+}
+@media (max-width: 760px) {
+  .ap-card2-head .ps-flow {
+    margin-left: 0;
+    width: 100%;
+    overflow-x: auto;
+  }
+}
+.ap-card2-head .ap-pill-closed {
+  margin-left: auto;
+}
+.ap-card2.is-placed .ps-flow-seg:last-child {
+  background: var(--hh-good, #2f6b4f);
+  color: #fff;
+}
+.apx-closed-box .apx-link {
+  justify-self: start;
+}

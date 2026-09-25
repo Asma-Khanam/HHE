@@ -29,7 +29,7 @@ export default function UpcomingToursCard() {
         // has been placed somewhere else.
         const placed = placedByChild(apps);
         const upcoming = shortlist
-          .filter((r) => !schoolClosed(placed, childIds, r.school_id))
+          .filter((r) => !schoolClosed(placed, childIds, r.school_id, apps))
           .flatMap(toursOfRow)
           .filter((t) => t.date >= today && t.status !== "completed")
           .sort((a, b) => (a.date + (a.start || "")).localeCompare(b.date + (b.start || "")));

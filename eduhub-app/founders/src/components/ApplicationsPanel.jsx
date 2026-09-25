@@ -3,7 +3,6 @@ import {
   createApplication,
   updateApplication,
   createSchool,
-  listShortlistForFamily,
   listApplicationEvents,
   createApplicationEvent,
   listApplicationFees,
@@ -16,25 +15,22 @@ import {
 import { displayNameForChild } from "../lib/completeness";
 import {
   APPLICATION_STATUSES,
-  APPLICATION_TRACK_STEPS,
   REJECTION_REASONS,
   daysInStage,
   eventTypeLabel,
   eventSourceLabel,
-  trackStepIndex,
   currentStageTone,
-  autoNeedsAttentionNote,
 } from "../lib/workflow";
 import CopyButton from "./CopyButton";
-import ApplicationStageTrack from "./ApplicationStageTrack";
+import ApplicationProcess, { applicationMiniSteps } from "./ApplicationProcess";
+import { FlowBar } from "./ProcessSteps";
 import UpdateFamilyButton from "./UpdateFamilyButton";
 import "./panels.css";
 import AutosaveField from "./Autosave";
 import { placedByChild, closedForChild, shortDate } from "../lib/placement";
-import { parseMeetingInvite, looksLikeInvite, meetingPlatform } from "../lib/meetingLink";
+import { parseMeetingInvite, looksLikeInvite } from "../lib/meetingLink";
 import "./ApplicationsPanel.css";
 
-const TOUR_STATUS_LABEL = { offered: "booked", confirmed: "booked", completed: "toured", cancelled: "cancelled" };
 
 function formatShortDate(iso) {
   if (!iso) return "";
@@ -50,10 +46,6 @@ function schoolInitials(name) {
     .join("");
 }
 
-// Declined and Withdrawn each keep their own reason column (addendum 52 and 63).
-function reasonFieldFor(status) {
-  return status === "withdrawn" ? "withdrawn_reason" : "rejected_reason";
-}
 
 const ALIAS_DOMAIN = "applications.heatherharries.com";
 
@@ -61,7 +53,7 @@ const ALIAS_DOMAIN = "applications.heatherharries.com";
 // opens the application. Login details are the parent's application alias
 // and password (the same ones shown on the Application email panel); nothing
 // here is deletable -- log entries are only ever added.
-function PortalAndLog({ application, school, parents, events, onEventAdded, onPortalUrlSaved }) {
+function PortalAndLog({ application, school, parents, events, onEventAdded, onPortalUrlSaved, staffNames = {} }) {
   const [revealed, setRevealed] = useState(false);
   const [entry, setEntry] = useState("");
   const [saving, setSaving] = useState(false);
@@ -184,7 +176,14 @@ function PortalAndLog({ application, school, parents, events, onEventAdded, onPo
                 <span className="ap-log-body">
                   <strong>{eventTypeLabel(ev.event_type)}</strong>
                   {ev.description ? ` — ${ev.description}` : ""}
-                  <span className="ap-log-src"> · {eventSourceLabel(ev.source)}</span>
+                  <span className="ap-log-src">
+                    {" · "}
+                    {ev.source === "openapply_sync"
+                      ? eventSourceLabel(ev.source)
+                      : staffNames[ev.created_by]
+                      ? `by ${staffNames[ev.created_by]}`
+                      : "by a former team member"}
+                  </span>
                 </span>
               </li>
             ))}
@@ -203,9 +202,24 @@ function refNumber(ref) {
 // What the OpenApply sync pulled for this application: the school's own
 // checklist (done / still missing) and its invoices. Read-only -- the
 // school's portal is the source of truth, the sync refreshes it.
-function OpenApplySynced({ application, items, fees }) {
+function OpenApplySynced({ application, items, fees, isOpenApply }) {
   const synced = application.openapply_last_synced_at;
-  if (!items.length && !fees.length && !synced) return null;
+  if (!items.length && !fees.length && !synced) {
+    // An OpenApply school with nothing pulled in yet: say when it will be.
+    if (!isOpenApply) return null;
+    return (
+      <div className="ap-oa ap-oa-empty-card">
+        <div className="ap-oa-head">
+          <span className="ap-oa-title">From OpenApply</span>
+          <span className="ap-oa-when">Checked automatically every other day</span>
+        </div>
+        <p className="ap-oa-empty">
+          Nothing pulled in yet. It needs the family&apos;s application email and password (Application email, below) and the
+          school&apos;s portal link (Portal login, below).
+        </p>
+      </div>
+    );
+  }
   const sorted = [...items].sort((a, b) => refNumber(a.external_ref) - refNumber(b.external_ref));
   const done = sorted.filter((i) => i.status === "done").length;
   const syncedFees = fees.filter((f) => f.source === "openapply_sync");
@@ -215,7 +229,7 @@ function OpenApplySynced({ application, items, fees }) {
         <span className="ap-oa-title">From OpenApply</span>
         {synced && (
           <span className="ap-oa-when">
-            Last synced{" "}
+            Checked every other day · last{" "}
             {new Date(synced).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
           </span>
         )}
@@ -279,7 +293,11 @@ export default function ApplicationsPanel({
   highlightSchoolId,
   parents = [],
   onProgressChange,
+  onGoToVisits,
+  staff = [],
 }) {
+  // Who did what, for the activity log (founders: many consultants).
+  const staffNames = Object.fromEntries((staff || []).map((s) => [s.user_id, s.full_name || s.email]));
   const [apps, setApps] = useState(applicationsByChild || {});
   // Every change made here is reported to the page above, so leaving this tab
   // and coming back shows the current data, not what was loaded at page open.
@@ -294,9 +312,6 @@ export default function ApplicationsPanel({
     onChangeRef.current?.(apps);
   }, [apps]);
   const [schools, setSchools] = useState(schoolCatalog || []);
-  // Read-only lookup of this family's tour history per school, so a row can
-  // say "Toured 15 Sept" without flipping over to the School visits tab.
-  const [tourBySchool, setTourBySchool] = useState({});
   // Status-change history, only used for the "days at this stage" figure.
   const [eventsByApp, setEventsByApp] = useState({});
   // OpenApply sync data (checklist items + invoices), per application.
@@ -341,11 +356,6 @@ export default function ApplicationsPanel({
       setError(err.message || "Couldn't save the start date.");
     }
   }
-  // Which stage panel is open per application (September 2026 redesign) --
-  // defaults to wherever the application actually is; a consultant can
-  // click back/forward on the track to preview another stage without that
-  // changing the real status.
-  const [openStepByApp, setOpenStepByApp] = useState({});
   // Card collapse/expand (September 2026 redesign) -- collapsed by default,
   // so a family with several schools shows a scannable stack instead of
   // every application's full timeline open at once. Explicit true/false
@@ -353,28 +363,6 @@ export default function ApplicationsPanel({
   // school just linked in from" (see the highlight effect below).
   const [expandedByApp, setExpandedByApp] = useState({});
 
-  useEffect(() => {
-    if (!familyId) return;
-    let cancelled = false;
-    listShortlistForFamily(familyId)
-      .then((rows) => {
-        if (cancelled) return;
-        const map = {};
-        (rows || []).forEach((r) => {
-          const tours = [];
-          if (r.tour_date) tours.push({ date: r.tour_date, status: r.tour_status });
-          if (r.tour2_date) tours.push({ date: r.tour2_date, status: r.tour2_status });
-          if (tours.length) map[r.school_id] = tours;
-        });
-        setTourBySchool(map);
-      })
-      .catch(() => {
-        if (!cancelled) setTourBySchool({});
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [familyId]);
 
   const appIdsKey = Object.values(apps)
     .flat()
@@ -417,6 +405,15 @@ export default function ApplicationsPanel({
   const [highlightActive, setHighlightActive] = useState(!!highlightSchoolId);
   useEffect(() => {
     if (!highlightSchoolId) return;
+    // Arriving from a school visit: open that school's application(s) and keep them open.
+    setExpandedByApp((m) => {
+      const next = { ...m };
+      Object.values(apps)
+        .flat()
+        .filter((a) => String(a.school_id) === String(highlightSchoolId))
+        .forEach((a) => (next[a.id] = true));
+      return next;
+    });
     const el = document.getElementById(`app-row-school-${highlightSchoolId}`);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
     setHighlightActive(true);
@@ -467,8 +464,8 @@ export default function ApplicationsPanel({
 
   // Changing the stage also writes a timeline event in the background, so
   // "days at this stage" stays accurate and the history is kept.
-  async function changeStatus(childId, application, nextStatus) {
-    patch(childId, application, { status: nextStatus }).then((ok) => ok && onProgressChange?.());
+  async function changeStatus(childId, application, nextStatus, extra = {}) {
+    patch(childId, application, { status: nextStatus, ...extra }).then((ok) => ok && onProgressChange?.());
     try {
       const label = APPLICATION_STATUSES.find((s) => s.key === nextStatus)?.label || nextStatus;
       const event = await createApplicationEvent({
@@ -480,6 +477,16 @@ export default function ApplicationsPanel({
       setEventsByApp((m) => ({ ...m, [application.id]: [event, ...(m[application.id] || [])] }));
     } catch {
       // The stage itself already saved; a missing history entry isn't worth an error.
+    }
+  }
+
+  // One line in the activity log, stamped with the signed-in consultant.
+  async function logEvent(application, description, eventType = "note") {
+    try {
+      const ev = await createApplicationEvent({ applicationId: application.id, eventType, description });
+      setEventsByApp((m) => ({ ...m, [application.id]: [ev, ...(m[application.id] || [])] }));
+    } catch {
+      // The change itself saved; a missing log line isn't worth an error.
     }
   }
 
@@ -559,7 +566,15 @@ export default function ApplicationsPanel({
         const childPlaced = placed[child.id];
         const isClosedApp = (a) => closedForChild(placed, child.id, a.school_id, a.schoolName);
         const rankApp = (a) =>
-          a.status === "offer_accepted" ? 0 : a.status === "withdrawn" ? 3 : isClosedApp(a) ? 2 : 1;
+          a.status === "offer_accepted" && !isClosedApp(a)
+            ? 0
+            : a.status === "withdrawn"
+            ? 4
+            : a.status === "rejected"
+            ? 3
+            : isClosedApp(a)
+            ? 2
+            : 1;
         const childApps = [...(apps[child.id] || [])].sort((a, b) => rankApp(a) - rankApp(b));
         const name = displayNameForChild(child, i);
         return (
@@ -590,7 +605,7 @@ export default function ApplicationsPanel({
                   <strong>
                     {name} is placed at {childPlaced.schoolName}
                   </strong>
-                  {childPlaced.startDate ? ` · starts ${shortDate(childPlaced.startDate)}` : " · add the start date under Decision"}
+                  {childPlaced.startDate ? ` · starts ${shortDate(childPlaced.startDate)}` : " · add the first day under Placed"}
                   <span className="ap-placed-banner-sub">Their other schools are closed and kept below for reference.</span>
                 </span>
               </div>
@@ -641,41 +656,45 @@ export default function ApplicationsPanel({
                 {childApps.map((application) => {
                   const days = daysInStage(application, eventsByApp[application.id]);
                   const attentionTone = currentStageTone(application, days);
-                  const tours = tourBySchool[application.school_id] || [];
                   const isHighlighted =
                     highlightActive && String(highlightSchoolId) === String(application.school_id);
-                  const reasonField = reasonFieldFor(application.status);
                   const isWithdrawn = application.status === "withdrawn";
-                  const isClosed = !isWithdrawn && isClosedApp(application);
-                  const isPlacedHere = childPlaced && !isClosed && !isWithdrawn && application.status === "offer_accepted";
-                  const currentStep = trackStepIndex(application.status);
-                  const openStep = openStepByApp[application.id] ?? currentStep;
-                  const stepMeta = APPLICATION_TRACK_STEPS[openStep];
+                  const isDeclined = application.status === "rejected";
+                  const placedElsewhere = !isWithdrawn && isClosedApp(application);
+                  const isPlacedHere = childPlaced && !placedElsewhere && !isWithdrawn && application.status === "offer_accepted";
                   const school = schools.find((sc) => sc.id === application.school_id);
-                  const withdrawReasonField = "withdrawn_reason";
+                  const portalUrl = school?.openapply_login_url || school?.application_url || "";
                   const expanded = isExpanded(application);
-                  const stageLabel = APPLICATION_STATUSES.find((s) => s.key === application.status)?.label || application.status;
-                  const hint = isWithdrawn
-                    ? "Withdrawn"
-                    : isClosed
-                    ? `Closed — ${name} placed at ${childPlaced.schoolName}`
-                    : attentionTone === "declined"
-                      ? application.rejected_reason || "Declined"
-                      : attentionTone === "attention"
-                        ? `Needs attention${days !== null ? ` — ${days}d at this stage` : ""}`
-                        : days !== null
-                          ? days === 0
-                            ? "On track — since today"
-                            : `On track — ${days}d at this stage`
-                          : "On track";
+                  const events = eventsByApp[application.id] || [];
+                  const lastEvent = events[0];
+                  const flow = applicationMiniSteps(application);
+                  const hint = placedElsewhere
+                    ? `Closed · ${name} placed at ${childPlaced.schoolName}`
+                    : isDeclined
+                    ? `Closed · declined${application.rejected_reason ? `: ${application.rejected_reason}` : ""}`
+                    : isWithdrawn
+                    ? `Withdrawn${application.withdrawn_reason ? `: ${application.withdrawn_reason}` : ""}`
+                    : isPlacedHere
+                    ? childPlaced.startDate
+                      ? `🎓 Placed · starts ${shortDate(childPlaced.startDate)}`
+                      : "🎓 Placed · add the first day"
+                    : application.status === "waitlisted"
+                    ? "Waitlisted"
+                    : attentionTone === "attention"
+                    ? `Needs attention · ${days ?? "?"} days at this step`
+                    : days !== null
+                    ? days === 0
+                      ? "Moved today"
+                      : `${days} day${days === 1 ? "" : "s"} at this step`
+                    : "";
+                  const closedCard = placedElsewhere || isDeclined || isWithdrawn;
                   return (
                     <li
                       key={application.id}
                       id={`app-row-school-${application.school_id}`}
                       className={
                         "ap-card2" +
-                        (isWithdrawn ? " is-withdrawn" : "") +
-                        (isClosed ? " is-closed" : "") +
+                        (closedCard ? " is-closed" : "") +
                         (isPlacedHere ? " is-placed" : "") +
                         (isHighlighted ? " is-highlight" : "") +
                         (expanded ? " is-expanded" : " is-collapsed")
@@ -691,405 +710,147 @@ export default function ApplicationsPanel({
                           <span className="ap-avatar">{schoolInitials(application.schoolName)}</span>
                           <span className="ap-school-text">
                             <span className="ap-school-name">{application.schoolName}</span>
-                            <span className="ap-school-meta">
-                              {tours.length === 0
-                                ? "No tour booked"
-                                : tours
-                                    .map((t, idx) => {
-                                      const prefix = tours.length > 1 ? (idx === 0 ? "Primary " : "Secondary ") : "Tour ";
-                                      return `${prefix}${TOUR_STATUS_LABEL[t.status] || "booked"} ${formatShortDate(t.date)}`;
-                                    })
-                                    .join(" · ")}
+                            <span className={"ap-school-meta apx-hint" + (attentionTone === "attention" && !closedCard ? " is-attention" : "")}>
+                              {hint}
                             </span>
                           </span>
                         </div>
-
-                        {isClosed ? (
-                          <div className="ap-card2-status">
-                            <span className="ap-pill ap-pill-closed">Closed</span>
-                            <span className="ap-hint ap-hint-closed">
-                              Was: {stageLabel} · {name} placed at {childPlaced.schoolName}
-                            </span>
-                          </div>
-                        ) : isPlacedHere ? (
-                          <div className="ap-card2-status">
-                            <span className="ap-pill ap-pill-placed">Placed</span>
-                            <span className="ap-hint ap-hint-placed">
-                              {childPlaced.startDate ? `Starts ${shortDate(childPlaced.startDate)}` : "Add the start date"}
-                            </span>
-                          </div>
+                        {closedCard ? (
+                          <span className="ap-pill ap-pill-closed">
+                            {placedElsewhere ? "Closed" : isDeclined ? "Declined" : "Withdrawn"}
+                          </span>
                         ) : (
-                          !isWithdrawn && (
-                            <div className="ap-card2-status">
-                              <span className={"ap-pill ap-tone-" + attentionTone}>{stageLabel}</span>
-                              <span className={"ap-hint ap-tone-" + attentionTone}>{hint}</span>
-                            </div>
-                          )
+                          <FlowBar steps={flow} />
                         )}
-
                         <span className={"ap-chevron" + (expanded ? " is-open" : "")} aria-hidden="true">
                           ▾
                         </span>
                       </button>
 
                       {expanded && (
-                        <fieldset className="ap-card2-body" disabled={isClosed}>
-                          {isClosed && (
-                            <p className="ap-closed-note">
-                              View only. {name} was placed at {childPlaced.schoolName}, so this application is closed. If
-                              that placement falls through, it opens again by itself.
-                            </p>
-                          )}
-                          <div className="ap-card2-row">
-                            <label className="ap-field ap-field-date ap-card2-visit">
-                              <span className="ap-label">Visit date</span>
-                              <input
-                                type="date"
-                                className="panel-input"
-                                value={application.visit_date || ""}
-                                onChange={(e) => patch(child.id, application, { visit_date: e.target.value || null })}
-                                title="Also shows on the shared calendar"
+                        <div className="ap-card2-body">
+                          {/* 1. Portal login & activity log -- at the top, open/close. */}
+                          <details className="apx-portal">
+                            <summary>
+                              <span className="apx-portal-title">Portal login &amp; activity log</span>
+                              <span className="apx-portal-sub">
+                                {lastEvent
+                                  ? `Last: ${lastEvent.description}${
+                                      staffNames[lastEvent.created_by] ? ` · ${staffNames[lastEvent.created_by]}` : ""
+                                    } · ${new Date(lastEvent.occurred_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+                                  : "Nothing logged yet"}
+                              </span>
+                            </summary>
+                            <div className="apx-portal-body">
+                              <PortalAndLog
+                                application={application}
+                                school={school}
+                                parents={parents}
+                                staffNames={staffNames}
+                                onPortalUrlSaved={(id, url, platform) =>
+                                  setSchools((list) =>
+                                    list.map((sc) =>
+                                      sc.id === id
+                                        ? { ...sc, openapply_login_url: url, application_platform: platform || sc.application_platform }
+                                        : sc
+                                    )
+                                  )
+                                }
+                                events={events}
+                                onEventAdded={(ev) =>
+                                  setEventsByApp((m) => ({ ...m, [application.id]: [ev, ...(m[application.id] || [])] }))
+                                }
                               />
-                            </label>
-                            {!isWithdrawn && !isClosed && (
-                              <button
-                                type="button"
-                                className="ap-withdraw-link"
-                                onClick={() => changeStatus(child.id, application, "withdrawn")}
-                              >
-                                Withdraw
-                              </button>
-                            )}
-                          </div>
+                              <OpenApplySynced
+                                application={application}
+                                items={checklistByApp[application.id] || []}
+                                fees={feesByApp[application.id] || []}
+                                isOpenApply={school?.application_platform === "openapply"}
+                              />
+                            </div>
+                          </details>
 
-                          {isWithdrawn ? (
-                            <div className="ap-withdrawn-summary">
-                              <span className="ap-withdrawn-badge">Withdrawn</span>
+                          {/* 2. The process, or why it's closed. */}
+                          {placedElsewhere ? (
+                            <fieldset className="apx-readonly" disabled>
+                              <p className="ap-closed-note">
+                                View only. {name} was placed at {childPlaced.schoolName}, so this application is closed. If
+                                that placement falls through, it opens again by itself.
+                              </p>
+                              <ApplicationProcess
+                                application={application}
+                                childName={name}
+                                placement={null}
+                                onPatch={async () => false}
+                                onStatus={() => {}}
+                                onMeetingLink={async () => false}
+                                onStartDate={() => {}}
+                                onLog={() => {}}
+                              />
+                            </fieldset>
+                          ) : isDeclined || isWithdrawn ? (
+                            <div className="apx-closed-box">
+                              <p className="apx-closed-title">
+                                {isDeclined ? `${application.schoolName} declined ${name}.` : "This application was withdrawn."} It&apos;s
+                                closed and kept here for the record.
+                              </p>
                               <AutosaveField
                                 collapsible
-                                label="Reason for withdrawing"
-                                placeholder="Why was it withdrawn?"
-                                value={application[withdrawReasonField]}
+                                label={isDeclined ? "Why the school said no" : "Why it was withdrawn"}
+                                placeholder={isDeclined ? "e.g. No space this year" : "e.g. family chose another school"}
+                                value={isDeclined ? application.rejected_reason : application.withdrawn_reason}
                                 onSave={async (v) => {
-                                  const ok = await patch(child.id, application, { [withdrawReasonField]: v });
+                                  const ok = await patch(child.id, application, {
+                                    [isDeclined ? "rejected_reason" : "withdrawn_reason"]: v,
+                                  });
                                   if (!ok) throw new Error("check the message above, then Retry");
+                                  if (v) logEvent(application, `Reason: ${v}`);
                                 }}
                               />
+                              {isDeclined && (
+                                <div className="ap-chips">
+                                  <span className="ap-chips-label">Quick pick</span>
+                                  {REJECTION_REASONS.filter((r) => r !== "Other").map((r) => (
+                                    <button
+                                      key={r}
+                                      type="button"
+                                      className={"ap-chip" + (application.rejected_reason === r ? " is-on" : "")}
+                                      onClick={() =>
+                                        patch(child.id, application, { rejected_reason: r }).then(
+                                          (ok) => ok && logEvent(application, `Reason: ${r}`)
+                                        )
+                                      }
+                                    >
+                                      {r}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                               <button
                                 type="button"
-                                className="ap-withdraw-undo"
-                                onClick={() => changeStatus(child.id, application, "draft")}
+                                className="apx-link"
+                                onClick={() => changeStatus(child.id, application, isDeclined ? "under_review" : "draft")}
                               >
-                                Undo — reopen this application
+                                {isDeclined ? "Reopen: the school changed its mind" : "Reopen this application"}
                               </button>
                             </div>
                           ) : (
-                            <>
-                              <div className="ap-vtrack-wrap">
-                                <ApplicationStageTrack
-                                  status={application.status}
-                                  openIndex={openStep}
-                                  currentTone={attentionTone}
-                                  onSelect={(i) => setOpenStepByApp((m) => ({ ...m, [application.id]: i }))}
-                                />
+                            <ApplicationProcess
+                              application={application}
+                              childName={name}
+                              portalUrl={portalUrl}
+                              placement={placementFor(child.id, school?.name || application.schoolName)}
+                              onPatch={(changes) => patch(child.id, application, changes)}
+                              onStatus={(next, extra) => changeStatus(child.id, application, next, extra)}
+                              onMeetingLink={(v) => saveMeetingLink(child.id, application, v)}
+                              onStartDate={(v) => savePlacementDate(child, i, school?.name || application.schoolName, v)}
+                              onLog={(text, type) => logEvent(application, text, type)}
+                            />
+                          )}
 
-                                <div className={"ap-stagepanel ap-tone-" + (openStep === currentStep ? attentionTone : "neutral")}>
-                                  <div className="ap-stagepanel-head">
-                                    <span className="ap-stagepanel-title">{stepMeta.label}</span>
-                                    {openStep !== currentStep && (
-                                      <span className="ap-stagepanel-flag">
-                                        {openStep < currentStep ? "Already passed" : "Not reached yet"}
-                                      </span>
-                                    )}
-                                    {openStep === currentStep && days !== null && (
-                                      <span className="ap-days">
-                                        {days === 0 ? "Since today" : `${days} day${days === 1 ? "" : "s"} at this stage`}
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {openStep === currentStep && stepMeta.key !== "decision" && !isClosed && (
-                                    <label className="ap-attention-toggle">
-                                      <input
-                                        type="checkbox"
-                                        checked={!!application.needs_attention}
-                                        onChange={(e) => patch(child.id, application, { needs_attention: e.target.checked })}
-                                      />
-                                      Flag as needing attention
-                                      {autoNeedsAttentionNote(application, days) && (
-                                        <span className="ap-attention-auto">
-                                          {application.needs_attention ? "" : `— auto-flagged: ${autoNeedsAttentionNote(application, days)}`}
-                                        </span>
-                                      )}
-                                    </label>
-                                  )}
-
-                                  {stepMeta.key === "not_submitted" && (
-                                    <div className="ap-stagepanel-body">
-                                      {/* Founder feedback (Sept 2026): this used to show the same
-                                          "nothing to submit yet" line even once the application had
-                                          actually moved on -- confusing since there's no button here
-                                          to act on once it's passed. Now it says what actually
-                                          happened, same as every other passed stage. */}
-                                      <p className="ap-stagepanel-hint">
-                                        {openStep === currentStep
-                                          ? "Nothing to submit yet — once the application goes in, mark it submitted below."
-                                          : "Submitted."}
-                                      </p>
-                                      {openStep === currentStep && (
-                                        <button
-                                          type="button"
-                                          className="panel-btn panel-btn-primary"
-                                          onClick={() => changeStatus(child.id, application, "submitted")}
-                                        >
-                                          Mark as submitted
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {stepMeta.key === "submitted" && (
-                                    <div className="ap-stagepanel-body">
-                                      <label className="ap-field">
-                                        <span className="ap-label">Date submitted</span>
-                                        <input
-                                          type="date"
-                                          className="panel-input"
-                                          value={application.submitted_at ? String(application.submitted_at).slice(0, 10) : ""}
-                                          onChange={(e) => patch(child.id, application, { submitted_at: e.target.value || null })}
-                                        />
-                                      </label>
-                                      {openStep === currentStep && (
-                                        <button
-                                          type="button"
-                                          className="panel-btn panel-btn-primary"
-                                          onClick={() => changeStatus(child.id, application, "assessment_booked")}
-                                        >
-                                          Mark assessment booked
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {stepMeta.key === "assessment" && (
-                                    <div className="ap-stagepanel-body">
-                                      <p className="ap-family-sees">
-                                        The family sees these on their Dashboard and Your schools page as soon as they
-                                        save. No need to press Update family.
-                                      </p>
-                                      <div className="ap-stagepanel-grid ap-assess-grid">
-                                        <label className="ap-field">
-                                          <span className="ap-label">Assessment date</span>
-                                          <input
-                                            type="date"
-                                            className="panel-input"
-                                            value={application.assessment_date || ""}
-                                            onChange={(e) => patch(child.id, application, { assessment_date: e.target.value || null })}
-                                          />
-                                        </label>
-                                        <label className="ap-field">
-                                          <span className="ap-label">Time</span>
-                                          <input
-                                            type="time"
-                                            className="panel-input"
-                                            value={(application.assessment_time || "").slice(0, 5)}
-                                            onChange={(e) => patch(child.id, application, { assessment_time: e.target.value || null })}
-                                          />
-                                        </label>
-                                      </div>
-                                      <AutosaveField
-                                        collapsible
-                                        label={
-                                          application.assessment_link
-                                            ? `Join link (${meetingPlatform(application.assessment_link)})`
-                                            : "Join link — paste the whole Teams / Zoom invite"
-                                        }
-                                        placeholder="Paste the invite. The meeting ID and passcode fill themselves in. Leave blank if it's at the school."
-                                        value={application.assessment_link}
-                                        onSave={async (v) => {
-                                          const ok = await saveMeetingLink(child.id, application, v);
-                                          if (!ok) throw new Error("check the message above, then Retry");
-                                        }}
-                                      />
-                                      <div className="ap-stagepanel-grid">
-                                        <AutosaveField
-                                          label="Meeting ID"
-                                          placeholder="e.g. 312 456 789 012"
-                                          value={application.assessment_meeting_id}
-                                          onSave={async (v) => {
-                                            const ok = await patch(child.id, application, { assessment_meeting_id: v });
-                                            if (!ok) throw new Error("check the message above, then Retry");
-                                          }}
-                                        />
-                                        <AutosaveField
-                                          label="Passcode"
-                                          placeholder="e.g. aB3cD4"
-                                          value={application.assessment_passcode}
-                                          onSave={async (v) => {
-                                            const ok = await patch(child.id, application, { assessment_passcode: v });
-                                            if (!ok) throw new Error("check the message above, then Retry");
-                                          }}
-                                        />
-                                      </div>
-                                      <AutosaveField
-                                        collapsible
-                                        multiline
-                                        rows={3}
-                                        label="Assessment details"
-                                        placeholder="What to bring, who is meeting them, anything the family needs to know"
-                                        value={application.assessment_notes}
-                                        onSave={async (v) => {
-                                          const ok = await patch(child.id, application, { assessment_notes: v });
-                                          if (!ok) throw new Error("check the message above, then Retry");
-                                        }}
-                                      />
-                                      {openStep === currentStep && (
-                                        <button
-                                          type="button"
-                                          className="panel-btn panel-btn-primary"
-                                          onClick={() => changeStatus(child.id, application, "under_review")}
-                                        >
-                                          Mark awaiting decision
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {stepMeta.key === "awaiting_decision" && (
-                                    <div className="ap-stagepanel-body">
-                                      <p className="ap-stagepanel-hint">
-                                        {application.status === "waitlisted"
-                                          ? "Waitlisted — no offer or decline yet."
-                                          : "Submitted and assessed — waiting on the school's decision."}
-                                      </p>
-                                      {openStep === currentStep && (
-                                        <div className="ap-stagepanel-actions">
-                                          <button
-                                            type="button"
-                                            className="panel-btn"
-                                            onClick={() => changeStatus(child.id, application, "waitlisted")}
-                                            disabled={application.status === "waitlisted"}
-                                          >
-                                            Waitlisted
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="panel-btn panel-btn-primary"
-                                            onClick={() => changeStatus(child.id, application, "offer")}
-                                          >
-                                            Offer received
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="panel-btn panel-btn-danger"
-                                            onClick={() => changeStatus(child.id, application, "rejected")}
-                                          >
-                                            Declined
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {stepMeta.key === "decision" && (
-                                    <div className="ap-stagepanel-body">
-                                      {(application.status === "offer" || application.status === "offer_accepted") && (
-                                        <>
-                                          <label className="ap-field">
-                                            <span className="ap-label">Decision needed by</span>
-                                            <input
-                                              type="date"
-                                              className="panel-input"
-                                              value={application.offer_decision_by || ""}
-                                              onChange={(e) => patch(child.id, application, { offer_decision_by: e.target.value || null })}
-                                            />
-                                          </label>
-                                          {application.status === "offer" ? (
-                                            <button
-                                              type="button"
-                                              className="panel-btn panel-btn-primary"
-                                              onClick={() => changeStatus(child.id, application, "offer_accepted")}
-                                            >
-                                              Mark offer accepted
-                                            </button>
-                                          ) : (
-                                            <span className="ap-stagepanel-hint">Offer accepted.</span>
-                                          )}
-                                        </>
-                                      )}
-                                      {application.status === "offer_accepted" && (
-                                        <div className="ap-decision-extra">
-                                          <label className="ap-field">
-                                            <span className="ap-label">Accepted on</span>
-                                            <input
-                                              type="date"
-                                              className="panel-input"
-                                              value={application.offer_accepted_on || ""}
-                                              onChange={(e) =>
-                                                patch(child.id, application, { offer_accepted_on: e.target.value || null })
-                                              }
-                                            />
-                                          </label>
-                                          <label className="ap-field">
-                                            <span className="ap-label">Start date</span>
-                                            <input
-                                              type="date"
-                                              className="panel-input"
-                                              defaultValue={placementFor(child.id, school?.name)?.start_date || ""}
-                                              onBlur={(e) => savePlacementDate(child, i, school?.name || "School", e.target.value)}
-                                            />
-                                          </label>
-                                          <div className="ap-field">
-                                            <span className="ap-label">Placed?</span>
-                                            <span
-                                              className={
-                                                "ap-placed-pill" + (placementFor(child.id, school?.name) ? " is-yes" : "")
-                                              }
-                                            >
-                                              {placementFor(child.id, school?.name) ? "Yes — send the congrats email" : "Not yet"}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      )}
-                                      {application.status === "rejected" && (
-                                        <>
-                                          <AutosaveField
-                                            collapsible
-                                            label="Reason for declining"
-                                            placeholder="Why? (no space, fees, etc.)"
-                                            value={application[reasonField]}
-                                            onSave={async (v) => {
-                                              const ok = await patch(child.id, application, { [reasonField]: v });
-                                              if (!ok) throw new Error("check the message above, then Retry");
-                                            }}
-                                          />
-                                          <div className="ap-chips">
-                                            <span className="ap-chips-label">Quick pick</span>
-                                            {REJECTION_REASONS.filter((r) => r !== "Other").map((r) => (
-                                              <button
-                                                key={r}
-                                                type="button"
-                                                className={"ap-chip" + (application.rejected_reason === r ? " is-on" : "")}
-                                                onClick={() => patch(child.id, application, { rejected_reason: r })}
-                                              >
-                                                {r}
-                                              </button>
-                                            ))}
-                                          </div>
-                                        </>
-                                      )}
-                                      {openStep === currentStep &&
-                                        application.status !== "offer_accepted" &&
-                                        application.status !== "rejected" &&
-                                        application.status !== "offer" && (
-                                          <p className="ap-stagepanel-hint">Pick Offer received or Declined from the previous stage.</p>
-                                        )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              {!isClosed && (
+                          {/* 3. Everything else, kept small. */}
+                          {!closedCard && (
+                            <div className="apx-foot">
                               <UpdateFamilyButton
                                 familyId={familyId}
                                 schoolId={application.school_id}
@@ -1102,55 +863,48 @@ export default function ApplicationsPanel({
                                     offer: "offer",
                                     offer_accepted: "placed",
                                     waitlisted: "waitlisted",
-                                    rejected: "declined",
                                   }[application.status] || "applied"
                                 }
                               />
-                              )}
-
-                              <OpenApplySynced
-                                application={application}
-                                items={checklistByApp[application.id] || []}
-                                fees={feesByApp[application.id] || []}
-                              />
-
                               <AutosaveField
                                 collapsible
                                 multiline
-                                rows={3}
-                                label="Notes on this application"
-                                placeholder="Anything the team should know about this application"
+                                rows={2}
+                                label="Team notes"
+                                placeholder="Anything the team should know. The family can't see this."
                                 value={application.notes}
                                 onSave={async (v) => {
                                   const ok = await patch(child.id, application, { notes: v });
                                   if (!ok) throw new Error("check the message above, then Retry");
                                 }}
                               />
-
-                              <details className="ap-details" open={false}>
-                                <summary>Portal login &amp; activity log</summary>
-                                <PortalAndLog
-                                  application={application}
-                                  school={school}
-                                  parents={parents}
-                                  onPortalUrlSaved={(id, url, platform) =>
-                                    setSchools((list) =>
-                                      list.map((sc) =>
-                                        sc.id === id
-                                          ? { ...sc, openapply_login_url: url, application_platform: platform || sc.application_platform }
-                                          : sc
-                                      )
-                                    )
-                                  }
-                                  events={eventsByApp[application.id] || []}
-                                  onEventAdded={(ev) =>
-                                    setEventsByApp((m) => ({ ...m, [application.id]: [ev, ...(m[application.id] || [])] }))
-                                  }
-                                />
-                              </details>
-                            </>
+                              <div className="apx-foot-row">
+                                {application.status !== "offer_accepted" && (
+                                  <label className="apx-inline apx-flag">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!application.needs_attention}
+                                      onChange={(e) => patch(child.id, application, { needs_attention: e.target.checked })}
+                                    />
+                                    Flag as needing attention
+                                  </label>
+                                )}
+                                {onGoToVisits && (
+                                  <button type="button" className="apx-link" onClick={() => onGoToVisits(application.school_id)}>
+                                    ← School visit
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  className="ap-withdraw-link"
+                                  onClick={() => changeStatus(child.id, application, "withdrawn")}
+                                >
+                                  Withdraw
+                                </button>
+                              </div>
+                            </div>
                           )}
-                        </fieldset>
+                        </div>
                       )}
                     </li>
                   );

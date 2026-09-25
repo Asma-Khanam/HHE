@@ -12,9 +12,14 @@ export function placedByChild(applications) {
 
 // A shortlist row is the whole family's, so it closes only when every child
 // is placed and none of them at this school.
-export function schoolClosed(placed, childIds, schoolId) {
+// Declined or withdrawn there counts as closed for that child too.
+export function schoolClosed(placed, childIds, schoolId, apps = []) {
   if (!childIds.length) return false;
-  return childIds.every((id) => placed[id] && String(placed[id]) !== String(schoolId));
+  return childIds.every((id) => {
+    if (placed[id]) return String(placed[id]) !== String(schoolId);
+    const app = apps.find((a) => a.child_id === id && String(a.school_id) === String(schoolId));
+    return app?.status === "rejected" || app?.status === "withdrawn";
+  });
 }
 
 // This child's application at this school is closed (placed elsewhere).

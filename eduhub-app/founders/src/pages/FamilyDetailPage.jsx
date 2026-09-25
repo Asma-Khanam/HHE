@@ -491,6 +491,16 @@ export default function FamilyDetailPage() {
     return FAMILY_DETAIL_TAB_KEYS.includes(requested) ? requested : "overview";
   });
   const [activeHouseholdKey, setActiveHouseholdKey] = useState(null);
+  // Which school to open when jumping between School visits and Applications.
+  const [focusSchoolId, setFocusSchoolId] = useState(() => searchParams.get("school"));
+  function goToApplications(schoolId) {
+    setFocusSchoolId(schoolId || null);
+    setActiveTab("applications");
+  }
+  function goToVisits(schoolId) {
+    setFocusSchoolId(schoolId || null);
+    setActiveTab("visits");
+  }
   const [whatsNeededOpen, setWhatsNeededOpen] = useState(false);
 
   // Shared by the initial load and by DocumentVaultPanel (addendum 35) —
@@ -957,8 +967,9 @@ export default function FamilyDetailPage() {
             familyChildren={children}
             applicationsByChild={applicationsByChild}
             onFamilyRefresh={refreshFamily}
-            onGoToApplications={() => setActiveTab("applications")}
+            onGoToApplications={goToApplications}
             onProgressChange={refreshStages}
+            focusSchoolId={focusSchoolId}
           />
         </div>
       )}
@@ -972,8 +983,10 @@ export default function FamilyDetailPage() {
             onApplicationsChange={handleApplicationsChange}
             schoolCatalog={schoolCatalog}
             parents={parents || []}
-            highlightSchoolId={searchParams.get("school") || null}
+            highlightSchoolId={focusSchoolId}
             onProgressChange={refreshStages}
+            onGoToVisits={goToVisits}
+            staff={staff}
           />
 
           <div id="application-email-section" />

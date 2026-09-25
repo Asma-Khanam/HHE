@@ -1,0 +1,272 @@
+/* Process steps (founders, 25 Sept 2026) -- done = grey with a tick,
+   current = open and in colour, later = faded but clickable. */
+.ps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  position: relative;
+}
+.ps-step {
+  position: relative;
+  border: 1px solid var(--hh-track, #ece3e6);
+  border-radius: 10px;
+  background: #fff;
+  margin-bottom: 8px;
+}
+.ps-step:last-child {
+  margin-bottom: 0;
+}
+.ps-head {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 30px max-content minmax(0, 1fr) 20px;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 14px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--hh-ink, #2a1119);
+}
+.ps-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  border: 2px solid #d9cdd2;
+  color: #a0939a;
+  background: #fff;
+}
+.ps-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.ps-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  color: rgba(42, 17, 25, 0.6);
+}
+.ps-caret {
+  color: rgba(42, 17, 25, 0.45);
+  transition: transform 0.15s ease;
+}
+.ps-caret.is-open {
+  transform: rotate(180deg);
+}
+.ps-body {
+  padding: 4px 16px 16px 56px;
+}
+
+/* current: the one to act on */
+.ps-step.is-current {
+  border-color: var(--hh-burgundy, #530126);
+  box-shadow: 0 0 0 1px var(--hh-burgundy, #530126) inset;
+}
+.ps-step.is-current .ps-dot {
+  border-color: var(--hh-burgundy, #530126);
+  background: var(--hh-burgundy, #530126);
+  color: #fff;
+}
+.ps-step.is-current .ps-summary {
+  color: var(--hh-burgundy, #530126);
+  font-weight: 500;
+}
+
+/* done: grey, closed, ticked */
+.ps-step.is-done {
+  background: #f4f1f2;
+  border-color: #ebe5e7;
+}
+.ps-step.is-done .ps-label {
+  color: rgba(42, 17, 25, 0.55);
+}
+.ps-step.is-done .ps-dot {
+  border-color: #8c9a92;
+  background: #8c9a92;
+  color: #fff;
+}
+.ps-step.is-bad {
+  background: #fbf1f1;
+  border-color: #f0d4d3;
+}
+.ps-step.is-bad .ps-dot {
+  border-color: var(--hh-error, #b3261e);
+  background: var(--hh-error, #b3261e);
+  color: #fff;
+}
+.ps-step.is-bad .ps-summary {
+  color: var(--hh-error, #b3261e);
+}
+
+/* skipped / not reached / not needed */
+.ps-step.is-skipped,
+.ps-step.is-todo,
+.ps-step.is-na {
+  background: #fbfafa;
+  border-style: dashed;
+}
+.ps-step.is-skipped .ps-label,
+.ps-step.is-todo .ps-label,
+.ps-step.is-na .ps-label {
+  color: rgba(42, 17, 25, 0.45);
+  font-weight: 500;
+}
+.ps-step.is-open:not(.is-current) {
+  background: #fff;
+  border-style: solid;
+}
+
+/* shared bits used inside step bodies */
+.ps-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.ps-hint {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  color: rgba(42, 17, 25, 0.6);
+}
+.ps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px 14px;
+  margin-bottom: 10px;
+}
+.ps-field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+.ps-field > span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(42, 17, 25, 0.55);
+}
+
+/* mini version for headers */
+.ps-mini {
+  display: inline-flex;
+  gap: 3px;
+}
+.ps-mini-seg {
+  width: 22px;
+  height: 6px;
+  border-radius: 3px;
+  background: #e9e2e5;
+}
+.ps-mini-seg.is-done {
+  background: #8c9a92;
+}
+.ps-mini-seg.is-current {
+  background: var(--hh-burgundy, #530126);
+}
+.ps-mini-seg.is-bad {
+  background: var(--hh-error, #b3261e);
+}
+.ps-mini-seg.is-skipped {
+  background: repeating-linear-gradient(45deg, #e9e2e5 0 3px, #d6ccd0 3px 6px);
+}
+
+@media (max-width: 700px) {
+  .ps-head {
+    grid-template-columns: 30px minmax(0, 1fr) 20px;
+  }
+  .ps-summary {
+    grid-column: 2;
+    grid-row: 2;
+    white-space: normal;
+  }
+  .ps-caret {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .ps-body {
+    padding: 4px 14px 14px;
+  }
+}
+
+/* Arrow between steps, so the list reads as a flow */
+.ps-step:not(:last-child) {
+  margin-bottom: 18px;
+}
+.ps-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 27px;
+  bottom: -15px;
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 9px solid #d4c7cc;
+}
+.ps-step.is-done:not(:last-child)::after {
+  border-top-color: #8c9a92;
+}
+
+/* Header flow: arrow-shaped segments */
+.ps-flow {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  filter: drop-shadow(0 0 0 transparent);
+}
+.ps-flow-seg {
+  position: relative;
+  padding: 6px 16px 6px 20px;
+  margin-right: -6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: #efe9eb;
+  color: rgba(42, 17, 25, 0.45);
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%);
+}
+.ps-flow-seg:first-child {
+  padding-left: 14px;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);
+  border-radius: 6px 0 0 6px;
+}
+.ps-flow-seg:last-child {
+  margin-right: 0;
+}
+.ps-flow-seg.is-done {
+  background: #dfe5e1;
+  color: #4d5e55;
+}
+.ps-flow-seg.is-current {
+  background: var(--hh-burgundy, #530126);
+  color: #fff;
+}
+.ps-flow-seg.is-bad {
+  background: #f6dcda;
+  color: var(--hh-error, #b3261e);
+}
+.ps-flow-seg.is-skipped {
+  background: repeating-linear-gradient(45deg, #efe9eb 0 4px, #e6dde1 4px 8px);
+  color: rgba(42, 17, 25, 0.4);
+  text-decoration: line-through;
+}
+.ps-flow-seg.is-na {
+  opacity: 0.5;
+}
+@media (max-width: 700px) {
+  .ps-flow-seg {
+    padding: 5px 12px 5px 16px;
+    font-size: 0.68rem;
+  }
+}

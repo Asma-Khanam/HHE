@@ -20,7 +20,7 @@ import {
   listSchoolContacts,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
-import { placedByChild, rowClosed, placedHere, closedForChild, shortDate } from "../lib/placement";
+import { placedByChild, placedHere, shortDate, childClosedReason, rowClosedReason, CLOSED_TEXT } from "../lib/placement";
 import "./panels.css";
 import AutosaveField from "./Autosave";
 import "./SchoolShortlistPanel.css";
@@ -155,6 +155,7 @@ export default function SchoolShortlistPanel({
   onFamilyRefresh,
   onGoToApplications,
   onProgressChange,
+  focusSchoolId,
 }) {
   const [rows, setRows] = useState([]);
   const [childStatus, setChildStatus] = useState([]);
@@ -222,6 +223,13 @@ export default function SchoolShortlistPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [familyId]);
 
+  // Coming back from an application ("← School visit") opens that school's row.
+  useEffect(() => {
+    if (!focusSchoolId || !rows.length) return;
+    const row = rows.find((r) => String(r.school_id) === String(focusSchoolId));
+    if (row) setExpandedId(row.id);
+  }, [focusSchoolId, rows.length]);
+
   const allApplications = useMemo(() => Object.values(applicationsByChild || {}).flat(), [applicationsByChild]);
 
   // Founders (25 Sept 2026): once children are placed, the other schools
@@ -231,7 +239,9 @@ export default function SchoolShortlistPanel({
     () => placedByChild({ children, applicationsByChild: applicationsByChild || {}, placements, schools: allSchools }),
     [children, applicationsByChild, placements, allSchools]
   );
-  const isRowClosed = (row) => rowClosed(placed, children, row.school_id, row.school?.name);
+  // Closed = every child placed elsewhere, or declined / withdrawn here.
+  const closedReason = (row) => rowClosedReason(placed, children, row.school_id, row.school?.name, allApplications);
+  const isRowClosed = (row) => !!closedReason(row);
   const placedKids = Object.entries(placed);
 
   // The interconnection the founders asked for: once a tour is done and the
@@ -264,7 +274,7 @@ export default function SchoolShortlistPanel({
         });
         setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, ...updated } : r)));
       }
-      onGoToApplications?.();
+      onGoToApplications?.(row.school_id);
     } catch (err) {
       setError(friendlyError(err));
     } finally {
@@ -532,7 +542,7 @@ export default function SchoolShortlistPanel({
   // between -- Array.sort is stable, so this only moves those two groups.
   const sortedRows = useMemo(() => {
     const rank = (row) => {
-      if (rowClosed(placed, children, row.school_id, row.school?.name)) return 4;
+      if (rowClosedReason(placed, children, row.school_id, row.school?.name, allApplications)) return 5;
       if (placedHere(placed, children, row.school_id, row.school?.name).length) return -1;
       if (row.family_decision === "declined") return 3;
       if (row.priority === "primary") return 0;
@@ -540,7 +550,7 @@ export default function SchoolShortlistPanel({
       return 2;
     };
     return [...rows].sort((a, b) => rank(a) - rank(b));
-  }, [rows, placed, children]);
+  }, [rows, placed, children, allApplications]);
 
   const shortlistedIds = new Set(rows.map((r) => r.school_id));
   const addableSchools = allSchools.filter((s) => !shortlistedIds.has(s.id));
@@ -642,6 +652,8 @@ export default function SchoolShortlistPanel({
               return (
                 <ClosedRow
                   key={row.id}
+                  reason={closedReason(row)}
+                  apps={allApplications}
                   row={row}
                   children={children}
                   placed={placed}
@@ -715,15 +727,16 @@ export default function SchoolShortlistPanel({
                   {children.map((c) => {
                     const cs = rowChildStatuses.find((r) => r.child_id === c.id);
                     const value = cs?.availability_status || "awaiting";
-                    if (placed[c.id]) {
-                      const elsewhere = closedForChild(placed, c.id, row.school_id, row.school?.name);
+                    const why = childClosedReason(placed, c.id, row.school_id, row.school?.name, allApplications);
+                    if (placed[c.id] || why) {
+                      const here = placed[c.id] && !why;
                       return (
                         <div className="svt-cell" key={c.id}>
                           <span
-                            className={"svt-child-placed" + (elsewhere ? " is-elsewhere" : " is-here")}
-                            title={elsewhere ? `Placed at ${placed[c.id].schoolName}` : "Placed here"}
+                            className={"svt-child-placed" + (here ? " is-here" : " is-elsewhere")}
+                            title={why === "placed" ? `Placed at ${placed[c.id].schoolName}` : undefined}
                           >
-                            {elsewhere ? "Placed elsewhere" : "Placed ✓"}
+                            {here ? "Placed ✓" : why === "placed" ? "Placed elsewhere" : why === "declined" ? "Declined" : "Withdrawn"}
                           </span>
                         </div>
                       );
@@ -1394,7 +1407,7 @@ function SchoolContactsInline({ school, contacts }) {
 // A school that's closed because every child is placed somewhere else:
 // dark grey, at the bottom, view-only (founders, 25 Sept 2026). Opens to
 // show what was recorded, nothing can be changed from here.
-function ClosedRow({ row, children, placed, expanded, onToggle, contacts, note }) {
+function ClosedRow({ row, children, placed, apps, reason, expanded, onToggle, contacts, note }) {
   const tourLine = (date, time, status) =>
     date ? `${formatDateTime(date, time)}${status ? ` · ${TOUR_STATUS_LABEL[status]}` : ""}` : "Not booked";
   return (
@@ -1402,15 +1415,18 @@ function ClosedRow({ row, children, placed, expanded, onToggle, contacts, note }
       <div className="svt-row" style={{ gridTemplateColumns: svtColumns(children.length) }} onClick={onToggle}>
         <div className="svt-cell svt-cell-school">
           <div className="svt-school-name">{row.school?.name || "Unknown school"}</div>
-          <div className="svt-closed-tag">Closed</div>
+          <div className="svt-closed-tag">Closed · {CLOSED_TEXT[reason] || "closed"}</div>
         </div>
-        {children.map((c) => (
-          <div className="svt-cell" key={c.id}>
-            <span className="svt-child-placed is-elsewhere" title={`Placed at ${placed[c.id]?.schoolName}`}>
-              Placed elsewhere
-            </span>
-          </div>
-        ))}
+        {children.map((c) => {
+          const why = childClosedReason(placed, c.id, row.school_id, row.school?.name, apps);
+          return (
+            <div className="svt-cell" key={c.id}>
+              <span className="svt-child-placed is-elsewhere" title={why === "placed" ? `Placed at ${placed[c.id]?.schoolName}` : undefined}>
+                {why === "placed" ? "Placed elsewhere" : why === "declined" ? "Declined" : "Withdrawn"}
+              </span>
+            </div>
+          );
+        })}
         <div className="svt-cell svt-closed-text">{tourLine(row.tour_date, row.tour_start_time, row.tour_status)}</div>
         <div className="svt-cell svt-closed-text">{tourLine(row.tour2_date, row.tour2_start_time, row.tour2_status)}</div>
         <div className="svt-cell svt-closed-text">{row.feedback_text || "No feedback"}</div>
@@ -1424,8 +1440,8 @@ function ClosedRow({ row, children, placed, expanded, onToggle, contacts, note }
       {expanded && (
         <fieldset className="svt-detail svt-closed-detail" disabled>
           <p className="svt-closed-note">
-            View only. Every child is placed at another school, so this school is closed. If a placement falls through, it
-            opens again by itself.
+            View only. This school is closed because {CLOSED_TEXT[reason] || "no child is going ahead here"}. If that
+            changes on the Applications tab, it opens again by itself.
           </p>
           <TourDetailsEditor row={row} onUpdated={() => {}} readOnly />
           <div className="svt-detail-single">

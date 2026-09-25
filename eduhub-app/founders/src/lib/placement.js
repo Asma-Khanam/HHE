@@ -62,3 +62,32 @@ export function oneMonthAfter(iso) {
   d.setMonth(d.getMonth() + 1);
   return d.toISOString().slice(0, 10);
 }
+
+// Founders (25 Sept 2026): a declined (or withdrawn) application closes too.
+// For one child at one school: why is it closed, if it is?
+export function childClosedReason(placed, childId, schoolId, schoolName, apps = []) {
+  if (closedForChild(placed, childId, schoolId, schoolName)) return "placed";
+  const app = apps.find((a) => a.child_id === childId && String(a.school_id) === String(schoolId));
+  if (app?.status === "rejected") return "declined";
+  if (app?.status === "withdrawn") return "withdrawn";
+  return null;
+}
+
+// A school visit row closes once every child is placed elsewhere or was
+// declined / withdrawn here. Returns null (open) or a short reason.
+export function rowClosedReason(placed, children, schoolId, schoolName, apps = []) {
+  if (!children.length) return null;
+  const reasons = children.map((c) => childClosedReason(placed, c.id, schoolId, schoolName, apps));
+  if (reasons.some((r) => !r)) return null;
+  if (reasons.every((r) => r === "placed")) return "placed";
+  if (reasons.every((r) => r === "declined")) return "declined";
+  if (reasons.every((r) => r === "withdrawn")) return "withdrawn";
+  return "mixed";
+}
+
+export const CLOSED_TEXT = {
+  placed: "every child has a place elsewhere",
+  declined: "the school declined",
+  withdrawn: "withdrawn",
+  mixed: "no child is going ahead here",
+};
