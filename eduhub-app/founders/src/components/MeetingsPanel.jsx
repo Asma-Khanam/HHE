@@ -59,10 +59,17 @@ function toLocalInputValue(date) {
 
 function MeetingRow({ note }) {
   const { text, zoomLink } = splitZoomLink(note.body);
+  const auto = (note.external_ref || "").startsWith("zoom:");
+  const long = text.length > 420 || text.split("\n").length > 8;
+  const [open, setOpen] = useState(!long);
+  const paras = text.split(/\n{2,}/).filter(Boolean);
   return (
     <li className="meeting-row">
       <div className="meeting-row-top">
-        <span className="meeting-subject">{note.subject || "Meeting"}</span>
+        <span className="meeting-subject">
+          {note.subject || "Meeting"}
+          {auto && <span className="meeting-badge">Zoom AI summary</span>}
+        </span>
         <span className="meeting-row-date">{formatWhen(note.occurred_at)}</span>
       </div>
       {zoomLink && (
@@ -70,7 +77,27 @@ function MeetingRow({ note }) {
           Join Zoom call
         </a>
       )}
-      <p className="meeting-notes-text">{text}</p>
+      <div className={"meeting-notes-text" + (open ? "" : " is-clamped")}>
+        {paras.map((para, i) => {
+          const [first, ...rest] = para.split("\n");
+          const heading = rest.length > 0 && first.length < 60 && !/[.!?]$/.test(first);
+          return heading ? (
+            <div key={i} className="meeting-para">
+              <strong>{first}</strong>
+              <p>{rest.join("\n")}</p>
+            </div>
+          ) : (
+            <p key={i} className="meeting-para">
+              {para}
+            </p>
+          );
+        })}
+      </div>
+      {long && (
+        <button type="button" className="meeting-toggle" onClick={() => setOpen((v) => !v)}>
+          {open ? "Show less" : "Show more"}
+        </button>
+      )}
     </li>
   );
 }
@@ -156,42 +183,51 @@ export default function MeetingsPanel({ familyId, notes: allNotes }) {
         it's on record.
       </p>
 
-      <div className="meeting-compose" style={{ marginBottom: 14 }}>
-        <strong>Link a Zoom call</strong>
-        <span className="family-detail-hint" style={{ margin: 0 }}>
-          Paste the Zoom invite or link before the call. When it ends, Zoom&rsquo;s AI summary is saved here by itself.
-        </span>
-        <input
-          className="panel-input"
-          placeholder="Paste the Zoom invite or meeting link"
-          value={invite}
-          onChange={(e) => setInvite(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleLinkZoom();
-          }}
-        />
-        <input
-          className="panel-input"
-          placeholder="Topic (optional), e.g. Intro call"
-          value={linkTopic}
-          onChange={(e) => setLinkTopic(e.target.value)}
-        />
-        {linkError && <div className="hh-form-banner hh-form-banner-error">{linkError}</div>}
-        <div>
-          <button type="button" className="panel-btn" onClick={handleLinkZoom} disabled={linkBusy || !invite.trim()}>
-            {linkBusy ? "Linking…" : "Link Zoom call"}
+      <div className="zoom-link-card">
+        <div className="zoom-link-head">
+          <strong>Link a Zoom call</strong>
+          <span>Paste the invite before the call. When it ends, Zoom&rsquo;s AI summary is saved here by itself.</span>
+        </div>
+        <div className="zoom-link-row">
+          <input
+            className="panel-input"
+            placeholder="Paste the Zoom invite or meeting link"
+            value={invite}
+            onChange={(e) => setInvite(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleLinkZoom();
+            }}
+          />
+          <input
+            className="panel-input zoom-link-topic"
+            placeholder="Topic (optional)"
+            value={linkTopic}
+            onChange={(e) => setLinkTopic(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleLinkZoom();
+            }}
+          />
+          <button type="button" className="panel-btn panel-btn-primary" onClick={handleLinkZoom} disabled={linkBusy || !invite.trim()}>
+            {linkBusy ? "Linking…" : "Link"}
           </button>
         </div>
+        {linkError && <div className="hh-form-banner hh-form-banner-error">{linkError}</div>}
         {links.length > 0 && (
-          <ul className="ref-list">
+          <ul className="zoom-link-list">
             {links.map((l) => {
-              const done = notes.some((n) => (n.body || "").includes(l.join_url || "\u0000"));
+              const done = notes.some(
+                (n) =>
+                  (n.external_ref || "").startsWith("zoom:") &&
+                  (l.join_url ? (n.body || "").includes(l.join_url) : (n.created_at || "") >= (l.created_at || ""))
+              );
               return (
-                <li key={l.id} className="ref-item">
-                  <span className="ref-main">
-                    {l.topic || "Zoom call"} · ID {l.zoom_meeting_id}
-                    <span className="pl-checkin">{done ? "Summary saved below" : "Waiting for Zoom's summary"}</span>
+                <li key={l.id} className="zoom-link-item">
+                  <span className={"zoom-dot" + (done ? " is-done" : "")} aria-hidden="true" />
+                  <span className="zoom-link-name">
+                    {l.topic || "Zoom call"}
+                    <small>ID {l.zoom_meeting_id}</small>
                   </span>
+                  <span className={"zoom-status" + (done ? " is-done" : "")}>{done ? "Summary saved" : "Waiting for summary"}</span>
                 </li>
               );
             })}
