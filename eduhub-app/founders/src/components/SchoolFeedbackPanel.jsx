@@ -58,13 +58,9 @@ export default function SchoolFeedbackPanel({ schoolId }) {
               <Link to={`/staff/families/${r.family_id}?tab=visits`}><strong>{r.familyName}</strong></Link>
               {r.tour_date && <span className="pl-checkin"> · toured {when(r.tour_date)}</span>}
             </div>
-            {r.family_interest_note && (
+            {r.family_interest && (
               <div>
-                <em>
-                  Family&rsquo;s view
-                  {r.family_interest ? ` (${{ keen: "Keen", maybe: "Maybe", not_for_us: "Not for us" }[r.family_interest]})` : ""}:
-                </em>{" "}
-                {r.family_interest_note}
+                <em>Family&rsquo;s view:</em> {{ keen: "Keen", maybe: "Maybe", not_for_us: "Not for us" }[r.family_interest]}
               </div>
             )}
             {(r.feedback_text || r.feedback_rating) && (

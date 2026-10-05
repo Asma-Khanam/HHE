@@ -621,8 +621,6 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
 // How the tour went, in the family's own words. Saved straight away; the
 // consultant sees it on their School visits tab and on the school's Feedback tab.
 function TourReview({ row, onPatch }) {
-  const [text, setText] = useState(row.feedback_text || "");
-  const timer = useRef(null);
   const [state, setState] = useState("");
   const [err, setErr] = useState("");
 
@@ -631,7 +629,7 @@ function TourReview({ row, onPatch }) {
     setErr("");
     try {
       await submitTourFeedback(row.id, rating, nextText);
-      onPatch({ feedback_rating: rating || null, feedback_text: nextText?.trim() || null, feedback_by: "family" });
+      onPatch({ feedback_rating: rating || null, feedback_by: "family" });
       setState("saved");
     } catch (e) {
       setState("error");
@@ -646,7 +644,7 @@ function TourReview({ row, onPatch }) {
   return (
     <div className="ys-block ys-view">
       <h3>
-        How was the tour?
+        Rate the tour
         {state === "saving" && <span className="ys-saved">Saving…</span>}
         {state === "saved" && <span className="ys-saved is-ok">✓ Saved — thank you</span>}
       </h3>
@@ -658,31 +656,13 @@ function TourReview({ row, onPatch }) {
             className="ys-star-btn"
             aria-label={`${n} out of 5`}
             aria-pressed={row.feedback_rating === n}
-            onClick={() => save(row.feedback_rating === n ? null : n, text)}
+            onClick={() => save(row.feedback_rating === n ? null : n, row.feedback_text || "")}
             style={{ background: "none", border: 0, cursor: "pointer", fontSize: "1.3rem", color: n <= (row.feedback_rating || 0) ? "var(--hh-gold)" : "var(--hh-track)" }}
           >
             ★
           </button>
         ))}
       </div>
-      <textarea
-        className="ys-view-note"
-        rows={3}
-        placeholder="What did you think? (e.g. loved the teachers, felt too big, great facilities)"
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          clearTimeout(timer.current);
-          const v = e.target.value;
-          timer.current = setTimeout(() => {
-            if ((row.feedback_text || "") !== v.trim()) save(row.feedback_rating || null, v);
-          }, 900);
-        }}
-        onBlur={() => {
-          clearTimeout(timer.current);
-          if ((row.feedback_text || "") !== text.trim()) save(row.feedback_rating || null, text);
-        }}
-      />
       {err && <p className="ys-note is-bad">{err}</p>}
     </div>
   );

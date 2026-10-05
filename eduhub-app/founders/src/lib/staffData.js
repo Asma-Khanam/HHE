@@ -1391,7 +1391,7 @@ export async function listFeedbackForSchool(schoolId) {
         .eq("school_id", schoolId)
         .order("shortlisted_at", { ascending: false })
     ) || [];
-  const withFeedback = rows.filter((r) => r.feedback_text || r.feedback_rating || r.family_interest_note);
+  const withFeedback = rows.filter((r) => r.feedback_text || r.feedback_rating);
   const familyIds = [...new Set(withFeedback.map((r) => r.family_id))];
   const [families, parents] = await Promise.all([
     familyIds.length ? supabase.from("families").select("*").in("id", familyIds).then(unwrap) : Promise.resolve([]),

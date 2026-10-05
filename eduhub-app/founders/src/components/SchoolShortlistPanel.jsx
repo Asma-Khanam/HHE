@@ -720,16 +720,6 @@ export default function SchoolShortlistPanel({
                         {kidsPlacedHere.map((c) => displayNameForChild(c, children.indexOf(c))).join(", ")}
                       </div>
                     )}
-                    {/* Addendum 75: what the family said on their own "Your schools" page. */}
-                    {row.family_interest && (
-                      <div
-                        className={"svt-family-view is-" + row.family_interest}
-                        title={row.family_interest_note || "Set by the family"}
-                      >
-                        Family: {{ keen: "Keen", maybe: "Maybe", not_for_us: "Not for us" }[row.family_interest]}
-                        {row.family_interest_note ? " · “" + row.family_interest_note + "”" : ""}
-                      </div>
-                    )}
                     <div className="svt-priority-toggle" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
@@ -1018,18 +1008,6 @@ export default function SchoolShortlistPanel({
                         }
                       }}
                     />
-                    {row.family_interest_note && (
-                      <div className="svt-family-feedback" style={{ marginTop: 4, fontSize: ".82rem" }}>
-                        <strong>Family said</strong>
-                        {row.family_interest ? ` (${{ keen: "Keen", maybe: "Maybe", not_for_us: "Not for us" }[row.family_interest]})` : ""}:{" "}
-                        &ldquo;{row.family_interest_note}&rdquo;
-                      </div>
-                    )}
-                    {row.feedback_by === "family" && (
-                      <div className="svt-family-feedback" title="Left by the family on their dashboard. Edit the box to change it.">
-                        <span style={{ color: "#b8902f" }}>{"\u2605".repeat(row.feedback_rating || 0)}</span> from the family
-                      </div>
-                    )}
                     <div className="svt-col-actions">
                       {draft && (
                         <button type="button" className="panel-btn panel-btn-primary svt-col-btn" onClick={() => saveTour(row)} disabled={busy}>
