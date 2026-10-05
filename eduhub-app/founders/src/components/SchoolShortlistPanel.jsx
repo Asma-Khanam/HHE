@@ -1018,6 +1018,13 @@ export default function SchoolShortlistPanel({
                         }
                       }}
                     />
+                    {row.family_interest_note && (
+                      <div className="svt-family-feedback" style={{ marginTop: 4, fontSize: ".82rem" }}>
+                        <strong>Family said</strong>
+                        {row.family_interest ? ` (${{ keen: "Keen", maybe: "Maybe", not_for_us: "Not for us" }[row.family_interest]})` : ""}:{" "}
+                        &ldquo;{row.family_interest_note}&rdquo;
+                      </div>
+                    )}
                     {row.feedback_by === "family" && (
                       <div className="svt-family-feedback" title="Left by the family on their dashboard. Edit the box to change it.">
                         <span style={{ color: "#b8902f" }}>{"\u2605".repeat(row.feedback_rating || 0)}</span> from the family

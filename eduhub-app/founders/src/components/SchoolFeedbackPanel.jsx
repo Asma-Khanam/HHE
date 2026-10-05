@@ -58,6 +58,16 @@ export default function SchoolFeedbackPanel({ schoolId }) {
               <Link to={`/staff/families/${r.family_id}?tab=visits`}><strong>{r.familyName}</strong></Link>
               {r.tour_date && <span className="pl-checkin"> · toured {when(r.tour_date)}</span>}
             </div>
+            {r.family_interest_note && (
+              <div>
+                <em>
+                  Family&rsquo;s view
+                  {r.family_interest ? ` (${{ keen: "Keen", maybe: "Maybe", not_for_us: "Not for us" }[r.family_interest]})` : ""}:
+                </em>{" "}
+                {r.family_interest_note}
+              </div>
+            )}
+            {(r.feedback_text || r.feedback_rating) && (
             <div>
               <span style={{ color: "#b8902f" }}>{r.feedback_rating ? stars(r.feedback_rating) : ""}</span>{" "}
               {r.feedback_text || "no comment"}
@@ -67,6 +77,7 @@ export default function SchoolFeedbackPanel({ schoolId }) {
                 {r.feedback_at ? `, ${when(r.feedback_at)}` : ""}
               </span>
             </div>
+            )}
           </li>
         ))}
       </ul>
