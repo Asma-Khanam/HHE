@@ -495,7 +495,7 @@ function Attachments({ items }) {
   );
 }
 
-function ReadingPane({ note, onBack, familyId, onUpdate, onReply }) {
+function ReadingPane({ note, onBack, familyId, onUpdate, onReply, onToggleRead }) {
   const resolvedHtml = useResolvedHtml(note);
   if (!note) {
     return (
@@ -528,6 +528,11 @@ function ReadingPane({ note, onBack, familyId, onUpdate, onReply }) {
             <button type="button" onClick={() => onReply(note, "forward")} title="Forward">
               <ForwardIcon /> <span>Forward</span>
             </button>
+            {!outbound && onToggleRead && (
+              <button type="button" onClick={() => onToggleRead(note)} title="Mark as unread">
+                <span>Mark as unread</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -626,8 +631,11 @@ function ComposeForm({ familyId, onDone, onCancel }) {
 
 // -------------------------------------------------------------------- main
 
+const isUnread = (n) => n.direction === "inbound" && !n.read_at;
+
 const FILTERS = [
   { key: "all", label: "All" },
+  { key: "unread", label: "Unread" },
   { key: "inbound", label: "Received" },
   { key: "outbound", label: "Sent" },
   { key: "files", label: "Attachments" },
@@ -680,6 +688,7 @@ export default function EmailsPanel({
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return notes.filter((n) => {
+      if (filter === "unread" && !isUnread(n)) return false;
       if (filter === "inbound" && n.direction !== "inbound") return false;
       if (filter === "outbound" && n.direction !== "outbound") return false;
       if (filter === "files" && !filesOf(n).length) return false;
@@ -699,6 +708,19 @@ export default function EmailsPanel({
 
   const selected = visible.find((n) => n.id === selectedId) || visible[0] || null;
 
+  function setRead(id, read) {
+    const readAt = read ? new Date().toISOString() : null;
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, read_at: readAt } : n)));
+    updateCaseNote(id, { readAt }).catch(() => {});
+  }
+  // Opening an email marks it read; "Mark as unread" puts it back.
+  const selectedKey = selected?.id;
+  const selectedWasUnread = selected ? isUnread(selected) : false;
+  useEffect(() => {
+    if (selectedKey && selectedWasUnread) setRead(selectedKey, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedKey]);
+
   function select(id) {
     setSelectedId(id);
     setMobileReading(true);
@@ -717,6 +739,7 @@ export default function EmailsPanel({
 
   const counts = {
     all: notes.length,
+    unread: notes.filter(isUnread).length,
     inbound: notes.filter((n) => n.direction === "inbound").length,
     outbound: notes.filter((n) => n.direction === "outbound").length,
     files: notes.filter((n) => filesOf(n).length).length,
@@ -844,7 +867,7 @@ export default function EmailsPanel({
                         key={n.id}
                         type="button"
                         data-id={n.id}
-                        className={"mx-row" + (active ? " is-active" : "")}
+                        className={"mx-row" + (active ? " is-active" : "") + (isUnread(n) ? " is-unread" : "")}
                         onClick={() => {
                           setWriting(null);
                           select(n.id);
@@ -853,6 +876,7 @@ export default function EmailsPanel({
                         <Avatar name={s.name} email={s.email} size={34} />
                         <span className="mx-row-main">
                           <span className="mx-row-line1">
+                            {isUnread(n) && <span className="mx-unread-dot" title="Unread" />}
                             <span className="mx-row-sender">
                               {n.direction === "outbound" && n.email_to ? `To: ${splitAddrs(n.email_to)[0] || n.email_to}` : s.name}
                             </span>
@@ -907,6 +931,10 @@ export default function EmailsPanel({
               onBack={() => setMobileReading(false)}
               onUpdate={(updated) => setNotes((prev) => prev.map((n) => (n.id === updated.id ? { ...n, ...updated } : n)))}
               onReply={(n, mode) => openComposer(replyDraft(n, mode, familyAddress))}
+              onToggleRead={(n) => {
+                setRead(n.id, false);
+                setMobileReading(false);
+              }}
             />
           )}
         </div>

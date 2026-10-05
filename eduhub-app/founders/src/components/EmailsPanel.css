@@ -708,3 +708,7 @@
     display: none;
   }
 }
+
+.mx-row.is-unread .mx-row-sender,
+.mx-row.is-unread .mx-row-subject { font-weight: 800; }
+.mx-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: #7b1e3a; flex-shrink: 0; }

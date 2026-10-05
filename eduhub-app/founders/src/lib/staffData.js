@@ -649,6 +649,7 @@ export async function updateCaseNote(noteId, patch) {
   if ("kind" in patch) row.kind = patch.kind || "note";
   if ("childId" in patch) row.child_id = patch.childId || null;
   if ("schoolId" in patch) row.school_id = patch.schoolId || null;
+  if ("readAt" in patch) row.read_at = patch.readAt ? new Date(patch.readAt).toISOString() : null;
   if ("occurredAt" in patch && patch.occurredAt) row.occurred_at = new Date(patch.occurredAt).toISOString();
   return unwrap(await supabase.from("case_notes").update(row).eq("id", noteId).select().single());
 }
