@@ -317,7 +317,7 @@ export async function getFamilyDetail(familyId) {
 // Only the staff-managed columns are ever sent — the family's own data
 // (home_address, intake_status) is theirs to change, not ours, and
 // account_user_id is refused outright by a database trigger anyway.
-const FAMILY_STAFF_COLUMNS = ["pipeline_stage", "client_stage", "destination", "origin", "membership_type", "owner_staff_id", "home_address", "dubai_available_from", "dubai_available_until"];
+const FAMILY_STAFF_COLUMNS = ["pipeline_stage", "client_stage", "destination", "origin", "membership_type", "owner_staff_id", "home_address", "dubai_available_from", "dubai_available_until", "reapplication_since"];
 
 export async function updateFamily(familyId, patch) {
   const payload = {};
@@ -1790,9 +1790,10 @@ export async function setMainSchoolContact(schoolId, contactId) {
 // The two stage columns only -- re-read after anything on the family page
 // that the database uses to work the stage out (addendum 80).
 export async function getFamilyStages(familyId) {
-  return unwrap(
-    await supabase.from("families").select("id, pipeline_stage, client_stage").eq("id", familyId).single()
-  );
+  // reapplication_since arrives with addendum 83; fall back until it is run.
+  const withRe = await supabase.from("families").select("id, pipeline_stage, client_stage, reapplication_since").eq("id", familyId).single();
+  if (!withRe.error) return withRe.data;
+  return unwrap(await supabase.from("families").select("id, pipeline_stage, client_stage").eq("id", familyId).single());
 }
 
 // ---------------------------------------------------------------------------

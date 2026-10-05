@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listPlacements, createPlacement, updatePlacementDate, friendlyError } from "../lib/staffData";
+import { listPlacements, createPlacement, updatePlacementDate, updateFamily, friendlyError } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import { oneMonthAfter } from "../lib/placement";
 import "./panels.css";
@@ -59,6 +59,25 @@ export default function PlacementPanel({ family, familyChildren, onChanged }) {
     }
   }
 
+  // A placed family applying again: the family goes back to Live, and every
+  // placement and old application stays as it was (the old school simply
+  // stays closed unless it is kept open).
+  async function startNewApplication() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await updateFamily(family.id, { reapplication_since: new Date().toISOString(), client_stage: "live" });
+      onChanged?.();
+    } catch (e) {
+      setError(friendlyError(e, "Couldn't start a new application."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const reapplying = !!family.reapplication_since && family.client_stage !== "placed";
+
   async function changeDate(row, value) {
     if (!value || value === row.start_date) return;
     try {
@@ -80,6 +99,23 @@ export default function PlacementPanel({ family, familyChildren, onChanged }) {
         a task is added for one month later to send the family a check-in email.
       </p>
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
+
+      {reapplying ? (
+        <p className="family-detail-hint">
+          <strong>Applying again</strong> since {fmt(String(family.reapplication_since).slice(0, 10))}. Earlier placements
+          below are kept as history. This family goes back to Placed once a new offer is accepted or a new start date is
+          added.
+        </p>
+      ) : (
+        <div className="ref-form">
+          <button type="button" className="panel-btn" onClick={startNewApplication} disabled={busy}>
+            {busy ? "Starting…" : "Start a new application"}
+          </button>
+          <span className="family-detail-hint" style={{ margin: 0 }}>
+            For a placed family who wants to apply to another school. Keeps the placement history.
+          </span>
+        </div>
+      )}
 
       {rows && rows.length > 0 && (
         <ul className="ref-list">
