@@ -761,6 +761,7 @@ export async function loadCalendarEvents({ from, to } = {}) {
     family_id: familyId || null,
     familyName: familyId ? familyNames[familyId] || "Unknown family" : null,
     ownerId: familyId ? familyById[familyId]?.owner_staff_id || null : null,
+    packageKey: familyId ? familyById[familyId]?.membership_type || null : null,
   });
 
   const out = [];
@@ -787,6 +788,8 @@ export async function loadCalendarEvents({ from, to } = {}) {
     const p = slot === 2 ? "tour2_" : "tour_";
     const date = r[`${p}date`];
     if (!date) return;
+    // Live calendar: a cancelled tour comes off it (it stays on School visits).
+    if (r[`${p}status`] === "cancelled") return;
     const school = schoolById[r.school_id]?.name || "Unknown school";
     tourSeen.add(`${r.family_id}|${r.school_id}|${date}`);
     out.push({

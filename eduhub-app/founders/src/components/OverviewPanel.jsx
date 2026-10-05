@@ -1,6 +1,6 @@
 import { displayNameForChild } from "../lib/completeness";
 import { packageLabel } from "../data/packages";
-import SchoolPipelinePanel from "./SchoolPipelinePanel";
+import TourSchedulePanel from "./TourSchedulePanel";
 import CopyButton from "./CopyButton";
 import { householdAddress } from "../lib/address";
 import ReferralsPanel from "./ReferralsPanel";
@@ -61,10 +61,7 @@ export default function OverviewPanel({
   displayName,
   namedParents,
   familyChildren,
-  applicationsByChild,
-  onFamilyRefresh,
   onGoToVisits,
-  onGoToApplications,
   onProgressChange,
   caseNotes,
   staff,
@@ -92,7 +89,7 @@ export default function OverviewPanel({
           </span>
         </header>
 
-        <div className="ov-people">
+        <div className="ov-family-row">
           {[mother, father].map((parent, i) => (
             <div className="ov-person" key={i === 0 ? "Mother" : "Father"}>
               <span className="ov-eyebrow">{i === 0 ? "Mother" : "Father"}</span>
@@ -112,15 +109,13 @@ export default function OverviewPanel({
             <span className="ov-eyebrow">Household address</span>
             <ReadLine value={householdAddr} label="Copy address" />
           </div>
-        </div>
-
-        <div className="ov-lower">
-          <span className="ov-eyebrow">Children</span>
-          {familyChildren.length === 0 ? (
-            <span className="ov-none">None on file yet</span>
-          ) : (
-            <div className="ov-kids">
-              {familyChildren.map((c, i) => {
+          {familyChildren.length === 0 && (
+            <div className="ov-person">
+              <span className="ov-eyebrow">Children</span>
+              <span className="ov-none">None on file yet</span>
+            </div>
+          )}
+          {familyChildren.map((c, i) => {
                 const school = currentSchools?.[i]?.school_name;
                 const years = Array.isArray(c.academic_years_of_entry) ? c.academic_years_of_entry.join(", ") : "";
                 return (
@@ -148,20 +143,11 @@ export default function OverviewPanel({
                     )}
                   </div>
                 );
-              })}
-            </div>
-          )}
+          })}
         </div>
       </section>
 
-      <SchoolPipelinePanel
-        familyId={family.id}
-        familyChildren={familyChildren}
-        applicationsByChild={applicationsByChild}
-        onFamilyRefresh={onFamilyRefresh}
-        onGoToVisits={onGoToVisits}
-        onGoToApplications={onGoToApplications}
-      />
+      <TourSchedulePanel familyId={family.id} onGoToVisits={onGoToVisits} />
 
       {family.client_stage === "placed" && (
         <PlacementPanel family={family} familyChildren={familyChildren} onChanged={onProgressChange} />
@@ -173,7 +159,7 @@ export default function OverviewPanel({
 
       <CaseNotesPanel
         familyId={family.id}
-        notes={caseNotes}
+        notes={(caseNotes || []).filter((n) => n.kind !== "email" && n.kind !== "meeting")}
         staff={staff}
         familyChildren={familyChildren}
         schoolCatalog={schoolCatalog}

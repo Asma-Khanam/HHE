@@ -155,7 +155,7 @@ export default function CaseNotesPanel({ familyId, notes: initialNotes, staff, f
       {composing && (
         <div className="note-form">
           <div className="note-kind-row">
-            {NOTE_KINDS.map((k) => (
+            {NOTE_KINDS.filter((k) => k.key !== "email" && k.key !== "meeting").map((k) => (
               <button
                 type="button"
                 key={k.key}

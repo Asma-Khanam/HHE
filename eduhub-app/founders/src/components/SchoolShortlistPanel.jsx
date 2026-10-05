@@ -566,7 +566,12 @@ export default function SchoolShortlistPanel({
       if (row.priority === "secondary") return 1;
       return 2;
     };
-    return [...rows].sort((a, b) => rank(a) - rank(b));
+    const when = (r) => {
+      const d = [r.tour_date, r.tour2_date].filter(Boolean).sort()[0];
+      return d || "9999-12-31";
+    };
+    // Earliest visit first; schools with no tour yet go last in their group.
+    return [...rows].sort((a, b) => rank(a) - rank(b) || when(a).localeCompare(when(b)));
   }, [rows, placed, children, allApplications]);
 
   const shortlistedIds = new Set(rows.map((r) => r.school_id));

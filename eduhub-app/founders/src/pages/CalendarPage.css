@@ -201,6 +201,15 @@
 .tone-team { --c: var(--team); --bg: var(--team-bg); }
 .tone-other { --c: var(--other); --bg: var(--other-bg); }
 
+/* Package colours (tours + assessments). */
+.pkg-new_starts { --c: #2f7d6d; --bg: #e3f2ee; }
+.pkg-on_the_ground { --c: #b7791f; --bg: #fbf0d9; }
+.pkg-guided_search { --c: #2b6cb0; --bg: #e2edf9; }
+.pkg-family_partnership { --c: #8e2a63; --bg: #f6e3ee; }
+.pkg-signature_partnership { --c: #4a3b8f; --bg: #e8e4f6; }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0 0; font-size: 0.8rem; }
+.cal-legend-item i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--c); margin-right: 5px; }
+
 /* ---- month ---- */
 .cal-month {
   display: grid;

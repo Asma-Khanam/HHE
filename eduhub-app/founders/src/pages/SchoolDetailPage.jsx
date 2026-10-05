@@ -272,6 +272,9 @@ function SchoolRecordView({ school }) {
           <SvRow label="Area">{school.area}</SvRow>
           <SvRow label="Curriculum">{school.curriculum}</SvRow>
           <SvRow label="Address">{school.address}</SvRow>
+          <SvRow label="School phone">
+            {school.general_phone && <a href={"tel:" + school.general_phone.replace(/\s+/g, "")}>{school.general_phone}</a>}
+          </SvRow>
         </div>
         <div className="sv-card">
           <h3>Tours</h3>
@@ -373,6 +376,7 @@ export default function SchoolDetailPage() {
       default_tour_bring: school.default_tour_bring || "",
       default_tour_on_arrival: school.default_tour_on_arrival || "",
       default_tour_maps_url: school.default_tour_maps_url || "",
+      general_phone: school.general_phone || "",
       website_url: school.website_url || "",
       fees_url: school.fees_url || "",
       tour_booking_url: school.tour_booking_url || "",
@@ -812,6 +816,19 @@ export default function SchoolDetailPage() {
               </div>
 
               <h3 className="rec-subhead">Admissions &amp; applications</h3>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-phone">
+                  General school phone
+                </label>
+                <input
+                  id="sch-phone"
+                  className="panel-input"
+                  type="tel"
+                  placeholder="Main switchboard (not an admissions contact)"
+                  value={draft.general_phone}
+                  onChange={(e) => setDraft((d) => ({ ...d, general_phone: e.target.value }))}
+                />
+              </div>
               <div className="rec-field">
                 <label className="rec-field-label" htmlFor="sch-website">
                   Website

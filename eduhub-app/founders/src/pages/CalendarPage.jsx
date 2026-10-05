@@ -11,6 +11,7 @@ import {
   listFamilies,
   friendlyError,
 } from "../lib/staffData";
+import { PACKAGES } from "../data/packages";
 import "./CalendarPage.css";
 
 // Consultant calendar (redesign, 25 Sept 2026). Founders: "the calendar
@@ -107,8 +108,13 @@ function saveView(v) {
   }
 }
 
+const PKG_KEYS = ["new_starts", "on_the_ground", "guided_search", "family_partnership", "signature_partnership"];
+
 // ---- how an event looks -----------------------------------------------------
 function tone(ev) {
+  // Colour by service package (Guided, Family Partnership...), not by family.
+  if (ev.packageKey && PKG_KEYS.includes(ev.packageKey) && (ev.category === "tour" || ev.category === "assessment"))
+    return "tone-pkg pkg-" + ev.packageKey;
   if (ev.category === "tour") return "tone-tour";
   if (ev.category === "assessment") return "tone-assessment";
   if (ev.kind === "deadline") return "tone-deadline";
@@ -468,6 +474,14 @@ export default function CalendarPage() {
       ) : (
         <WeekView days={days} today={today} byDay={byDay} onOpen={openEvent} onCreate={openCreate} />
       )}
+
+      <p className="cal-legend">
+        {PACKAGES.map((p) => (
+          <span key={p.key} className={"cal-legend-item tone-pkg pkg-" + p.key}>
+            <i /> {p.label}
+          </span>
+        ))}
+      </p>
 
       <p className="cal-keys">
         Shortcuts: <kbd>T</kbd> today · <kbd>M</kbd> month · <kbd>W</kbd> week · <kbd>←</kbd> <kbd>→</kbd> move
