@@ -2,9 +2,21 @@
 // (founders, 25 Sept 2026). Nothing is changed in the data -- a school only
 // *shows* as closed, so if the placement falls through it opens again.
 
+// Search rounds (addendum 84): a child who has started a new search only
+// counts by their newest round's applications, so the earlier placement and
+// its closed schools stay as history.
+export function currentRoundApps(applications) {
+  const apps = applications || [];
+  const top = {};
+  apps.forEach((a) => {
+    top[a.child_id] = Math.max(top[a.child_id] || 1, a.round_number || 1);
+  });
+  return apps.filter((a) => (a.round_number || 1) >= top[a.child_id]);
+}
+
 export function placedByChild(applications) {
   const out = {};
-  (applications || []).forEach((a) => {
+  currentRoundApps(applications).forEach((a) => {
     if (a.status === "offer_accepted") out[a.child_id] = a.school_id;
   });
   return out;
@@ -13,8 +25,9 @@ export function placedByChild(applications) {
 // A shortlist row is the whole family's, so it closes only when every child
 // is placed and none of them at this school.
 // Declined or withdrawn there counts as closed for that child too.
-export function schoolClosed(placed, childIds, schoolId, apps = []) {
+export function schoolClosed(placed, childIds, schoolId, allApps = []) {
   if (!childIds.length) return false;
+  const apps = currentRoundApps(allApps);
   return childIds.every((id) => {
     const app = apps.find((a) => a.child_id === id && String(a.school_id) === String(schoolId));
     if (app?.keep_open) return false;

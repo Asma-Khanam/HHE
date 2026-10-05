@@ -317,7 +317,7 @@ export async function getFamilyDetail(familyId) {
 // Only the staff-managed columns are ever sent — the family's own data
 // (home_address, intake_status) is theirs to change, not ours, and
 // account_user_id is refused outright by a database trigger anyway.
-const FAMILY_STAFF_COLUMNS = ["pipeline_stage", "client_stage", "destination", "origin", "membership_type", "owner_staff_id", "home_address", "dubai_available_from", "dubai_available_until", "reapplication_since"];
+const FAMILY_STAFF_COLUMNS = ["pipeline_stage", "client_stage", "destination", "origin", "membership_type", "owner_staff_id", "home_address", "dubai_available_from", "dubai_available_until"];
 
 export async function updateFamily(familyId, patch) {
   const payload = {};
@@ -1665,6 +1665,56 @@ export async function createPlacement({ familyId, childId, childName, schoolName
   );
 }
 
+export async function listChildApplications(childIds) {
+  if (!childIds?.length) return [];
+  return unwrap(await supabase.from("applications").select("*").in("child_id", childIds).order("created_at")) || [];
+}
+
+// Search rounds (addendum 84). Round 1 is implicit; a row here is round 2+
+// for one child. Before the addendum is run this just returns no rounds.
+export async function listSearchRounds(familyId) {
+  const { data, error } = await supabase
+    .from("search_rounds")
+    .select("*")
+    .eq("family_id", familyId)
+    .order("round_number", { ascending: true });
+  if (error) return [];
+  return data || [];
+}
+
+// "Start new round" for one child. Earlier placements, applications and
+// visits stay as history; schools not in droppedSchoolIds carry over. A case
+// note records it.
+export async function startSearchRound({ familyId, childId, childName, fromSchoolName, reason, reasonNote, droppedSchoolIds }) {
+  const existing = await listSearchRounds(familyId);
+  const next = Math.max(1, ...existing.filter((r) => r.child_id === childId).map((r) => r.round_number)) + 1;
+  const row = unwrap(
+    await supabase
+      .from("search_rounds")
+      .insert({
+        family_id: familyId,
+        child_id: childId,
+        round_number: next,
+        reason: reason || null,
+        reason_note: reasonNote?.trim() || null,
+        from_school_name: fromSchoolName || null,
+        dropped_school_ids: droppedSchoolIds || [],
+      })
+      .select()
+      .single()
+  );
+  const why = [reason, reasonNote?.trim()].filter(Boolean).join(" · ");
+  await createCaseNote({
+    familyId,
+    childId,
+    kind: "decision",
+    body: `${childName || "Child"} started search round ${next}${fromSchoolName ? ` (currently at ${fromSchoolName})` : ""}${
+      why ? `. Reason: ${why}` : ""
+    }.${droppedSchoolIds?.length ? ` ${droppedSchoolIds.length} earlier school(s) not carried over.` : " All earlier shortlist schools carried over."}`,
+  }).catch(() => {});
+  return row;
+}
+
 export async function updatePlacementDate(placement, startDate) {
   const row = unwrap(
     await supabase.from("family_placements").update({ start_date: startDate }).eq("id", placement.id).select().single()
@@ -1790,9 +1840,6 @@ export async function setMainSchoolContact(schoolId, contactId) {
 // The two stage columns only -- re-read after anything on the family page
 // that the database uses to work the stage out (addendum 80).
 export async function getFamilyStages(familyId) {
-  // reapplication_since arrives with addendum 83; fall back until it is run.
-  const withRe = await supabase.from("families").select("id, pipeline_stage, client_stage, reapplication_since").eq("id", familyId).single();
-  if (!withRe.error) return withRe.data;
   return unwrap(await supabase.from("families").select("id, pipeline_stage, client_stage").eq("id", familyId).single());
 }
 

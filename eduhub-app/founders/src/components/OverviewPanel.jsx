@@ -124,9 +124,7 @@ export default function OverviewPanel({
 
       <TourSchedulePanel familyId={family.id} onGoToVisits={onGoToVisits} />
 
-      {(family.client_stage === "placed" || family.reapplication_since) && (
-        <PlacementPanel family={family} familyChildren={familyChildren} onChanged={onProgressChange} />
-      )}
+      <PlacementPanel family={family} familyChildren={familyChildren} onChanged={onProgressChange} />
 
       <ReferralsPanel family={family} />
 

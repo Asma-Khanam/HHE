@@ -9,6 +9,7 @@ import {
   listChecklistItems,
   updateSchool,
   listPlacements,
+  listSearchRounds,
   createPlacement,
   updatePlacementDate,
 } from "../lib/staffData";
@@ -27,7 +28,7 @@ import { FlowBar } from "./ProcessSteps";
 import UpdateFamilyButton from "./UpdateFamilyButton";
 import "./panels.css";
 import AutosaveField from "./Autosave";
-import { placedByChild, closedForChild, shortDate } from "../lib/placement";
+import { placedByChild, closedForChild, shortDate, roundInfoByChild, inCurrentRound } from "../lib/placement";
 import { parseMeetingInvite, looksLikeInvite } from "../lib/meetingLink";
 import "./ApplicationsPanel.css";
 
@@ -321,9 +322,11 @@ export default function ApplicationsPanel({
   // reuses the same family_placements rows the Overview's Placement panel
   // shows, matched to this application by child + school name.
   const [placements, setPlacements] = useState([]);
+  const [rounds, setRounds] = useState([]);
   useEffect(() => {
     if (!familyId) return;
     let cancelled = false;
+    listSearchRounds(familyId).then((rows) => !cancelled && setRounds(rows || []));
     listPlacements(familyId)
       .then((rows) => !cancelled && setPlacements(rows || []))
       .catch(() => {});
@@ -534,7 +537,8 @@ export default function ApplicationsPanel({
   // Founders (25 Sept 2026): once a child is placed, their other schools
   // close -- dark grey, at the bottom, view-only. Worked out, never saved,
   // so undoing the placement reopens them.
-  const placed = placedByChild({ children: familyChildren, applicationsByChild: apps, placements, schools });
+  const placed = placedByChild({ children: familyChildren, applicationsByChild: apps, placements, schools, rounds });
+  const roundInfo = roundInfoByChild(rounds);
 
   // Paste a whole Teams / Zoom invite into the link box and the meeting ID
   // and passcode fill themselves in.
@@ -584,7 +588,9 @@ export default function ApplicationsPanel({
             : isClosedApp(a)
             ? 2
             : 1;
-        const childApps = [...(apps[child.id] || [])].sort((a, b) => rankApp(a) - rankApp(b));
+        const allChildApps = apps[child.id] || [];
+        const childApps = allChildApps.filter((a) => inCurrentRound(a, roundInfo)).sort((a, b) => rankApp(a) - rankApp(b));
+        const earlierApps = allChildApps.filter((a) => !inCurrentRound(a, roundInfo));
         const name = displayNameForChild(child, i);
         return (
           <div key={child.id} className="ap-child">
@@ -951,6 +957,22 @@ export default function ApplicationsPanel({
                   );
                 })}
               </ul>
+            )}
+
+            {earlierApps.length > 0 && (
+              <details className="ap-earlier">
+                <summary>
+                  Earlier rounds ({earlierApps.length} application{earlierApps.length === 1 ? "" : "s"}, kept as history)
+                </summary>
+                <ul className="ap-list">
+                  {earlierApps.map((a) => (
+                    <li key={a.id} className="ap-closed-note">
+                      Round {a.round_number || 1} · {a.schoolName || schools.find((x) => x.id === a.school_id)?.name || "School"} ·{" "}
+                      {String(a.status || "").replace(/_/g, " ")}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
           </div>
         );

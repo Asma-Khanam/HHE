@@ -6,12 +6,44 @@
 
 const norm = (s) => String(s || "").trim().toLowerCase();
 
-export function placedByChild({ children = [], applicationsByChild = {}, placements = [], schools = [] }) {
-  const byName = Object.fromEntries(schools.map((s) => [norm(s.name), s]));
+// Search rounds (addendum 84): each child has their own search. Round 1 is
+// implicit; "Start new round" adds a row, and from then on only an offer
+// accepted in the *current* round (or a start date saved after it began)
+// counts as placed. Earlier rounds are kept as history.
+export function roundInfoByChild(rounds = []) {
   const out = {};
+  rounds.forEach((r) => {
+    if (!out[r.child_id] || r.round_number > out[r.child_id].number) {
+      out[r.child_id] = {
+        number: r.round_number,
+        startedAt: r.started_at,
+        reason: r.reason || null,
+        dropped: new Set((r.dropped_school_ids || []).map(String)),
+      };
+    }
+  });
+  return out;
+}
+
+export const roundOf = (info, childId) => info?.[childId]?.number || 1;
+export const inCurrentRound = (app, info) => (app.round_number || 1) >= roundOf(info, app.child_id);
+
+export function placedByChild({ children = [], applicationsByChild = {}, placements = [], schools = [], rounds = [] }) {
+  const byName = Object.fromEntries(schools.map((s) => [norm(s.name), s]));
+  const info = roundInfoByChild(rounds);
+  const out = {};
+  // Hidden (non-enumerable) so Object.entries(placed) still lists children
+  // only, while the closing helpers below can see the rounds.
+  Object.defineProperty(out, "__rounds", { value: info, enumerable: false });
   children.forEach((c) => {
-    const accepted = (applicationsByChild[c.id] || []).find((a) => a.status === "offer_accepted");
-    const placement = placements.find((p) => p.child_id === c.id);
+    const startedAt = info[c.id]?.startedAt ? new Date(info[c.id].startedAt).getTime() : null;
+    const accepted = (applicationsByChild[c.id] || []).find(
+      (a) => a.status === "offer_accepted" && inCurrentRound(a, info)
+    );
+    const childPlacements = placements.filter(
+      (p) => p.child_id === c.id && (startedAt == null || new Date(p.created_at).getTime() >= startedAt)
+    );
+    const placement = childPlacements[0];
     if (!accepted && !placement) return;
     const schoolId = accepted?.school_id || byName[norm(placement?.school_name)]?.id || null;
     const schoolName =
@@ -20,7 +52,7 @@ export function placedByChild({ children = [], applicationsByChild = {}, placeme
       placement?.school_name ||
       "their new school";
     const start =
-      placements.find((p) => p.child_id === c.id && norm(p.school_name) === norm(schoolName))?.start_date ||
+      childPlacements.find((p) => norm(p.school_name) === norm(schoolName))?.start_date ||
       (!accepted ? placement?.start_date : null);
     out[c.id] = { schoolId, schoolName, startDate: start || null };
   });
@@ -70,8 +102,13 @@ export function oneMonthAfter(iso) {
 // Founders (25 Sept 2026): a declined (or withdrawn) application closes too.
 // For one child at one school: why is it closed, if it is?
 export function childClosedReason(placed, childId, schoolId, schoolName, apps = [], keepOpen) {
-  const app = apps.find((a) => a.child_id === childId && String(a.school_id) === String(schoolId));
+  const info = placed?.__rounds;
+  const app = apps.find(
+    (a) => a.child_id === childId && String(a.school_id) === String(schoolId) && inCurrentRound(a, info)
+  );
   if (closedForChild(placed, childId, schoolId, schoolName, keepOpen || app?.keep_open)) return "placed";
+  // Not carried over into this child's new search round.
+  if (!placed[childId] && !keepOpen && !app && info?.[childId]?.dropped.has(String(schoolId))) return "dropped";
   if (app?.status === "rejected") return "declined";
   if (app?.status === "withdrawn") return "withdrawn";
   return null;
@@ -86,6 +123,7 @@ export function rowClosedReason(placed, children, schoolId, schoolName, apps = [
   if (reasons.every((r) => r === "placed")) return "placed";
   if (reasons.every((r) => r === "declined")) return "declined";
   if (reasons.every((r) => r === "withdrawn")) return "withdrawn";
+  if (reasons.every((r) => r === "dropped")) return "dropped";
   return "mixed";
 }
 
@@ -93,5 +131,6 @@ export const CLOSED_TEXT = {
   placed: "every child has a place elsewhere",
   declined: "the school declined",
   withdrawn: "withdrawn",
+  dropped: "it was not carried over into the new search",
   mixed: "no child is going ahead here",
 };

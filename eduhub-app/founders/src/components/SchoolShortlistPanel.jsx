@@ -17,6 +17,7 @@ import {
   listShortlistNotes,
   saveShortlistNote,
   listPlacements,
+  listSearchRounds,
   listSchoolContacts,
   setShortlistKeepOpen,
 } from "../lib/staffData";
@@ -182,6 +183,7 @@ export default function SchoolShortlistPanel({
   // get stuck on at all.
   const [removingId, setRemovingId] = useState(null);
   const [placements, setPlacements] = useState([]);
+  const [rounds, setRounds] = useState([]);
   const [contactsBySchool, setContactsBySchool] = useState({});
 
   const children = familyChildren || [];
@@ -196,7 +198,7 @@ export default function SchoolShortlistPanel({
       setAllSchools(schools);
       const shortlistIds = shortlist.map((r) => r.id);
       const schoolIds = [...new Set(shortlist.map((r) => r.school_id))];
-      const [cs, other, notes, placementRows, contacts] = await Promise.all([
+      const [cs, other, notes, placementRows, contacts, roundRows] = await Promise.all([
         listChildAvailabilityForShortlistIds(shortlistIds),
         listOtherFeedbackForSchools(schoolIds, familyId),
         // Notes failing to load (e.g. addendum 63 not run yet) shouldn't
@@ -204,11 +206,13 @@ export default function SchoolShortlistPanel({
         listShortlistNotes(shortlistIds).catch(() => ({})),
         listPlacements(familyId).catch(() => []),
         listSchoolContacts(schoolIds).catch(() => null),
+        listSearchRounds(familyId),
       ]);
       setChildStatus(cs);
       setOtherFeedback(other);
       setNotesById(notes);
       setPlacements(placementRows || []);
+      setRounds(roundRows || []);
       const bySchool = {};
       (contacts || []).filter((c) => !c.archived_at).forEach((c) => (bySchool[c.school_id] = bySchool[c.school_id] || []).push(c));
       setContactsBySchool(bySchool);
@@ -237,8 +241,8 @@ export default function SchoolShortlistPanel({
   // close. A row is per family, so it only closes when every child is placed
   // (see lib/placement.js); until then just that child's column says so.
   const placed = useMemo(
-    () => placedByChild({ children, applicationsByChild: applicationsByChild || {}, placements, schools: allSchools }),
-    [children, applicationsByChild, placements, allSchools]
+    () => placedByChild({ children, applicationsByChild: applicationsByChild || {}, placements, schools: allSchools, rounds }),
+    [children, applicationsByChild, placements, allSchools, rounds]
   );
   // Closed = every child placed elsewhere, or declined / withdrawn here.
   const closedReason = (row) =>
@@ -759,7 +763,7 @@ export default function SchoolShortlistPanel({
                             className={"svt-child-placed" + (here ? " is-here" : " is-elsewhere")}
                             title={why === "placed" ? `Placed at ${placed[c.id].schoolName}` : undefined}
                           >
-                            {here ? "Placed ✓" : why === "placed" ? "Placed elsewhere" : why === "declined" ? "Declined" : "Withdrawn"}
+                            {here ? "Placed ✓" : why === "placed" ? "Placed elsewhere" : why === "declined" ? "Declined" : why === "dropped" ? "Not carried over" : "Withdrawn"}
                           </span>
                         </div>
                       );
@@ -1445,7 +1449,7 @@ function ClosedRow({ row, children, placed, apps, reason, expanded, onToggle, on
           return (
             <div className="svt-cell" key={c.id}>
               <span className="svt-child-placed is-elsewhere" title={why === "placed" ? `Placed at ${placed[c.id]?.schoolName}` : undefined}>
-                {why === "placed" ? "Placed elsewhere" : why === "declined" ? "Declined" : "Withdrawn"}
+                {why === "placed" ? "Placed elsewhere" : why === "declined" ? "Declined" : why === "dropped" ? "Not carried over" : "Withdrawn"}
               </span>
             </div>
           );
