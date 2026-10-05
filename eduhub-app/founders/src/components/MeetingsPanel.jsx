@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { createCaseNote, friendlyError } from "../lib/staffData";
+import { useEffect, useState } from "react";
+import { createCaseNote, listZoomLinks, createZoomLink, friendlyError } from "../lib/staffData";
+import { parseMeetingInvite } from "../lib/meetingLink";
 import "./panels.css";
 
 // The Meetings tab (September 2026 change request) -- a dedicated place for
@@ -83,6 +84,40 @@ export default function MeetingsPanel({ familyId, notes: allNotes }) {
   const [zoomLink, setZoomLink] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // Linking a Zoom call: its summary is saved here by itself when it ends.
+  const [links, setLinks] = useState([]);
+  const [invite, setInvite] = useState("");
+  const [linkTopic, setLinkTopic] = useState("");
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [linkError, setLinkError] = useState("");
+
+  useEffect(() => {
+    listZoomLinks(familyId).then(setLinks);
+  }, [familyId]);
+
+  async function handleLinkZoom() {
+    const text = invite.trim();
+    if (!text || linkBusy) return;
+    const parsed = parseMeetingInvite(text);
+    const url = parsed.link || (/^https?:/i.test(text) ? text : "");
+    const id = (url.match(/zoom\.us\/[a-z]\/(\d{8,})/i)?.[1] || String(parsed.meetingId || "").replace(/\D/g, "") || text.replace(/\D/g, "")).trim();
+    if (!/^\d{8,12}$/.test(id)) {
+      setLinkError("Couldn't find a Zoom meeting ID. Paste the full Zoom invite or the meeting link.");
+      return;
+    }
+    setLinkBusy(true);
+    setLinkError("");
+    try {
+      const row = await createZoomLink({ familyId, zoomMeetingId: id, joinUrl: url, topic: linkTopic });
+      setLinks((l) => [row, ...l]);
+      setInvite("");
+      setLinkTopic("");
+    } catch (e) {
+      setLinkError(friendlyError(e, "Couldn't link that meeting. Has addendum 89 been run?"));
+    } finally {
+      setLinkBusy(false);
+    }
+  }
 
   async function handleLog(e) {
     e.preventDefault();
@@ -120,6 +155,49 @@ export default function MeetingsPanel({ familyId, notes: allNotes }) {
         Notes and summaries from calls and meetings with this family -- write one up here after a Zoom or a call so
         it's on record.
       </p>
+
+      <div className="meeting-compose" style={{ marginBottom: 14 }}>
+        <strong>Link a Zoom call</strong>
+        <span className="family-detail-hint" style={{ margin: 0 }}>
+          Paste the Zoom invite or link before the call. When it ends, Zoom&rsquo;s AI summary is saved here by itself.
+        </span>
+        <input
+          className="panel-input"
+          placeholder="Paste the Zoom invite or meeting link"
+          value={invite}
+          onChange={(e) => setInvite(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleLinkZoom();
+          }}
+        />
+        <input
+          className="panel-input"
+          placeholder="Topic (optional), e.g. Intro call"
+          value={linkTopic}
+          onChange={(e) => setLinkTopic(e.target.value)}
+        />
+        {linkError && <div className="hh-form-banner hh-form-banner-error">{linkError}</div>}
+        <div>
+          <button type="button" className="panel-btn" onClick={handleLinkZoom} disabled={linkBusy || !invite.trim()}>
+            {linkBusy ? "Linking…" : "Link Zoom call"}
+          </button>
+        </div>
+        {links.length > 0 && (
+          <ul className="ref-list">
+            {links.map((l) => {
+              const done = notes.some((n) => (n.body || "").includes(l.join_url || "\u0000"));
+              return (
+                <li key={l.id} className="ref-item">
+                  <span className="ref-main">
+                    {l.topic || "Zoom call"} · ID {l.zoom_meeting_id}
+                    <span className="pl-checkin">{done ? "Summary saved below" : "Waiting for Zoom's summary"}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
 
       {composing ? (
         <form className="meeting-compose" onSubmit={handleLog}>

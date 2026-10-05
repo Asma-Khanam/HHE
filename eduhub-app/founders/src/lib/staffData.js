@@ -1657,6 +1657,29 @@ export async function createPartnerReferral({ familyId, direction, partnerName, 
   );
 }
 
+// Zoom meetings linked to a family (addendum 89). When the call ends, the
+// Zoom webhook finds the family by meeting ID and saves the summary as a
+// Meetings note. Before the addendum is run this just returns nothing.
+export async function listZoomLinks(familyId) {
+  const { data, error } = await supabase
+    .from("zoom_meeting_links")
+    .select("*")
+    .eq("family_id", familyId)
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  return data || [];
+}
+
+export async function createZoomLink({ familyId, zoomMeetingId, joinUrl, topic }) {
+  return unwrap(
+    await supabase
+      .from("zoom_meeting_links")
+      .insert({ family_id: familyId, zoom_meeting_id: zoomMeetingId, join_url: joinUrl || null, topic: topic?.trim() || null })
+      .select()
+      .single()
+  );
+}
+
 export async function listPlacements(familyId) {
   return unwrap(
     await supabase.from("family_placements").select("*").eq("family_id", familyId).order("start_date", { ascending: true })
