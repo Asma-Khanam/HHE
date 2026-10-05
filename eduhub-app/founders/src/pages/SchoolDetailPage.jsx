@@ -631,9 +631,9 @@ export default function SchoolDetailPage() {
         {[
           ["record", "School record"],
           ["notes", "Notes"],
-          ["feedback", "Feedback"],
           ["documents", "Documents"],
           ["families", "Shortlisted families" + (shortlist.length ? ` (${shortlist.length})` : "")],
+          ["feedback", "Feedback"],
         ].map(([key, label]) => (
           <button
             key={key}

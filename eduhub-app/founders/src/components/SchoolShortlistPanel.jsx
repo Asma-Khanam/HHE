@@ -1018,10 +1018,9 @@ export default function SchoolShortlistPanel({
                         }
                       }}
                     />
-                    {(row.family_feedback_rating || row.family_feedback_text) && (
-                      <div className="svt-family-feedback" title="The family's own review, from their dashboard">
-                        <span style={{ color: "#b8902f" }}>{"\u2605".repeat(row.family_feedback_rating || 0)}</span> Family:{" "}
-                        {row.family_feedback_text || "no comment"}
+                    {row.feedback_by === "family" && (
+                      <div className="svt-family-feedback" title="Left by the family on their dashboard. Edit the box to change it.">
+                        <span style={{ color: "#b8902f" }}>{"\u2605".repeat(row.feedback_rating || 0)}</span> from the family
                       </div>
                     )}
                     <div className="svt-col-actions">

@@ -12,7 +12,7 @@ const SHORTLIST_COLUMNS = `id, school_id, availability_status, availability_repl
        tour_date, tour_start_time, tour_end_time, tour_status,
        tour2_date, tour2_start_time, tour2_end_time, tour2_status,
        tour_gate, tour_building, tour_parking, tour_ask_for, tour_bring,
-       feedback_text, feedback_rating, feedback_at,
+       feedback_text, feedback_rating, feedback_at, feedback_by,
        priority, family_decision, family_decision_note,
        school:schools ( id, name, area, address, fees_url, admissions_contact_phone )`;
 
@@ -24,7 +24,6 @@ export async function fetchFamilyTimetable(familyId) {
   // arrival, arrival note + school defaults). Newest column set first,
   // falling back one addendum at a time so the page never breaks while a
   // migration hasn't been run yet.
-  const FB = ", family_feedback_rating, family_feedback_text, family_feedback_at"; // addendum 85
   const full = [
     SHORTLIST_COLUMNS.replace(
       "school:schools ( id, name, area, address, fees_url, admissions_contact_phone )",
@@ -35,7 +34,7 @@ export async function fetchFamilyTimetable(familyId) {
     ) + ", family_interest, family_interest_note, family_interest_at",
     SHORTLIST_COLUMNS + ", family_interest, family_interest_note, family_interest_at",
   ];
-  const attempts = [full[0] + FB, full[0], full[1], SHORTLIST_COLUMNS];
+  const attempts = [full[0], full[1], SHORTLIST_COLUMNS];
   let data;
   let error;
   for (const cols of attempts) {

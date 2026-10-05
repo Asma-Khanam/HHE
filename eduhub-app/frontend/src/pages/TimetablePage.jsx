@@ -583,7 +583,7 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
             </div>
           </div>
 
-          {(row.feedback_text || row.feedback_rating) && (
+          {row.feedback_by === "staff" && (row.feedback_text || row.feedback_rating) && (
             <div className="ys-block ys-visit">
               <h3>
                 Our notes from the visit
@@ -607,7 +607,7 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
             </p>
           )}
 
-          {!closed && (row.tour_status === "completed" || row.family_feedback_rating || row.family_feedback_text) && (
+          {!closed && row.feedback_by !== "staff" && (row.tour_status === "completed" || row.feedback_rating || row.feedback_text) && (
             <TourReview row={row} onPatch={onPatch} />
           )}
 
@@ -621,7 +621,7 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
 // How the tour went, in the family's own words. Saved straight away; the
 // consultant sees it on their School visits tab and on the school's Feedback tab.
 function TourReview({ row, onPatch }) {
-  const [text, setText] = useState(row.family_feedback_text || "");
+  const [text, setText] = useState(row.feedback_text || "");
   const timer = useRef(null);
   const [state, setState] = useState("");
   const [err, setErr] = useState("");
@@ -631,7 +631,7 @@ function TourReview({ row, onPatch }) {
     setErr("");
     try {
       await submitTourFeedback(row.id, rating, nextText);
-      onPatch({ family_feedback_rating: rating || null, family_feedback_text: nextText?.trim() || null });
+      onPatch({ feedback_rating: rating || null, feedback_text: nextText?.trim() || null, feedback_by: "family" });
       setState("saved");
     } catch (e) {
       setState("error");
@@ -657,9 +657,9 @@ function TourReview({ row, onPatch }) {
             type="button"
             className="ys-star-btn"
             aria-label={`${n} out of 5`}
-            aria-pressed={row.family_feedback_rating === n}
-            onClick={() => save(row.family_feedback_rating === n ? null : n, text)}
-            style={{ background: "none", border: 0, cursor: "pointer", fontSize: "1.3rem", color: n <= (row.family_feedback_rating || 0) ? "var(--hh-gold)" : "var(--hh-track)" }}
+            aria-pressed={row.feedback_rating === n}
+            onClick={() => save(row.feedback_rating === n ? null : n, text)}
+            style={{ background: "none", border: 0, cursor: "pointer", fontSize: "1.3rem", color: n <= (row.feedback_rating || 0) ? "var(--hh-gold)" : "var(--hh-track)" }}
           >
             ★
           </button>
@@ -675,12 +675,12 @@ function TourReview({ row, onPatch }) {
           clearTimeout(timer.current);
           const v = e.target.value;
           timer.current = setTimeout(() => {
-            if ((row.family_feedback_text || "") !== v.trim()) save(row.family_feedback_rating || null, v);
+            if ((row.feedback_text || "") !== v.trim()) save(row.feedback_rating || null, v);
           }, 900);
         }}
         onBlur={() => {
           clearTimeout(timer.current);
-          if ((row.family_feedback_text || "") !== text.trim()) save(row.family_feedback_rating || null, text);
+          if ((row.feedback_text || "") !== text.trim()) save(row.feedback_rating || null, text);
         }}
       />
       {err && <p className="ys-note is-bad">{err}</p>}

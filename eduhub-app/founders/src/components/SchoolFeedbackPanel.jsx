@@ -26,7 +26,7 @@ export default function SchoolFeedbackPanel({ schoolId }) {
   }, [schoolId]);
 
   const average = useMemo(() => {
-    const ratings = (rows || []).map((r) => r.family_feedback_rating).filter(Boolean);
+    const ratings = (rows || []).map((r) => r.feedback_rating).filter(Boolean);
     return ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
   }, [rows]);
 
@@ -39,15 +39,15 @@ export default function SchoolFeedbackPanel({ schoolId }) {
           Tour feedback
           {average != null && (
             <span style={{ marginLeft: 10, color: "#b8902f", fontSize: ".95rem" }}>
-              {stars(Math.round(average))} {average.toFixed(1)} from {rows.filter((r) => r.family_feedback_rating).length} famil
-              {rows.filter((r) => r.family_feedback_rating).length === 1 ? "y" : "ies"}
+              {stars(Math.round(average))} {average.toFixed(1)} from {rows.filter((r) => r.feedback_rating).length} famil
+              {rows.filter((r) => r.feedback_rating).length === 1 ? "y" : "ies"}
             </span>
           )}
         </h2>
       </div>
       <p className="family-detail-hint">
-        What families said after touring this school, with our own notes from the visit. Families add theirs from their
-        dashboard; ours are added on the family&rsquo;s School visits tab.
+        What each family said after touring this school. Families leave theirs from their dashboard; if they don&rsquo;t,
+        we write it in the Feedback column on the family&rsquo;s School visits tab.
       </p>
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
       {rows.length === 0 && !error && <p className="family-detail-hint">No feedback yet.</p>}
@@ -58,18 +58,15 @@ export default function SchoolFeedbackPanel({ schoolId }) {
               <Link to={`/staff/families/${r.family_id}?tab=visits`}><strong>{r.familyName}</strong></Link>
               {r.tour_date && <span className="pl-checkin"> · toured {when(r.tour_date)}</span>}
             </div>
-            {(r.family_feedback_rating || r.family_feedback_text) && (
-              <div>
-                <span style={{ color: "#b8902f" }}>{r.family_feedback_rating ? stars(r.family_feedback_rating) : ""}</span>{" "}
-                <em>Family{r.family_feedback_at ? `, ${when(r.family_feedback_at)}` : ""}:</em>{" "}
-                {r.family_feedback_text || "no comment"}
-              </div>
-            )}
-            {(r.feedback_text || r.feedback_rating) && (
-              <div>
-                <em>Our notes{r.feedback_at ? `, ${when(r.feedback_at)}` : ""}:</em> {r.feedback_text || ""}
-              </div>
-            )}
+            <div>
+              <span style={{ color: "#b8902f" }}>{r.feedback_rating ? stars(r.feedback_rating) : ""}</span>{" "}
+              {r.feedback_text || "no comment"}
+              <span className="pl-checkin">
+                {" "}
+                · {r.feedback_by === "family" ? "from the family" : "noted by us"}
+                {r.feedback_at ? `, ${when(r.feedback_at)}` : ""}
+              </span>
+            </div>
           </li>
         ))}
       </ul>
