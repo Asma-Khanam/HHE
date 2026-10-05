@@ -241,7 +241,7 @@ export default function EmailComposer({
       <div className="ec-row ec-from">
         <span className="ec-label">From</span>
         <span>
-          Heather Harries Education
+          Heather Harries Relocation
           {familyAddress && (
             <em>
               {" "}
@@ -295,7 +295,7 @@ export default function EmailComposer({
         autoFocus={!isNew}
       />
       <p className="ec-sig">
-        Signed as: {staffName || "you"}, Heather Harries Education
+        Signed as: {staffName || "you"}, Heather Harries Relocation
       </p>
 
       {(files.length > 0 || docIds.length > 0) && (

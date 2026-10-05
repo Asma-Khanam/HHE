@@ -20,7 +20,7 @@ import nodemailer from "nodemailer";
 //
 // ENV (founders Vercel project): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 // VITE_SUPABASE_ANON_KEY, IMPROVMX_SMTP_USER, IMPROVMX_SMTP_PASS.
-// Optional: EMAIL_FROM_NAME (default "Heather Harries Education").
+// Optional: EMAIL_FROM_NAME (default "Heather Harries Relocation").
 
 const ALIAS_DOMAIN = "applications.heatherharries.com";
 const MAX_UPLOAD_BYTES = 3_000_000; // Vercel request body limit is ~4.5MB; base64 adds a third.
@@ -136,7 +136,7 @@ export default async function handler(req, res) {
       }
     }
 
-    const fromName = process.env.EMAIL_FROM_NAME || "Heather Harries Education";
+    const fromName = process.env.EMAIL_FROM_NAME || "Heather Harries Relocation";
     const sendAsAlias = /^any-alias/i.test(process.env.IMPROVMX_SMTP_USER) && familyAddress;
     const fromAddress = sendAsAlias ? familyAddress : process.env.IMPROVMX_SMTP_USER;
     const signature = `\n\n${staff.full_name || "The team"}\n${fromName}`;

@@ -73,7 +73,7 @@ function replyDraft(note, mode, familyAddress) {
   const mine = (e) => /@applications\.heatherharries\.com$/i.test(e) || e === familyAddress;
   const original = cleanText(note.email_text || splitInboundBody(note.body).snippet || note.body || "");
   const when = new Date(note.occurred_at).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-  const who = outbound ? "Heather Harries Education" : note.email_from_name || from || "they";
+  const who = outbound ? "Heather Harries Relocation" : note.email_from_name || from || "they";
   const quoted = `\n\n\nOn ${when}, ${who} wrote:\n` + original.split("\n").map((l) => `> ${l}`).join("\n");
   const subj = note.subject || "";
   if (mode === "forward")
