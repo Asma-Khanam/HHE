@@ -2,7 +2,6 @@ import { displayNameForChild } from "../lib/completeness";
 import { packageLabel } from "../data/packages";
 import TourSchedulePanel from "./TourSchedulePanel";
 import CopyButton from "./CopyButton";
-import { householdAddress } from "../lib/address";
 import ReferralsPanel from "./ReferralsPanel";
 import IntroductionsPanel from "./IntroductionsPanel";
 import PlacementPanel from "./PlacementPanel";
@@ -10,11 +9,6 @@ import CaseNotesPanel from "./CaseNotesPanel";
 import GenericDocumentsPanel from "./GenericDocumentsPanel";
 import "./panels.css";
 import "./OverviewPanel.css";
-
-function sameAddress(a, b) {
-  const norm = (v) => (v || "").toLowerCase().replace(/\s+/g, " ").trim();
-  return norm(a) !== "" && norm(a) === norm(b);
-}
 
 function dobLine(iso) {
   if (!iso) return "";
@@ -69,9 +63,6 @@ export default function OverviewPanel({
   currentSchools,
 }) {
   const [mother, father] = namedParents;
-  // Only call out an address on a person when it is NOT the household address.
-  const householdAddr = householdAddress(family, namedParents);
-  const differs = (addr) => !sameAddress(addr, householdAddr);
 
   return (
     <div className="family-detail-tab-stack">
@@ -96,19 +87,9 @@ export default function OverviewPanel({
               <ReadLine value={parent?.full_name} label="Copy name" strong />
               <ReadLine value={parent?.email} label="Copy email" icon="✉" />
               <ReadLine value={parent?.phone} label="Copy phone" icon="☎" />
-              {parent?.address && differs(parent.address) && (
-                <>
-                  <span className="ov-sub">Lives at</span>
-                  <ReadLine value={parent.address} label="Copy address" />
-                </>
-              )}
             </div>
           ))}
 
-          <div className="ov-person">
-            <span className="ov-eyebrow">Household address</span>
-            <ReadLine value={householdAddr} label="Copy address" />
-          </div>
           {familyChildren.length === 0 && (
             <div className="ov-person">
               <span className="ov-eyebrow">Children</span>
@@ -135,12 +116,6 @@ export default function OverviewPanel({
                     {years && <span className="ov-same">{years}</span>}
                     <span className="ov-sub">Current school</span>
                     <ReadLine value={school} label="Copy school" />
-                    {c.address && differs(c.address) && (
-                      <>
-                        <span className="ov-sub">Lives at</span>
-                        <ReadLine value={c.address} label="Copy address" />
-                      </>
-                    )}
                   </div>
                 );
           })}
