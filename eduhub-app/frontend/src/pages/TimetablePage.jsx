@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApplicationData } from "../context/ApplicationDataContext";
-import { fetchFamilyTimetable, fetchFamilyApplications, setSchoolInterest } from "../lib/timetableData";
+import { fetchFamilyTimetable, fetchFamilyApplications, setSchoolInterest, submitTourFeedback } from "../lib/timetableData";
 import { displayNameForChild } from "../lib/completeness";
 import { childPhaseFor, nearestTourInfo } from "../lib/schoolJourney";
 import { IconSchool, IconChevronDown } from "../components/icons";
@@ -607,10 +607,75 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
             </p>
           )}
 
+          {!closed && (row.tour_status === "completed" || row.family_feedback_rating || row.family_feedback_text) && (
+            <TourReview row={row} onPatch={onPatch} />
+          )}
+
           {!closed && <YourView row={row} onPatch={onPatch} />}
         </div>
       )}
     </li>
+  );
+}
+
+// How the tour went, in the family's own words. Saved straight away; the
+// consultant sees it on their School visits tab and on the school's Feedback tab.
+function TourReview({ row, onPatch }) {
+  const [text, setText] = useState(row.family_feedback_text || "");
+  const [state, setState] = useState("");
+  const [err, setErr] = useState("");
+
+  async function save(rating, nextText) {
+    setState("saving");
+    setErr("");
+    try {
+      await submitTourFeedback(row.id, rating, nextText);
+      onPatch({ family_feedback_rating: rating || null, family_feedback_text: nextText?.trim() || null });
+      setState("saved");
+    } catch (e) {
+      setState("error");
+      setErr(
+        /function|schema cache/i.test(e.message || "")
+          ? "This isn't switched on yet — please let your consultant know."
+          : e.message || "Couldn't save that."
+      );
+    }
+  }
+
+  return (
+    <div className="ys-block ys-view">
+      <h3>
+        How was the tour?
+        {state === "saving" && <span className="ys-saved">Saving…</span>}
+        {state === "saved" && <span className="ys-saved is-ok">✓ Saved — thank you</span>}
+      </h3>
+      <div className="ys-stars" role="group" aria-label="Rate the tour out of 5">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            className="ys-star-btn"
+            aria-label={`${n} out of 5`}
+            aria-pressed={row.family_feedback_rating === n}
+            onClick={() => save(row.family_feedback_rating === n ? null : n, text)}
+            style={{ background: "none", border: 0, cursor: "pointer", fontSize: "1.3rem", color: n <= (row.family_feedback_rating || 0) ? "var(--hh-gold)" : "var(--hh-track)" }}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+      <textarea
+        className="ys-view-note"
+        rows={3}
+        placeholder="What did you think? (e.g. loved the teachers, felt too big, great facilities)"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => {
+          if ((row.family_feedback_text || "") !== text.trim()) save(row.family_feedback_rating || null, text);
+        }}
+      />
+      {err && <p className="ys-note is-bad">{err}</p>}
+    </div>
   );
 }
 

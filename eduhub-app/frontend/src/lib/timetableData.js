@@ -24,7 +24,8 @@ export async function fetchFamilyTimetable(familyId) {
   // arrival, arrival note + school defaults). Newest column set first,
   // falling back one addendum at a time so the page never breaks while a
   // migration hasn't been run yet.
-  const attempts = [
+  const FB = ", family_feedback_rating, family_feedback_text, family_feedback_at"; // addendum 85
+  const full = [
     SHORTLIST_COLUMNS.replace(
       "school:schools ( id, name, area, address, fees_url, admissions_contact_phone )",
       `tour_maps_url, tour_on_arrival, tour_arrival_note,
@@ -33,8 +34,8 @@ export async function fetchFamilyTimetable(familyId) {
          default_tour_bring, default_tour_maps_url, default_tour_on_arrival )`
     ) + ", family_interest, family_interest_note, family_interest_at",
     SHORTLIST_COLUMNS + ", family_interest, family_interest_note, family_interest_at",
-    SHORTLIST_COLUMNS,
   ];
+  const attempts = [full[0] + FB, full[0], full[1], SHORTLIST_COLUMNS];
   let data;
   let error;
   for (const cols of attempts) {
@@ -88,6 +89,17 @@ export async function fetchFamilyApplications(childIds) {
 
 // Addendum 75: the family's own view of a school. Goes through an RPC
 // because families can only read school_shortlist directly.
+// Addendum 85: the family's own review of a tour. Same idea -- an RPC,
+// because families can only read school_shortlist directly.
+export async function submitTourFeedback(shortlistId, rating, text) {
+  const { error } = await supabase.rpc("family_submit_tour_feedback", {
+    p_shortlist_id: shortlistId,
+    p_rating: rating || null,
+    p_text: text || null,
+  });
+  if (error) throw error;
+}
+
 export async function setSchoolInterest(shortlistId, interest, note) {
   const { error } = await supabase.rpc("family_set_school_interest", {
     p_shortlist_id: shortlistId,

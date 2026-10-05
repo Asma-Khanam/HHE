@@ -1379,6 +1379,32 @@ export async function listOtherFeedbackForSchools(schoolIds, excludeFamilyId) {
   return groupBy(withNames, "school_id");
 }
 
+// Every family's tour review for one school -- the school's Feedback tab.
+// Family reviews (addendum 85) and our own visit notes both live on the
+// family's school_shortlist row, so this is just that row per family.
+export async function listFeedbackForSchool(schoolId) {
+  const rows =
+    unwrap(
+      await supabase
+        .from("school_shortlist")
+        .select("*")
+        .eq("school_id", schoolId)
+        .order("shortlisted_at", { ascending: false })
+    ) || [];
+  const withFeedback = rows.filter((r) => r.feedback_text || r.feedback_rating || r.family_feedback_text || r.family_feedback_rating);
+  const familyIds = [...new Set(withFeedback.map((r) => r.family_id))];
+  const [families, parents] = await Promise.all([
+    familyIds.length ? supabase.from("families").select("*").in("id", familyIds).then(unwrap) : Promise.resolve([]),
+    familyIds.length ? supabase.from("parents").select("*").in("family_id", familyIds).then(unwrap) : Promise.resolve([]),
+  ]);
+  const familiesById = Object.fromEntries((families || []).map((f) => [f.id, f]));
+  const parentsByFamily = groupBy(parents, "family_id");
+  return withFeedback.map((r) => ({
+    ...r,
+    familyName: familiesById[r.family_id] ? familyDisplayName(familiesById[r.family_id], parentsByFamily[r.family_id]) : "A family",
+  }));
+}
+
 export async function addToShortlist({ familyId, schoolId, keepOpen }) {
   return unwrap(
     await supabase

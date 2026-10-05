@@ -1018,6 +1018,12 @@ export default function SchoolShortlistPanel({
                         }
                       }}
                     />
+                    {(row.family_feedback_rating || row.family_feedback_text) && (
+                      <div className="svt-family-feedback" title="The family's own review, from their dashboard">
+                        <span style={{ color: "#b8902f" }}>{"\u2605".repeat(row.family_feedback_rating || 0)}</span> Family:{" "}
+                        {row.family_feedback_text || "no comment"}
+                      </div>
+                    )}
                     <div className="svt-col-actions">
                       {draft && (
                         <button type="button" className="panel-btn panel-btn-primary svt-col-btn" onClick={() => saveTour(row)} disabled={busy}>

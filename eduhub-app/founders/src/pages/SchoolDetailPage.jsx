@@ -21,6 +21,7 @@ import { displayNameForChild } from "../lib/completeness";
 import GenericDocumentsPanel from "../components/GenericDocumentsPanel";
 import AutosaveField from "../components/Autosave";
 import SchoolContactsPanel from "../components/SchoolContactsPanel";
+import SchoolFeedbackPanel from "../components/SchoolFeedbackPanel";
 import "../components/panels.css";
 import "./FamilyDetailPage.css";
 import "./SchoolDetailPage.css";
@@ -630,6 +631,7 @@ export default function SchoolDetailPage() {
         {[
           ["record", "School record"],
           ["notes", "Notes"],
+          ["feedback", "Feedback"],
           ["documents", "Documents"],
           ["families", "Shortlisted families" + (shortlist.length ? ` (${shortlist.length})` : "")],
         ].map(([key, label]) => (
@@ -1028,6 +1030,8 @@ export default function SchoolDetailPage() {
         </div>
       </section>
       )}
+
+      {tab === "feedback" && <SchoolFeedbackPanel schoolId={schoolId} />}
 
       {tab === "families" && (
       <section className="family-detail-card">
