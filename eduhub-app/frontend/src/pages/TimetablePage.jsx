@@ -622,6 +622,7 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
 // consultant sees it on their School visits tab and on the school's Feedback tab.
 function TourReview({ row, onPatch }) {
   const [text, setText] = useState(row.family_feedback_text || "");
+  const timer = useRef(null);
   const [state, setState] = useState("");
   const [err, setErr] = useState("");
 
@@ -669,8 +670,16 @@ function TourReview({ row, onPatch }) {
         rows={3}
         placeholder="What did you think? (e.g. loved the teachers, felt too big, great facilities)"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value);
+          clearTimeout(timer.current);
+          const v = e.target.value;
+          timer.current = setTimeout(() => {
+            if ((row.family_feedback_text || "") !== v.trim()) save(row.family_feedback_rating || null, v);
+          }, 900);
+        }}
         onBlur={() => {
+          clearTimeout(timer.current);
           if ((row.family_feedback_text || "") !== text.trim()) save(row.family_feedback_rating || null, text);
         }}
       />
@@ -683,6 +692,7 @@ function TourReview({ row, onPatch }) {
 // consultant on their School visits tab.
 function YourView({ row, onPatch }) {
   const [note, setNote] = useState(row.family_interest_note || "");
+  const timer = useRef(null);
   const [state, setState] = useState(""); // "" | saving | saved | error
   const [err, setErr] = useState("");
 
@@ -727,8 +737,16 @@ function YourView({ row, onPatch }) {
         rows={2}
         placeholder="Anything you'd like us to know? (e.g. loved the sports facilities, too far from work)"
         value={note}
-        onChange={(e) => setNote(e.target.value)}
+        onChange={(e) => {
+          setNote(e.target.value);
+          clearTimeout(timer.current);
+          const v = e.target.value;
+          timer.current = setTimeout(() => {
+            if ((row.family_interest_note || "") !== v.trim()) save(row.family_interest || null, v);
+          }, 900);
+        }}
         onBlur={() => {
+          clearTimeout(timer.current);
           if ((row.family_interest_note || "") !== note.trim()) save(row.family_interest || null, note);
         }}
       />
