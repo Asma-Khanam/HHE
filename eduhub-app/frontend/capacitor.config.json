@@ -1,0 +1,9 @@
+{
+  "appId": "com.heatherharries.hub",
+  "appName": "Heather Harries",
+  "webDir": "dist",
+  "server": { "androidScheme": "https" },
+  "plugins": {
+    "SplashScreen": { "launchAutoHide": false, "backgroundColor": "#ffffff" }
+  }
+}

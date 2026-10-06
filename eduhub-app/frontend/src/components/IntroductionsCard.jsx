@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import { IconCheckCircle } from "./icons";
 import "./IntroductionsCard.css";
+import { apiUrl } from "../lib/native.js";
 
 // "Do you need help with...?" (founder request, Sept 2026, addendum 76).
 // A small card on the Dashboard; the button pops out a box listing what our
@@ -54,7 +55,7 @@ export default function IntroductionsCard() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const res = await fetch("/api/request-introduction", {
+      const res = await fetch(apiUrl("/api/request-introduction"), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ services: picked }),
