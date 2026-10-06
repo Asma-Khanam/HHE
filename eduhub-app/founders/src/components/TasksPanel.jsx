@@ -23,6 +23,7 @@ export default function TasksPanel({ familyId, tasks: initialTasks, staff }) {
   const [assignedTo, setAssignedTo] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [showDone, setShowDone] = useState(false);
 
   const open = tasks.filter((t) => !t.done_at);
   const done = tasks.filter((t) => t.done_at);
@@ -114,8 +115,14 @@ export default function TasksPanel({ familyId, tasks: initialTasks, staff }) {
       ) : (
         <ul className="panel-list">
           {open.map(renderTask)}
-          {done.map(renderTask)}
+          {showDone && done.map(renderTask)}
         </ul>
+      )}
+      {open.length === 0 && done.length > 0 && !showDone && <p className="panel-hint">All tasks done.</p>}
+      {done.length > 0 && (
+        <button type="button" className="panel-btn panel-btn-quiet" onClick={() => setShowDone((v) => !v)}>
+          {showDone ? "Hide completed" : `Show completed (${done.length})`}
+        </button>
       )}
 
       {adding && (

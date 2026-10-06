@@ -56,6 +56,7 @@ export default function OverviewPanel({
   namedParents,
   familyChildren,
   onGoToVisits,
+  onGoToMember,
   onProgressChange,
   caseNotes,
   staff,
@@ -84,7 +85,21 @@ export default function OverviewPanel({
           {[mother, father].map((parent, i) => (
             <div className="ov-person" key={i === 0 ? "Mother" : "Father"}>
               <span className="ov-eyebrow">{i === 0 ? "Mother" : "Father"}</span>
-              <ReadLine value={parent?.full_name} label="Copy name" strong />
+              {parent?.full_name && onGoToMember ? (
+                <div className="ov-line is-strong">
+                  <button
+                    type="button"
+                    className="ov-name-link"
+                    onClick={() => onGoToMember(`parent-${parent.id}`)}
+                    title="Open in Family details"
+                  >
+                    {parent.full_name}
+                  </button>
+                  <CopyButton text={parent.full_name} label="Copy name" />
+                </div>
+              ) : (
+                <ReadLine value={parent?.full_name} label="Copy name" strong />
+              )}
               <ReadLine value={parent?.email} label="Copy email" icon="✉" />
               <ReadLine value={parent?.phone} label="Copy phone" icon="☎" />
             </div>
@@ -102,7 +117,18 @@ export default function OverviewPanel({
                 return (
                   <div className="ov-child" key={c.id}>
                     <div className="ov-child-top">
-                      <span className="ov-child-title">{displayNameForChild(c, i)}</span>
+                      {onGoToMember ? (
+                        <button
+                          type="button"
+                          className="ov-name-link ov-child-title"
+                          onClick={() => onGoToMember(`child-${c.id}`)}
+                          title="Open in Family details"
+                        >
+                          {displayNameForChild(c, i)}
+                        </button>
+                      ) : (
+                        <span className="ov-child-title">{displayNameForChild(c, i)}</span>
+                      )}
                       {hasSen(c) && (
                         <span className="ov-sen" title={c.sen_status}>
                           SEN

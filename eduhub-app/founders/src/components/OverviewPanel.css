@@ -57,3 +57,6 @@
 @media (max-width: 640px) { .ov-tour { grid-template-columns: 1fr auto; } }
 .ov-people, .ov-kids { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
 .ov-family-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+
+.ov-name-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: inherit; cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: rgba(94,26,50,0.3); text-underline-offset: 3px; }
+.ov-name-link:hover { color: #5e1a32; text-decoration-color: #5e1a32; }

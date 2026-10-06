@@ -738,6 +738,11 @@ export default function FamilyDetailPage() {
           onFamilyRefresh={refreshFamily}
           onGoToVisits={() => setActiveTab("visits")}
           onGoToApplications={() => setActiveTab("applications")}
+          onGoToMember={(key) => {
+            setActiveHouseholdKey(key);
+            setActiveTab("details");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
           onProgressChange={refreshStages}
           caseNotes={caseNotes}
           staff={staff}
