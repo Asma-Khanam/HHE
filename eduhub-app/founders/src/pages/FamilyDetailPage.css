@@ -618,3 +618,6 @@
   font-weight: 400;
   opacity: 0.6;
 }
+
+.hh-avatar.family-detail-avatar { width: 52px; height: 52px; background: var(--hh-burgundy); color: var(--hh-white); font-family: var(--hh-font-heading); font-size: 1.3rem; }
+.hh-avatar.family-detail-avatar.has-photo { background: transparent; }

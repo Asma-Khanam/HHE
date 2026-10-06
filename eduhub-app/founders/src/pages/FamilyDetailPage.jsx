@@ -673,7 +673,7 @@ export default function FamilyDetailPage() {
       <div className="family-detail-header">
         <PersonAvatar
           doc={findProfilePhoto(documentsByOwner[`parent:${(namedParents[0] || (parents || [])[0])?.id}`])}
-          name={displayName}
+          name={null}
           fallback={initial(displayName)}
           className="family-detail-avatar"
         />
@@ -746,7 +746,11 @@ export default function FamilyDetailPage() {
           onGoToMember={(key) => {
             setActiveHouseholdKey(key);
             setActiveTab("details");
-            window.scrollTo({ top: 0, behavior: "smooth" });
+            // Jump to the Household card (further down the tab) so the
+            // chosen person's card is what's on screen.
+            setTimeout(() => {
+              document.getElementById("household-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 80);
           }}
           onProgressChange={refreshStages}
           caseNotes={caseNotes}
@@ -817,7 +821,7 @@ export default function FamilyDetailPage() {
         </div>
       </div>
 
-        <section className="family-detail-card">
+        <section className="family-detail-card" id="household-section">
           <h2>
             <HouseholdIcon />
             Household

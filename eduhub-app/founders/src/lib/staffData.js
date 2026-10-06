@@ -191,7 +191,7 @@ function staffName(staffRow) {
 // children (with the year group they're applying for), their owner, and the
 // next open task — everything the table shows, without a query per row.
 export async function listFamilies() {
-  const [families, parents, children, tasks, staff] = await Promise.all([
+  const [families, parents, children, tasks, staff, photos] = await Promise.all([
     // Most recently opened/edited family first (addendum 37 — "every time I
     // open a caseload or edit something in it, that should go up"); a
     // family nobody's touched yet (last_staff_activity_at is null) sorts
@@ -211,8 +211,18 @@ export async function listFamilies() {
       .then(unwrap),
     supabase.from("tasks").select("*").is("done_at", null).order("due_date", { nullsFirst: false }).then(unwrap),
     listStaff(),
+    // Profile pictures (parents only) so the caseload can show them; a failure
+    // here must never stop the list loading, so it quietly gives no photos.
+    supabase
+      .from("documents")
+      .select("owner_id, file_url")
+      .eq("owner_type", "parent")
+      .eq("document_type", "profile_photo")
+      .then((r) => r.data || [])
+      .catch(() => []),
   ]);
 
+  const photoByParent = Object.fromEntries((photos || []).map((d) => [d.owner_id, d]));
   const parentsByFamily = groupBy(parents, "family_id");
   const childrenByFamily = groupBy(children, "family_id");
   const tasksByFamily = groupBy(tasks, "family_id");
@@ -231,6 +241,12 @@ export async function listFamilies() {
         return c.year_group_applying_for ? `${name} (${c.year_group_applying_for})` : name;
       }),
       displayName: familyDisplayName(family, familyParents),
+      photoDoc:
+        ["Mother", "Father"]
+          .map((r) => familyParents.find((p) => p.relationship === r))
+          .concat(familyParents)
+          .map((p) => (p ? photoByParent[p.id] : null))
+          .find(Boolean) || null,
       ownerName: family.owner_staff_id ? staffName(staffById[family.owner_staff_id]) : "Unassigned",
       ownerInitial: family.owner_staff_id ? staffName(staffById[family.owner_staff_id]).charAt(0).toUpperCase() : "—",
       nextTask: familyTasks[0] || null,

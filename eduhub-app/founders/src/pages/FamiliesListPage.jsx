@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { listFamilies, shortId, friendlyError } from "../lib/staffData";
 import { PIPELINE_STAGES, CLIENT_STAGES, clientStageLabel, stageIndex, stageLabel, isOverdue } from "../lib/workflow";
 import { packageLabel } from "../data/packages";
+import PersonAvatar from "../components/PersonAvatar";
 import "./FamiliesListPage.css";
 
 // The six-segment progress bar from the reference's Caseload table — filled
@@ -150,7 +151,7 @@ export default function FamiliesListPage() {
                 <tr key={family.id} onClick={() => navigate(`/staff/families/${family.id}`)}>
                   <td>
                     <div className="families-cell-family">
-                      <span className="families-avatar">{family.displayName.charAt(0).toUpperCase()}</span>
+                      <PersonAvatar doc={family.photoDoc} name={null} fallback={family.displayName.charAt(0).toUpperCase()} className="families-avatar" />
                       <span className="families-cell-family-text">
                         <span className="families-table-name">{family.displayName}</span>
                         <span className="families-cell-sub">
