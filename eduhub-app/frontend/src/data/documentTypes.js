@@ -133,6 +133,7 @@ export const CHILD_DOCUMENT_TYPES = [
 
 export const PARENT_DOCUMENT_TYPES = [
   { key: "passport", label: "Passport copy", expected: true },
+  { key: "passport_photo", label: "Passport-size photo", expected: false, hint: "Optional. Used as your profile picture." },
   { key: "eid", label: "Emirates ID", expected: true, hint: "Once obtained." },
 ];
 

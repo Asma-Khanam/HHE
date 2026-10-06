@@ -14,7 +14,15 @@ export function initialsFor(name, fallback) {
 // no extra fetch, since fetchApplicationData pulls every document per owner
 // anyway.
 export function findProfilePhoto(documents) {
-  return (documents || []).find((d) => d.document_type === "profile_photo") || null;
+  // Their own chosen profile photo first; otherwise the passport-size photo
+  // they uploaded with their documents (images only -- a PDF can't be an avatar).
+  const own = (documents || []).find((d) => d.document_type === "profile_photo");
+  if (own) return own;
+  return (
+    (documents || []).find(
+      (d) => d.document_type === "passport_photo" && /\.(jpe?g|png|webp|heic)$/i.test(d.file_url || "")
+    ) || null
+  );
 }
 
 // A family member's avatar: their photo if they've added one, their initials

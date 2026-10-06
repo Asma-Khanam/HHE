@@ -671,7 +671,12 @@ export default function FamilyDetailPage() {
       </Link>
 
       <div className="family-detail-header">
-        <div className="family-detail-avatar">{initial(displayName)}</div>
+        <PersonAvatar
+          doc={findProfilePhoto(documentsByOwner[`parent:${(namedParents[0] || (parents || [])[0])?.id}`])}
+          name={displayName}
+          fallback={initial(displayName)}
+          className="family-detail-avatar"
+        />
         <div className="family-detail-header-text">
           <h1>{displayName}</h1>
           <div className="family-detail-meta">

@@ -94,105 +94,115 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
-      <div className="case-settings-grid">
-        <div className="case-progress">
-          <label className="panel-field-label">
-            Progress <span className="case-auto">updates itself</span>
-          </label>
-          <div className="case-progress-track" title="Worked out from the School visits and Applications tabs">
-            {PIPELINE_STAGES.map((s, i) => {
-              const at = stageIndex(values.pipeline_stage);
-              return (
-                <span
-                  key={s.key}
-                  className={"case-progress-step" + (i < at ? " is-done" : i === at ? " is-current" : "")}
-                >
+      <div className="case-progress">
+        <div className="case-progress-head">
+          <label className="panel-field-label">Progress</label>
+          <span className="case-auto">updates itself</span>
+        </div>
+        <div className="case-progress-track" title="Worked out from the School visits and Applications tabs">
+          {PIPELINE_STAGES.map((s, i) => {
+            const at = stageIndex(values.pipeline_stage);
+            return (
+              <span
+                key={s.key}
+                className={"case-progress-step" + (i < at ? " is-done" : i === at ? " is-current" : "")}
+              >
+                {i < at ? "\u2713 " : ""}
+                {s.label}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="case-group">
+        <h3 className="case-group-title">Handling</h3>
+        <div className="case-settings-grid case-grid-3">
+          <div>
+            <label className="panel-field-label">Client stage</label>
+            <select
+              className="panel-select"
+              value={values.client_stage}
+              onChange={(e) => save({ client_stage: e.target.value })}
+            >
+              {!values.client_stage && <option value="">Not set</option>}
+              {CLIENT_STAGES.map((s) => (
+                <option key={s.key} value={s.key}>
                   {s.label}
-                </span>
-              );
-            })}
+                </option>
+              ))}
+            </select>
+            <p className="panel-field-hint">
+              {values.client_stage === "placed"
+                ? "Set to Placed by itself when an offer is accepted or a start date is saved."
+                : "Moves to Placed by itself once a child is placed."}
+            </p>
+          </div>
+
+          <div>
+            <label className="panel-field-label">Owner</label>
+            <select
+              className="panel-select"
+              value={values.owner_staff_id}
+              onChange={(e) => save({ owner_staff_id: e.target.value })}
+            >
+              <option value="">Unassigned</option>
+              {(staff || []).map((s) => (
+                <option key={s.user_id} value={s.user_id}>
+                  {s.full_name || s.email}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="panel-field-label">Package</label>
+            <select
+              className="panel-select"
+              value={values.membership_type}
+              onChange={(e) => save({ membership_type: e.target.value })}
+            >
+              <option value="">Not set</option>
+              {PACKAGES.map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
+      </div>
 
-        <div>
-          <label className="panel-field-label">Client stage</label>
-          <select
-            className="panel-select"
-            value={values.client_stage}
-            onChange={(e) => save({ client_stage: e.target.value })}
-          >
-            {!values.client_stage && <option value="">Not set</option>}
-            {CLIENT_STAGES.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          <p className="panel-field-hint">
-            {values.client_stage === "placed"
-              ? "Set to Placed by itself when an offer is accepted or a start date is saved."
-              : "Moves to Placed by itself once a child is placed."}
-          </p>
-        </div>
+      <div className="case-group">
+        <h3 className="case-group-title">The move</h3>
+        <div className="case-settings-grid case-grid-4">
+          <div>
+            <label className="panel-field-label">Moving from</label>
+            <input type="text" placeholder="e.g. UK" {...textProps("origin")} />
+          </div>
 
-        <div>
-          <label className="panel-field-label">Owner</label>
-          <select
-            className="panel-select"
-            value={values.owner_staff_id}
-            onChange={(e) => save({ owner_staff_id: e.target.value })}
-          >
-            <option value="">Unassigned</option>
-            {(staff || []).map((s) => (
-              <option key={s.user_id} value={s.user_id}>
-                {s.full_name || s.email}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div>
+            <label className="panel-field-label">Destination</label>
+            <input type="text" placeholder="e.g. Dubai" {...textProps("destination")} />
+          </div>
 
-        <div>
-          <label className="panel-field-label">Moving from</label>
-          <input type="text" placeholder="e.g. UK" {...textProps("origin")} />
-        </div>
+          <div>
+            <label className="panel-field-label">In Dubai from</label>
+            <input
+              type="date"
+              {...textProps("dubai_available_from")}
+              onChange={(e) => save({ dubai_available_from: e.target.value })}
+            />
+          </div>
 
-        <div>
-          <label className="panel-field-label">Destination</label>
-          <input type="text" placeholder="e.g. Dubai" {...textProps("destination")} />
-        </div>
-
-        <div>
-          <label className="panel-field-label">Available in Dubai from</label>
-          <input
-            type="date"
-            {...textProps("dubai_available_from")}
-            onChange={(e) => save({ dubai_available_from: e.target.value })}
-          />
-        </div>
-
-        <div>
-          <label className="panel-field-label">Available in Dubai until</label>
-          <input
-            type="date"
-            {...textProps("dubai_available_until")}
-            onChange={(e) => save({ dubai_available_until: e.target.value })}
-          />
-        </div>
-
-        <div>
-          <label className="panel-field-label">Package</label>
-          <select
-            className="panel-select"
-            value={values.membership_type}
-            onChange={(e) => save({ membership_type: e.target.value })}
-          >
-            <option value="">Not set</option>
-            {PACKAGES.map((p) => (
-              <option key={p.key} value={p.key}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label className="panel-field-label">In Dubai until</label>
+            <input
+              type="date"
+              {...textProps("dubai_available_until")}
+              onChange={(e) => save({ dubai_available_until: e.target.value })}
+            />
+          </div>
         </div>
       </div>
 

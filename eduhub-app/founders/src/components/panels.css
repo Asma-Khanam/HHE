@@ -1181,3 +1181,21 @@
 .meeting-card .meeting-para strong { display: block; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: rgba(42,17,25,0.55); margin-bottom: 2px; }
 .meeting-empty { border: 1px dashed rgba(94,26,50,0.25); border-radius: 14px; padding: 28px; text-align: center; color: rgba(42,17,25,0.55); margin-top: 16px; font-size: 0.9rem; }
 @media (max-width: 720px) { .meeting-card { flex-direction: column; gap: 10px; } .meeting-date-block { flex-direction: row; gap: 6px; padding: 6px 12px; } }
+
+/* Case card: grouped layout */
+.case-progress { margin-bottom: 18px; }
+.case-progress-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.case-progress-head .panel-field-label { margin: 0; }
+.case-progress-head .case-auto { margin-left: 0; }
+.case-progress-step { padding: 9px 8px; font-size: 13px; }
+.case-group { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(83, 1, 38, 0.08); }
+.case-group-title { margin: 0 0 10px; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(42, 17, 25, 0.5); font-weight: 600; }
+.case-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+.case-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; }
+.case-settings-grid .panel-field-hint { margin: 6px 0 0; font-size: 0.78rem; line-height: 1.35; }
+.case-journey { gap: 8px 6px; }
+.case-journey-step { background: #f6eef0; border-radius: 999px; padding: 3px 12px; }
+.case-journey-arrow { display: none; }
+.case-journey-label { margin-right: 4px; }
+@media (max-width: 900px) { .case-grid-3, .case-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .case-grid-3, .case-grid-4 { grid-template-columns: 1fr; } }
