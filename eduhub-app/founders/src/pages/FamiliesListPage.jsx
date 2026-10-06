@@ -52,11 +52,14 @@ export default function FamiliesListPage() {
   const filtered = useMemo(() => {
     if (!families) return [];
     let list = families;
-    if (tab === "all") list = list.filter((f) => f.client_stage !== "placed");
-    else list = list.filter((f) => f.client_stage === tab);
-
     const q = search.trim().toLowerCase();
-    if (!q) return list;
+    // Searching looks through every family, whatever tab is open -- a name
+    // search that silently skips Placed or enquiry families looks broken.
+    if (!q) {
+      if (tab === "all") list = list.filter((f) => f.client_stage !== "placed");
+      else list = list.filter((f) => f.client_stage === tab);
+      return list;
+    }
     return list.filter(
       (f) =>
         f.displayName.toLowerCase().includes(q) ||
@@ -115,6 +118,12 @@ export default function FamiliesListPage() {
 
       {families && families.length === 0 && !error && (
         <p className="families-empty-hint">No families have signed up yet — this fills in the moment one does.</p>
+      )}
+
+      {search.trim() && (
+        <p className="families-empty-hint" style={{ margin: "0 0 8px" }}>
+          Searching all {families ? families.length : ""} families, not just the {tab === "all" ? "open" : "selected"} tab.
+        </p>
       )}
 
       {families && families.length > 0 && filtered.length === 0 && (
