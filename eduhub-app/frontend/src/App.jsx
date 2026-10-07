@@ -9,6 +9,7 @@ import DashboardPage from "./pages/DashboardPage";
 import TimetablePage from "./pages/TimetablePage";
 import BillingPage from "./pages/BillingPage";
 import DocumentsPage from "./pages/DocumentsPage";
+import PrivacyPage from "./pages/PrivacyPage";
 import RequireAuth from "./components/RequireAuth";
 import AppShell from "./components/AppShell";
 import { ApplicationDataProvider, useApplicationData } from "./context/ApplicationDataContext";
@@ -40,6 +41,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
       {/* Old links some may still have bookmarked — send them somewhere real. */}
       <Route path="/dashboard" element={<Navigate to="/app" replace />} />
 

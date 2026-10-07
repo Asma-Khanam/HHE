@@ -12,6 +12,7 @@ import TeamPage from "./pages/TeamPage";
 import SchoolsPage from "./pages/SchoolsPage";
 import SchoolDetailPage from "./pages/SchoolDetailPage";
 import SettingsPage from "./pages/SettingsPage";
+import PrivacyPage from "./pages/PrivacyPage";
 import RequireStaff from "./components/RequireStaff";
 import StaffShell from "./components/StaffShell";
 
@@ -23,6 +24,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
 
       <Route
         path="/staff"

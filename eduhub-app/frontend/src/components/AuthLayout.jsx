@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import SpinningLogo3D from "./SpinningLogo3D";
 import "./AuthLayout.css";
 
@@ -19,6 +20,7 @@ export default function AuthLayout({ eyebrow, title, subtitle, children }) {
           <h1 className="auth-title">{title}</h1>
           {subtitle && <p className="auth-subtitle">{subtitle}</p>}
           {children}
+          <p className="auth-legal"><Link to="/privacy">Privacy policy</Link></p>
         </div>
       </main>
     </div>

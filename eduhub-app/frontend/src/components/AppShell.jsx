@@ -86,6 +86,7 @@ export default function AppShell() {
           <IconLogout size={16} />
           <span>Log out</span>
         </button>
+        <NavLink to="/privacy" className="app-shell-privacy-link">Privacy policy</NavLink>
       </nav>
 
       <main className="app-shell-content">

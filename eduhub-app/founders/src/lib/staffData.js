@@ -1973,3 +1973,26 @@ export async function saveFamilyAllowance(familyId, { toursIncluded, application
       .single()
   );
 }
+
+// Editable public pages (addendum 93) -- the Privacy policy today. Anyone can
+// read a page; only a staff admin can change it (the database refuses anyone
+// else). Reads quietly return null if the table isn't there yet.
+export async function getSitePage(slug) {
+  const { data, error } = await supabase
+    .from("site_pages")
+    .select("slug, title, body, updated_at")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) return null;
+  return data || null;
+}
+
+export async function saveSitePage(slug, fields) {
+  return unwrap(
+    await supabase
+      .from("site_pages")
+      .upsert({ slug, ...fields, updated_at: new Date().toISOString() }, { onConflict: "slug" })
+      .select()
+      .single()
+  );
+}

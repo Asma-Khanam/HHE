@@ -3,6 +3,7 @@ import { getYearGroupCutoff, updateYearGroupCutoff, friendlyError } from "../lib
 import "../components/panels.css";
 import "./TeamPage.css";
 import PartnersSettings from "../components/PartnersSettings";
+import PrivacyPolicySettings from "../components/PrivacyPolicySettings";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -101,6 +102,8 @@ export default function SettingsPage() {
           </button>
         </div>
       </section>
+
+      <PrivacyPolicySettings />
 
       <PartnersSettings />
     </div>

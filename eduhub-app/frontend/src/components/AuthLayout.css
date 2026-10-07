@@ -84,3 +84,15 @@
     width: 140px;
   }
 }
+
+.auth-legal {
+  margin: 28px 0 0;
+  text-align: center;
+  font-size: 0.82rem;
+}
+.auth-legal a {
+  color: var(--hh-ink);
+  opacity: 0.6;
+  text-decoration: none;
+}
+.auth-legal a:hover { opacity: 1; text-decoration: underline; }

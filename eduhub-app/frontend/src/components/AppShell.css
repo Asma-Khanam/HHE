@@ -215,3 +215,13 @@
     margin-top: 0;
   }
 }
+
+.app-shell-privacy-link {
+  display: block;
+  padding: 6px 14px 2px;
+  font-size: 0.78rem;
+  color: inherit;
+  opacity: 0.55;
+  text-decoration: none;
+}
+.app-shell-privacy-link:hover { opacity: 1; text-decoration: underline; }
