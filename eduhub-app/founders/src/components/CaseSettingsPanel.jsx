@@ -3,7 +3,7 @@ import { updateFamily, listFamilyStageHistory, listShortlistForFamily, listChild
 import { allowanceFor, countUsage } from "../lib/packageUsage";
 import PackageMeter from "./PackageMeter";
 import { PIPELINE_STAGES, CLIENT_STAGES, clientStageLabel, stageIndex } from "../lib/workflow";
-import { PACKAGES } from "../data/packages";
+import { PACKAGES, packageLabel } from "../data/packages";
 import "./panels.css";
 import { CaseIcon } from "./icons";
 
@@ -77,6 +77,25 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
       alive = false;
     };
   }, [family.id, childKey, values.membership_type]);
+  // The card is a one-line summary by default; "Edit details" opens the lot.
+  // The choice is remembered so it doesn't keep re-opening.
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem("hh_case_open") === "1";
+    } catch {
+      return false;
+    }
+  });
+  function toggleOpen() {
+    setOpen((o) => {
+      try {
+        localStorage.setItem("hh_case_open", o ? "0" : "1");
+      } catch {
+        /* storage unavailable -- fine */
+      }
+      return !o;
+    });
+  }
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
@@ -152,6 +171,50 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
         </div>
       </div>
 
+      {(() => {
+        const allowance = allowanceFor(values.membership_type, rawOverride);
+        const owner = (staff || []).find((m) => m.user_id === values.owner_staff_id);
+        const route = [values.origin, values.destination].filter(Boolean).join(" \u2192 ");
+        const tag = (used, total) => (total > 0 ? `${Math.min(used, total)}/${total}${used > total ? ` (+${used - total})` : ""}` : null);
+        return (
+          <button type="button" className={"case-summary" + (open ? " is-open" : "")} onClick={toggleOpen} aria-expanded={open}>
+            <span className="case-sum-item">
+              <small>Client stage</small>
+              {values.client_stage ? clientStageLabel(values.client_stage) : "Not set"}
+            </span>
+            <span className="case-sum-item">
+              <small>Owner</small>
+              {owner ? owner.full_name || owner.email : "Unassigned"}
+            </span>
+            <span className="case-sum-item">
+              <small>Package</small>
+              {values.membership_type ? packageLabel(values.membership_type) : "Not set"}
+            </span>
+            {route && (
+              <span className="case-sum-item">
+                <small>Move</small>
+                {route}
+              </span>
+            )}
+            {usage && allowance?.tours > 0 && (
+              <span className="case-sum-item">
+                <small>Tours</small>
+                {tag(usage.toursUsed, allowance.tours)}
+              </span>
+            )}
+            {usage && allowance?.applications > 0 && (
+              <span className="case-sum-item">
+                <small>Applications</small>
+                {tag(usage.applicationsUsed, allowance.applications)}
+              </span>
+            )}
+            <span className="case-sum-toggle">{open ? "Hide details" : "Edit details"}</span>
+          </button>
+        );
+      })()}
+
+      {open && (
+        <>
       <div className="case-group">
         <h3 className="case-group-title">Handling</h3>
         <div className="case-settings-grid case-grid-3">
@@ -302,6 +365,8 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
             </span>
           ))}
         </div>
+      )}
+        </>
       )}
     </section>
   );

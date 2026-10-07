@@ -1203,3 +1203,13 @@
 .case-pkg-meters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-bottom: 14px; }
 .case-pkg-override { margin-top: 4px; }
 @media (max-width: 700px) { .case-pkg-meters { grid-template-columns: 1fr; } }
+
+/* Case card: compact summary strip (details open on demand) */
+.case-summary { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; text-align: left; background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(83, 1, 38, 0.12); border-radius: 12px; padding: 10px 16px; cursor: pointer; font: inherit; color: inherit; }
+.case-summary:hover { background: #fff; }
+.case-sum-item { display: flex; flex-direction: column; gap: 1px; font-size: 0.9rem; font-weight: 600; color: #2a1119; min-width: 0; }
+.case-sum-item small { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; color: rgba(42, 17, 25, 0.5); }
+.case-sum-toggle { margin-left: auto; font-size: 0.82rem; font-weight: 600; color: #530126; }
+.case-summary.is-open { margin-bottom: 4px; }
+.case-progress { margin-bottom: 12px; }
+.case-progress-step { padding: 7px 8px; }
