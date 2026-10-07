@@ -107,6 +107,10 @@ const CONFIG = {
   // unpaid until that's checked against a family that has actually paid.
   invoices: {
     rowSelector: "table.js-open-invoices tbody tr",
+    // Confirmed 7 Oct 2026 on a family that had paid: paid invoices sit in a
+    // second table on the same page ("Received Invoices"), columns Receipt,
+    // Student Name, Type, Original Amount, Discount, Tax, Amount Paid, Paid On.
+    paidRowSelector: "table.js-received-invoices tbody tr",
   },
 };
 
@@ -381,6 +385,7 @@ async function syncStudent(page, target, debugDir) {
     await page.goto(`${origin}/fees`, { waitUntil: "networkidle", timeout: 30000 }).catch(() => {});
     if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, app.id, "invoices");
     const feeRows = await extractFeeRows(page, child);
+    const paidRows = await extractPaidRows(page, child);
     const feesPageLoaded = /\/fees/.test(page.url());
 
     if (DEBUG_MODE) {
@@ -389,6 +394,7 @@ async function syncStudent(page, target, debugDir) {
           (checklist.submittedAt ? `, application form submitted ${checklist.submittedAt}` : "")
       );
       console.log(`  [debug] fee rows found: ${JSON.stringify(feeRows, null, 2)}`);
+      console.log(`  [debug] paid rows found: ${JSON.stringify(paidRows, null, 2)}`);
       console.log(`  [debug] no writes performed -- OPENAPPLY_SYNC_DEBUG is on.`);
       return OUTCOME.ok;
     }
@@ -397,7 +403,7 @@ async function syncStudent(page, target, debugDir) {
       return OUTCOME.ok;
     }
     await applyChecklist(app, checklist, studentId);
-    await applyFees(app, feeRows, existingFees, feesPageLoaded);
+    await applyFees(app, feeRows, existingFees, feesPageLoaded, paidRows);
     await recordOutcome(app, OUTCOME.ok, null);
     return OUTCOME.ok;
   } catch (err) {
@@ -472,6 +478,35 @@ async function extractFeeRows(page, child) {
   return results;
 }
 
+// The "Received Invoices" table: one row per payment, per child. Receipt-1288.pdf
+// is the paid version of Invoice-1288.pdf, so the number links the two.
+async function extractPaidRows(page, child) {
+  const childName = `${child?.first_name || ""} ${child?.last_name || ""}`.trim().toLowerCase();
+  const rows = await page.locator(CONFIG.invoices.paidRowSelector).all();
+  const results = [];
+  for (const row of rows) {
+    const cell = async (label) =>
+      (((await row.locator(`td[data-label="${label}"]`).innerText().catch(() => "")) || "").trim());
+    const studentText = (await cell("Student Name")).toLowerCase();
+    if (!studentText) continue; // "No payments" placeholder row
+    if (childName && !studentText.includes(childName) && !childName.includes(studentText)) continue;
+    const receipt = (await cell("Receipt")) || "Receipt";
+    const type = await cell("Type");
+    const amount = parseFloat((await cell("Amount Paid")).replace(/[^0-9.]/g, "")) || null;
+    const paidOnText = await cell("Paid On"); // e.g. "1 October, 2026 via Bank Transfer"
+    const number = (receipt.match(/(\d+)/) || [])[1] || receipt;
+    results.push({
+      label: type ? `${type} — ${receipt}` : receipt,
+      amount,
+      paid: true,
+      paid_date_text: paidOnText,
+      receipt_number: number,
+      external_invoice_ref: `openapply-receipt-${number}`,
+    });
+  }
+  return results;
+}
+
 // What the Checklist page tells us, written onto the application:
 // - the application's submitted date (filled in if empty, never overwritten)
 // - draft -> submitted once "Submit Application Form" is done (the ONLY
@@ -540,7 +575,7 @@ async function applyChecklist(app, checklist, studentId) {
   console.log(`  Checklist saved: ${checklist.completed}/${checklist.total} done`);
 }
 
-async function applyFees(app, feeRows, existingFees, feesPageLoaded = false) {
+async function applyFees(app, feeRows, existingFees, feesPageLoaded = false, paidRows = []) {
   const existingByRef = Object.fromEntries(existingFees.map((f) => [f.external_invoice_ref, f]));
   for (const row of feeRows) {
     const previous = existingByRef[row.external_invoice_ref];
@@ -581,19 +616,68 @@ async function applyFees(app, feeRows, existingFees, feesPageLoaded = false) {
       console.log(`  Fee paid: ${row.label}`);
     }
   }
-  await markVanishedFeesPaid(app, feeRows, existingFees, feesPageLoaded);
+  await applyPaidRows(app, paidRows, existingFees);
+  await markVanishedFeesPaid(app, feeRows, existingFees, feesPageLoaded, paidRows);
+}
+
+// Paid receipts: if we already hold the matching invoice (same number in the
+// name, e.g. Invoice-1288 / Receipt-1288) mark it paid with the real amount
+// and date; otherwise add the payment as a new paid fee.
+async function applyPaidRows(app, paidRows, existingFees) {
+  for (const row of paidRows) {
+    const numberRe = new RegExp(`(?:invoice|receipt)[-_ ]?${row.receipt_number}\\b`, "i");
+    const match =
+      existingFees.find((f) => f.external_invoice_ref === row.external_invoice_ref) ||
+      existingFees.find((f) => f.source === "openapply_sync" && numberRe.test(f.label || ""));
+    const paidIso = parseOpenApplyDate(row.paid_date_text);
+    const payload = {
+      application_id: app.id,
+      label: row.label,
+      amount: row.amount,
+      status: "paid",
+      paid_at: paidIso ? `${paidIso}T12:00:00Z` : new Date().toISOString(),
+      source: "openapply_sync",
+    };
+    if (match) {
+      if (match.status === "paid" && match.amount === row.amount) continue;
+      const { error } = await supabase.from("application_fees").update(payload).eq("id", match.id);
+      if (error) throw error;
+      if (match.status !== "paid") {
+        await supabase.from("application_events").insert({
+          application_id: app.id,
+          event_type: "fee_paid",
+          description: `${row.label} paid (synced from OpenApply, ${row.paid_date_text})`,
+          source: "openapply_sync",
+        });
+        console.log(`  Fee paid: ${row.label}`);
+      }
+    } else {
+      const { error } = await supabase
+        .from("application_fees")
+        .insert({ ...payload, external_invoice_ref: row.external_invoice_ref });
+      if (error) throw error;
+      await supabase.from("application_events").insert({
+        application_id: app.id,
+        event_type: "fee_paid",
+        description: `${row.label} paid (synced from OpenApply, ${row.paid_date_text})`,
+        source: "openapply_sync",
+      });
+      console.log(`  New paid fee: ${row.label}`);
+    }
+  }
 }
 
 // OpenApply's "Open Invoices" table only lists what is still owed, so an
 // invoice that was open on a previous run and has now vanished from it has
 // been paid (or cancelled). Only inferred when the fees page genuinely loaded,
 // and the event says plainly that it was inferred.
-async function markVanishedFeesPaid(app, feeRows, existingFees, feesPageLoaded) {
+async function markVanishedFeesPaid(app, feeRows, existingFees, feesPageLoaded, paidRows = []) {
   if (!feesPageLoaded) return;
   const stillOpen = new Set(feeRows.map((r) => r.external_invoice_ref));
   for (const fee of existingFees) {
     if (fee.source !== "openapply_sync" || fee.status !== "unpaid") continue;
     if (!fee.external_invoice_ref?.startsWith("openapply-") || stillOpen.has(fee.external_invoice_ref)) continue;
+    if (paidRows.some((p) => new RegExp(`(?:invoice|receipt)[-_ ]?${p.receipt_number}\\b`, "i").test(fee.label || ""))) continue; // already handled from its receipt
     const { error } = await supabase
       .from("application_fees")
       .update({ status: "paid", paid_at: new Date().toISOString() })
