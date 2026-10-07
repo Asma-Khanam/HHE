@@ -3,9 +3,11 @@
 // changes — it's the one place the fee amounts live, so a price change is a
 // one-line edit here rather than hunting through components.
 //
-// baseFee/perAdditionalChild are null for tiers with no fixed price ("New
-// Starts" is free, "The Signature Partnership" is by bespoke quotation) —
-// nothing should be auto-generated as a payment for those.
+// baseFee/perAdditionalChild are null for "New Starts" (free) — nothing is
+// auto-generated as a payment for it. Prices updated 7 Oct 2026 from the
+// newer brochure (Miss Lyndsay): Guided Search 13,500 (+3,000 per extra
+// child), Family Partnership extra child 3,500, Signature 45,000 with up to
+// three children included (+9,000 for each further child).
 //
 // All prices are exclusive of VAT (the brochure marks each paid tier
 // "+ VAT") and exclude school application fees, which are paid directly to
@@ -35,8 +37,8 @@ export const PACKAGES = [
     key: "guided_search",
     included: { tours: 3, applications: 3 },
     label: "The Guided Search",
-    baseFee: 11000,
-    perAdditionalChild: 2000,
+    baseFee: 13500,
+    perAdditionalChild: 3000,
     note: "+ VAT. Priced for one child.",
   },
   {
@@ -44,16 +46,17 @@ export const PACKAGES = [
     included: { tours: 3, applications: 4 },
     label: "Family Partnership",
     baseFee: 20000,
-    perAdditionalChild: 3000,
+    perAdditionalChild: 3500,
     note: "+ VAT. Priced for one child.",
   },
   {
     key: "signature_partnership",
     included: { tours: 5, applications: 6 },
     label: "The Signature Partnership",
-    baseFee: null,
-    perAdditionalChild: null,
-    note: "By application — bespoke written quotation",
+    baseFee: 45000,
+    perAdditionalChild: 9000,
+    includedChildren: 3,
+    note: "+ VAT. Up to three children included; additional children AED 9,000 each.",
   },
 ];
 
@@ -73,7 +76,7 @@ export function computePackageFees(packageKey, childCount) {
   if (!pkg || pkg.baseFee === null) return [];
 
   const fees = [{ label: `${pkg.label} — package fee`, amount: pkg.baseFee }];
-  const extraChildren = Math.max(0, (childCount || 1) - 1);
+  const extraChildren = Math.max(0, (childCount || 1) - (pkg.includedChildren || 1));
   if (extraChildren > 0 && pkg.perAdditionalChild) {
     fees.push({
       label: `${pkg.label} — additional child fee (×${extraChildren})`,

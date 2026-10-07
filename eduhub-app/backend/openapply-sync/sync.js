@@ -93,7 +93,9 @@ const CONFIG = {
     itemSelector: ".content-items.checklist .item",
     titleSelector: ".title-head > span",
     dueDateSelector: ".due-state",
-    submitItemTitleMatch: /submit application form/i,
+    // Schools word this item slightly differently ("Submit Application
+    // Form", "Submit the application", "Application form submitted").
+    submitItemTitleMatch: /submit(ted)?\s+(the\s+|your\s+)?application|application\s+form\s+submitted/i,
   },
   // Confirmed against the same run's Invoices & Fees page. That page is
   // per-FAMILY, not per-student -- it lists every child's fees in one
@@ -159,13 +161,28 @@ const ALIAS_DOMAIN = "applications.heatherharries.com";
 // (Layla Hadley / Queen Elizabeth's School), see the CONFIG comment above.
 const WRITES_ENABLED = true;
 
+function deriveLoginUrl(applicationUrl) {
+  try {
+    const u = new URL(applicationUrl || "");
+    return /(^|\.)openapply\.com$/i.test(u.hostname) ? `${u.origin}/dashboard` : null;
+  } catch {
+    return null;
+  }
+}
+
 async function loadSyncTargets() {
-  const { data: schools, error: schoolsErr } = await supabase
+  // Every school that runs on OpenApply: tagged as such, OR whose "apply
+  // now" link is an openapply.com address (so nobody has to tag schools one
+  // by one). The portal login page is the stored openapply_login_url, or
+  // else <that school's openapply.com host>/dashboard.
+  const { data: rawSchools, error: schoolsErr } = await supabase
     .from("schools")
-    .select("id, name, openapply_login_url, application_platform")
-    .eq("application_platform", "openapply")
-    .not("openapply_login_url", "is", null);
+    .select("id, name, openapply_login_url, application_platform, application_url")
+    .or("application_platform.eq.openapply,application_url.ilike.%openapply.com%");
   if (schoolsErr) throw schoolsErr;
+  const schools = (rawSchools || [])
+    .map((sc) => ({ ...sc, openapply_login_url: sc.openapply_login_url || deriveLoginUrl(sc.application_url) }))
+    .filter((sc) => sc.openapply_login_url);
   if (!schools.length) return [];
   const schoolById = Object.fromEntries(schools.map((s) => [s.id, s]));
 
@@ -243,24 +260,52 @@ async function loadSyncTargets() {
 }
 
 // ----------------------------------------------------------------------------
-// One application's sync: log in, read both pages, diff, write.
+// One school + one family login = ONE sign-in, then every one of that
+// family's children at that school is read in turn. One failed login never
+// stops the run (the other families still sync) and is never retried, so an
+// account can't be locked out.
 // ----------------------------------------------------------------------------
-async function syncOne(browser, target, debugDir) {
-  const { app, family, school, child, existingFees } = target;
-  const label = `${school.name} / application ${app.id}`;
-  console.log(`\n--- ${label} ---`);
+const OUTCOME = {
+  ok: "ok",
+  loginFailed: "login_failed",
+  studentNotFound: "student_not_found",
+  error: "error",
+};
 
+// Tells staff, on the application itself, what the last sync did -- so a
+// family that can't be synced is visible instead of silently skipped.
+// (Needs addendum 92; quietly does nothing if it hasn't been run yet.)
+async function recordOutcome(app, status, note) {
+  if (DEBUG_MODE || !WRITES_ENABLED) return;
+  const patch = { openapply_sync_status: status, openapply_sync_note: note || null };
+  if (status !== OUTCOME.ok) patch.openapply_last_synced_at = new Date().toISOString();
+  const { error } = await supabase.from("applications").update(patch).eq("id", app.id);
+  if (error) console.warn(`  (could not record sync status: ${error.message})`);
+}
+
+async function isLoggedIn(page) {
+  const indicator = await page
+    .locator(CONFIG.login.loggedInIndicator)
+    .first()
+    .isVisible({ timeout: 10000 })
+    .catch(() => false);
+  if (indicator) return true;
+  // Other schools label their dashboard differently: signed in = the
+  // password box is gone and we are no longer on a sign-in page.
+  const passwordStillThere = await page.locator(CONFIG.login.passwordSelector).first().isVisible().catch(() => false);
+  return !passwordStillThere && !/sign_in|login|session/i.test(page.url());
+}
+
+async function syncGroup(browser, group, debugDir) {
+  const { school, family } = group[0];
+  const label = `${school.name} / family ${family.id}`;
+  console.log(`\n=== ${label} (${group.length} application${group.length === 1 ? "" : "s"}) ===`);
   const context = await browser.newContext();
   const page = await context.newPage();
+  const results = [];
   try {
-    // openapply_login_url (addendum 62) -- the portal dashboard, not the
-    // public "apply now" link. Navigating here while logged out is expected
-    // to redirect to OpenApply's own login form; that's fine, the fields
-    // below are filled in on whatever page actually has them.
     await page.goto(school.openapply_login_url, { waitUntil: "domcontentloaded", timeout: 30000 });
     if (DEBUG_MODE) {
-      // Non-secret facts about the login being tried, so a failure can be
-      // diagnosed from the artifact without ever printing the password.
       const info = [
         `role: ${family.login_role}`,
         `email: ${family.application_alias.slice(0, 3)}***@${family.application_alias.split("@")[1]}`,
@@ -268,8 +313,8 @@ async function syncOne(browser, target, debugDir) {
         `stored password length: ${family.login_raw_lengths?.password} (typed: ${family.application_password.length})`,
         `password has spaces: ${/\s/.test(family.application_password)}`,
       ].join("\n");
-      await fs.mkdir(path.join(debugDir, app.id), { recursive: true });
-      await fs.writeFile(path.join(debugDir, app.id, "login-info.txt"), info + "\n");
+      await fs.mkdir(path.join(debugDir, group[0].app.id), { recursive: true });
+      await fs.writeFile(path.join(debugDir, group[0].app.id, "login-info.txt"), info + "\n");
     }
     await page.fill(CONFIG.login.emailSelector, family.application_alias);
     await page.fill(CONFIG.login.passwordSelector, family.application_password);
@@ -278,34 +323,52 @@ async function syncOne(browser, target, debugDir) {
       page.click(CONFIG.login.submitSelector),
     ]);
 
-    const loggedIn = await page
-      .locator(CONFIG.login.loggedInIndicator)
-      .first()
-      .isVisible({ timeout: 10000 })
-      .catch(() => false);
-    if (!loggedIn) {
-      console.warn(`  Could not confirm login succeeded for ${label} -- skipping.`);
-      if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, app.id, "login-uncertain");
-      return false; // caller stops the whole run: never retry logins (account lockout risk)
+    if (!(await isLoggedIn(page))) {
+      // Most often: this family hasn't got an account on this school's portal
+      // yet (the application hasn't been started there), or the password
+      // differs. Never retried -- repeated bad logins can lock an account.
+      console.warn(`  Could not sign in for ${label} -- skipping this family at this school.`);
+      if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, group[0].app.id, "login-uncertain");
+      for (const t of group) await recordOutcome(t.app, OUTCOME.loginFailed, "Couldn't sign in to this school's OpenApply portal with the stored login. Check the account exists there and the password matches.");
+      return group.map(() => OUTCOME.loginFailed);
     }
 
+    for (const target of group) {
+      results.push(await syncStudent(page, target, debugDir));
+    }
+    return results;
+  } catch (err) {
+    console.error(`  Failed on ${label}:`, err.message);
+    if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, group[0].app.id, "error").catch(() => {});
+    for (const t of group.slice(results.length)) await recordOutcome(t.app, OUTCOME.error, String(err.message).slice(0, 300));
+    return [...results, ...group.slice(results.length).map(() => OUTCOME.error)];
+  } finally {
+    await context.close();
+  }
+}
+
+async function syncStudent(page, target, debugDir) {
+  const { app, school, child, existingFees } = target;
+  const label = `${school.name} / ${child?.first_name || "child"} (application ${app.id})`;
+  console.log(`\n--- ${label} ---`);
+  try {
     // Read-only navigation: plain page loads (GET) straight to the pages
     // OpenApply itself links from the dashboard. Nothing is clicked, filled
-    // or submitted beyond the login form above.
+    // or submitted beyond the login form.
     const origin = new URL(school.openapply_login_url).origin;
+    // Back to the dashboard so the student links are on screen.
+    await page.goto(school.openapply_login_url, { waitUntil: "domcontentloaded", timeout: 30000 }).catch(() => {});
 
     // Which OpenApply student is this child? Use the stored id if there is
     // one, otherwise match the child's name against the dashboard's own
     // student links. No clear single match = skip, never guess.
     let studentId = app.openapply_student_id || null;
-    if (!studentId) {
-      studentId = await findStudentId(page, child);
-    }
+    if (!studentId) studentId = await findStudentId(page, child);
     if (!studentId) {
       console.warn(`  Could not tell which OpenApply student is ${child?.first_name || "this child"} -- skipping.`);
-      process.exitCode = 1;
       if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, app.id, "dashboard");
-      return;
+      await recordOutcome(app, OUTCOME.studentNotFound, "Signed in, but couldn't find this child on the school's portal by name. Check the spelling matches, or the application hasn't been started there.");
+      return OUTCOME.studentNotFound;
     }
     console.log(`  Using OpenApply student ${studentId}`);
 
@@ -318,6 +381,7 @@ async function syncOne(browser, target, debugDir) {
     await page.goto(`${origin}/fees`, { waitUntil: "networkidle", timeout: 30000 }).catch(() => {});
     if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, app.id, "invoices");
     const feeRows = await extractFeeRows(page, child);
+    const feesPageLoaded = /\/fees/.test(page.url());
 
     if (DEBUG_MODE) {
       console.log(
@@ -326,24 +390,21 @@ async function syncOne(browser, target, debugDir) {
       );
       console.log(`  [debug] fee rows found: ${JSON.stringify(feeRows, null, 2)}`);
       console.log(`  [debug] no writes performed -- OPENAPPLY_SYNC_DEBUG is on.`);
-      return;
+      return OUTCOME.ok;
     }
-
-    // Writes stay OFF until the page parsing above has been checked against
-    // a real debug run's output, and a wrong guess must never overwrite what
-    // a consultant has set by hand. Flip WRITES_ENABLED only after that check.
     if (!WRITES_ENABLED) {
       console.log("  Writes are switched off (WRITES_ENABLED=false) -- nothing saved.");
-      return;
+      return OUTCOME.ok;
     }
     await applyChecklist(app, checklist, studentId);
-    await applyFees(app, feeRows, existingFees);
+    await applyFees(app, feeRows, existingFees, feesPageLoaded);
+    await recordOutcome(app, OUTCOME.ok, null);
+    return OUTCOME.ok;
   } catch (err) {
     console.error(`  Failed on ${label}:`, err.message);
-    process.exitCode = 1; // shows the GitHub run as failed instead of a green tick
     if (DEBUG_MODE) await saveDebugArtifacts(page, debugDir, app.id, "error").catch(() => {});
-  } finally {
-    await context.close();
+    await recordOutcome(app, OUTCOME.error, String(err.message).slice(0, 300));
+    return OUTCOME.error;
   }
 }
 
@@ -479,7 +540,7 @@ async function applyChecklist(app, checklist, studentId) {
   console.log(`  Checklist saved: ${checklist.completed}/${checklist.total} done`);
 }
 
-async function applyFees(app, feeRows, existingFees) {
+async function applyFees(app, feeRows, existingFees, feesPageLoaded = false) {
   const existingByRef = Object.fromEntries(existingFees.map((f) => [f.external_invoice_ref, f]));
   for (const row of feeRows) {
     const previous = existingByRef[row.external_invoice_ref];
@@ -520,6 +581,32 @@ async function applyFees(app, feeRows, existingFees) {
       console.log(`  Fee paid: ${row.label}`);
     }
   }
+  await markVanishedFeesPaid(app, feeRows, existingFees, feesPageLoaded);
+}
+
+// OpenApply's "Open Invoices" table only lists what is still owed, so an
+// invoice that was open on a previous run and has now vanished from it has
+// been paid (or cancelled). Only inferred when the fees page genuinely loaded,
+// and the event says plainly that it was inferred.
+async function markVanishedFeesPaid(app, feeRows, existingFees, feesPageLoaded) {
+  if (!feesPageLoaded) return;
+  const stillOpen = new Set(feeRows.map((r) => r.external_invoice_ref));
+  for (const fee of existingFees) {
+    if (fee.source !== "openapply_sync" || fee.status !== "unpaid") continue;
+    if (!fee.external_invoice_ref?.startsWith("openapply-") || stillOpen.has(fee.external_invoice_ref)) continue;
+    const { error } = await supabase
+      .from("application_fees")
+      .update({ status: "paid", paid_at: new Date().toISOString() })
+      .eq("id", fee.id);
+    if (error) throw error;
+    await supabase.from("application_events").insert({
+      application_id: app.id,
+      event_type: "fee_paid",
+      description: `${fee.label} no longer listed as open on OpenApply -- treated as paid (inferred)`,
+      source: "openapply_sync",
+    });
+    console.log(`  Fee no longer open (treated as paid): ${fee.label}`);
+  }
 }
 
 async function saveDebugArtifacts(page, debugDir, applicationId, tag) {
@@ -530,26 +617,47 @@ async function saveDebugArtifacts(page, debugDir, applicationId, tag) {
   await fs.writeFile(path.join(dir, `${tag}.html`), html).catch(() => {});
 }
 
+// Waits a moment between sign-ins so we are polite to the school portals.
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function main() {
   const targets = await loadSyncTargets();
-  console.log(`Found ${targets.length} application(s) to sync (debug mode: ${DEBUG_MODE}).`);
+  const groups = new Map();
+  for (const t of targets) {
+    const key = `${t.school.id}:${t.family.id}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(t);
+  }
+  console.log(
+    `Found ${targets.length} application(s) across ${groups.size} school/family sign-in(s) (debug mode: ${DEBUG_MODE}).`
+  );
   if (!targets.length) return;
 
   const debugDir = path.join(process.cwd(), "debug-output");
   if (DEBUG_MODE) await fs.mkdir(debugDir, { recursive: true });
 
+  const tally = {};
+  const failedInARow = {}; // per school, so one broken school can't eat the whole run
   const browser = await chromium.launch({ headless: true });
   try {
-    for (const target of targets) {
-      const ok = await syncOne(browser, target, debugDir);
-      if (ok === false) {
-        console.error("Login failed -- stopping the run so no further login attempts are made.");
-        break;
+    for (const group of groups.values()) {
+      const schoolId = group[0].school.id;
+      if ((failedInARow[schoolId] || 0) >= 5) {
+        console.warn(`Skipping ${group[0].school.name}: 5 sign-ins in a row failed there.`);
+        tally.skipped = (tally.skipped || 0) + group.length;
+        continue;
       }
+      const outcomes = await syncGroup(browser, group, debugDir);
+      for (const o of outcomes) tally[o] = (tally[o] || 0) + 1;
+      failedInARow[schoolId] = outcomes.every((o) => o === OUTCOME.loginFailed) ? (failedInARow[schoolId] || 0) + 1 : 0;
+      await pause(1500);
     }
   } finally {
     await browser.close();
   }
+  console.log(`\nDone. ${JSON.stringify(tally)}`);
+  // Only a crash fails the run; a family without a portal account is normal
+  // and is shown on the application, not as a red tick.
 }
 
 main().catch((err) => {

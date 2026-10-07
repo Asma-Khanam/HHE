@@ -205,7 +205,10 @@ function refNumber(ref) {
 // school's portal is the source of truth, the sync refreshes it.
 function OpenApplySynced({ application, items, fees, isOpenApply }) {
   const synced = application.openapply_last_synced_at;
-  if (!items.length && !fees.length && !synced) {
+  // Set by the sync when it couldn't read this application (addendum 92).
+  const syncProblem =
+    application.openapply_sync_status && application.openapply_sync_status !== "ok" ? application.openapply_sync_note : null;
+  if (!items.length && !fees.length && !synced && !syncProblem) {
     // An OpenApply school with nothing pulled in yet: say when it will be.
     if (!isOpenApply) return null;
     return (
@@ -222,6 +225,17 @@ function OpenApplySynced({ application, items, fees, isOpenApply }) {
     );
   }
   const sorted = [...items].sort((a, b) => refNumber(a.external_ref) - refNumber(b.external_ref));
+  if (!items.length && !fees.length && syncProblem) {
+    return (
+      <div className="ap-oa ap-oa-problem-card">
+        <div className="ap-oa-head">
+          <span className="ap-oa-title">From OpenApply</span>
+          <span className="ap-oa-when">Last tried {new Date(synced).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+        </div>
+        <p className="ap-oa-problem">{syncProblem}</p>
+      </div>
+    );
+  }
   const done = sorted.filter((i) => i.status === "done").length;
   const syncedFees = fees.filter((f) => f.source === "openapply_sync");
   return (
@@ -235,6 +249,7 @@ function OpenApplySynced({ application, items, fees, isOpenApply }) {
           </span>
         )}
       </div>
+      {syncProblem && <p className="ap-oa-problem">Last check had a problem: {syncProblem}</p>}
       <div className="ap-oa-grid">
         <div className="ap-oa-box">
           <div className="ap-oa-box-title">

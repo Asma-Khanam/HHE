@@ -902,3 +902,6 @@ fieldset.apx-readonly .ps-actions {
 .ap-pill.ap-pill-closed {
   color: #6f6468;
 }
+
+.ap-oa-problem { margin: 0 0 10px; font-size: 0.82rem; color: #8a4b00; background: #fff1de; border-radius: 8px; padding: 8px 12px; }
+.ap-oa-problem-card .ap-oa-problem { margin: 0; }
