@@ -1,0 +1,24 @@
+.afs { display: flex; flex-direction: column; gap: 14px; }
+.afs-fee {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(83, 1, 38, 0.12);
+  border-radius: 12px;
+  background: #fff;
+}
+.afs-fee.is-paid { background: rgba(60, 120, 80, 0.05); }
+.afs-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.afs-amount { font-weight: 600; color: var(--hh-burgundy); }
+.afs-pill { font-size: 0.74rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+.afs-pill.is-due { background: rgba(160, 40, 40, 0.1); color: #8a2a2a; }
+.afs-pill.is-paid { background: rgba(60, 120, 80, 0.14); color: #2f6a45; }
+.afs-pill.is-waived { background: #eee; color: #666; }
+.afs-source { font-size: 0.72rem; opacity: 0.6; }
+.afs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; align-items: end; }
+.afs-invoice { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.afs-label { font-size: 0.78rem; font-weight: 600; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.05em; }
+.afs-send { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.afs-sent { color: #2f6a45; font-size: 0.88rem; font-weight: 500; }
+.afs-error { color: var(--hh-error, #a02828); font-size: 0.85rem; margin: 0; }

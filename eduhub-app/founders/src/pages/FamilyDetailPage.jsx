@@ -979,6 +979,7 @@ export default function FamilyDetailPage() {
         <div className="family-detail-stack">
           <SchoolShortlistPanel
             familyId={family.id}
+            familyUserId={family.account_user_id}
             familyChildren={children}
             applicationsByChild={applicationsByChild}
             onFamilyRefresh={refreshFamily}

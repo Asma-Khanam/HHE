@@ -1996,3 +1996,19 @@ export async function saveSitePage(slug, fields) {
       .single()
   );
 }
+
+// Application fee invoices (addendum 94). The invoice file goes in the family's
+// own folder of the private documents bucket -- {account_user_id}/application_fee/
+// {fee_id}/... -- so the family can open it through their normal per-folder
+// access, and staff can write there (addendum 35). Replacing an invoice removes
+// the old file; nothing else is ever deleted.
+export async function uploadFeeInvoice({ familyUserId, fee, file }) {
+  if (!familyUserId) throw new Error("This family hasn't made their account yet, so there's nowhere to put the invoice.");
+  const ext = file.name.includes(".") ? file.name.split(".").pop() : "";
+  const path = `${familyUserId}/application_fee/${fee.id}/invoice-${Date.now()}${ext ? "." + ext : ""}`;
+  const { error: uploadError } = await supabase.storage.from("documents").upload(path, file);
+  if (uploadError) throw uploadError;
+  const saved = await updateApplicationFee(fee.id, { invoice_path: path, invoice_name: file.name });
+  if (fee.invoice_path) await supabase.storage.from("documents").remove([fee.invoice_path]);
+  return saved;
+}

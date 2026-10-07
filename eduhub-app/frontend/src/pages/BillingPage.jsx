@@ -1,5 +1,6 @@
 import { useApplicationData } from "../context/ApplicationDataContext";
 import PaymentsCard from "../components/PaymentsCard";
+import ApplicationFeesCard from "../components/ApplicationFeesCard";
 import "./BillingPage.css";
 
 function sumBy(rows, currency) {
@@ -46,6 +47,8 @@ export default function BillingPage() {
           <span className="billing-tile-sub">Confirmed by Heather Harries</span>
         </div>
       </div>
+
+      <ApplicationFeesCard />
 
       <PaymentsCard userId={user?.id} payments={payments} />
     </div>

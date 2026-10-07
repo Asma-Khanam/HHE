@@ -1,5 +1,6 @@
 import AutosaveField from "./Autosave";
 import ProcessSteps from "./ProcessSteps";
+import ApplicationFeeStep from "./ApplicationFeeStep";
 import { REJECTION_REASONS } from "../lib/workflow";
 import { meetingPlatform } from "../lib/meetingLink";
 import { shortDate, oneMonthAfter } from "../lib/placement";
@@ -34,6 +35,9 @@ export default function ApplicationProcess({
   onStartDate, // (date) => void
   onLog, // (description, eventType?) => void -- activity log entry, with who did it
   portalUrl,
+  fees = [], // this application's application_fees rows
+  familyUserId = null, // the family's account id (where invoice files are kept)
+  onFeesChange = () => {}, // (updater) => void
 }) {
   const cur = CURRENT[a.status] ?? 0;
   const declined = a.status === "rejected";
@@ -364,7 +368,32 @@ export default function ApplicationProcess({
     ),
   };
 
-  return <ProcessSteps steps={[s1, s2, s3, s4]} />;
+  // 1b. Application fee (Miss Lyndsay, 7 Oct 2026): between Apply and Assessment.
+  const feeRows = fees || [];
+  const unpaid = feeRows.filter((f) => f.status === "unpaid");
+  const allPaid = feeRows.length > 0 && unpaid.length === 0;
+  const money = (f) => (f.amount ? `AED ${Number(f.amount).toLocaleString()}` : "");
+  const sFee = {
+    key: "fee",
+    label: "Application fee",
+    state: allPaid ? "done" : feeRows.length ? "todo" : "na",
+    summary: allPaid
+      ? `Paid${feeRows[0].paid_at ? " " + shortDate(String(feeRows[0].paid_at).slice(0, 10)) : ""}`
+      : feeRows.length
+      ? `${unpaid.length} unpaid${money(unpaid[0]) ? " · " + money(unpaid[0]) : ""}${unpaid[0]?.sent_to_family_at ? " · sent to family" : ""}`
+      : "No fee added yet",
+    children: (
+      <ApplicationFeeStep
+        application={a}
+        fees={feeRows}
+        familyUserId={familyUserId}
+        onFeesChange={onFeesChange}
+        onLog={onLog}
+      />
+    ),
+  };
+
+  return <ProcessSteps steps={[s1, sFee, s2, s3, s4]} />;
 }
 
 // For the collapsed card's mini bar.
