@@ -10,9 +10,14 @@
 // All prices are exclusive of VAT (the brochure marks each paid tier
 // "+ VAT") and exclude school application fees, which are paid directly to
 // the school, not to HHE.
+// "included" = the school tours and applications each package comes with
+// (2026 brochure). The family's dashboard shows how many have been used.
+// A family whose deal differs gets an override (family_package_allowance,
+// addendum 91). Signature's tours/applications are "up to" figures.
 export const PACKAGES = [
   {
     key: "new_starts",
+    included: { tours: 0, applications: 0 },
     label: "New Starts",
     baseFee: null,
     perAdditionalChild: null,
@@ -20,6 +25,7 @@ export const PACKAGES = [
   },
   {
     key: "on_the_ground",
+    included: { tours: 2, applications: 1 },
     label: "On the Ground",
     baseFee: 6500,
     perAdditionalChild: 2000,
@@ -27,6 +33,7 @@ export const PACKAGES = [
   },
   {
     key: "guided_search",
+    included: { tours: 3, applications: 3 },
     label: "The Guided Search",
     baseFee: 11000,
     perAdditionalChild: 2000,
@@ -34,6 +41,7 @@ export const PACKAGES = [
   },
   {
     key: "family_partnership",
+    included: { tours: 3, applications: 4 },
     label: "Family Partnership",
     baseFee: 20000,
     perAdditionalChild: 3000,
@@ -41,6 +49,7 @@ export const PACKAGES = [
   },
   {
     key: "signature_partnership",
+    included: { tours: 5, applications: 6 },
     label: "The Signature Partnership",
     baseFee: null,
     perAdditionalChild: null,

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { updateFamily, listFamilyStageHistory } from "../lib/staffData";
+import { updateFamily, listFamilyStageHistory, listShortlistForFamily, listChildApplications, getFamilyAllowance, saveFamilyAllowance } from "../lib/staffData";
+import { allowanceFor, countUsage } from "../lib/packageUsage";
+import PackageMeter from "./PackageMeter";
 import { PIPELINE_STAGES, CLIENT_STAGES, clientStageLabel, stageIndex } from "../lib/workflow";
 import { PACKAGES } from "../data/packages";
 import "./panels.css";
@@ -12,7 +14,7 @@ import { CaseIcon } from "./icons";
 // (Available-in-Dubai dates are the one exception -- the family sets those
 // themselves on their own dashboard's "Your move" card; shown and editable
 // here too, same as origin/destination already were.)
-export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
+export default function CaseSettingsPanel({ family, staff, childIds = [], onFamilyChange }) {
   const [values, setValues] = useState({
     pipeline_stage: family.pipeline_stage || "enquiry",
     client_stage: family.client_stage || "",
@@ -53,6 +55,28 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
       alive = false;
     };
   }, [family.id, family.client_stage]);
+  // Package use: tours/applications included vs used, with a per-family
+  // override for deals that differ from the package (addendum 91).
+  const [usage, setUsage] = useState(null);
+  const [override, setOverride] = useState({ tours: "", applications: "" });
+  const [rawOverride, setRawOverride] = useState(null);
+  const childKey = (childIds || []).join(",");
+  useEffect(() => {
+    let alive = true;
+    Promise.all([
+      listShortlistForFamily(family.id).catch(() => []),
+      listChildApplications(childKey ? childKey.split(",") : []).catch(() => []),
+      getFamilyAllowance(family.id),
+    ]).then(([shortlist, applications, ov]) => {
+      if (!alive) return;
+      setUsage(countUsage({ shortlist, applications }));
+      setRawOverride(ov);
+      setOverride({ tours: ov?.tours_included ?? "", applications: ov?.applications_included ?? "" });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [family.id, childKey, values.membership_type]);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
@@ -66,6 +90,19 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
       setTimeout(() => setSaved(false), 1800);
     } catch (err) {
       setError(err.message || "Couldn't save that.");
+    }
+  }
+
+  async function saveOverride(next) {
+    setOverride(next);
+    setError("");
+    try {
+      const row = await saveFamilyAllowance(family.id, { toursIncluded: next.tours, applicationsIncluded: next.applications });
+      setRawOverride(row);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1800);
+    } catch (err) {
+      setError(err.message || "Couldn't save that. Has addendum 91 been run?");
     }
   }
 
@@ -205,6 +242,51 @@ export default function CaseSettingsPanel({ family, staff, onFamilyChange }) {
           </div>
         </div>
       </div>
+
+      {(() => {
+        const allowance = allowanceFor(values.membership_type, rawOverride);
+        if (!usage) return null;
+        return (
+          <div className="case-group">
+            <h3 className="case-group-title">Package use</h3>
+            {allowance ? (
+              <div className="case-pkg-meters">
+                <PackageMeter label="School tours" used={usage.toursUsed} done={usage.toursDone} total={allowance.tours} />
+                <PackageMeter label="Applications" used={usage.applicationsUsed} total={allowance.applications} />
+              </div>
+            ) : (
+              <p className="panel-field-hint">This package doesn&rsquo;t include set tours or applications.</p>
+            )}
+            <div className="case-grid-4 case-settings-grid case-pkg-override">
+              <div>
+                <label className="panel-field-label">Tours included (this family)</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="panel-input"
+                  placeholder="Package default"
+                  value={override.tours}
+                  onChange={(e) => setOverride((o) => ({ ...o, tours: e.target.value }))}
+                  onBlur={() => saveOverride(override)}
+                />
+              </div>
+              <div>
+                <label className="panel-field-label">Applications included (this family)</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="panel-input"
+                  placeholder="Package default"
+                  value={override.applications}
+                  onChange={(e) => setOverride((o) => ({ ...o, applications: e.target.value }))}
+                  onBlur={() => saveOverride(override)}
+                />
+              </div>
+            </div>
+            <p className="panel-field-hint">Leave empty to use the package&rsquo;s own numbers. Families see this on their dashboard.</p>
+          </div>
+        );
+      })()}
 
       {history.length > 0 && (
         <div className="case-journey">

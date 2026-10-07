@@ -1949,3 +1949,27 @@ export async function listSchoolRecipients(familyId) {
   });
   return out;
 }
+
+
+// Per-family override of how many tours / applications the package includes
+// (addendum 91). Empty = use the package's own allowance. Quietly returns
+// nothing if the table isn't there yet.
+export async function getFamilyAllowance(familyId) {
+  const { data, error } = await supabase.from("family_package_allowance").select("*").eq("family_id", familyId).maybeSingle();
+  if (error) return null;
+  return data || null;
+}
+
+export async function saveFamilyAllowance(familyId, { toursIncluded, applicationsIncluded }) {
+  const clean = (v) => (v === "" || v === null || v === undefined ? null : Math.max(0, parseInt(v, 10) || 0));
+  return unwrap(
+    await supabase
+      .from("family_package_allowance")
+      .upsert(
+        { family_id: familyId, tours_included: clean(toursIncluded), applications_included: clean(applicationsIncluded), updated_at: new Date().toISOString() },
+        { onConflict: "family_id" }
+      )
+      .select()
+      .single()
+  );
+}

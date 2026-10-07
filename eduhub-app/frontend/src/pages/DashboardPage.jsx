@@ -4,6 +4,7 @@ import { useApplicationData } from "../context/ApplicationDataContext";
 import SchoolUpdatesCard from "../components/SchoolUpdatesCard";
 import IntroductionsCard from "../components/IntroductionsCard";
 import UpcomingToursCard from "../components/UpcomingToursCard";
+import PackageUsageCard from "../components/PackageUsageCard";
 import UpcomingAssessmentsCard from "../components/UpcomingAssessmentsCard";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import { IconCheckCircle, IconChevronDown, IconChevronRight } from "../components/icons";
@@ -314,6 +315,7 @@ export default function DashboardPage() {
             )}
           </section>
 
+          <PackageUsageCard />
           <UpcomingAssessmentsCard />
           <UpcomingToursCard />
 

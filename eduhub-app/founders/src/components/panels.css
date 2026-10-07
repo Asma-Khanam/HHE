@@ -1199,3 +1199,7 @@
 .case-journey-label { margin-right: 4px; }
 @media (max-width: 900px) { .case-grid-3, .case-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .case-grid-3, .case-grid-4 { grid-template-columns: 1fr; } }
+
+.case-pkg-meters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-bottom: 14px; }
+.case-pkg-override { margin-top: 4px; }
+@media (max-width: 700px) { .case-pkg-meters { grid-template-columns: 1fr; } }

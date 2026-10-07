@@ -706,6 +706,7 @@ export default function FamilyDetailPage() {
       <CaseSettingsPanel
         family={family}
         staff={staff}
+        childIds={children.map((c) => c.id)}
         onFamilyChange={handleFamilyFieldChange}
       />
 
