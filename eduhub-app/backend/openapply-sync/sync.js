@@ -91,7 +91,9 @@ const CONFIG = {
   checklist: {
     containerSelector: ".content-items.checklist",
     itemSelector: ".content-items.checklist .item",
-    titleSelector: ".title-head > span",
+    // Most items put the title in a <span>; form/questionnaire items (e.g. "Teacher's Email Address")
+    // put it in a link instead, so both are accepted.
+    titleSelector: ".title-head > span, .title-head > a",
     dueDateSelector: ".due-state",
     // Schools word this item slightly differently ("Submit Application
     // Form", "Submit the application", "Application form submitted").
