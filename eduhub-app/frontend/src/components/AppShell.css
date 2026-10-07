@@ -225,3 +225,52 @@
   text-decoration: none;
 }
 .app-shell-privacy-link:hover { opacity: 1; text-decoration: underline; }
+
+/* Phone polish (7 Oct 2026): room for the notch and home bar, an icon-only
+   Log out, the active marker along the top of the bar, and the privacy link
+   moved to the Profile page so the bar never overflows. */
+@media (max-width: 820px) {
+  .app-shell-content {
+    padding-top: env(safe-area-inset-top);
+  }
+  .app-shell-nav {
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    gap: 2px;
+    z-index: 20;
+  }
+  .app-shell-nav-list {
+    flex: 1;
+    justify-content: space-around;
+    gap: 0;
+  }
+  .app-shell-nav-link {
+    padding: 12px 14px;
+  }
+  .app-shell-nav-link::before {
+    left: 50%;
+    top: -6px;
+    transform: translateX(-50%);
+    width: 22px;
+    height: 0;
+    border-radius: 0 0 3px 3px;
+  }
+  .app-shell-nav-link.is-active::before {
+    height: 3px;
+  }
+  .app-shell-profile {
+    flex-shrink: 0;
+    padding: 4px;
+  }
+  .app-shell-nav-logout {
+    flex-shrink: 0;
+    border: none;
+    padding: 12px;
+    min-width: 44px;
+  }
+  .app-shell-nav-logout span {
+    display: none;
+  }
+  .app-shell-privacy-link {
+    display: none;
+  }
+}

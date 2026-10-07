@@ -96,3 +96,37 @@
   text-decoration: none;
 }
 .auth-legal a:hover { opacity: 1; text-decoration: underline; }
+
+/* Phone polish (7 Oct 2026): the brand panel becomes a short strip so the form
+   is on screen straight away, the page can't be pushed sideways, and the top
+   clears the notch. */
+.auth-shell > * {
+  min-width: 0;
+}
+@media (max-width: 780px) {
+  .auth-shell {
+    grid-template-rows: auto 1fr;
+    overflow-x: hidden;
+  }
+  .auth-brand-panel {
+    padding: calc(14px + env(safe-area-inset-top)) 24px 14px;
+    gap: 0;
+  }
+  .auth-brand-panel .spinning-logo-stage {
+    width: 120px;
+  }
+  .auth-brand-tagline {
+    display: none;
+  }
+  .auth-form-panel {
+    align-items: flex-start;
+    padding: 28px 20px calc(28px + env(safe-area-inset-bottom));
+  }
+  .auth-title {
+    font-size: 1.9rem;
+  }
+  .auth-form-card a {
+    display: inline-block;
+    padding: 10px 4px;
+  }
+}

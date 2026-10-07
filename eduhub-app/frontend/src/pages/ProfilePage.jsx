@@ -132,6 +132,7 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+      <p className="profile-privacy"><Link to="/privacy">Privacy policy</Link></p>
     </div>
   );
 }

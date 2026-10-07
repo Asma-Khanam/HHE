@@ -29,3 +29,34 @@ body,
 .application-form-body {
   animation: hh-page-in 0.25s ease-out;
 }
+
+/* Phone polish (7 Oct 2026) */
+html,
+body {
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+}
+@media (max-width: 820px) {
+  /* 16px inputs stop iPhones zooming in when a field is tapped. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  /* Small controls get a thumb-sized tap area (about 44px). */
+  .dash-family-toggle,
+  .su-toggle,
+  .ys-btn,
+  .ys-filter,
+  .hh-password-toggle,
+  .privacy-back {
+    min-height: 44px;
+  }
+  .hh-password-toggle {
+    width: 44px;
+    right: 0;
+  }
+  .ys-tour-school {
+    min-height: 40px;
+  }
+}

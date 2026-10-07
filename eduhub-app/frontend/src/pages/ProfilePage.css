@@ -170,3 +170,17 @@
   color: var(--hh-ink);
   opacity: 0.6;
 }
+
+.profile-privacy {
+  margin: 24px 0 8px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+.profile-privacy a {
+  display: inline-block;
+  padding: 10px 12px;
+  color: inherit;
+  opacity: 0.6;
+  text-decoration: none;
+}
+.profile-privacy a:hover { opacity: 1; text-decoration: underline; }
