@@ -1213,3 +1213,9 @@
 .case-summary.is-open { margin-bottom: 4px; }
 .case-progress { margin-bottom: 12px; }
 .case-progress-step { padding: 7px 8px; }
+
+.case-topup { margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(0, 0, 0, 0.12); }
+.case-topup-flag { color: #a02020; font-weight: 600; }
+.case-topup-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+.case-topup-row .panel-input { width: 110px; }
+.case-topup-x { font-size: 0.85rem; opacity: 0.7; }

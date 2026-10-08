@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { updateFamily, listFamilyStageHistory, listShortlistForFamily, listChildApplications, getFamilyAllowance, saveFamilyAllowance } from "../lib/staffData";
+import { updateFamily, listFamilyStageHistory, listShortlistForFamily, listChildApplications, getFamilyAllowance, saveFamilyAllowance, createPayment } from "../lib/staffData";
 import { allowanceFor, countUsage } from "../lib/packageUsage";
 import PackageMeter from "./PackageMeter";
 import { PIPELINE_STAGES, CLIENT_STAGES, clientStageLabel, stageIndex } from "../lib/workflow";
@@ -109,6 +109,44 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
       setTimeout(() => setSaved(false), 1800);
     } catch (err) {
       setError(err.message || "Couldn't save that.");
+    }
+  }
+
+  // Top-up: a family that has used up its included applications can buy more.
+  // Adds an unpaid line to the Invoices tab and raises their allowance by the
+  // same number, so the meter on their dashboard shows the extra credits.
+  const [topUp, setTopUp] = useState({ count: "1", price: "" });
+  const [topUpBusy, setTopUpBusy] = useState(false);
+  const [topUpDone, setTopUpDone] = useState("");
+
+  async function addTopUp(currentApplications) {
+    const count = Math.max(0, parseInt(topUp.count, 10) || 0);
+    const price = Number(topUp.price);
+    if (!count || !(price > 0)) {
+      setError("Enter how many extra applications and the price for each.");
+      return;
+    }
+    setTopUpBusy(true);
+    setError("");
+    setTopUpDone("");
+    try {
+      await createPayment({
+        familyId: family.id,
+        label: `Application top-up: ${count} extra application${count === 1 ? "" : "s"}`,
+        amount: count * price,
+      });
+      const row = await saveFamilyAllowance(family.id, {
+        toursIncluded: override.tours,
+        applicationsIncluded: (currentApplications || 0) + count,
+      });
+      setRawOverride(row);
+      setOverride((o) => ({ ...o, applications: row.applications_included ?? "" }));
+      setTopUp({ count: "1", price: topUp.price });
+      setTopUpDone(`Added ${count} extra. It's on the Invoices tab as unpaid.`);
+    } catch (err) {
+      setError(err.message || "Couldn't add that top-up.");
+    } finally {
+      setTopUpBusy(false);
     }
   }
 
@@ -347,6 +385,50 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
               </div>
             </div>
             <p className="panel-field-hint">Leave empty to use the package&rsquo;s own numbers. Families see this on their dashboard.</p>
+
+            {allowance?.applications > 0 && (
+              <div className="case-topup">
+                <label className="panel-field-label">
+                  Top up applications
+                  {usage && usage.applicationsUsed >= allowance.applications && (
+                    <span className="case-topup-flag"> · all included applications used</span>
+                  )}
+                </label>
+                <div className="case-topup-row">
+                  <input
+                    type="number"
+                    min="1"
+                    className="panel-input"
+                    aria-label="Extra applications"
+                    value={topUp.count}
+                    onChange={(e) => setTopUp((t) => ({ ...t, count: e.target.value }))}
+                  />
+                  <span className="case-topup-x">extra at AED</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="panel-input"
+                    placeholder="Price each"
+                    aria-label="Price per extra application"
+                    value={topUp.price}
+                    onChange={(e) => setTopUp((t) => ({ ...t, price: e.target.value }))}
+                  />
+                  <button
+                    type="button"
+                    className="panel-btn panel-btn-primary"
+                    disabled={topUpBusy}
+                    onClick={() => addTopUp(allowance.applications)}
+                  >
+                    {topUpBusy ? "Adding…" : "Add top-up"}
+                  </button>
+                </div>
+                {topUpDone && <p className="panel-field-hint">{topUpDone}</p>}
+                <p className="panel-field-hint">
+                  Adds an unpaid line to the Invoices tab and raises their application allowance by the same number.
+                </p>
+              </div>
+            )}
           </div>
         );
       })()}
