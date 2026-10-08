@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { fetchApplicationFees } from "../lib/applicationFees";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import PaymentsCard from "../components/PaymentsCard";
 import ApplicationFeesCard from "../components/ApplicationFeesCard";
@@ -15,13 +17,24 @@ function sumBy(rows, currency) {
 // (upload a receipt, see when it's confirmed).
 export default function BillingPage() {
   const { status, user, data } = useApplicationData();
+  const [fees, setFees] = useState([]);
+  const [feesError, setFeesError] = useState("");
+  useEffect(() => {
+    fetchApplicationFees()
+      .then(setFees)
+      .catch(() => setFeesError("Couldn't load application fees."));
+  }, []);
   if (status === "loading") return <p className="dashboard-status">Loading...</p>;
 
   const payments = data?.payments || [];
   const currency = payments[0]?.currency || "AED";
-  const due = payments.filter((p) => p.status === "unpaid");
+  // School application fees the team has sent over count towards the same totals.
+  const feePaid = (f) => f.status === "paid" || !!f.paid_at;
+  const feesDue = fees.filter((f) => !feePaid(f) && f.status !== "waived");
+  const feesPaid = fees.filter(feePaid);
+  const due = [...payments.filter((p) => p.status === "unpaid"), ...feesDue];
   const checking = payments.filter((p) => p.status === "submitted");
-  const paid = payments.filter((p) => p.status === "paid");
+  const paid = [...payments.filter((p) => p.status === "paid"), ...feesPaid];
 
   return (
     <div className="billing-page">
@@ -48,7 +61,7 @@ export default function BillingPage() {
         </div>
       </div>
 
-      <ApplicationFeesCard />
+      <ApplicationFeesCard fees={fees} loadError={feesError} />
 
       <PaymentsCard userId={user?.id} payments={payments} />
     </div>

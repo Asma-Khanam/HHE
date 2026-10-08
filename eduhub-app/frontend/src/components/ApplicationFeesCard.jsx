@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { fetchApplicationFees } from "../lib/applicationFees";
+import { useState } from "react";
 import { getSignedUrl } from "../lib/documents";
 import "./ApplicationFeesCard.css";
 
@@ -15,18 +14,8 @@ function day(d) {
 
 // School application fees the team has sent over. Shows the invoice and a
 // Pay now button (once a payment link has been added).
-export default function ApplicationFeesCard() {
-  const [fees, setFees] = useState(null);
+export default function ApplicationFeesCard({ fees = [], loadError = "" }) {
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    fetchApplicationFees()
-      .then(setFees)
-      .catch(() => {
-        setFees([]);
-        setError("Couldn't load application fees.");
-      });
-  }, []);
 
   async function openInvoice(path) {
     try {
@@ -36,12 +25,12 @@ export default function ApplicationFeesCard() {
     }
   }
 
-  if (!fees || (fees.length === 0 && !error)) return null;
+  if (fees.length === 0 && !error && !loadError) return null;
 
   return (
     <section className="appfee-card">
       <h3>Application fees</h3>
-      {error && <p className="appfee-error">{error}</p>}
+      {(error || loadError) && <p className="appfee-error">{error || loadError}</p>}
       <ul className="appfee-list">
         {fees.map((f) => {
           const paid = f.status === "paid" || !!f.paid_at;
