@@ -27,6 +27,9 @@ export default function BillingPage() {
   if (status === "loading") return <p className="dashboard-status">Loading...</p>;
 
   const payments = data?.payments || [];
+  const parent = (data?.parents || []).find((x) => x.full_name || x.first_name);
+  const billTo =
+    parent?.full_name || [parent?.first_name, parent?.last_name].filter(Boolean).join(" ") || user?.email || "Family";
   const currency = payments[0]?.currency || "AED";
   // School application fees the team has sent over count towards the same totals.
   const feePaid = (f) => f.status === "paid" || !!f.paid_at;
@@ -61,9 +64,9 @@ export default function BillingPage() {
         </div>
       </div>
 
-      <ApplicationFeesCard fees={fees} loadError={feesError} />
+      <ApplicationFeesCard fees={fees} loadError={feesError} billTo={billTo} />
 
-      <PaymentsCard userId={user?.id} payments={payments} />
+      <PaymentsCard userId={user?.id} payments={payments} billTo={billTo} />
     </div>
   );
 }

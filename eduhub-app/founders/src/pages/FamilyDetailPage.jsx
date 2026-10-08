@@ -1065,6 +1065,7 @@ export default function FamilyDetailPage() {
           <FamilyBalanceSummary
             familyId={family.id}
             payments={payments}
+            billTo={(namedParents[0] || (parents || [])[0])?.full_name || family.family_name || family.name || "Family"}
             onGoToApplications={() => setActiveTab("applications")}
           />
           <PaymentsPanel
@@ -1072,6 +1073,7 @@ export default function FamilyDetailPage() {
             payments={payments}
             membershipType={family.membership_type}
             childCount={children.length}
+            billTo={(namedParents[0] || (parents || [])[0])?.full_name || family.family_name || family.name || "Family"}
           />
         </div>
       )}

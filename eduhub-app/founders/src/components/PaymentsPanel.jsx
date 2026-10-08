@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { createPayment, updatePayment, deletePayment, createPackagePayments } from "../lib/staffData";
 import { getSignedUrl } from "../lib/documents";
+import { openBillingDocument, toBillingItem } from "../lib/billingDocument";
 import { daysUntil } from "../lib/workflow";
 import { packageLabel, computePackageFees } from "../data/packages";
 import "./panels.css";
@@ -33,7 +34,7 @@ function statusLabel(payment) {
 // here. The database itself refuses anything else a family might try to
 // change on a payment row — this panel is just the staff side of the same
 // flow the client's Payments card drives.
-export default function PaymentsPanel({ familyId, payments: initialPayments, membershipType, childCount }) {
+export default function PaymentsPanel({ familyId, payments: initialPayments, membershipType, childCount, billTo }) {
   const [payments, setPayments] = useState(initialPayments || []);
   const [adding, setAdding] = useState(false);
   const [label, setLabel] = useState("");
@@ -110,6 +111,15 @@ export default function PaymentsPanel({ familyId, payments: initialPayments, mem
     }
   }
 
+  function openDoc(kind, payment) {
+    setError("");
+    try {
+      openBillingDocument({ kind, item: toBillingItem(payment), billTo });
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function handleReject(payment) {
     // Back to unpaid so the family can try again — clearing the old
     // receipt so it's obvious a fresh one is expected, not the rejected one.
@@ -162,6 +172,14 @@ export default function PaymentsPanel({ familyId, payments: initialPayments, mem
                 Reject
               </button>
             </>
+          )}
+          <button type="button" className="panel-btn panel-btn-quiet" onClick={() => openDoc("invoice", payment)}>
+            Invoice
+          </button>
+          {payment.status === "paid" && (
+            <button type="button" className="panel-btn panel-btn-quiet" onClick={() => openDoc("receipt", payment)}>
+              Receipt
+            </button>
           )}
           {payment.status === "paid" && payment.receipt_path && (
             <button type="button" className="panel-btn panel-btn-quiet" onClick={() => handleViewReceipt(payment)}>

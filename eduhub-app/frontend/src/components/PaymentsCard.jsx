@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { openBillingDocument, toBillingItem } from "../lib/billingDocument";
 import { submitPaymentProof, getReceiptUrl } from "../lib/payments";
 import "./PaymentsCard.css";
 
@@ -25,7 +26,7 @@ function statusMeta(status) {
 // is only ever editable while it's still "unpaid" — once a receipt is
 // submitted, the database itself refuses any further change from this side
 // until a founder acts on it.
-export default function PaymentsCard({ userId, payments }) {
+export default function PaymentsCard({ userId, payments, billTo }) {
   const [rows, setRows] = useState(payments || []);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState("");
@@ -54,6 +55,15 @@ export default function PaymentsCard({ userId, payments }) {
       setError(err.message || "Couldn't upload that receipt.");
     } finally {
       setBusyId(null);
+    }
+  }
+
+  function openDoc(kind, payment) {
+    setError("");
+    try {
+      openBillingDocument({ kind, item: toBillingItem(payment), billTo });
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -119,7 +129,15 @@ export default function PaymentsCard({ userId, payments }) {
                 )}
                 {(payment.status === "submitted" || payment.status === "paid") && payment.receipt_path && (
                   <button type="button" className="pay-card-btn" onClick={() => handleViewReceipt(payment)}>
-                    View receipt
+                    Your proof of payment
+                  </button>
+                )}
+                <button type="button" className="pay-card-btn" onClick={() => openDoc("invoice", payment)}>
+                  Invoice
+                </button>
+                {payment.status === "paid" && (
+                  <button type="button" className="pay-card-btn" onClick={() => openDoc("receipt", payment)}>
+                    Receipt
                   </button>
                 )}
               </div>

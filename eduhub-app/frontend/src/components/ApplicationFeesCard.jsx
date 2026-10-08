@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { openBillingDocument, toBillingItem } from "../lib/billingDocument";
 import { getSignedUrl } from "../lib/documents";
 import "./ApplicationFeesCard.css";
 
@@ -14,7 +15,7 @@ function day(d) {
 
 // School application fees the team has sent over. Shows the invoice and a
 // Pay now button (once a payment link has been added).
-export default function ApplicationFeesCard({ fees = [], loadError = "" }) {
+export default function ApplicationFeesCard({ fees = [], loadError = "", billTo }) {
   const [error, setError] = useState("");
 
   async function openInvoice(path) {
@@ -22,6 +23,14 @@ export default function ApplicationFeesCard({ fees = [], loadError = "" }) {
       window.open(await getSignedUrl(path), "_blank", "noopener");
     } catch {
       setError("Couldn't open the invoice.");
+    }
+  }
+
+  function openDoc(kind, fee) {
+    try {
+      openBillingDocument({ kind, item: toBillingItem(fee, "fee"), billTo });
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -53,6 +62,16 @@ export default function ApplicationFeesCard({ fees = [], loadError = "" }) {
                 {f.invoice_path && (
                   <button type="button" className="appfee-btn" onClick={() => openInvoice(f.invoice_path)}>
                     View invoice
+                  </button>
+                )}
+                {!f.invoice_path && (
+                  <button type="button" className="appfee-btn" onClick={() => openDoc("invoice", f)}>
+                    Invoice
+                  </button>
+                )}
+                {paid && (
+                  <button type="button" className="appfee-btn" onClick={() => openDoc("receipt", f)}>
+                    Receipt
                   </button>
                 )}
                 {!paid &&

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { listFamilyApplicationFees } from "../lib/staffData";
+import { openBillingDocument, toBillingItem } from "../lib/billingDocument";
 import { getSignedUrl } from "../lib/documents";
 import "./FamilyBalanceSummary.css";
 
@@ -19,7 +20,7 @@ function childName(c) {
 // Applications tab listed in one place (read-only here: you add, upload the
 // invoice and send them from the Applications tab, and they appear here).
 // Outstanding = unpaid package payments + unpaid application fees.
-export default function FamilyBalanceSummary({ familyId, payments = [], onGoToApplications }) {
+export default function FamilyBalanceSummary({ familyId, payments = [], billTo, onGoToApplications }) {
   const [fees, setFees] = useState(null);
   const [error, setError] = useState("");
 
@@ -43,6 +44,14 @@ export default function FamilyBalanceSummary({ familyId, payments = [], onGoToAp
       window.open(await getSignedUrl(path), "_blank", "noopener,noreferrer");
     } catch {
       setError("Couldn't open that invoice.");
+    }
+  }
+
+  function openDoc(kind, fee) {
+    try {
+      openBillingDocument({ kind, item: toBillingItem(fee, "fee"), billTo });
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -127,6 +136,14 @@ export default function FamilyBalanceSummary({ familyId, payments = [], onGoToAp
                   {f.invoice_path && (
                     <button type="button" className="panel-btn" onClick={() => openInvoice(f.invoice_path)}>
                       View invoice
+                    </button>
+                  )}
+                  <button type="button" className="panel-btn panel-btn-quiet" onClick={() => openDoc("invoice", f)}>
+                    Invoice
+                  </button>
+                  {isPaid && (
+                    <button type="button" className="panel-btn panel-btn-quiet" onClick={() => openDoc("receipt", f)}>
+                      Receipt
                     </button>
                   )}
                   {onGoToApplications && (
