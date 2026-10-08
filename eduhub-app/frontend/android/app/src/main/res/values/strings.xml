@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Heather Harries</string>
+    <string name="title_activity_main">Heather Harries</string>
+    <string name="package_name">com.heatherharries.hub</string>
+    <string name="custom_url_scheme">com.heatherharries.hub</string>
+</resources>

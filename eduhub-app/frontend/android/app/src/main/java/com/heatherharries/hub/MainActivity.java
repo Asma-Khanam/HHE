@@ -1,0 +1,5 @@
+package com.heatherharries.hub;
+
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {}
