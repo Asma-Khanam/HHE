@@ -394,19 +394,27 @@ export async function updateSchool(schoolId, patch) {
 }
 
 export async function createApplication({ childId, schoolId, fit, status, keepOpen }) {
-  return unwrap(
-    await supabase
-      .from("applications")
-      .insert({
-        child_id: childId,
-        school_id: schoolId,
-        fit: fit || null,
-        status: status || "draft",
-        ...(keepOpen ? { keep_open: true } : {}),
-      })
-      .select()
-      .single()
-  );
+  const { data, error } = await supabase
+    .from("applications")
+    .insert({
+      child_id: childId,
+      school_id: schoolId,
+      fit: fit || null,
+      status: status || "draft",
+      ...(keepOpen ? { keep_open: true } : {}),
+    })
+    .select()
+    .single();
+  // One application per child per school (addendum 96). If it already exists
+  // (a double click, two people at once), hand back the existing one instead
+  // of making a duplicate or showing an error.
+  if (error && error.code === "23505") {
+    return unwrap(
+      await supabase.from("applications").select("*").eq("child_id", childId).eq("school_id", schoolId).single()
+    );
+  }
+  if (error) throw error;
+  return data;
 }
 
 export async function updateApplication(applicationId, patch) {
