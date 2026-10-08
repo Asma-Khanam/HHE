@@ -1,0 +1,16 @@
+.ptl-filter { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 14px; }
+.ptl-chip { border: 1px solid #ddd; background: #fff; border-radius: 999px; padding: 4px 12px; font-size: 12.5px; cursor: pointer; }
+.ptl-chip.is-on { background: #6b1d3a; color: #fff; border-color: #6b1d3a; }
+.ptl-list { list-style: none; margin: 8px 0 0; padding: 0 0 0 14px; border-left: 2px solid #e8dfe3; }
+.ptl-item { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 8px 0 12px 18px; }
+.ptl-dot { position: absolute; left: -22px; top: 13px; width: 12px; height: 12px; border-radius: 50%; background: #c9b8bf; border: 2px solid #fff; box-shadow: 0 0 0 1px #c9b8bf; }
+.ptl-item.is-tour .ptl-dot { background: #b89a5a; box-shadow: 0 0 0 1px #b89a5a; }
+.ptl-item.is-application .ptl-dot { background: #4a76b8; box-shadow: 0 0 0 1px #4a76b8; }
+.ptl-item.is-offer .ptl-dot { background: #1f7a3f; box-shadow: 0 0 0 1px #1f7a3f; }
+.ptl-item.is-placed .ptl-dot { background: #6b1d3a; box-shadow: 0 0 0 2px #6b1d3a; width: 14px; height: 14px; left: -23px; }
+.ptl-item.is-round .ptl-dot { background: #888; box-shadow: 0 0 0 1px #888; }
+.ptl-item.is-placed .ptl-title { color: #6b1d3a; }
+.ptl-title { font-weight: 600; font-size: 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ptl-child { font-weight: 500; font-size: 11px; background: #f3edf0; color: #6b1d3a; padding: 1px 8px; border-radius: 999px; }
+.ptl-note { font-size: 12.5px; color: #666; margin-top: 2px; }
+.ptl-when { font-size: 12.5px; color: #777; white-space: nowrap; padding-top: 2px; }

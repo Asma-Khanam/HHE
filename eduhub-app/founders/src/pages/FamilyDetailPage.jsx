@@ -12,6 +12,7 @@ import TasksPanel from "../components/TasksPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
 import PaymentsPanel from "../components/PaymentsPanel";
 import TabErrorBoundary from "../components/TabErrorBoundary";
+import PlacementTimelinePanel from "../components/PlacementTimelinePanel";
 import FamilyBalanceSummary from "../components/FamilyBalanceSummary";
 import RecordFieldsEditor from "../components/RecordFieldsEditor";
 import OverviewPanel from "../components/OverviewPanel";
@@ -473,6 +474,7 @@ const FAMILY_DETAIL_TAB_KEYS = [
   "details",
   "visits",
   "applications",
+  "timeline",
   "emails",
   "meetings",
   "invoices",
@@ -718,6 +720,7 @@ export default function FamilyDetailPage() {
           ["details", "Family details"],
           ["visits", "School visits"],
           ["applications", "Applications"],
+          ["timeline", "Placement timeline"],
           ["emails", "Emails"],
           ["meetings", "Meetings"],
           ["invoices", "Invoices"],
@@ -1013,6 +1016,17 @@ export default function FamilyDetailPage() {
             onFamilyChange={handleFamilyFieldChange}
             parents={namedParents}
             onParentChange={handleParentSaved}
+          />
+        </div>
+      )}
+
+      {activeTab === "timeline" && (
+        <div className="family-detail-stack">
+          <PlacementTimelinePanel
+            familyId={family.id}
+            familyChildren={children}
+            applicationsByChild={applicationsByChild}
+            schoolCatalog={schoolCatalog}
           />
         </div>
       )}
