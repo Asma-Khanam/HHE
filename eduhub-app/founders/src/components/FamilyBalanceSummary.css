@@ -23,3 +23,38 @@
 .fbs-tile.is-due { background: #fbeeee; }
 .fbs-tile.is-paid { background: #e8f4ea; }
 .fbs-sub { margin: 4px 0 6px; font-size: 0.95rem; }
+
+/* One row layout shared by every invoice line (payments and application fees) */
+.inv-list { list-style: none; margin: 0; padding: 0; }
+.inv-row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  grid-template-areas: "chip main amount" ". actions actions";
+  align-items: start;
+  gap: 6px 16px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.07);
+}
+.inv-row:first-child { border-top: 0; }
+.inv-row.is-done .inv-title { opacity: 0.7; }
+.inv-chip { grid-area: chip; justify-self: start; font-size: 0.78rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.inv-chip.is-due { background: #fdf0d8; color: #8a5a00; }
+.inv-chip.is-over { background: #fbe0e0; color: #a02020; }
+.inv-chip.is-check { background: #e3ecfb; color: #234a99; }
+.inv-chip.is-paid { background: #e3f3e6; color: #1f6b33; }
+.inv-chip.is-muted { background: rgba(0, 0, 0, 0.07); color: #555; }
+.inv-main { grid-area: main; min-width: 0; }
+.inv-title { font-weight: 600; }
+.inv-meta { font-size: 0.85rem; opacity: 0.65; margin-top: 2px; }
+.inv-meta.is-overdue { color: #a02020; opacity: 1; }
+.inv-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.inv-tag { font-size: 0.74rem; padding: 2px 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.05); opacity: 0.7; }
+.inv-tag.is-on { background: #eaf4ec; color: #1f6b33; opacity: 1; }
+.inv-amount { grid-area: amount; font-weight: 700; text-align: right; white-space: nowrap; }
+.inv-actions { grid-area: actions; display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 720px) {
+  .inv-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "chip amount" "main main" "actions actions";
+  }
+}

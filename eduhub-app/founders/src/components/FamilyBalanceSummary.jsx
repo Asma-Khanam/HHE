@@ -94,44 +94,50 @@ export default function FamilyBalanceSummary({ familyId, payments = [], onGoToAp
           None yet. Add one from the Applications tab, on the school's Application fee step.
         </p>
       ) : (
-        <ul className="panel-list">
-          {feeRows.map((f) => (
-            <li key={f.id} className={"task-row" + (feePaid(f) ? " is-done" : "")}>
-              <div className="task-row-text">
-                <div className="task-row-title">
-                  {f.application?.school?.name || "School"} · {childName(f.application?.child)}
-                  {money(f.amount, f.currency) && (
-                    <span className="doc-row-tag doc-row-tag-muted" style={{ marginLeft: 8 }}>
-                      {money(f.amount, f.currency)}
+        <ul className="inv-list">
+          {feeRows.map((f) => {
+            const isPaid = feePaid(f);
+            const dd = f.due_date ? new Date(f.due_date) : null;
+            const overdue = !isPaid && !feeWaived(f) && dd && dd < new Date(new Date().toDateString());
+            let chip = { text: "Awaiting payment", tone: "due" };
+            if (isPaid) chip = { text: "Paid", tone: "paid" };
+            else if (feeWaived(f)) chip = { text: "Waived", tone: "muted" };
+            else if (overdue) chip = { text: "Overdue", tone: "over" };
+            return (
+              <li key={f.id} className={"inv-row" + (isPaid ? " is-done" : "")}>
+                <span className={"inv-chip is-" + chip.tone}>{chip.text}</span>
+                <div className="inv-main">
+                  <div className="inv-title">
+                    {f.application?.school?.name || "School"} · {childName(f.application?.child)}
+                  </div>
+                  <div className={"inv-meta" + (overdue ? " is-overdue" : "")}>
+                    {f.label || "Application fee"}
+                    {isPaid ? (f.paid_at ? ` · paid ${day(f.paid_at)}` : "") : f.due_date ? ` · due ${day(f.due_date)}` : ""}
+                  </div>
+                  <div className="inv-tags">
+                    <span className={"inv-tag" + (f.sent_to_family_at ? " is-on" : "")}>
+                      {f.sent_to_family_at ? "Sent to family" : "Not sent to family yet"}
                     </span>
+                    {f.invoice_path ? <span className="inv-tag is-on">Invoice uploaded</span> : <span className="inv-tag">No invoice yet</span>}
+                    {f.payment_url ? <span className="inv-tag is-on">Payment link added</span> : <span className="inv-tag">No payment link</span>}
+                  </div>
+                </div>
+                <div className="inv-amount">{money(f.amount, f.currency)}</div>
+                <span className="inv-actions">
+                  {f.invoice_path && (
+                    <button type="button" className="panel-btn" onClick={() => openInvoice(f.invoice_path)}>
+                      View invoice
+                    </button>
                   )}
-                </div>
-                <div className="task-row-meta">
-                  {f.label || "Application fee"}
-                  {feePaid(f)
-                    ? ` · paid ${f.paid_at ? day(f.paid_at) : ""}`
-                    : f.due_date
-                      ? ` · due ${day(f.due_date)}`
-                      : ""}
-                  {" · "}
-                  {f.sent_to_family_at ? "sent to family" : "not sent to family yet"}
-                  {f.payment_url ? " · payment link added" : ""}
-                </div>
-              </div>
-              <span className="task-row-actions">
-                {f.invoice_path && (
-                  <button type="button" className="panel-btn panel-btn-quiet" onClick={() => openInvoice(f.invoice_path)}>
-                    View invoice
-                  </button>
-                )}
-                {onGoToApplications && (
-                  <button type="button" className="panel-btn panel-btn-quiet" onClick={onGoToApplications}>
-                    Open in Applications
-                  </button>
-                )}
-              </span>
-            </li>
-          ))}
+                  {onGoToApplications && (
+                    <button type="button" className="panel-btn panel-btn-quiet" onClick={onGoToApplications}>
+                      Edit in Applications
+                    </button>
+                  )}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

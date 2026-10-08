@@ -4,6 +4,7 @@ import { getSignedUrl } from "../lib/documents";
 import { daysUntil } from "../lib/workflow";
 import { packageLabel, computePackageFees } from "../data/packages";
 import "./panels.css";
+import "./FamilyBalanceSummary.css";
 
 function formatMoney(amount, currency) {
   if (amount === null || amount === undefined || amount === "") return "";
@@ -127,43 +128,34 @@ export default function PaymentsPanel({ familyId, payments: initialPayments, mem
   }
 
   function renderPayment(payment) {
-    const overdue = payment.status === "unpaid" && daysUntil(payment.due_date) !== null && daysUntil(payment.due_date) < 0;
+    const dd = daysUntil(payment.due_date);
+    const overdue = payment.status === "unpaid" && dd !== null && dd < 0;
+    let chip = { text: "Awaiting payment", tone: "due" };
+    if (payment.status === "paid") chip = { text: "Paid", tone: "paid" };
+    else if (payment.status === "waived") chip = { text: "Waived", tone: "muted" };
+    else if (payment.status === "submitted") chip = { text: "Receipt to confirm", tone: "check" };
+    else if (overdue) chip = { text: "Overdue", tone: "over" };
+    const meta =
+      payment.status === "paid" || payment.status === "waived"
+        ? ""
+        : payment.status === "submitted"
+          ? "Receipt uploaded by the family"
+          : dueLabel(payment.due_date);
     return (
-      <li key={payment.id} className={"task-row" + (payment.status === "paid" || payment.status === "waived" ? " is-done" : "")}>
-        <button
-          type="button"
-          className={"task-check" + (payment.status === "paid" ? " is-checked" : "")}
-          onClick={() => apply(payment, { status: payment.status === "unpaid" || payment.status === "submitted" ? "paid" : "unpaid" })}
-          aria-label={payment.status === "paid" ? "Mark unpaid" : "Mark paid"}
-          title={payment.status === "waived" ? "Waived" : "Toggle paid — for cash/manual confirmation without a receipt"}
-        >
-          {payment.status === "paid" ? "✓" : payment.status === "waived" ? "–" : ""}
-        </button>
-        <div className="task-row-text">
-          <div className="task-row-title">
-            {payment.label}
-            {formatMoney(payment.amount, payment.currency) && (
-              <span className="doc-row-tag doc-row-tag-muted" style={{ marginLeft: 8 }}>
-                {formatMoney(payment.amount, payment.currency)}
-              </span>
-            )}
-          </div>
-          <div className={"task-row-meta" + (overdue ? " is-overdue" : "") + (payment.status === "submitted" ? " is-overdue" : "")}>
-            {statusLabel(payment)}
-          </div>
+      <li key={payment.id} className={"inv-row" + (payment.status === "paid" || payment.status === "waived" ? " is-done" : "")}>
+        <span className={"inv-chip is-" + chip.tone}>{chip.text}</span>
+        <div className="inv-main">
+          <div className="inv-title">{payment.label}</div>
+          {meta && <div className={"inv-meta" + (overdue ? " is-overdue" : "")}>{meta}</div>}
         </div>
-
-        <span className="task-row-actions">
+        <div className="inv-amount">{formatMoney(payment.amount, payment.currency)}</div>
+        <span className="inv-actions">
           {payment.status === "submitted" && (
             <>
               <button type="button" className="panel-btn" onClick={() => handleViewReceipt(payment)}>
                 View receipt
               </button>
-              <button
-                type="button"
-                className="panel-btn panel-btn-primary"
-                onClick={() => apply(payment, { status: "paid" })}
-              >
+              <button type="button" className="panel-btn panel-btn-primary" onClick={() => apply(payment, { status: "paid" })}>
                 Confirm
               </button>
               <button type="button" className="panel-btn panel-btn-quiet" onClick={() => handleReject(payment)}>
@@ -177,21 +169,21 @@ export default function PaymentsPanel({ familyId, payments: initialPayments, mem
             </button>
           )}
           {payment.status === "unpaid" && (
-            <button
-              type="button"
-              className="panel-btn panel-btn-quiet"
-              onClick={() => apply(payment, { status: "waived" })}
-              title="Waive this payment"
-            >
-              Waive
+            <>
+              <button type="button" className="panel-btn" onClick={() => apply(payment, { status: "paid" })} title="For cash or a manual confirmation without a receipt">
+                Mark paid
+              </button>
+              <button type="button" className="panel-btn panel-btn-quiet" onClick={() => apply(payment, { status: "waived" })} title="Waive this payment">
+                Waive
+              </button>
+            </>
+          )}
+          {payment.status === "paid" && (
+            <button type="button" className="panel-btn panel-btn-quiet" onClick={() => apply(payment, { status: "unpaid" })}>
+              Mark unpaid
             </button>
           )}
-          <button
-            type="button"
-            className="panel-btn panel-btn-quiet"
-            onClick={() => handleDelete(payment)}
-            title="Remove payment"
-          >
+          <button type="button" className="panel-btn panel-btn-quiet" onClick={() => handleDelete(payment)} title="Remove payment">
             ✕
           </button>
         </span>
@@ -203,7 +195,7 @@ export default function PaymentsPanel({ familyId, payments: initialPayments, mem
     <section className="panel">
       <div className="panel-head">
         <h2>
-          Payments
+          Package &amp; other payments
           {needsAttention.length > 0 && <span className="panel-count">{needsAttention.length}</span>}
         </h2>
         <button type="button" className="panel-btn" onClick={() => setAdding((v) => !v)}>
@@ -233,7 +225,7 @@ export default function PaymentsPanel({ familyId, payments: initialPayments, mem
       {needsAttention.length === 0 && settled.length === 0 ? (
         <p className="panel-hint">Nothing owed on file for this family yet.</p>
       ) : (
-        <ul className="panel-list">
+        <ul className="inv-list">
           {needsAttention.map(renderPayment)}
           {settled.map(renderPayment)}
         </ul>
