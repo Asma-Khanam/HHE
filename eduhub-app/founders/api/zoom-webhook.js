@@ -19,7 +19,19 @@ import crypto from "crypto";
 //   5. AI Companion meeting summary must be on for the meetings (it is on the
 //      Pro plan per the founders). The host must be on that Zoom account.
 //
-// Never logs a request body.
+// Never logs a request body. Each call is recorded (event name, meeting id and
+// what happened, never the summary text) in zoom_webhook_log (addendum 97) so a
+// missing summary can be traced without Vercel's short-lived logs.
+
+// Zoom signs the exact raw text it sent, so the body is read raw here instead
+// of letting Vercel parse it first (re-serialising it can change it slightly).
+export const config = { api: { bodyParser: false } };
+
+async function readRaw(req) {
+  const chunks = [];
+  for await (const c of req) chunks.push(typeof c === "string" ? Buffer.from(c) : c);
+  return Buffer.concat(chunks).toString("utf8");
+}
 
 const SB = () => process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const KEY = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -42,6 +54,18 @@ async function sb(path, init = {}) {
   return data;
 }
 
+async function record(event, meetingId, outcome, detail) {
+  try {
+    await sb("zoom_webhook_log", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ event: event || null, meeting_id: meetingId || null, outcome, detail: detail ? String(detail).slice(0, 300) : null }),
+    });
+  } catch {
+    /* logging is best effort; never breaks the webhook */
+  }
+}
+
 function summaryText(o) {
   const parts = [];
   if (o.summary_overview) parts.push(String(o.summary_overview).trim());
@@ -57,37 +81,64 @@ export default async function handler(req, res) {
   const secret = process.env.ZOOM_WEBHOOK_SECRET_TOKEN;
   if (!secret) return res.status(500).json({ error: "ZOOM_WEBHOOK_SECRET_TOKEN is not set." });
 
-  const body = req.body || {};
+  let raw = "";
+  try {
+    raw = await readRaw(req);
+  } catch {
+    raw = "";
+  }
+  if (!raw && req.body) raw = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+  let body = {};
+  try {
+    body = raw ? JSON.parse(raw) : {};
+  } catch {
+    await record(null, null, "bad_json", null);
+    return res.status(400).json({ error: "Bad JSON" });
+  }
 
   // Zoom's one-off URL check when the endpoint is saved.
   if (body.event === "endpoint.url_validation") {
     const plainToken = body.payload?.plainToken || "";
+    await record("endpoint.url_validation", null, "validated", null);
     return res.status(200).json({ plainToken, encryptedToken: hmac(secret, plainToken) });
   }
 
   // Everything else must be signed by Zoom.
   const ts = req.headers["x-zm-request-timestamp"];
   const sig = req.headers["x-zm-signature"];
-  const expected = `v0=${hmac(secret, `v0:${ts}:${JSON.stringify(body)}`)}`;
+  const expected = `v0=${hmac(secret, `v0:${ts}:${raw}`)}`;
   if (!ts || !sig || sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+    await record(body.event, String(body.payload?.object?.meeting_id || "").replace(/\D/g, ""), "bad_signature", null);
     return res.status(401).json({ error: "Bad signature" });
   }
 
   try {
-    if (body.event !== "meeting.summary_completed") return res.status(200).json({ ignored: body.event || "unknown" });
+    if (body.event !== "meeting.summary_completed") {
+      await record(body.event, null, "ignored_event", null);
+      return res.status(200).json({ ignored: body.event || "unknown" });
+    }
 
     const o = body.payload?.object || {};
     const meetingId = String(o.meeting_id || "").replace(/\D/g, "");
-    if (!meetingId) return res.status(200).json({ ignored: "no meeting id" });
+    if (!meetingId) {
+      await record(body.event, null, "no_meeting_id", null);
+      return res.status(200).json({ ignored: "no meeting id" });
+    }
 
     const links = await sb(
       `zoom_meeting_links?zoom_meeting_id=eq.${meetingId}&select=family_id,join_url,topic&order=created_at.desc&limit=1`
     );
     const link = links[0];
-    if (!link) return res.status(200).json({ ignored: "meeting not linked to a family" });
+    if (!link) {
+      await record(body.event, meetingId, "not_linked", "Zoom meeting id has no family linked on the Meetings tab");
+      return res.status(200).json({ ignored: "meeting not linked to a family" });
+    }
 
     const text = summaryText(o);
-    if (!text) return res.status(200).json({ ignored: "empty summary" });
+    if (!text) {
+      await record(body.event, meetingId, "empty_summary", null);
+      return res.status(200).json({ ignored: "empty summary" });
+    }
 
     const when = o.meeting_start_time || o.summary_start_time || o.summary_created_time || new Date().toISOString();
     const url = link.join_url ? `\n\nZoom link: ${link.join_url}` : "";
@@ -103,9 +154,11 @@ export default async function handler(req, res) {
         external_ref: `zoom:${o.meeting_uuid || meetingId + ":" + when}`,
       }),
     });
+    await record(body.event, meetingId, "saved", null);
     return res.status(200).json({ saved: true });
   } catch (e) {
     console.error("zoom-webhook failed:", e.message);
+    await record(body.event, null, "error", e.message);
     return res.status(500).json({ error: "Couldn't save the summary." });
   }
 }
