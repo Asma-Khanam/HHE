@@ -36,7 +36,7 @@ export default function ApplicationProcess({
   onLog, // (description, eventType?) => void -- activity log entry, with who did it
   portalUrl,
   fees = [], // this application's application_fees rows
-  familyUserId = null, // the family's account id (where invoice files are kept)
+  familyId = null, // the family's id (invoice files are kept under it)
   onFeesChange = () => {}, // (updater) => void
 }) {
   const cur = CURRENT[a.status] ?? 0;
@@ -386,7 +386,7 @@ export default function ApplicationProcess({
       <ApplicationFeeStep
         application={a}
         fees={feeRows}
-        familyUserId={familyUserId}
+        familyId={familyId}
         onFeesChange={onFeesChange}
         onLog={onLog}
       />

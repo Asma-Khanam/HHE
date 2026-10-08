@@ -311,7 +311,6 @@ export default function ApplicationsPanel({
   onProgressChange,
   onGoToVisits,
   staff = [],
-  familyUserId = null,
 }) {
   // Who did what, for the activity log (founders: many consultants).
   const staffNames = Object.fromEntries((staff || []).map((s) => [s.user_id, s.full_name || s.email]));
@@ -908,7 +907,7 @@ export default function ApplicationsPanel({
                                 onStartDate={(v) => savePlacementDate(child, i, school?.name || application.schoolName, v)}
                                 onLog={(text, type) => logEvent(application, text, type)}
                                 fees={feesByApp[application.id] || []}
-                                familyUserId={familyUserId}
+                                familyId={familyId}
                                 onFeesChange={(update) =>
                                   setFeesByApp((m) => ({
                                     ...m,

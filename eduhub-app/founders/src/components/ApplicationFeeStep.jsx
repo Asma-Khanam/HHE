@@ -15,7 +15,7 @@ function money(fee) {
 // The "Application fee" step, between Apply and Assessment (Miss Lyndsay,
 // 7 Oct 2026): what the fee is, when it was paid, the invoice file, and a
 // button that puts it on the family's Billing page. Everything saves itself.
-export default function ApplicationFeeStep({ application, fees, familyUserId, onFeesChange, onLog }) {
+export default function ApplicationFeeStep({ application, fees, familyId, onFeesChange, onLog }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const fileInputs = useRef({});
@@ -53,7 +53,7 @@ export default function ApplicationFeeStep({ application, fees, familyUserId, on
     setBusy(`inv-${fee.id}`);
     setError("");
     try {
-      const saved = await uploadFeeInvoice({ familyUserId, fee, file });
+      const saved = await uploadFeeInvoice({ familyId, fee, file });
       replace(saved);
       onLog?.(`Invoice uploaded for ${fee.label}`, "fee_invoiced");
     } catch (err) {
