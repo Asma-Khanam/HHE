@@ -7,6 +7,7 @@ import {
   requestEmailInsight,
   saveEmailInsight,
   getCurrentStaff,
+  updateCaseNote,
 } from "../lib/staffData";
 import EmailComposer from "./EmailComposer";
 import "./panels.css";

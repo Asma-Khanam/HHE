@@ -11,6 +11,7 @@ import SchoolShortlistPanel from "../components/SchoolShortlistPanel";
 import TasksPanel from "../components/TasksPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
 import PaymentsPanel from "../components/PaymentsPanel";
+import TabErrorBoundary from "../components/TabErrorBoundary";
 import FamilyBalanceSummary from "../components/FamilyBalanceSummary";
 import RecordFieldsEditor from "../components/RecordFieldsEditor";
 import OverviewPanel from "../components/OverviewPanel";
@@ -1017,6 +1018,7 @@ export default function FamilyDetailPage() {
       )}
 
       {activeTab === "emails" && (
+        <TabErrorBoundary>
         <EmailsPanel
           familyId={family.id}
           notes={caseNotes}
@@ -1040,6 +1042,7 @@ export default function FamilyDetailPage() {
               }))
           )}
         />
+        </TabErrorBoundary>
       )}
 
       {activeTab === "meetings" && <MeetingsPanel familyId={family.id} notes={caseNotes} />}
