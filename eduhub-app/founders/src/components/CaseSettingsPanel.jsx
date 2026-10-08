@@ -311,8 +311,13 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
         </div>
       </div>
 
-      <div className="case-group">
-        <h3 className="case-group-title">The move</h3>
+      <details className="case-group case-fold">
+        <summary className="case-fold-title">
+          The move
+          <span className="case-fold-hint">
+            {[values.origin, values.destination].filter(Boolean).join(" \u2192 ") || "Not filled in"}
+          </span>
+        </summary>
         <div className="case-settings-grid case-grid-4">
           <div>
             <label className="panel-field-label">Moving from</label>
@@ -342,7 +347,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
             />
           </div>
         </div>
-      </div>
+      </details>
 
       {(() => {
         const allowance = allowanceFor(values.membership_type, rawOverride);
@@ -358,6 +363,8 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
             ) : (
               <p className="panel-field-hint">This package doesn&rsquo;t include set tours or applications.</p>
             )}
+            <details className="case-fold case-fold-inner">
+              <summary className="case-fold-title">Adjust allowance &amp; top up</summary>
             <div className="case-grid-4 case-settings-grid case-pkg-override">
               <div>
                 <label className="panel-field-label">Tours included (this family)</label>
@@ -429,6 +436,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
                 </p>
               </div>
             )}
+            </details>
           </div>
         );
       })()}

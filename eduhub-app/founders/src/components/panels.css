@@ -1219,3 +1219,15 @@
 .case-topup-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
 .case-topup-row .panel-input { width: 110px; }
 .case-topup-x { font-size: 0.85rem; opacity: 0.7; }
+
+/* Case card tidy: collapsible sections */
+.case-fold { border: 1px solid var(--hh-border, #e5e7eb); border-radius: 10px; padding: 0; }
+.case-fold > :not(summary) { padding: 0 14px 14px; }
+.case-fold-title { cursor: pointer; list-style: none; padding: 10px 14px; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.case-fold-title::-webkit-details-marker { display: none; }
+.case-fold-title::after { content: "+"; color: #888; font-weight: 400; margin-left: auto; }
+.case-fold[open] > .case-fold-title::after { content: "\2212"; }
+.case-fold-hint { font-weight: 400; color: #777; font-size: 12px; margin-left: auto; margin-right: 8px; }
+.case-fold-inner { margin-top: 10px; border-style: dashed; }
+.case-fold-inner > .case-topup { margin-top: 12px; }
+.case-fold-inner > .panel-field-hint { margin-top: 8px; }
