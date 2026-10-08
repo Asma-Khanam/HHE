@@ -35,6 +35,9 @@ function relativeDay(iso) {
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
+// 85354568539 -> "853 5456 8539" (how Zoom shows a Meeting ID).
+const formatZoomId = (id) => String(id || "").replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1 $2 $3");
+
 const ZOOM_LINK_MARKER = "\n\nZoom link: ";
 
 function splitZoomLink(body) {
@@ -138,7 +141,7 @@ export default function MeetingsPanel({ familyId, notes: allNotes }) {
     const url = parsed.link || (/^https?:/i.test(text) ? text : "");
     const id = (url.match(/zoom\.us\/[a-z]\/(\d{8,})/i)?.[1] || String(parsed.meetingId || "").replace(/\D/g, "") || text.replace(/\D/g, "")).trim();
     if (!/^\d{8,12}$/.test(id)) {
-      setLinkError("Couldn't find a Zoom meeting ID. Paste the full Zoom invite or the meeting link.");
+      setLinkError("Couldn't find a Zoom Meeting ID. Paste the Zoom link, the whole invite, or just the Meeting ID (9 to 11 digits).");
       return;
     }
     setLinkBusy(true);
@@ -210,12 +213,16 @@ export default function MeetingsPanel({ familyId, notes: allNotes }) {
           <>
             <div className="zoom-link-head">
               <strong>Link a Zoom call</strong>
-              <span>Paste the invite before the call. When it ends, Zoom&rsquo;s AI summary is saved here by itself.</span>
+              <span>
+                Before the call, paste the Zoom link, the whole invite, or just the Meeting ID. The Meeting ID is the number
+                Zoom shows for the call (it is also the number after <b>/j/</b> in the link). It is how we know which family the
+                summary belongs to. When the call ends, Zoom&rsquo;s AI summary is saved here by itself.
+              </span>
             </div>
             <div className="zoom-link-row">
               <input
                 className="panel-input"
-                placeholder="Paste the Zoom invite or meeting link"
+                placeholder="Zoom link, full invite, or Meeting ID"
                 value={invite}
                 autoFocus
                 onChange={(e) => setInvite(e.target.value)}
@@ -239,6 +246,12 @@ export default function MeetingsPanel({ familyId, notes: allNotes }) {
           </>
         )}
         {linkError && <div className="hh-form-banner hh-form-banner-error">{linkError}</div>}
+        {links.some((l) => !notes.some((n) => (n.external_ref || "").startsWith("zoom:"))) && (
+          <p className="zoom-link-hint">
+            Zoom sends the summary a few minutes after the call ends, and only for calls hosted on the HHE Zoom account with
+            the AI meeting summary switched on.
+          </p>
+        )}
         {links.length > 0 && (
           <ul className="zoom-link-list">
             {links.map((l) => {
@@ -252,9 +265,12 @@ export default function MeetingsPanel({ familyId, notes: allNotes }) {
                   <span className={"zoom-dot" + (done ? " is-done" : "")} aria-hidden="true" />
                   <span className="zoom-link-name">
                     {l.topic || "Zoom call"}
-                    <small>ID {l.zoom_meeting_id}</small>
+                    <small title="The Zoom Meeting ID we match the summary against">
+                      Meeting ID {formatZoomId(l.zoom_meeting_id)} &middot; linked{" "}
+                      {new Date(l.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                    </small>
                   </span>
-                  <span className={"zoom-status" + (done ? " is-done" : "")}>{done ? "Summary saved" : "Waiting for summary"}</span>
+                  <span className={"zoom-status" + (done ? " is-done" : "")}>{done ? "Summary saved" : "Waiting for Zoom's summary"}</span>
                 </li>
               );
             })}
