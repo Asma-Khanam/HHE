@@ -11,6 +11,7 @@ import SchoolShortlistPanel from "../components/SchoolShortlistPanel";
 import TasksPanel from "../components/TasksPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
 import PaymentsPanel from "../components/PaymentsPanel";
+import FamilyBalanceSummary from "../components/FamilyBalanceSummary";
 import RecordFieldsEditor from "../components/RecordFieldsEditor";
 import OverviewPanel from "../components/OverviewPanel";
 import EmailsPanel from "../components/EmailsPanel";
@@ -1058,6 +1059,11 @@ export default function FamilyDetailPage() {
 
       {activeTab === "invoices" && (
         <div className="family-detail-stack">
+          <FamilyBalanceSummary
+            familyId={family.id}
+            payments={payments}
+            onGoToApplications={() => setActiveTab("applications")}
+          />
           <PaymentsPanel
             familyId={family.id}
             payments={payments}

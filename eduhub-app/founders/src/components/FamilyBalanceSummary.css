@@ -1,0 +1,25 @@
+.fbs-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.fbs-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.035);
+}
+.fbs-tile span {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.fbs-tile strong { font-size: 1.25rem; }
+.fbs-tile em { font-style: normal; font-size: 0.8rem; opacity: 0.55; }
+.fbs-tile.is-due { background: #fbeeee; }
+.fbs-tile.is-paid { background: #e8f4ea; }
+.fbs-sub { margin: 4px 0 6px; font-size: 0.95rem; }

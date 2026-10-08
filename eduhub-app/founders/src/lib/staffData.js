@@ -492,6 +492,21 @@ export async function listChecklistItems(applicationIds) {
   return data || [];
 }
 
+// Every application fee for one family (all their children, all schools) --
+// for the Invoices tab, which shows them next to the family's other payments.
+export async function listFamilyApplicationFees(familyId) {
+  if (!familyId) return [];
+  return (
+    unwrap(
+      await supabase
+        .from("application_fees")
+        .select("*, application:applications!inner(id, school:schools(name), child:children!inner(full_name, preferred_name, first_name, family_id))")
+        .eq("application.child.family_id", familyId)
+        .order("due_date", { nullsFirst: false })
+    ) || []
+  );
+}
+
 export async function listApplicationFees(applicationIds) {
   if (!applicationIds || !applicationIds.length) return [];
   return (
