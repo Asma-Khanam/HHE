@@ -755,7 +755,7 @@ export async function saveApplication({
 // saveApplication pipeline. Founders just read these same columns
 // (including the two Dubai availability dates, addendum 53) on their Case
 // panel — no separate sync needed.
-export async function updateMoveDetails(familyId, { origin, destination, dubaiAvailableFrom, dubaiAvailableUntil }) {
+export async function updateMoveDetails(familyId, { origin, destination, dubaiAvailableFrom, dubaiAvailableUntil, plannedMoveDate }) {
   const patch = { origin: origin ?? null, destination: destination ?? null };
   // The two availability dates are optional extras on the same card --
   // only touch them when the caller actually passes one, so a plain
@@ -763,6 +763,7 @@ export async function updateMoveDetails(familyId, { origin, destination, dubaiAv
   // exist.
   if (dubaiAvailableFrom !== undefined) patch.dubai_available_from = dubaiAvailableFrom || null;
   if (dubaiAvailableUntil !== undefined) patch.dubai_available_until = dubaiAvailableUntil || null;
+  if (plannedMoveDate !== undefined) patch.planned_move_date = plannedMoveDate || null;
 
   const { data, error } = await supabase.from("families").update(patch).eq("id", familyId).select().single();
   if (error) throw error;

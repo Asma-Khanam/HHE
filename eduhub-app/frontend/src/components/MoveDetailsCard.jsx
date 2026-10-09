@@ -10,6 +10,7 @@ export default function MoveDetailsCard({ familyId, family, onFamilyChange }) {
   const [origin, setOrigin] = useState(family?.origin || "");
   const [destination, setDestination] = useState(family?.destination || "");
   const [availableFrom, setAvailableFrom] = useState(family?.dubai_available_from || "");
+  const [plannedMove, setPlannedMove] = useState(family?.planned_move_date || "");
   const [availableUntil, setAvailableUntil] = useState(family?.dubai_available_until || "");
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -22,6 +23,7 @@ export default function MoveDetailsCard({ familyId, family, onFamilyChange }) {
         destination: patch.destination ?? destination,
         dubaiAvailableFrom: patch.dubaiAvailableFrom ?? availableFrom,
         dubaiAvailableUntil: patch.dubaiAvailableUntil ?? availableUntil,
+        plannedMoveDate: patch.plannedMoveDate ?? plannedMove,
       });
       onFamilyChange?.(updated);
       setSaved(true);
@@ -60,6 +62,26 @@ export default function MoveDetailsCard({ familyId, family, onFamilyChange }) {
             onChange={(e) => setDestination(e.target.value)}
             onBlur={(e) => {
               if ((family?.destination || "") !== e.target.value) save({ destination: e.target.value });
+            }}
+          />
+        </label>
+      </div>
+
+      <div className="move-card-subhead">When are you moving to Dubai?</div>
+      <p className="move-card-hint">
+        The month you're planning to arrive. Different from the visit dates below.
+      </p>
+      <div className="move-card-row">
+        <label>
+          Planned move date
+          <input
+            type="date"
+            value={plannedMove}
+            onChange={(e) => setPlannedMove(e.target.value)}
+            onBlur={(e) => {
+              if ((family?.planned_move_date || "") !== e.target.value) {
+                save({ plannedMoveDate: e.target.value });
+              }
             }}
           />
         </label>

@@ -23,6 +23,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
     destination: family.destination || "",
     dubai_available_from: family.dubai_available_from || "",
     dubai_available_until: family.dubai_available_until || "",
+    planned_move_date: family.planned_move_date || "",
     membership_type: family.membership_type || "",
   });
   // Other parts of the page (the Overview's Dubai dates) edit the same
@@ -34,6 +35,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
       destination: family.destination || "",
       dubai_available_from: family.dubai_available_from || "",
       dubai_available_until: family.dubai_available_until || "",
+      planned_move_date: family.planned_move_date || "",
     }));
   }, [family.origin, family.destination, family.dubai_available_from, family.dubai_available_until]);
   // Both stages are moved by the database as the family's schools progress
@@ -238,6 +240,14 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
             )}
             {route && (
               <span className="case-sum-item">
+                <small>Moving to Dubai</small>
+                {values.planned_move_date
+                  ? new Date(values.planned_move_date + "T00:00:00").toLocaleDateString("en-GB", { month: "long", year: "numeric" })
+                  : "Not set"}
+              </span>
+            )}
+            {route && (
+              <span className="case-sum-item">
                 <small>In Dubai from</small>
                 {values.dubai_available_from
                   ? new Date(values.dubai_available_from + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
@@ -340,7 +350,16 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
           </div>
 
           <div>
-            <label className="panel-field-label">In Dubai from</label>
+            <label className="panel-field-label">Moving to Dubai (planned)</label>
+            <input
+              type="date"
+              {...textProps("planned_move_date")}
+              onChange={(e) => save({ planned_move_date: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="panel-field-label">In Dubai from (visit)</label>
             <input
               type="date"
               {...textProps("dubai_available_from")}
@@ -349,7 +368,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
           </div>
 
           <div>
-            <label className="panel-field-label">In Dubai until</label>
+            <label className="panel-field-label">In Dubai until (visit)</label>
             <input
               type="date"
               {...textProps("dubai_available_until")}
