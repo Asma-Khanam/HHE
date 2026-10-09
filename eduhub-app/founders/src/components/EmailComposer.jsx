@@ -126,6 +126,7 @@ export default function EmailComposer({
   documents = [], // [{ id, label }]
   staffName,
   familyAddress,
+  moveDate = "",
   initial = {},
   onSent,
   onClose,
@@ -177,18 +178,28 @@ export default function EmailComposer({
     const kids = childLines.length ? childLines.map((l) => `- ${l}`).join("\n") : "- (child's name and year group)";
     const names = childLines.map((l) => l.split(",")[0]).join(" and ") || "the children";
     const surname = String(familyName || "").trim().split(/\s+/).pop();
+    const famShort = surname ? `${surname} Family` : "our family";
     const fam = surname ? `the ${surname} family` : "our family";
+    // Heather, 9 Oct 2026: pull the planned move month into the main email.
+    let whenPhrase = "";
+    if (moveDate) {
+      const d = new Date(moveDate);
+      if (!Number.isNaN(d.getTime())) {
+        whenPhrase = ` in ${d.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}`;
+      }
+    }
+    const subjectBase = surname ? `${surname} Family admissions enquiry` : "Admissions enquiry";
     const T = {
       places: {
-        subject: `Place availability${childLines.length ? ` for ${names}` : ""}`,
-        text: `Dear Admissions team,\n\nI'm writing on behalf of ${fam}, who are relocating to Dubai. Could you let us know whether you have places available for:\n${kids}\n\nIf there are, we'd love to arrange a tour.\n\nKind regards,`,
+        subject: subjectBase,
+        text: `Dear Admissions team,\n\nI'm writing on behalf of ${fam}, who are relocating to Dubai${whenPhrase}. Could you let us know whether you have places available for:\n${kids}\n\nIf there are, we'd love to arrange a tour.\n\nKind regards,`,
       },
       tour: {
-        subject: `Tour request${childLines.length ? ` for ${names}` : ""}`,
-        text: `Dear Admissions team,\n\n${fam.charAt(0).toUpperCase() + fam.slice(1)} would like to visit the school. Could you share the dates and times you have available for a tour?\n\nThe family is looking at places for:\n${kids}\n\nKind regards,`,
+        subject: `${famShort}: tour request`,
+        text: `Dear Admissions team,\n\n${fam.charAt(0).toUpperCase() + fam.slice(1)}${whenPhrase ? `, who are relocating to Dubai${whenPhrase},` : ""} would like to visit the school. Could you share the dates and times you have available for a tour?\n\nThe family is looking at places for:\n${kids}\n\nKind regards,`,
       },
       docs: {
-        subject: `Application documents${childLines.length ? ` for ${names}` : ""}`,
+        subject: `${famShort}: application documents`,
         text: `Dear Admissions team,\n\nPlease find attached the documents for ${names}'s application.\n\nDo let us know if anything else is needed.\n\nKind regards,`,
       },
     }[key];

@@ -1038,6 +1038,7 @@ export default function FamilyDetailPage() {
           notes={caseNotes}
           familyName={displayName}
           familyChildren={children}
+          moveDate={family.dubai_available_from || ""}
           familyAddress={(() => {
             const alias = (parents || []).find((p) => p.application_alias)?.application_alias || family.application_alias;
             return alias ? `${alias}@applications.heatherharries.com` : "";

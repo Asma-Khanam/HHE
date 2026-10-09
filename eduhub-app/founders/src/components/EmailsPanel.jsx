@@ -649,6 +649,7 @@ export default function EmailsPanel({
   familyChildren = [],
   documents = [],
   familyAddress = "",
+  moveDate = "",
 }) {
   const [notes, setNotes] = useState(() =>
     (allNotes || [])
@@ -669,9 +670,17 @@ export default function EmailsPanel({
       .catch(() => {});
   }, []);
   const listRef = useRef(null);
-  const childLines = familyChildren.map((c) =>
-    [c.preferred_name || c.first_name || (c.full_name || "").split(" ")[0], c.year_group_applying_for?.split(" /")[0]].filter(Boolean).join(", ")
-  );
+  const childLines = familyChildren.map((c) => {
+    const name = c.preferred_name || c.first_name || (c.full_name || "").split(" ")[0];
+    const year = c.year_group_applying_for?.split(" /")[0];
+    const base = [name, year].filter(Boolean).join(", ");
+    // Date of birth as D/M/YYYY (Miss Lyndsay, 9 Oct 2026).
+    if (!c.date_of_birth) return base;
+    const d = new Date(c.date_of_birth);
+    if (Number.isNaN(d.getTime())) return base;
+    const dob = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+    return `${base}${base ? " " : ""}(DOB ${dob})`;
+  });
 
   function openComposer(initial) {
     setWriting(initial);
@@ -797,6 +806,7 @@ export default function EmailsPanel({
           documents={documents}
           staffName={staffName}
           familyAddress={familyAddress}
+          moveDate={moveDate}
           initial={writing}
           onSent={onSent}
           onClose={() => {
@@ -917,6 +927,7 @@ export default function EmailsPanel({
           documents={documents}
           staffName={staffName}
           familyAddress={familyAddress}
+          moveDate={moveDate}
           initial={writing}
           onSent={onSent}
           onClose={() => {
