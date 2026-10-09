@@ -1,0 +1,414 @@
+/* Case card v2 — tighter visual rhythm, chip-style summary, continuous
+   progress track with milestones, and a cleaner expanded body.
+   (Redesign for Miss Lyndsay, 10 Oct 2026.) */
+
+.case-v2 {
+  --cv-ink: #2a1119;
+  --cv-ink-soft: rgba(42, 17, 25, 0.55);
+  --cv-ink-mute: rgba(42, 17, 25, 0.35);
+  --cv-gold: #b89a5a;
+  --cv-gold-soft: rgba(184, 154, 90, 0.3);
+  --cv-burgundy: #530126;
+  --cv-good: #2f6b4f;
+  --cv-good-bg: #e9f2ed;
+  --cv-cream: #faf3e3;
+  --cv-cream-soft: #fff8e6;
+  --cv-border: rgba(83, 1, 38, 0.12);
+  --cv-border-strong: rgba(83, 1, 38, 0.2);
+
+  padding: 18px 20px 22px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fdf5ea 0%, #fbeef0 100%);
+  border: 1px solid var(--cv-border);
+}
+
+/* ---------- Header: title + progress + edit ---------- */
+
+.cv-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.cv-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.cv-brand-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--cv-burgundy);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.cv-brand-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--cv-burgundy);
+  letter-spacing: 0.01em;
+}
+.cv-brand-sub {
+  display: block;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cv-ink-mute);
+  font-weight: 600;
+  margin-top: 1px;
+}
+.cv-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.cv-saved {
+  font-size: 0.75rem;
+  color: var(--cv-good);
+  background: var(--cv-good-bg);
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  animation: cvFade 0.2s ease-out;
+}
+@keyframes cvFade { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: none; } }
+.cv-edit {
+  border: 1px solid var(--cv-border-strong);
+  background: #fff;
+  color: var(--cv-burgundy);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+}
+.cv-edit:hover {
+  background: var(--cv-cream);
+  box-shadow: 0 2px 6px rgba(83, 1, 38, 0.1);
+}
+.cv-edit:active {
+  transform: scale(0.98);
+}
+
+/* Continuous progress track with milestones below */
+.cv-progress {
+  min-width: 0;
+  padding: 2px 4px;
+}
+.cv-progress-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(83, 1, 38, 0.1);
+  margin: 10px 10px 8px;
+}
+.cv-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, #7b1e3a, var(--cv-burgundy));
+  border-radius: 999px;
+  transition: width 0.4s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.cv-progress-dots {
+  position: absolute;
+  inset: 50% 0 auto 0;
+  display: flex;
+  justify-content: space-between;
+  transform: translateY(-50%);
+  padding: 0 2px;
+}
+.cv-progress-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f3e6ea;
+  border: 2px solid rgba(83, 1, 38, 0.2);
+  box-shadow: 0 0 0 3px #fdf5ea;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.cv-progress-dot.is-done {
+  background: var(--cv-burgundy);
+  border-color: var(--cv-burgundy);
+  color: #fff;
+}
+.cv-progress-dot.is-current {
+  background: #fff;
+  border-color: var(--cv-burgundy);
+  box-shadow: 0 0 0 3px #fdf5ea, 0 0 0 6px rgba(83, 1, 38, 0.2);
+  transform: scale(1.08);
+}
+.cv-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 0 2px;
+}
+.cv-progress-label {
+  flex: 1;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--cv-ink-mute);
+  letter-spacing: 0.01em;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+.cv-progress-label.is-done, .cv-progress-label.is-current {
+  color: var(--cv-burgundy);
+  font-weight: 600;
+}
+.cv-progress-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  color: var(--cv-good);
+  background: var(--cv-good-bg);
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  margin-left: 6px;
+  letter-spacing: 0.02em;
+}
+
+/* ---------- Summary chip row ---------- */
+
+.cv-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 2px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid var(--cv-border);
+  border-radius: 12px;
+}
+.cv-chip {
+  padding: 2px 14px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.cv-chip + .cv-chip::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: rgba(83, 1, 38, 0.1);
+}
+.cv-chip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cv-ink-mute);
+  font-weight: 600;
+}
+.cv-chip-icon {
+  opacity: 0.6;
+}
+.cv-chip-value {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--cv-ink);
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+.cv-chip-value.is-muted {
+  color: var(--cv-ink-mute);
+  font-weight: 500;
+}
+.cv-chip-value.has-extra {
+  color: #9a5b00;
+}
+
+/* ---------- Expanded body ---------- */
+
+.cv-body {
+  margin-top: 16px;
+  animation: cvSlide 0.25s ease-out;
+}
+@keyframes cvSlide { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+.cv-section {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--cv-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.cv-section + .cv-section {
+  margin-top: 12px;
+}
+.cv-section-title {
+  margin: 0 0 10px;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cv-ink-mute);
+  font-weight: 700;
+}
+.cv-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.cv-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cv-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+  .cv-grid, .cv-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .cv-grid, .cv-grid-2, .cv-grid-4 { grid-template-columns: 1fr; }
+}
+.cv-field label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--cv-ink-soft);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: 4px;
+}
+.cv-field input, .cv-field select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--cv-border-strong);
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--cv-ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.cv-field input:focus, .cv-field select:focus {
+  outline: none;
+  border-color: var(--cv-burgundy);
+  box-shadow: 0 0 0 3px rgba(83, 1, 38, 0.12);
+}
+.cv-field-hint {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--cv-ink-soft);
+}
+
+/* Package use */
+.cv-package-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+@media (max-width: 700px) { .cv-package-grid { grid-template-columns: 1fr; } }
+.cv-package-foot {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cv-ghost-btn {
+  border: 1px dashed var(--cv-border-strong);
+  background: transparent;
+  color: var(--cv-burgundy);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.cv-ghost-btn:hover { background: var(--cv-cream); border-color: var(--cv-gold); border-style: solid; }
+.cv-ghost-btn[aria-expanded="true"] { background: var(--cv-cream); border-style: solid; border-color: var(--cv-gold); }
+
+.cv-adjust {
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--cv-cream-soft);
+  border: 1px dashed var(--cv-gold-soft);
+  border-radius: 10px;
+  animation: cvSlide 0.2s ease-out;
+}
+.cv-adjust-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  margin-top: 8px;
+}
+.cv-adjust-row .cv-field { min-width: 0; }
+.cv-adjust-sep {
+  font-size: 0.85rem;
+  color: var(--cv-ink-soft);
+  padding-bottom: 10px;
+}
+.cv-topup-flag {
+  color: #a02020;
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+/* Journey (bottom timeline chips) */
+.cv-journey {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--cv-border);
+  border-radius: 12px;
+  font-size: 0.86rem;
+}
+.cv-journey-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cv-ink-mute);
+  font-weight: 700;
+  margin-right: 4px;
+}
+.cv-journey-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--cv-border);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+.cv-journey-step strong { color: var(--cv-burgundy); }
+.cv-journey-date { opacity: 0.6; font-size: 0.76rem; }
+.cv-journey-step.is-current { background: var(--cv-burgundy); border-color: var(--cv-burgundy); }
+.cv-journey-step.is-current strong, .cv-journey-step.is-current .cv-journey-date { color: #fff; opacity: 1; }
+
+/* Error banner inside the card */
+.cv-error {
+  background: #fff1f1;
+  border: 1px solid #e4b1b1;
+  color: #7a1b1b;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 0.86rem;
+  margin-bottom: 10px;
+}
+
+/* Mobile — stack the header; put the progress below the brand */
+@media (max-width: 760px) {
+  .cv-head { grid-template-columns: 1fr auto; }
+  .cv-progress { grid-column: 1 / -1; order: 3; }
+  .cv-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
