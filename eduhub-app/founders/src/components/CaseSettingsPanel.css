@@ -408,3 +408,20 @@
   font-size: 0.86rem;
   margin-bottom: 12px;
 }
+
+/* Breathing room between the Case card and the tab row below it. */
+.case-v2 { margin-bottom: 18px; }
+
+/* Soft breathing animation on the current stage: zooms the dot and its
+   halo in and out, so the eye lands on it. Keeps a static ring on done. */
+@keyframes cvBreathe {
+  0%   { transform: scale(1.10); box-shadow: 0 0 0 3px #fdf5ea, 0 0 0 5px rgba(83, 1, 38, 0.18); }
+  50%  { transform: scale(1.28); box-shadow: 0 0 0 3px #fdf5ea, 0 0 0 10px rgba(83, 1, 38, 0.10); }
+  100% { transform: scale(1.10); box-shadow: 0 0 0 3px #fdf5ea, 0 0 0 5px rgba(83, 1, 38, 0.18); }
+}
+.cv-progress-dot.is-current {
+  animation: cvBreathe 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-progress-dot.is-current { animation: none; }
+}
