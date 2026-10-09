@@ -188,6 +188,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
+      {open && (
       <div className="case-progress">
         <div className="case-progress-head">
           <label className="panel-field-label">Progress</label>
@@ -208,6 +209,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
           })}
         </div>
       </div>
+      )}
 
       {(() => {
         const allowance = allowanceFor(values.membership_type, rawOverride);
@@ -234,6 +236,14 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
                 {route}
               </span>
             )}
+            {route && (
+              <span className="case-sum-item">
+                <small>In Dubai from</small>
+                {values.dubai_available_from
+                  ? new Date(values.dubai_available_from + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                  : "Not set"}
+              </span>
+            )}
             {usage && allowance?.tours > 0 && (
               <span className="case-sum-item">
                 <small>Tours</small>
@@ -246,7 +256,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
                 {tag(usage.applicationsUsed, allowance.applications)}
               </span>
             )}
-            <span className="case-sum-toggle">{open ? "Hide details" : "Edit details"}</span>
+            <span className="case-sum-toggle">{open ? "Close" : "Edit"}</span>
           </button>
         );
       })()}
@@ -441,7 +451,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
         );
       })()}
 
-      {history.length > 0 && (
+      {open && history.length > 0 && (
         <div className="case-journey">
           <span className="case-journey-label">Journey</span>
           {history.map((h, i) => (
