@@ -34,8 +34,18 @@ function statusLabel(payment) {
 // here. The database itself refuses anything else a family might try to
 // change on a payment row — this panel is just the staff side of the same
 // flow the client's Payments card drives.
-export default function PaymentsPanel({ familyId, payments: initialPayments, membershipType, childCount, billTo }) {
-  const [payments, setPayments] = useState(initialPayments || []);
+export default function PaymentsPanel({ familyId, payments: initialPayments, membershipType, childCount, billTo, onPaymentsChange }) {
+  const [payments, setPaymentsState] = useState(initialPayments || []);
+  // Keep the family page in step so Balance totals (and the Invoices tab
+  // bulk-pay bar) refresh the moment a payment is marked paid, unpaid,
+  // added or removed. (Miss Lyndsay, 9 Oct 2026.)
+  function setPayments(update) {
+    setPaymentsState((prev) => {
+      const next = typeof update === "function" ? update(prev) : update;
+      try { onPaymentsChange && onPaymentsChange(next); } catch {}
+      return next;
+    });
+  }
   const [adding, setAdding] = useState(false);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");

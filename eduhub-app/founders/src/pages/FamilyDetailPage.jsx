@@ -1089,6 +1089,7 @@ export default function FamilyDetailPage() {
             membershipType={family.membership_type}
             childCount={children.length}
             billTo={(namedParents[0] || (parents || [])[0])?.full_name || family.family_name || family.name || "Family"}
+            onPaymentsChange={(next) => setDetail((d) => (d ? { ...d, payments: next } : d))}
           />
         </div>
       )}
