@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listFamilyApplicationFees } from "../lib/staffData";
+import { listFamilyApplicationFees, updateApplicationFee } from "../lib/staffData";
 import { openBillingDocument, toBillingItem } from "../lib/billingDocument";
 import { getSignedUrl } from "../lib/documents";
 import "./FamilyBalanceSummary.css";
@@ -23,6 +23,12 @@ function childName(c) {
 export default function FamilyBalanceSummary({ familyId, payments = [], billTo, onGoToApplications }) {
   const [fees, setFees] = useState(null);
   const [error, setError] = useState("");
+  // One receipt for several children (Miss Lyndsay, 8 Oct 2026): families
+  // tend to pay for all their children's application fees in one go. Tick
+  // the fees that payment covers, pick the date and mark them paid together.
+  const [selected, setSelected] = useState({});
+  const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [busyBulk, setBusyBulk] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +58,25 @@ export default function FamilyBalanceSummary({ familyId, payments = [], billTo, 
       openBillingDocument({ kind, item: toBillingItem(fee, "fee"), billTo });
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function markSelectedPaid() {
+    const ids = Object.keys(selected).filter((id) => selected[id]);
+    if (ids.length === 0) return;
+    setBusyBulk(true);
+    setError("");
+    try {
+      const paidAt = `${payDate}T12:00:00Z`;
+      const updated = await Promise.all(
+        ids.map((id) => updateApplicationFee(id, { status: "paid", paid_at: paidAt }))
+      );
+      setFees((rows) => (rows || []).map((f) => updated.find((u) => u.id === f.id) || f));
+      setSelected({});
+    } catch {
+      setError("Couldn't mark those as paid. Please try again.");
+    } finally {
+      setBusyBulk(false);
     }
   }
 
@@ -96,6 +121,33 @@ export default function FamilyBalanceSummary({ familyId, payments = [], billTo, 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
       <h3 className="fbs-sub">School application fees</h3>
+      {(() => {
+        const chosen = feeRows.filter((f) => selected[f.id] && !feePaid(f) && !feeWaived(f));
+        if (chosen.length === 0 && owedFees.length < 2) return null;
+        const total = chosen.reduce((t, f) => t + (Number(f.amount) || 0), 0);
+        const ccy = chosen[0]?.currency || currency;
+        return (
+          <div className="fbs-bulk">
+            <span className="fbs-bulk-text">
+              {chosen.length === 0
+                ? "Tick the fees one payment covers to mark them paid together."
+                : `${chosen.length} fee${chosen.length === 1 ? "" : "s"} selected · ${money(total, ccy)}`}
+            </span>
+            <label className="fbs-bulk-date">
+              <span>Paid on</span>
+              <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+            </label>
+            <button
+              type="button"
+              className="panel-btn panel-btn-primary"
+              disabled={chosen.length === 0 || busyBulk || !payDate}
+              onClick={markSelectedPaid}
+            >
+              {busyBulk ? "Marking…" : "Mark selected as paid"}
+            </button>
+          </div>
+        );
+      })()}
       {fees === null ? (
         <p className="panel-hint">Loading…</p>
       ) : feeRows.length === 0 ? (
@@ -114,6 +166,17 @@ export default function FamilyBalanceSummary({ familyId, payments = [], billTo, 
             else if (overdue) chip = { text: "Overdue", tone: "over" };
             return (
               <li key={f.id} className={"inv-row" + (isPaid ? " is-done" : "")}>
+                {!isPaid && !feeWaived(f) ? (
+                  <label className="inv-tick" title="Include in a shared payment">
+                    <input
+                      type="checkbox"
+                      checked={!!selected[f.id]}
+                      onChange={(e) => setSelected((cur) => ({ ...cur, [f.id]: e.target.checked }))}
+                    />
+                  </label>
+                ) : (
+                  <span className="inv-tick is-empty" aria-hidden="true" />
+                )}
                 <span className={"inv-chip is-" + chip.tone}>{chip.text}</span>
                 <div className="inv-main">
                   <div className="inv-title">
