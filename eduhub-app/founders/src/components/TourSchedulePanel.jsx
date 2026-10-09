@@ -59,13 +59,14 @@ export default function TourSchedulePanel({ familyId, onGoToVisits }) {
   }, [familyId]);
 
   const today = new Date().toISOString().slice(0, 10);
+  const upcomingCount = tours.filter((t) => t.date >= today && t.status !== "completed").length;
 
   return (
     <section className="panel">
       <div className="panel-head">
         <h2>
           Tour schedule
-          {tours.length > 0 && <span className="panel-count">{tours.length}</span>}
+          {upcomingCount > 0 && <span className="panel-count" title="Upcoming tours">{upcomingCount}</span>}
         </h2>
         {onGoToVisits && (
           <button type="button" className="panel-btn" onClick={onGoToVisits}>
