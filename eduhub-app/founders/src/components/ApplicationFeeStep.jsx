@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import AutosaveField from "./Autosave";
-import { createApplicationFee, updateApplicationFee, uploadFeeInvoice, uploadFeePaymentProof, uploadFeeSchoolReceipt, clearFeeEvidence } from "../lib/staffData";
+import { createApplicationFee, updateApplicationFee, uploadFeeInvoice, uploadFeePaymentProof, clearFeeEvidence, listSiblingUnpaidFeesAtSchool } from "../lib/staffData";
 import { getSignedUrl } from "../lib/documents";
 import { shortDate } from "../lib/placement";
 import "./ApplicationFeeStep.css";
@@ -20,7 +20,6 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
   const [busy, setBusy] = useState("");
   const fileInputs = useRef({});
   const paymentInputs = useRef({});
-  const receiptInputs = useRef({});
 
   const replace = (saved) => onFeesChange((list) => list.map((f) => (f.id === saved.id ? saved : f)));
 
@@ -58,6 +57,7 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
       const saved = await uploadFeeInvoice({ familyId, fee, file });
       replace(saved);
       onLog?.(`Invoice uploaded for ${fee.label}`, "fee_invoiced");
+      await offerSiblingCopy({ changes: { invoice_path: saved.invoice_path, invoice_name: saved.invoice_name }, markPaid: false, humanLabel: "the school invoice/receipt" });
     } catch (err) {
       setError(err.message || "Couldn't upload that invoice.");
     } finally {
@@ -73,28 +73,56 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
     }
   }
 
-  // Addendum 98 (Heather, 9 Oct 2026): two extra uploads per fee — the bank
-  // evidence that HHE paid the school, and the school's receipt of payment.
+  // Addendum 98 (Heather, 9 Oct 2026): bank evidence that HHE paid the school.
   async function handleEvidence(fee, which, file) {
     if (!file) return;
     setBusy(`${which}-${fee.id}`);
     setError("");
     try {
-      const saved =
-        which === "payment_proof"
-          ? await uploadFeePaymentProof({ familyId, fee, file })
-          : await uploadFeeSchoolReceipt({ familyId, fee, file });
+      const saved = await uploadFeePaymentProof({ familyId, fee, file });
       replace(saved);
-      onLog?.(
-        which === "payment_proof"
-          ? `Bank payment evidence uploaded for ${fee.label}`
-          : `School receipt uploaded for ${fee.label}`,
-        "fee_paid"
-      );
+      onLog?.(`Bank payment evidence uploaded for ${fee.label}`, "fee_paid");
+      await offerSiblingCopy({ changes: { payment_proof_path: saved.payment_proof_path, payment_proof_name: saved.payment_proof_name }, markPaid: false, humanLabel: "the bank payment evidence" });
     } catch (err) {
       setError(err.message || "Couldn't upload that file.");
     } finally {
       setBusy("");
+    }
+  }
+
+  // Heather, 9 Oct 2026: when the same payment covers more than one child
+  // ("add the invoice to the eldest, auto-update the others"), after an
+  // upload or a mark-paid, offer to copy the file onto the siblings' fees at
+  // the same school and mark theirs paid too, in one confirm box.
+  async function offerSiblingCopy({ changes, markPaid, humanLabel }) {
+    try {
+      const schoolId = application?.school_id;
+      if (!schoolId || !familyId) return;
+      const siblings = await listSiblingUnpaidFeesAtSchool({
+        familyId,
+        schoolId,
+        excludeApplicationId: application.id,
+      });
+      if (!siblings.length) return;
+      const schoolName = application?.school?.name || "this school";
+      const names = siblings.map((s) => s.childName).join(", ");
+      const paidBit = markPaid ? " and mark their fees paid" : "";
+      const ok = window.confirm(
+        `Copy ${humanLabel} to ${names}'s fee${siblings.length > 1 ? "s" : ""} at ${schoolName}${paidBit}?`
+      );
+      if (!ok) return;
+      const patch = { ...changes };
+      if (markPaid) {
+        patch.status = "paid";
+        patch.paid_at = patch.paid_at || new Date().toISOString();
+      }
+      const updated = await Promise.all(
+        siblings.map((s) => updateApplicationFee(s.fee.id, patch).catch(() => null))
+      );
+      const done = updated.filter(Boolean).length;
+      onLog?.(`Also applied to ${done} sibling fee${done === 1 ? "" : "s"} at ${schoolName}`, "fee_paid");
+    } catch {
+      /* best-effort, don't block the main action */
     }
   }
 
@@ -123,7 +151,10 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
 
   async function markPaid(fee, date) {
     const saved = await patchFee(fee, date ? { status: "paid", paid_at: `${date}T12:00:00Z` } : { status: "unpaid", paid_at: null });
-    if (saved && date) onLog?.(`${fee.label} paid on ${shortDate(date)}`, "fee_paid");
+    if (saved && date) {
+      onLog?.(`${fee.label} paid on ${shortDate(date)}`, "fee_paid");
+      await offerSiblingCopy({ changes: { paid_at: `${date}T12:00:00Z` }, markPaid: true, humanLabel: `the payment date (${shortDate(date)})` });
+    }
   }
 
   return (
@@ -183,7 +214,7 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
             )}
 
             <div className="afs-invoice">
-              <span className="afs-label">Invoice</span>
+              <span className="afs-label">School invoice / receipt</span>
               {fee.invoice_path ? (
                 <>
                   <button type="button" className="apx-link" onClick={() => viewInvoice(fee)}>
@@ -251,43 +282,7 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
               />
             </div>
 
-            <div className="afs-invoice">
-              <span className="afs-label">School's receipt</span>
-              {fee.school_receipt_path ? (
-                <>
-                  <button type="button" className="apx-link" onClick={() => viewEvidence(fee, "school_receipt")}>
-                    {fee.school_receipt_name || "View file"} ↗
-                  </button>
-                  <button type="button" className="apx-link" onClick={() => receiptInputs.current[fee.id]?.click()}>
-                    Replace
-                  </button>
-                  <button type="button" className="apx-link apx-link-quiet" onClick={() => removeEvidence(fee, "school_receipt")}>
-                    Remove
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="panel-btn"
-                  disabled={busy === `school_receipt-${fee.id}`}
-                  onClick={() => receiptInputs.current[fee.id]?.click()}
-                >
-                  {busy === `school_receipt-${fee.id}` ? "Uploading…" : "Upload school receipt"}
-                </button>
-              )}
-              <input
-                ref={(el) => (receiptInputs.current[fee.id] = el)}
-                type="file"
-                accept=".pdf,image/*"
-                hidden
-                onChange={(e) => {
-                  handleEvidence(fee, "school_receipt", e.target.files?.[0]);
-                  e.target.value = "";
-                }}
-              />
-            </div>
-
-            <AutosaveField
+<AutosaveField
               label="Payment link (add when it's ready)"
               placeholder="https://…"
               value={fee.payment_url}

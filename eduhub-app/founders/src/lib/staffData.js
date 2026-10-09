@@ -2068,3 +2068,33 @@ export async function clearFeeEvidence({ fee, which }) {
   if (existing) await supabase.storage.from("documents").remove([existing]).catch(() => {});
   return saved;
 }
+
+// Addendum 98 follow-up (Heather, 9 Oct 2026): when uploading the school's
+// invoice/receipt (or marking a fee paid) on one child, find the family's
+// other children's unpaid fees at the same school so staff can be offered to
+// copy the file over and mark them paid together.
+export async function listSiblingUnpaidFeesAtSchool({ familyId, schoolId, excludeApplicationId }) {
+  if (!familyId || !schoolId) return [];
+  // children in this family
+  const children = unwrap(
+    await supabase.from("children").select("id, first_name, preferred_name, full_name").eq("family_id", familyId)
+  ) || [];
+  if (!children.length) return [];
+  const childIds = children.map((c) => c.id);
+  // their applications at the same school
+  const apps = unwrap(
+    await supabase.from("applications").select("id, child_id, school_id").in("child_id", childIds).eq("school_id", schoolId)
+  ) || [];
+  const siblingApps = apps.filter((a) => a.id !== excludeApplicationId);
+  if (!siblingApps.length) return [];
+  const feeApps = siblingApps.map((a) => a.id);
+  const fees = unwrap(
+    await supabase.from("application_fees").select("*").in("application_id", feeApps).neq("status", "paid")
+  ) || [];
+  const childById = Object.fromEntries(children.map((c) => [c.id, c]));
+  const appById = Object.fromEntries(apps.map((a) => [a.id, a]));
+  return fees.map((f) => {
+    const child = childById[appById[f.application_id]?.child_id];
+    return { fee: f, child, childName: child?.preferred_name || child?.first_name || child?.full_name || "sibling" };
+  });
+}
