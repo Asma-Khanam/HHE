@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import AutosaveField from "./Autosave";
-import { createApplicationFee, updateApplicationFee, uploadFeeInvoice } from "../lib/staffData";
+import { createApplicationFee, updateApplicationFee, uploadFeeInvoice, uploadFeePaymentProof, uploadFeeSchoolReceipt, clearFeeEvidence } from "../lib/staffData";
 import { getSignedUrl } from "../lib/documents";
 import { shortDate } from "../lib/placement";
 import "./ApplicationFeeStep.css";
@@ -19,6 +19,8 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const fileInputs = useRef({});
+  const paymentInputs = useRef({});
+  const receiptInputs = useRef({});
 
   const replace = (saved) => onFeesChange((list) => list.map((f) => (f.id === saved.id ? saved : f)));
 
@@ -68,6 +70,49 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
       window.open(await getSignedUrl(fee.invoice_path), "_blank", "noopener");
     } catch {
       setError("Couldn't open that invoice.");
+    }
+  }
+
+  // Addendum 98 (Heather, 9 Oct 2026): two extra uploads per fee — the bank
+  // evidence that HHE paid the school, and the school's receipt of payment.
+  async function handleEvidence(fee, which, file) {
+    if (!file) return;
+    setBusy(`${which}-${fee.id}`);
+    setError("");
+    try {
+      const saved =
+        which === "payment_proof"
+          ? await uploadFeePaymentProof({ familyId, fee, file })
+          : await uploadFeeSchoolReceipt({ familyId, fee, file });
+      replace(saved);
+      onLog?.(
+        which === "payment_proof"
+          ? `Bank payment evidence uploaded for ${fee.label}`
+          : `School receipt uploaded for ${fee.label}`,
+        "fee_paid"
+      );
+    } catch (err) {
+      setError(err.message || "Couldn't upload that file.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function viewEvidence(fee, which) {
+    const path = which === "payment_proof" ? fee.payment_proof_path : fee.school_receipt_path;
+    try {
+      window.open(await getSignedUrl(path), "_blank", "noopener");
+    } catch {
+      setError("Couldn't open that file.");
+    }
+  }
+
+  async function removeEvidence(fee, which) {
+    try {
+      const saved = await clearFeeEvidence({ fee, which });
+      replace(saved);
+    } catch {
+      setError("Couldn't remove that file. Please try again.");
     }
   }
 
@@ -165,6 +210,78 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
                 hidden
                 onChange={(e) => {
                   handleInvoice(fee, e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+
+            <div className="afs-invoice">
+              <span className="afs-label">We paid the school</span>
+              {fee.payment_proof_path ? (
+                <>
+                  <button type="button" className="apx-link" onClick={() => viewEvidence(fee, "payment_proof")}>
+                    {fee.payment_proof_name || "View file"} ↗
+                  </button>
+                  <button type="button" className="apx-link" onClick={() => paymentInputs.current[fee.id]?.click()}>
+                    Replace
+                  </button>
+                  <button type="button" className="apx-link apx-link-quiet" onClick={() => removeEvidence(fee, "payment_proof")}>
+                    Remove
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="panel-btn"
+                  disabled={busy === `payment_proof-${fee.id}`}
+                  onClick={() => paymentInputs.current[fee.id]?.click()}
+                >
+                  {busy === `payment_proof-${fee.id}` ? "Uploading…" : "Upload bank payment evidence"}
+                </button>
+              )}
+              <input
+                ref={(el) => (paymentInputs.current[fee.id] = el)}
+                type="file"
+                accept=".pdf,image/*"
+                hidden
+                onChange={(e) => {
+                  handleEvidence(fee, "payment_proof", e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+
+            <div className="afs-invoice">
+              <span className="afs-label">School's receipt</span>
+              {fee.school_receipt_path ? (
+                <>
+                  <button type="button" className="apx-link" onClick={() => viewEvidence(fee, "school_receipt")}>
+                    {fee.school_receipt_name || "View file"} ↗
+                  </button>
+                  <button type="button" className="apx-link" onClick={() => receiptInputs.current[fee.id]?.click()}>
+                    Replace
+                  </button>
+                  <button type="button" className="apx-link apx-link-quiet" onClick={() => removeEvidence(fee, "school_receipt")}>
+                    Remove
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="panel-btn"
+                  disabled={busy === `school_receipt-${fee.id}`}
+                  onClick={() => receiptInputs.current[fee.id]?.click()}
+                >
+                  {busy === `school_receipt-${fee.id}` ? "Uploading…" : "Upload school receipt"}
+                </button>
+              )}
+              <input
+                ref={(el) => (receiptInputs.current[fee.id] = el)}
+                type="file"
+                accept=".pdf,image/*"
+                hidden
+                onChange={(e) => {
+                  handleEvidence(fee, "school_receipt", e.target.files?.[0]);
                   e.target.value = "";
                 }}
               />

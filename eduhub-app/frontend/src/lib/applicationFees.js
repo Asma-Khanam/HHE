@@ -5,7 +5,7 @@ import { supabase } from "./supabaseClient";
 export async function fetchApplicationFees() {
   const { data, error } = await supabase
     .from("application_fees")
-    .select("*, application:applications(child_id, school:schools(name))")
+    .select("id, application_id, status, amount, currency, label, due_date, paid_at, invoice_path, invoice_name, payment_url, sent_to_family_at, source, external_invoice_ref, application:applications(child_id, school:schools(name))")
     .not("sent_to_family_at", "is", null)
     .order("sent_to_family_at", { ascending: false });
   if (error) throw error;

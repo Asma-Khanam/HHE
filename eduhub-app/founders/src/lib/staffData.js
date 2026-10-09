@@ -2035,3 +2035,36 @@ export async function uploadFeeInvoice({ familyId, fee, file }) {
   if (fee.invoice_path) await supabase.storage.from("documents").remove([fee.invoice_path]);
   return saved;
 }
+
+// Addendum 98 (9 Oct 2026): the two extra evidence files on each fee (bank
+// payment proof, school receipt). Same folder as the invoice; replacing the
+// file removes the old one. Only staff see or write these — the family's own
+// row-level policy only reads sent fees, and the family-side query is scoped
+// to the public-facing columns.
+async function uploadFeeEvidence({ familyId, fee, file, pathCol, nameCol, prefix }) {
+  if (!familyId) throw new Error("Couldn't tell which family this file belongs to.");
+  const ext = file.name.includes(".") ? file.name.split(".").pop() : "";
+  const path = `families/${familyId}/application_fee/${fee.id}/${prefix}-${Date.now()}${ext ? "." + ext : ""}`;
+  const { error: uploadError } = await supabase.storage.from("documents").upload(path, file);
+  if (uploadError) throw uploadError;
+  const saved = await updateApplicationFee(fee.id, { [pathCol]: path, [nameCol]: file.name });
+  if (fee[pathCol]) await supabase.storage.from("documents").remove([fee[pathCol]]);
+  return saved;
+}
+
+export async function uploadFeePaymentProof({ familyId, fee, file }) {
+  return uploadFeeEvidence({ familyId, fee, file, pathCol: "payment_proof_path", nameCol: "payment_proof_name", prefix: "payment-proof" });
+}
+
+export async function uploadFeeSchoolReceipt({ familyId, fee, file }) {
+  return uploadFeeEvidence({ familyId, fee, file, pathCol: "school_receipt_path", nameCol: "school_receipt_name", prefix: "school-receipt" });
+}
+
+export async function clearFeeEvidence({ fee, which }) {
+  const pathCol = which === "payment_proof" ? "payment_proof_path" : "school_receipt_path";
+  const nameCol = which === "payment_proof" ? "payment_proof_name" : "school_receipt_name";
+  const existing = fee[pathCol];
+  const saved = await updateApplicationFee(fee.id, { [pathCol]: null, [nameCol]: null });
+  if (existing) await supabase.storage.from("documents").remove([existing]).catch(() => {});
+  return saved;
+}

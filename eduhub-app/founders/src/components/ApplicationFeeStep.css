@@ -22,3 +22,6 @@
 .afs-send { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .afs-sent { color: #2f6a45; font-size: 0.88rem; font-weight: 500; }
 .afs-error { color: var(--hh-error, #a02828); font-size: 0.85rem; margin: 0; }
+
+.apx-link.apx-link-quiet { opacity: 0.6; }
+.apx-link.apx-link-quiet:hover { opacity: 1; }
