@@ -380,10 +380,12 @@ export default function SchoolShortlistPanel({
   }, [rows, allApplications]);
 
   // One entry per booked tour slot, so a school with both a primary and a
-  // secondary tour shows both in the Tour schedule underneath.
+  // secondary tour shows both in the Tour schedule underneath. Cancelled
+  // slots are left out so the schedule only shows what still stands (Miss
+  // Lyndsay, 9 Oct 2026).
   const tours = rows.filter((r) => !isRowClosed(r)).flatMap((r) =>
     [
-      r.tour_date && {
+      r.tour_date && r.tour_status !== "cancelled" && {
         id: r.id + "-primary",
         kind: "Primary tour",
         school: r.school,
@@ -391,7 +393,7 @@ export default function SchoolShortlistPanel({
         start: r.tour_start_time,
         status: r.tour_status,
       },
-      r.tour2_date && {
+      r.tour2_date && r.tour2_status !== "cancelled" && {
         id: r.id + "-secondary",
         kind: "Secondary tour",
         school: r.school,
