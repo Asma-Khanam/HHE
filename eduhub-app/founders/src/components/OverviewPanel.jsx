@@ -5,6 +5,7 @@ import CopyButton from "./CopyButton";
 import ReferralsPanel from "./ReferralsPanel";
 import IntroductionsPanel from "./IntroductionsPanel";
 import PlacementPanel from "./PlacementPanel";
+import ApplicationProgressPanel from "./ApplicationProgressPanel";
 import CaseNotesPanel from "./CaseNotesPanel";
 import GenericDocumentsPanel from "./GenericDocumentsPanel";
 import "./panels.css";
@@ -56,6 +57,8 @@ export default function OverviewPanel({
   namedParents,
   familyChildren,
   onGoToVisits,
+  onGoToApplications,
+  applicationsByChild,
   onGoToMember,
   onProgressChange,
   caseNotes,
@@ -149,6 +152,12 @@ export default function OverviewPanel({
       </section>
 
       <TourSchedulePanel familyId={family.id} onGoToVisits={onGoToVisits} />
+
+      <ApplicationProgressPanel
+        familyChildren={familyChildren}
+        applicationsByChild={applicationsByChild}
+        onGoToApplications={onGoToApplications}
+      />
 
       <PlacementPanel family={family} familyChildren={familyChildren} onChanged={onProgressChange} />
 

@@ -60,3 +60,14 @@
 
 .ov-name-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: inherit; cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: rgba(94,26,50,0.3); text-underline-offset: 3px; }
 .ov-name-link:hover { color: #5e1a32; text-decoration-color: #5e1a32; }
+
+/* Applications & offers (Overview) */
+.ov-progress { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.ov-progress-child { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 12px; background: #faf3e3; border: 1px solid rgba(184, 154, 90, 0.45); min-width: 0; }
+.ov-progress-name { font-size: 1.05rem; font-weight: 600; color: var(--hh-burgundy, var(--hh-ink)); }
+.ov-progress-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ov-progress-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; border-radius: 8px; background: var(--hh-white, #fff); border-left: 3px solid rgba(83, 1, 38, 0.2); }
+.ov-progress-item.is-good { border-left-color: var(--hh-good, #2e7d4f); }
+.ov-progress-item.is-wait { border-left-color: var(--hh-gold, #b89a5a); }
+.ov-progress-school { font-weight: 600; font-size: 0.9rem; min-width: 0; overflow-wrap: anywhere; }
+.ov-progress-status { font-size: 0.76rem; opacity: 0.65; white-space: nowrap; }
