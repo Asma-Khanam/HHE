@@ -50,7 +50,7 @@ export default function FormSelect({
   }
 
   return (
-    <div className={"hh-field" + (error ? " hh-field-error" : "")} data-field-key={fieldKey}>
+    <div className={"hh-field" + (error ? " hh-field-error" : "") + (!current ? " is-empty" : "")} data-field-key={fieldKey}>
       <label>
         {label}
         {required && " *"}

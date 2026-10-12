@@ -615,3 +615,14 @@
 .app-section-plain > .move-card { margin: 0 0 12px; padding: 14px 18px 16px; }
 .app-section-plain > .move-card:last-child { margin-bottom: 0; }
 .app-section-plain > .move-card:first-of-type .move-card-head h3 { display: none; }
+
+/* Red flag on any unfilled field (Miss Lyndsay / Miss Heather, 12 Oct 2026).
+   An unfilled section doesn't block saving the application, so we flag each
+   empty field so parents can see at a glance what still needs attention. */
+.hh-field.is-empty > label::before {
+  content: "\1F6A9 ";  /* 🚩 */
+  margin-right: 2px;
+}
+.hh-field.is-empty > label {
+  color: var(--hh-error, #b3261e);
+}

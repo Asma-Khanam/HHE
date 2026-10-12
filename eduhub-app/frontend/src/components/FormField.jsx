@@ -14,7 +14,7 @@ export default function FormField({
 }) {
   const Tag = as;
   return (
-    <div className={"hh-field" + (error ? " hh-field-error" : "")} data-field-key={fieldKey}>
+    <div className={"hh-field" + (error ? " hh-field-error" : "") + (!value && value !== 0 ? " is-empty" : "")} data-field-key={fieldKey}>
       <label>
         {label}
         {required && " *"}
