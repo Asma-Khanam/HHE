@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fetchApplicationFees } from "../lib/applicationFees";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import SchoolUpdatesCard from "../components/SchoolUpdatesCard";
 import IntroductionsCard from "../components/IntroductionsCard";
@@ -102,6 +103,30 @@ export default function DashboardPage() {
     budgetStatus: family.budget_status || "",
   };
   const documentsByOwner = data?.documentsByOwner || {};
+  // Outstanding payments chip (Miss Lyndsay, 12 Oct 2026): families kept
+  // asking "what do I still owe?" — pull every unpaid payment and every
+  // unpaid fee the consultant has sent, show the total and item count on
+  // the dashboard header with a tap through to Billing.
+  const [feesForDue, setFeesForDue] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    fetchApplicationFees()
+      .then((rows) => alive && setFeesForDue(rows || []))
+      .catch(() => alive && setFeesForDue([]));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const paymentsForDue = data?.payments || [];
+  const dueItems = [
+    ...paymentsForDue.filter((p) => p.status === "unpaid"),
+    ...feesForDue.filter((f) => f.status !== "paid" && f.status !== "waived" && !f.paid_direct_by_family && f.sent_to_family_at),
+  ];
+  const dueTotal = dueItems.reduce((t, r) => t + (Number(r.amount) || 0), 0);
+  const dueCurrency = dueItems[0]?.currency || paymentsForDue[0]?.currency || "AED";
+  const dueMoney = dueTotal
+    ? `${dueCurrency} ${dueTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : "";
   // Same shape ApplicationForm builds — schoolsByChild is keyed by child id,
   // this lines it up as one array parallel to `children` by index.
   const currentSchools = children.map((c) => data?.schoolsByChild?.[c.id] || {});
@@ -231,6 +256,16 @@ export default function DashboardPage() {
                 {isSubmitted ? "Submitted" : "Draft"}
               </span>
               {!isSubmitted && missingFields.length === 0 && <span className="dash-chip is-quiet">Ready to submit</span>}
+              {dueItems.length > 0 && (
+                <button
+                  type="button"
+                  className="dash-chip is-due"
+                  onClick={() => navigate("/app/billing")}
+                  title="Open Billing"
+                >
+                  {dueMoney ? `${dueMoney} outstanding` : `${dueItems.length} item${dueItems.length === 1 ? "" : "s"} outstanding`}
+                </button>
+              )}
             </div>
           </div>
         </div>
