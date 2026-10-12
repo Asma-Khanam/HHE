@@ -9,7 +9,12 @@
   padding: clamp(16px, 2.2vw, 32px) clamp(16px, 2.6vw, 40px) 60px;
   display: flex;
   flex-direction: column;
-  gap: clamp(14px, 1.6vw, 20px);
+  gap: clamp(18px, 2vw, 26px);
+  background:
+    radial-gradient(1200px 400px at 10% -5%, rgba(184, 154, 90, 0.08), transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, rgba(83, 1, 38, 0.05), transparent 60%),
+    linear-gradient(180deg, #fbf6f0 0%, #faf3ec 100%);
+  min-height: 100vh;
   width: 100%;
   min-width: 0;
 }
@@ -221,11 +226,25 @@
 /* ------------------------------------------------------------ card shell */
 
 .dash-card {
+  position: relative;
   background: var(--hh-white);
   border: 1px solid var(--hh-track);
-  border-radius: 16px;
-  padding: 6px 22px 18px;
-  box-shadow: 0 8px 24px rgba(83, 1, 38, 0.05);
+  border-radius: 18px;
+  padding: 6px 24px 20px;
+  box-shadow: 0 6px 22px rgba(83, 1, 38, 0.045), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.dash-card:hover { box-shadow: 0 10px 30px rgba(83, 1, 38, 0.07); }
+.dash-card::before {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(184, 154, 90, 0.55), rgba(83, 1, 38, 0.35));
+  opacity: 0.85;
 }
 
 .dash-card-head {
@@ -754,3 +773,118 @@
 .dash-owed-cta:hover { background: #7b1e3a; }
 .dash-owed-cta:active { transform: scale(0.98); }
 
+
+
+/* -------------------- Oct 2026 polish pass (one-shot UI/UX refresh) ------- */
+
+/* Slim HHE-paid-on-behalf banner (replaces the heavy yellow card).
+   Clickable: whole strip goes to Billing. */
+.dash-owed-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(154, 91, 0, 0.28);
+  background: linear-gradient(90deg, #fdf5ea 0%, #faecd4 100%);
+  color: #5d4512;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.15s ease;
+  box-shadow: 0 4px 14px rgba(154, 91, 0, 0.08);
+}
+.dash-owed-strip:hover { box-shadow: 0 8px 22px rgba(154, 91, 0, 0.14); }
+.dash-owed-strip:active { transform: scale(0.995); }
+.dash-owed-dot {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #c08a2a;
+  box-shadow: 0 0 0 4px rgba(192, 138, 42, 0.18);
+}
+.dash-owed-strip-text { flex: 1; font-size: 0.95rem; min-width: 0; }
+.dash-owed-strip-text strong { color: var(--hh-burgundy); font-weight: 700; font-size: 1.02rem; }
+.dash-owed-strip-sub { color: rgba(93, 69, 18, 0.75); font-size: 0.86rem; }
+.dash-owed-strip-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--hh-burgundy);
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .dash-owed-strip-sub { display: block; margin-top: 2px; }
+}
+
+/* Collapsed Your family / School updates / School contacts preview text next
+   to the heading, so a closed card still tells you something. */
+.dash-family-preview {
+  margin-left: 10px;
+  font-size: 0.82rem;
+  color: rgba(42, 17, 25, 0.6);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Package card: tidier label row, softer meter dots in warm gold rather
+   than the heavy burgundy. */
+.pkg-card-chip {
+  background: linear-gradient(135deg, rgba(184, 154, 90, 0.22), rgba(184, 154, 90, 0.1));
+  color: #7a6228;
+  border: 1px solid rgba(184, 154, 90, 0.32);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Softer package meter dots (overrides PackageMeter.css). */
+.pkg-dot { height: 8px; background: #f0e6ea; }
+.pkg-dot.is-booked { background: linear-gradient(90deg, #d8ba76, #c99c3a); }
+.pkg-dot.is-done { background: linear-gradient(90deg, #7a1a3a, #530126); }
+
+/* Readiness ring gets a soft inner glow to feel less flat. */
+.dash-readiness::after {
+  content: "";
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 45%, rgba(184, 154, 90, 0.12), transparent 65%);
+  pointer-events: none;
+}
+
+/* A touch more air inside each card head. */
+.dash-card-head {
+  padding-top: 18px;
+  padding-bottom: 14px;
+}
+
+/* Family avatars border now matches cream so they blend. */
+.dash-family-faces .dash-family-face {
+  width: 30px;
+  height: 30px;
+  border-color: #fbf6f0;
+  box-shadow: 0 2px 5px rgba(83, 1, 38, 0.1);
+}
+
+/* Spotlight: trim some weight and add a soft shine. */
+.dash-spotlight {
+  padding: clamp(20px, 2.1vw, 26px) clamp(22px, 2.6vw, 30px);
+  box-shadow: 0 12px 28px rgba(83, 1, 38, 0.18);
+}
+.dash-spotlight h2 { font-size: clamp(1.15rem, 1rem + 0.6vw, 1.4rem); }
+.dash-spotlight p { font-size: 0.88rem; }
+.dash-spotlight-cta {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}

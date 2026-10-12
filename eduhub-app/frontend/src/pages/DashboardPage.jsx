@@ -293,25 +293,21 @@ export default function DashboardPage() {
       </section>
 
       {owedToHhe.length > 0 && (
-        <section className="dash-owed">
-          <div className="dash-owed-head">
-            <span className="dash-owed-eyebrow">Paid by HHE on your behalf</span>
-            <h2>{owedMoney} owed to HHE</h2>
-            <p>
-              {owedToHhe.length} school fee{owedToHhe.length === 1 ? "" : "s"} HHE paid the school for.
-              Please settle with us when you can.
-            </p>
-          </div>
-          <ul className="dash-owed-list">
-            {owedToHhe.map((f) => (
-              <li key={f.id}>
-                <span className="dash-owed-school">{f.application?.school?.name || "School"}</span>
-                <span className="dash-owed-amount">{(f.currency || "AED")} {Number(f.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </li>
-            ))}
-          </ul>
-          <button type="button" className="dash-owed-cta" onClick={() => navigate("/app/billing")}>Open Billing</button>
-        </section>
+        <button
+          type="button"
+          className="dash-owed-strip"
+          onClick={() => navigate("/app/billing")}
+          title={owedToHhe.map((f) => f.application?.school?.name || "School").join(", ")}
+        >
+          <span className="dash-owed-dot" aria-hidden="true" />
+          <span className="dash-owed-strip-text">
+            <strong>{owedMoney}</strong> owed to HHE
+            <span className="dash-owed-strip-sub">
+              {" "}· {owedToHhe.length} school fee{owedToHhe.length === 1 ? "" : "s"} we paid on your behalf
+            </span>
+          </span>
+          <span className="dash-owed-strip-cta">Settle in Billing <IconChevronRight size={14} /></span>
+        </button>
       )}
 
 
@@ -327,6 +323,11 @@ export default function DashboardPage() {
                 aria-expanded={familyOpen}
               >
                 <h2>Your family</h2>
+                {!familyOpen && (
+                  <span className="dash-family-preview">
+                    {people.map((p) => firstNameOf(p.name) || p.role).filter(Boolean).join(" · ") || "Add your family"}
+                  </span>
+                )}
                 <span className="dash-family-faces" aria-hidden="true">
                   {people.map((person) => (
                     <PersonAvatar
