@@ -1,0 +1,3 @@
+
+.apx-inperson { display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 4px; padding: 7px 12px; background: #fdf7ee; border: 1px dashed rgba(184, 154, 90, 0.5); border-radius: 10px; font-size: 0.86rem; color: #2a1119; cursor: pointer; }
+.apx-inperson input[type="checkbox"] { width: 16px; height: 16px; accent-color: #530126; cursor: pointer; }

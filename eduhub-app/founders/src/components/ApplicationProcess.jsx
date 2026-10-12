@@ -118,10 +118,10 @@ export default function ApplicationProcess({
     summary:
       cur > 1
         ? hasAssessment
-          ? `Done · ${assessWhen || "online"}`
+          ? `Done · ${assessWhen || (a.assessment_in_person ? "in person" : "online")}`
           : "No assessment"
         : assessWhen
-        ? `Booked · ${assessWhen}`
+        ? `Booked · ${assessWhen}${a.assessment_in_person ? " · in person" : ""}`
         : cur === 1
         ? "Not booked yet"
         : "",
@@ -154,26 +154,53 @@ export default function ApplicationProcess({
             />
           </label>
         </div>
-        {a.assessment_link && (
+        {/* In-person tick (Miss Lyndsay, 12 Oct 2026): when ticked, the
+            online meeting fields disappear so the Assessment card stays
+            clean for school visits. The family sees "At the school" instead
+            of an empty join link. */}
+        <label className="apx-inperson">
+          <input
+            type="checkbox"
+            checked={!!a.assessment_in_person}
+            onChange={(e) => {
+              const inPerson = e.target.checked;
+              const patch = { assessment_in_person: inPerson };
+              // Clear any lingering online fields when flipping to in-person,
+              // so a stale join link / meeting id doesn't confuse the family.
+              if (inPerson) {
+                patch.assessment_link = null;
+                patch.assessment_meeting_id = null;
+                patch.assessment_passcode = null;
+              }
+              onPatch(patch).then((ok) => ok && onLog(inPerson ? "Assessment set as in person at the school" : "Assessment set as online", "assessment_booked"));
+            }}
+          />
+          <span>At the school (in person)</span>
+        </label>
+        {!a.assessment_in_person && a.assessment_link && (
           <a className="panel-btn apx-portal-btn" href={a.assessment_link} target="_blank" rel="noreferrer">
             Open join link ↗
           </a>
         )}
-        <AutosaveField
-          collapsible
-          label={a.assessment_link ? `Join link (${meetingPlatform(a.assessment_link)})` : "Join link: paste the whole Teams / Zoom invite"}
-          placeholder="Paste the invite. The meeting ID and passcode fill themselves in. Leave blank if it's at the school."
-          value={a.assessment_link}
-          onSave={async (v) => {
-            const ok = await onMeetingLink(v);
-            if (!ok) throw new Error("check the message above, then Retry");
-            if (v) onLog("Assessment join link saved", "assessment_booked");
-          }}
-        />
-        <div className="ps-grid">
-          <AutosaveField label="Meeting ID" placeholder="e.g. 312 456 789 012" value={a.assessment_meeting_id} onSave={save("assessment_meeting_id")} />
-          <AutosaveField label="Passcode" placeholder="e.g. aB3cD4" value={a.assessment_passcode} onSave={save("assessment_passcode")} />
-        </div>
+        {!a.assessment_in_person && (
+          <>
+            <AutosaveField
+              collapsible
+              label={a.assessment_link ? `Join link (${meetingPlatform(a.assessment_link)})` : "Join link: paste the whole Teams / Zoom invite"}
+              placeholder="Paste the invite. The meeting ID and passcode fill themselves in."
+              value={a.assessment_link}
+              onSave={async (v) => {
+                const ok = await onMeetingLink(v);
+                if (!ok) throw new Error("check the message above, then Retry");
+                if (v) onLog("Assessment join link saved", "assessment_booked");
+              }}
+            />
+            <div className="ps-grid">
+              <AutosaveField label="Meeting ID" placeholder="e.g. 312 456 789 012" value={a.assessment_meeting_id} onSave={save("assessment_meeting_id")} />
+              <AutosaveField label="Passcode" placeholder="e.g. aB3cD4" value={a.assessment_passcode} onSave={save("assessment_passcode")} />
+            </div>
+          </>
+        )}
         <AutosaveField
           collapsible
           multiline
