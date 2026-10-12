@@ -127,6 +127,7 @@ export default function EmailComposer({
   staffName,
   familyAddress,
   moveDate = "",
+  entryPhrase = "",
   initial = {},
   onSent,
   onClose,
@@ -181,8 +182,8 @@ export default function EmailComposer({
     const famShort = surname ? `${surname} Family` : "our family";
     const fam = surname ? `the ${surname} family` : "our family";
     // Heather, 9 Oct 2026: pull the planned move month into the main email.
-    let whenPhrase = "";
-    if (moveDate) {
+    let whenPhrase = entryPhrase ? ` ${entryPhrase}` : "";
+    if (!whenPhrase && moveDate) {
       const d = new Date(moveDate);
       if (!Number.isNaN(d.getTime())) {
         whenPhrase = ` in ${d.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}`;

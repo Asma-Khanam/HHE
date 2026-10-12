@@ -1042,7 +1042,17 @@ export default function FamilyDetailPage() {
           notes={caseNotes}
           familyName={displayName}
           familyChildren={children}
-          moveDate={family.planned_move_date || family.dubai_available_from || ""}
+          moveDate={family.planned_move_date || ""}
+          entryPhrase={(() => {
+            // Miss Lyndsay, 12 Oct 2026: schools should hear the start term the
+            // family chose, not the dates they are visiting Dubai.
+            const uniq = (key) => [...new Set(children.flatMap((c) => (Array.isArray(c[key]) ? c[key] : [])).filter(Boolean))];
+            const terms = uniq("terms").filter((x) => !/flexible/i.test(x));
+            const years = uniq("academic_years_of_entry").sort();
+            if (terms.length) return `for ${terms.join(" or ")}${years.length ? `, ${years.join(" or ")}` : ""}`;
+            if (years.length) return `for the ${years.join(" or ")} academic year`;
+            return "";
+          })()}
           familyAddress={(() => {
             const alias = (parents || []).find((p) => p.application_alias)?.application_alias || family.application_alias;
             return alias ? `${alias}@applications.heatherharries.com` : "";
