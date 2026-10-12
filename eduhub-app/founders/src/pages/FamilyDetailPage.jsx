@@ -712,6 +712,10 @@ export default function FamilyDetailPage() {
         staff={staff}
         childIds={children.map((c) => c.id)}
         onFamilyChange={handleFamilyFieldChange}
+        entryLine={(() => {
+          const uniq = (key) => [...new Set(children.flatMap((c) => (Array.isArray(c[key]) ? c[key] : [])).filter(Boolean))];
+          return [uniq("academic_years_of_entry").sort().join(", "), uniq("terms").join(", ")].filter(Boolean).join(" · ");
+        })()}
       />
 
       <div className="family-detail-tabs" role="tablist">

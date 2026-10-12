@@ -15,7 +15,7 @@ import { CaseIcon } from "./icons";
 // (Available-in-Dubai dates are the one exception -- the family sets those
 // themselves on their own dashboard's "Your move" card; shown and editable
 // here too, same as origin/destination already were.)
-export default function CaseSettingsPanel({ family, staff, childIds = [], onFamilyChange }) {
+export default function CaseSettingsPanel({ family, staff, childIds = [], onFamilyChange, entryLine = "" }) {
   const [values, setValues] = useState({
     pipeline_stage: family.pipeline_stage || "enquiry",
     client_stage: family.client_stage || "",
@@ -181,6 +181,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
       topUp={topUp} setTopUp={setTopUp} topUpBusy={topUpBusy} topUpDone={topUpDone} addTopUp={addTopUp}
       history={history}
       fmtMonth={fmtMonth} fmtDay={fmtDay} tagRatio={tagRatio}
+      entryLine={entryLine}
     />
   );
 }
@@ -275,6 +276,7 @@ function CaseCardBody({
   topUp, setTopUp, topUpBusy, topUpDone, addTopUp,
   history,
   fmtMonth, fmtDay, tagRatio,
+  entryLine,
 }) {
   const [adjustOpen, setAdjustOpen] = useState(false);
   const toursRatio = usage && allowance?.tours > 0 ? tagRatio(usage.toursUsed, allowance.tours) : null;
@@ -291,6 +293,10 @@ function CaseCardBody({
           </div>
         </div>
         <div className="cv-top-spacer" />
+        <div className={"cv-start" + (entryLine ? "" : " is-empty")} title="The year and term the family chose on their form, same for every child">
+          <span className="cv-start-label">Starting</span>
+          <span className="cv-start-value">{entryLine || "Not chosen yet"}</span>
+        </div>
         {saved && <span className="cv-saved">Saved</span>}
       </div>
 

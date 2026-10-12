@@ -425,3 +425,9 @@
 @media (prefers-reduced-motion: reduce) {
   .cv-progress-dot.is-current { animation: none; }
 }
+
+.cv-start { display: flex; align-items: baseline; gap: 8px; padding: 7px 14px; border-radius: 999px; background: rgba(184, 154, 90, 0.18); border: 1px solid rgba(184, 154, 90, 0.4); margin-right: 10px; }
+.cv-start-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.6; }
+.cv-start-value { font-weight: 700; color: var(--hh-burgundy, #530126); font-size: 0.95rem; }
+.cv-start.is-empty { background: rgba(83, 1, 38, 0.05); border-color: rgba(83, 1, 38, 0.12); }
+.cv-start.is-empty .cv-start-value { font-weight: 400; opacity: 0.5; }
