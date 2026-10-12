@@ -697,7 +697,7 @@ export default function ApplicationsPanel({
                   const expanded = isExpanded(application);
                   const events = eventsByApp[application.id] || [];
                   const lastEvent = events[0];
-                  const flow = applicationMiniSteps(application);
+                  const flow = applicationMiniSteps(application, feesByApp[application.id] || []);
                   const hint = placedElsewhere
                     ? `Closed · ${name} placed at ${childPlaced.schoolName}`
                     : isDeclined

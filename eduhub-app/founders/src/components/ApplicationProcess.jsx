@@ -396,20 +396,51 @@ export default function ApplicationProcess({
   return <ProcessSteps steps={[s1, sFee, s2, s3, s4]} />;
 }
 
-// For the collapsed card's mini bar.
-export function applicationMiniSteps(a) {
+// For the collapsed card's mini bar. Fee is its own stage between Apply
+// and Assessment (Miss Heather, 12 Oct 2026): shown as done when every fee
+// on the application is paid, as current (highlighted) while any is unpaid,
+// and as to-do when none has been added yet.
+export function applicationMiniSteps(a, fees = []) {
   const cur = CURRENT[a.status] ?? 0;
-  const st = (i) => (i < cur ? "done" : i === cur ? "current" : "todo");
-  if (a.status === "rejected")
+  const applied = cur >= 1; // past Apply
+  const feeRows = (fees || []).filter((f) => f.status !== "waived");
+  const feeExists = feeRows.length > 0;
+  const feeUnpaid = feeRows.some((f) => f.status !== "paid");
+  const feeAllPaid = feeExists && !feeUnpaid;
+  const feeState = feeAllPaid
+    ? "done"
+    : feeExists && feeUnpaid
+    ? "current"
+    : applied
+    ? "todo"
+    : "todo";
+
+  // Shared helpers for the three later stages.
+  const assessmentDone = cur >= 2 || a.status === "under_review" || a.status === "waitlisted" || a.status === "offer" || a.status === "offer_accepted" || a.status === "rejected";
+  const outcomeDone = a.status === "offer_accepted";
+  const outcomeBad = a.status === "rejected";
+  const outcomeCurrent = a.status === "under_review" || a.status === "waitlisted" || a.status === "offer";
+  const placedDone = a.status === "offer_accepted";
+
+  if (a.status === "rejected") {
     return [
       { key: "1", label: "Apply", state: "done" },
-      { key: "2", label: "Assessment", state: a.assessment_date ? "done" : "skipped" },
-      { key: "3", label: "Declined", state: "bad" },
-      { key: "4", label: "Placed", state: "na" },
+      { key: "2", label: "Fee", state: feeState === "done" ? "done" : feeExists ? "skipped" : "skipped" },
+      { key: "3", label: "Assessment", state: a.assessment_date ? "done" : "skipped" },
+      { key: "4", label: "Declined", state: "bad" },
+      { key: "5", label: "Placed", state: "na" },
     ];
-  return ["Apply", "Assessment", "Outcome", "Placed"].map((label, i) => ({
-    key: String(i),
-    label,
-    state: i === 1 && cur > 1 && !(a.assessment_date || a.assessment_link) ? "skipped" : st(i),
-  }));
+  }
+
+  return [
+    { key: "1", label: "Apply", state: applied ? "done" : "current" },
+    { key: "2", label: "Fee", state: feeState },
+    {
+      key: "3",
+      label: "Assessment",
+      state: assessmentDone ? "done" : cur === 1 && (a.assessment_date || a.assessment_link) ? "current" : applied ? "todo" : "todo",
+    },
+    { key: "4", label: "Outcome", state: outcomeDone ? "done" : outcomeBad ? "bad" : outcomeCurrent ? "current" : "todo" },
+    { key: "5", label: "Placed", state: placedDone ? "done" : "todo" },
+  ];
 }
