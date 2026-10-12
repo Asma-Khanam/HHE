@@ -154,6 +154,7 @@ export default function OverviewPanel({
       <TourSchedulePanel familyId={family.id} onGoToVisits={onGoToVisits} />
 
       <ApplicationProgressPanel
+        familyId={family.id}
         familyChildren={familyChildren}
         applicationsByChild={applicationsByChild}
         onGoToApplications={onGoToApplications}
