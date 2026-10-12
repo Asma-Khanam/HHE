@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AutosaveField from "./Autosave";
 import { createApplicationFee, updateApplicationFee, uploadFeeInvoice, uploadFeePaymentProof, clearFeeEvidence, listSiblingUnpaidFeesAtSchool } from "../lib/staffData";
 import { getSignedUrl } from "../lib/documents";
@@ -20,6 +20,27 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
   const [busy, setBusy] = useState("");
   const fileInputs = useRef({});
   const paymentInputs = useRef({});
+  // Visible sibling tick box (Miss Heather, 12 Oct 2026): on the fee step
+  // itself, show "Also applies to {names}'s fee at {school}" so staff can
+  // see upfront whether an upload or Mark paid will copy across to siblings
+  // at the same school.
+  const [siblings, setSiblings] = useState([]);
+  const [coverSiblings, setCoverSiblings] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    if (!application?.school_id || !familyId) return;
+    listSiblingUnpaidFeesAtSchool({
+      familyId,
+      schoolId: application.school_id,
+      excludeApplicationId: application.id,
+    })
+      .then((rows) => alive && setSiblings(rows))
+      .catch(() => alive && setSiblings([]));
+    return () => {
+      alive = false;
+    };
+    // fees in the dep list so a sibling getting paid elsewhere refreshes
+  }, [familyId, application?.id, application?.school_id, fees]);
 
   const replace = (saved) => onFeesChange((list) => list.map((f) => (f.id === saved.id ? saved : f)));
 
@@ -98,29 +119,32 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
     try {
       const schoolId = application?.school_id;
       if (!schoolId || !familyId) return;
-      const siblings = await listSiblingUnpaidFeesAtSchool({
+      // Pulled fresh each time, so a sibling marked paid by another route
+      // doesn't get touched a second time.
+      const rows = await listSiblingUnpaidFeesAtSchool({
         familyId,
         schoolId,
         excludeApplicationId: application.id,
       });
-      if (!siblings.length) return;
+      if (!rows.length) return;
       const schoolName = application?.school?.name || "this school";
-      const names = siblings.map((s) => s.childName).join(", ");
-      const paidBit = markPaid ? " and mark their fees paid" : "";
-      const ok = window.confirm(
-        `Copy ${humanLabel} to ${names}'s fee${siblings.length > 1 ? "s" : ""} at ${schoolName}${paidBit}?`
-      );
-      if (!ok) return;
+      const names = rows.map((s) => s.childName).join(", ");
+      // If the staff member has UN-ticked the visible tick box, don't ask
+      // again and don't copy anything. If the tick is on, apply straight
+      // away (no confirm pop-up — the tick is the consent).
+      if (!coverSiblings) return;
       const patch = { ...changes };
       if (markPaid) {
         patch.status = "paid";
         patch.paid_at = patch.paid_at || new Date().toISOString();
       }
       const updated = await Promise.all(
-        siblings.map((s) => updateApplicationFee(s.fee.id, patch).catch(() => null))
+        rows.map((s) => updateApplicationFee(s.fee.id, patch).catch(() => null))
       );
       const done = updated.filter(Boolean).length;
       onLog?.(`Also applied to ${done} sibling fee${done === 1 ? "" : "s"} at ${schoolName}`, "fee_paid");
+      // humanLabel is kept in the log event so it isn't lost.
+      void humanLabel;
     } catch {
       /* best-effort, don't block the main action */
     }
@@ -207,6 +231,18 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
                 />
               </label>
             </div>
+            {siblings.length > 0 && !waived && (
+              <label className="afs-sibling">
+                <input
+                  type="checkbox"
+                  checked={coverSiblings}
+                  onChange={(e) => setCoverSiblings(e.target.checked)}
+                />
+                <span>
+                  Also applies to {siblings.map((s) => s.childName).join(" and ")}&rsquo;s fee at {application?.school?.name || "this school"}
+                </span>
+              </label>
+            )}
             {!paid && !waived && (
               <button type="button" className="apx-link" onClick={() => markPaid(fee, today())}>
                 Mark as paid today
