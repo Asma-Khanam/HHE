@@ -4,6 +4,7 @@ import { useApplicationData } from "../context/ApplicationDataContext";
 import PaymentsCard from "../components/PaymentsCard";
 import ApplicationFeesCard from "../components/ApplicationFeesCard";
 import "./BillingPage.css";
+import { PageError, PageLoading } from "../components/StatePanels";
 
 function sumBy(rows, currency) {
   return rows.reduce((t, p) => t + (Number(p.amount) || 0), 0).toLocaleString(undefined, {
@@ -16,7 +17,7 @@ function sumBy(rows, currency) {
 // Three quick totals up top, then the same payments list as before
 // (upload a receipt, see when it's confirmed).
 export default function BillingPage() {
-  const { status, user, data } = useApplicationData();
+  const { status, error, user, data, reload } = useApplicationData();
   const [fees, setFees] = useState([]);
   const [feesError, setFeesError] = useState("");
   useEffect(() => {
@@ -24,7 +25,8 @@ export default function BillingPage() {
       .then(setFees)
       .catch(() => setFeesError("Couldn't load application fees."));
   }, []);
-  if (status === "loading") return <p className="dashboard-status">Loading...</p>;
+  if (status === "loading") return <PageLoading label="Loading your billing…" />;
+  if (status === "error") return <PageError title="We couldn’t load your billing" message={error} onRetry={reload} />;
 
   const payments = data?.payments || [];
   const parent = (data?.parents || []).find((x) => x.full_name || x.first_name);

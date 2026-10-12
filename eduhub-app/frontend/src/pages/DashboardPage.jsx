@@ -4,6 +4,7 @@ import { fetchApplicationFees } from "../lib/applicationFees";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import SchoolUpdatesCard from "../components/SchoolUpdatesCard";
 import SchoolContactsCard from "../components/SchoolContactsCard";
+import { PageError, PageLoading } from "../components/StatePanels";
 import IntroductionsCard from "../components/IntroductionsCard";
 import UpcomingToursCard from "../components/UpcomingToursCard";
 import PackageUsageCard from "../components/PackageUsageCard";
@@ -84,7 +85,7 @@ function statusFor(pct) {
 }
 
 export default function DashboardPage() {
-  const { data, user } = useApplicationData();
+  const { data, user, status, error, reload } = useApplicationData();
   const navigate = useNavigate();
   // "Your family" opens and closes like a dropdown (September 2026).
   const [familyOpen, setFamilyOpen] = useState(false);
@@ -118,6 +119,8 @@ export default function DashboardPage() {
       alive = false;
     };
   }, []);
+  if (status === "loading") return <PageLoading label="Loading your dashboard…" />;
+  if (status === "error") return <PageError title="We couldn’t load your dashboard" message={error} onRetry={reload} />;
   const paymentsForDue = data?.payments || [];
   const dueItems = [
     ...paymentsForDue.filter((p) => p.status === "unpaid"),

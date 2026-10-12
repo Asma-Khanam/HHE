@@ -5,6 +5,7 @@ import { CHILD_DOCUMENT_TYPES, PARENT_DOCUMENT_TYPES } from "../data/documentTyp
 import { displayNameForChild, expectedChildDocTypes, expectedParentDocTypes } from "../lib/completeness";
 import { IconChevronDown } from "../components/icons";
 import "./DocumentsPage.css";
+import { PageError, PageLoading } from "../components/StatePanels";
 
 // Documents (September 2026) -- every document, per person, in one place.
 // Green tick = on file, red cross = still to upload (same look as the
@@ -13,11 +14,12 @@ import "./DocumentsPage.css";
 const NEVER_OPTIONAL = ["leaving_certificate", "sen_supporting_documents"];
 
 export default function DocumentsPage() {
-  const { status, user, data, reload } = useApplicationData();
+  const { status, error, user, data, reload } = useApplicationData();
   // Instant update after an upload, while the full reload catches up.
   const [overrides, setOverrides] = useState({});
 
-  if (status === "loading") return <p className="dashboard-status">Loading...</p>;
+  if (status === "loading") return <PageLoading label="Loading your documents…" />;
+  if (status === "error") return <PageError title="We couldn’t load your documents" message={error} onRetry={reload} />;
 
   const parents = data?.parents || [];
   const children = data?.children || [];

@@ -1,0 +1,47 @@
+.sp-skel { display: grid; gap: 12px; padding: 14px 0 8px; }
+.sp-skel-line {
+  display: block;
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f0e6ea 25%, #f8f1f4 50%, #f0e6ea 75%);
+  background-size: 200% 100%;
+  animation: sp-shimmer 1.3s ease-in-out infinite;
+}
+@keyframes sp-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+.sp-notice { display: flex; align-items: center; gap: 14px; padding: 14px 0 6px; flex-wrap: wrap; }
+.sp-icon {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(184, 154, 90, 0.2); color: #7a6228; font-weight: 800;
+}
+.sp-text { display: grid; gap: 2px; flex: 1 1 220px; min-width: 0; font-size: 0.88rem; }
+.sp-text strong { color: var(--hh-ink); }
+.sp-text span { color: rgba(42, 17, 25, 0.6); }
+
+.sp-btn {
+  border: 1px solid var(--hh-track); background: var(--hh-white); color: var(--hh-burgundy);
+  border-radius: 999px; padding: 8px 18px; font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+.sp-btn:hover { background: var(--hh-cream); }
+.sp-btn:active { transform: scale(0.98); }
+.sp-btn-primary { background: var(--hh-burgundy); color: #fff; border-color: var(--hh-burgundy); }
+.sp-btn-primary:hover { background: #7b1e3a; }
+
+.sp-page {
+  display: grid; justify-items: center; gap: 10px; text-align: center;
+  padding: 72px 24px; max-width: 460px; margin: 0 auto; color: var(--hh-ink);
+}
+.sp-page h2 { margin: 6px 0 0; font-family: var(--hh-font-heading); font-size: 1.3rem; color: var(--hh-burgundy); }
+.sp-page p { margin: 0; color: rgba(42, 17, 25, 0.65); }
+.sp-page small { color: rgba(42, 17, 25, 0.5); margin-top: 6px; }
+.sp-icon-lg { width: 46px; height: 46px; font-size: 1.3rem; }
+.sp-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.sp-spinner {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 3px solid var(--hh-track); border-top-color: var(--hh-burgundy);
+  animation: sp-spin 0.8s linear infinite;
+}
+@keyframes sp-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sp-skel-line, .sp-spinner { animation: none; } }

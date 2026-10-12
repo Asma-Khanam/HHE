@@ -6,6 +6,7 @@ import { placedByChild, schoolClosed } from "../lib/placement";
 import { parseDay, timeRange, toursOfRow } from "../lib/tourDetails";
 import TourDetailsCard from "./TourDetailsCard";
 import { IconChevronDown } from "./icons";
+import { CardError } from "./StatePanels";
 import "./UpcomingToursCard.css";
 
 // Dashboard: "Your next school tour" -- the founders' School Tour Details
@@ -16,10 +17,13 @@ export default function UpcomingToursCard() {
   const childKey = (data?.children || []).map((c) => c.id).join(",");
   const [tours, setTours] = useState([]);
   const [openKey, setOpenKey] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (!familyId) return undefined;
     let cancelled = false;
+    setFailed(false);
     const childIds = childKey ? childKey.split(",") : [];
     Promise.all([fetchFamilyTimetable(familyId), fetchFamilyApplications(childIds).catch(() => [])])
       .then(([{ shortlist }, apps]) => {
@@ -36,12 +40,13 @@ export default function UpcomingToursCard() {
         setTours(upcoming);
         setOpenKey(upcoming[0]?.key || null);
       })
-      .catch(() => {});
+      .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;
     };
-  }, [familyId, childKey]);
+  }, [familyId, childKey, retry]);
 
+  if (failed) return <CardError title="Your school tours" onRetry={() => setRetry((n) => n + 1)} />;
   if (!tours.length) return null;
 
   return (

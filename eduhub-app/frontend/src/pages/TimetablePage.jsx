@@ -10,6 +10,7 @@ import AssessmentCard from "../components/AssessmentCard";
 import { hasAssessment, assessmentOf, assessmentWhen } from "../lib/assessment";
 import { placedByChild, schoolClosed, appClosed } from "../lib/placement";
 import "./TimetablePage.css";
+import { PageError, PageLoading } from "../components/StatePanels";
 
 // "Your schools" -- rebuilt September 2026 ("every feature should have a
 // purpose and should be working"). Three parts, each doing one job:
@@ -233,8 +234,8 @@ export default function TimetablePage() {
     setRows((list) => list.map((r) => (r.id === rowId ? { ...r, ...changes } : r)));
   }
 
-  if (status === "loading") return <p className="dashboard-status">Loading your schools...</p>;
-  if (status === "error") return <p className="dashboard-status">{error}</p>;
+  if (status === "loading") return <PageLoading label="Loading your schools…" />;
+  if (status === "error") return <PageError title="We couldn’t load your schools" message={error} onRetry={() => window.location.reload()} />;
 
   return (
     <div className="ys">

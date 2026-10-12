@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import { fetchFamilyApplications, fetchFamilyTimetable } from "../lib/timetableData";
 import { IconChevronDown } from "./icons";
+import { CardError, CardSkeleton } from "./StatePanels";
 import "./SchoolContactsCard.css";
 
 // Who to contact at each school (Miss Lyndsay, 12 Oct 2026): the consultant
@@ -14,11 +15,14 @@ export default function SchoolContactsCard() {
   const { familyId, data } = useApplicationData();
   const [groups, setGroups] = useState(null);
   const [open, setOpen] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
   const childKey = (data?.children || []).map((c) => c.id).join(",");
 
   useEffect(() => {
     if (!familyId) return;
     let alive = true;
+    setFailed(false);
     (async () => {
       try {
         const childIds = childKey ? childKey.split(",") : [];
@@ -47,15 +51,17 @@ export default function SchoolContactsCard() {
         });
         if (alive) setGroups(Object.values(by).sort((a, b) => a.name.localeCompare(b.name)));
       } catch {
-        if (alive) setGroups([]);
+        if (alive) setFailed(true);
       }
     })();
     return () => {
       alive = false;
     };
-  }, [familyId, childKey]);
+  }, [familyId, childKey, retry]);
 
-  if (!groups || groups.length === 0) return null;
+  if (failed) return <CardError title="School contacts" onRetry={() => setRetry((n) => n + 1)} />;
+  if (!groups) return <CardSkeleton title="School contacts" rows={2} />;
+  if (groups.length === 0) return null;
 
   return (
     <section className={"dash-card sc-card" + (open ? " is-open" : "")}>

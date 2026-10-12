@@ -1,6 +1,7 @@
 import { useLocation } from "react-router-dom";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import ApplicationForm from "../components/ApplicationForm";
+import { PageError, PageLoading } from "../components/StatePanels";
 import "./ApplicationPage.css";
 
 export default function ApplicationPage() {
@@ -10,16 +11,10 @@ export default function ApplicationPage() {
   // is where that gets picked back up.
   const location = useLocation();
 
-  if (status === "loading") return <p className="dashboard-status">Loading your application...</p>;
+  if (status === "loading") return <PageLoading label="Loading your application…" />;
 
   if (status === "error") {
-    return (
-      <div className="dashboard-status">
-        <div className="hh-form-banner hh-form-banner-error" style={{ maxWidth: 480, margin: "0 auto" }}>
-          {error}
-        </div>
-      </div>
-    );
+    return <PageError title="We couldn’t load your application" message={error} onRetry={reload} />;
   }
 
   return (

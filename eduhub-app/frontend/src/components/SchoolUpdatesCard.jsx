@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import { fetchFamilyApplications, fetchFamilyTimetable } from "../lib/timetableData";
 import { IconChevronDown } from "./icons";
+import { CardError, CardSkeleton } from "./StatePanels";
 import "./SchoolUpdatesCard.css";
 
 // School updates (September 2026) -- what the consultant has told the
@@ -83,12 +84,15 @@ export default function SchoolUpdatesCard() {
   // this card leaks any of that; only updates staff explicitly pushed with
   // Update family or application outcomes show here.
   const [openSchoolId, setOpenSchoolId] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   const childKey = (data?.children || []).map((c) => c.id).join(",");
 
   useEffect(() => {
     if (!familyId) return;
     let alive = true;
+    setFailed(false);
     (async () => {
       const { data: r, error } = await supabase
         .from("family_school_updates")
@@ -117,14 +121,18 @@ export default function SchoolUpdatesCard() {
       // child and step; otherwise the application's own status fills in.
       const seen = new Set(manual.map((u) => `${u.school_id}|${u.child_id || ""}|${u.stage}`));
       const extra = fromApps.filter((u) => !seen.has(`${u.school_id}|${u.child_id || ""}|${u.stage}`));
-      if (alive) setRows([...manual, ...extra]);
+      if (alive) {
+        if (error && !extra.length) setFailed(true);
+        else setRows([...manual, ...extra]);
+      }
     })();
     return () => {
       alive = false;
     };
-  }, [familyId, childKey]);
+  }, [familyId, childKey, retry]);
 
-  if (!rows) return null;
+  if (failed) return <CardError title="School updates" onRetry={() => setRetry((n) => n + 1)} />;
+  if (!rows) return <CardSkeleton title="School updates" rows={2} />;
 
   const childName = (id) => (data?.children || []).find((c) => c.id === id)?.first_name || "";
 

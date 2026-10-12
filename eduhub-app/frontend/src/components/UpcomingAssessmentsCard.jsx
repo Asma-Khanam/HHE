@@ -8,6 +8,7 @@ import { hasAssessment, assessmentOf, assessmentWhen } from "../lib/assessment";
 import { placedByChild, appClosed } from "../lib/placement";
 import AssessmentCard from "./AssessmentCard";
 import { IconChevronDown } from "./icons";
+import { CardError } from "./StatePanels";
 import "./UpcomingToursCard.css";
 
 // Dashboard: upcoming assessments, with the join link, meeting ID and
@@ -21,10 +22,13 @@ export default function UpcomingAssessmentsCard() {
   const childKey = children.map((c) => c.id).join(",");
   const [items, setItems] = useState([]);
   const [openKey, setOpenKey] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (!familyId || !childKey) return undefined;
     let cancelled = false;
+    setFailed(false);
     Promise.all([fetchFamilyTimetable(familyId), fetchFamilyApplications(childKey.split(","))])
       .then(([{ shortlist }, apps]) => {
         if (cancelled) return;
@@ -45,13 +49,14 @@ export default function UpcomingAssessmentsCard() {
         setItems(list);
         setOpenKey(list[0]?.key || null);
       })
-      .catch(() => {});
+      .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [familyId, childKey]);
+  }, [familyId, childKey, retry]);
 
+  if (failed) return <CardError title="Your assessments" onRetry={() => setRetry((n) => n + 1)} />;
   if (!items.length) return null;
 
   return (

@@ -6,6 +6,7 @@ import { packageLabel } from "../data/packages";
 import { allowanceFor, countUsage } from "../lib/packageUsage";
 import PackageMeter from "./PackageMeter";
 import { displayNameForChild } from "../lib/completeness";
+import { CardError, CardSkeleton } from "./StatePanels";
 import "./PackageUsageCard.css";
 
 // Dashboard: "Your package" -- how many of the school tours and applications
@@ -17,10 +18,13 @@ export default function PackageUsageCard() {
   const childKey = (data?.children || []).map((c) => c.id).join(",");
   const [usage, setUsage] = useState(null);
   const [override, setOverride] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (!familyId || !packageKey) return undefined;
     let cancelled = false;
+    setFailed(false);
     const childIds = childKey ? childKey.split(",") : [];
     Promise.all([
       fetchFamilyTimetable(familyId),
@@ -38,12 +42,14 @@ export default function PackageUsageCard() {
         setUsage(countUsage({ shortlist, applications }));
         setOverride(ov);
       })
-      .catch(() => {});
+      .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;
     };
-  }, [familyId, packageKey, childKey]);
+  }, [familyId, packageKey, childKey, retry]);
 
+  if (packageKey && failed) return <CardError title="Your package" onRetry={() => setRetry((n) => n + 1)} />;
+  if (packageKey && !usage) return <CardSkeleton title="Your package" rows={3} />;
   const allowance = allowanceFor(packageKey, override);
   if (!allowance || !usage) return null;
   const finished =
