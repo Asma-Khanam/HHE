@@ -27,6 +27,14 @@ export function countUsage({ shortlist, applications }) {
       if (status === "completed") toursDone += 1;
     }
   }
-  const applicationsUsed = (applications || []).filter((a) => a.status !== "draft" && a.status !== "withdrawn").length;
-  return { toursUsed, toursDone, applicationsUsed };
+  const liveApps = (applications || []).filter((a) => a.status !== "draft" && a.status !== "withdrawn");
+  const applicationsUsed = liveApps.length;
+  // Per-child count (Miss Lyndsay, 12 Oct 2026): the package's application
+  // allowance is per child, not per family. Map child_id -> live count.
+  const applicationsByChild = {};
+  for (const a of liveApps) {
+    if (!a.child_id) continue;
+    applicationsByChild[a.child_id] = (applicationsByChild[a.child_id] || 0) + 1;
+  }
+  return { toursUsed, toursDone, applicationsUsed, applicationsByChild };
 }

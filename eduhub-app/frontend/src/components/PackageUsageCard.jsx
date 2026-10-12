@@ -5,6 +5,7 @@ import { fetchFamilyTimetable, fetchFamilyApplications } from "../lib/timetableD
 import { packageLabel } from "../data/packages";
 import { allowanceFor, countUsage } from "../lib/packageUsage";
 import PackageMeter from "./PackageMeter";
+import { displayNameForChild } from "../lib/completeness";
 import "./PackageUsageCard.css";
 
 // Dashboard: "Your package" -- how many of the school tours and applications
@@ -57,8 +58,28 @@ export default function PackageUsageCard() {
       </div>
       <div className="pkg-card-meters">
         <PackageMeter label="School tours" used={usage.toursUsed} done={usage.toursDone} total={allowance.tours} />
-        <PackageMeter label="Applications" used={usage.applicationsUsed} total={allowance.applications} />
       </div>
+      {allowance.applications > 0 && (
+        <>
+          <div className="pkg-card-subhead">
+            <span>Applications per child</span>
+            <small>{allowance.applications} included per child</small>
+          </div>
+          <div className="pkg-card-children">
+            {(data?.children || []).map((c, i) => (
+              <PackageMeter
+                key={c.id}
+                label={displayNameForChild(c, i) || `Child ${i + 1}`}
+                used={usage.applicationsByChild?.[c.id] || 0}
+                total={allowance.applications}
+              />
+            ))}
+            {(data?.children || []).length === 0 && (
+              <p className="pkg-card-note">Add a child on the Application form to see their count.</p>
+            )}
+          </div>
+        </>
+      )}
       {finished && (
         <p className="pkg-card-note">
           You&rsquo;ve used everything included in your package. If you&rsquo;d like more tours or applications, just
