@@ -1234,3 +1234,28 @@
 
 .zoom-link-hint { margin: 8px 2px 0; font-size: 12.5px; color: #777; line-height: 1.4; }
 .zoom-link-head span b { font-weight: 600; }
+
+/* Several files in one row (SEN documents, school reports): each file on its
+   own line with its own View / Download / Remove, so nothing runs off the
+   card. The "Add another" button sits under the list. */
+.doc-row.is-multi { flex-wrap: wrap; }
+.doc-row-controls.is-multi {
+  flex-basis: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  padding-left: 44px;
+}
+.doc-row-controls.is-multi .doc-row-file-actions {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 6px 0;
+  border-top: 1px solid var(--hh-track);
+}
+.doc-row-file-name {
+  flex: 1 1 260px;
+  min-width: 0;
+  font-size: 0.78rem;
+  opacity: 0.65;
+  overflow-wrap: anywhere;
+}
+.doc-row-controls.is-multi > .panel-btn { align-self: flex-start; margin-top: 4px; }

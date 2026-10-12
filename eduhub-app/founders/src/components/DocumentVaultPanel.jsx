@@ -138,9 +138,15 @@ function VaultRowControls({ row, userId, onChanged }) {
   }
 
   return (
-    <div className="doc-row-controls">
+    <div className={"doc-row-controls" + (row.docs.length > 1 ? " is-multi" : "")}>
       {row.docs.map((doc, idx) => (
         <span key={doc.id} className="doc-row-file-actions">
+          {row.docs.length > 1 && (
+            <span className="doc-row-file-name" title={doc.original_filename}>
+              {doc.original_filename}
+              {doc.created_at ? ` · ${formatDate(doc.created_at)}` : ""}
+            </span>
+          )}
           <button
             type="button"
             className="panel-btn"
@@ -215,7 +221,7 @@ export default function DocumentVaultPanel({ parents, familyChildren, documentsB
       ) : (
         <ul className="panel-list">
           {rows.map((row) => (
-            <li key={row.key} className="doc-row">
+            <li key={row.key} className={"doc-row" + (row.docs.length > 1 ? " is-multi" : "")}>
               <span
                 className={"doc-row-status" + (row.uploaded ? " is-verified" : " is-missing")}
                 title={row.uploaded ? "Uploaded" : "Not uploaded yet"}
@@ -230,7 +236,7 @@ export default function DocumentVaultPanel({ parents, familyChildren, documentsB
                   <span className="doc-row-tag doc-row-tag-muted">{row.personTag}</span>
                 </div>
                 {row.uploaded ? (
-                  row.docs.map((doc) => (
+                  (row.docs.length > 1 ? [] : row.docs).map((doc) => (
                     <div className="doc-row-meta" key={doc.id}>
                       {doc.original_filename}
                       {reportLabel(doc) ? ` · ${reportLabel(doc)}` : ""}
