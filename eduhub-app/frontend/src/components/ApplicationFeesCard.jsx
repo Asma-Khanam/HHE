@@ -58,6 +58,8 @@ export default function ApplicationFeesCard({ fees = [], loadError = "", billTo 
                   <span className="appfee-badge is-paid">Paid {f.paid_at ? day(f.paid_at) : ""}</span>
                 ) : f.paid_direct_by_family ? (
                   <span className="appfee-badge">Paid directly to the school</span>
+                ) : f.hhe_paid_school_on_behalf ? (
+                  <span className="appfee-badge is-owed">Paid by HHE on your behalf · owed back</span>
                 ) : (
                   <span className="appfee-badge">Awaiting payment</span>
                 )}

@@ -732,3 +732,24 @@
   background: rgba(179, 38, 30, 0.04);
   box-shadow: inset 3px 0 0 var(--hh-error, #b3261e);
 }
+
+/* "Paid by us" top-of-dashboard callout (Miss Heather, 12 Oct 2026). */
+.dash-owed {
+  margin: 14px 0 0;
+  padding: 18px 22px;
+  background: linear-gradient(135deg, #fdf5ea 0%, #faecd4 100%);
+  border: 1px solid rgba(184, 154, 90, 0.4);
+  border-radius: 16px;
+  display: grid;
+  gap: 12px;
+}
+.dash-owed-head h2 { margin: 2px 0 4px; font-size: 1.2rem; color: var(--hh-burgundy, #530126); }
+.dash-owed-head p { margin: 0; font-size: 0.9rem; color: rgba(42, 17, 25, 0.75); }
+.dash-owed-eyebrow { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: #7a5f1e; font-weight: 700; }
+.dash-owed-list { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 6px; }
+.dash-owed-list li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 12px; background: rgba(255, 255, 255, 0.6); border-radius: 10px; font-size: 0.9rem; }
+.dash-owed-school { font-weight: 600; }
+.dash-owed-amount { font-weight: 700; color: var(--hh-burgundy, #530126); }
+.dash-owed-cta { align-self: start; background: var(--hh-burgundy, #530126); color: #fff; border: 0; border-radius: 10px; padding: 9px 18px; font: inherit; font-weight: 600; cursor: pointer; transition: background 0.15s ease, transform 0.08s ease; }
+.dash-owed-cta:hover { background: #7b1e3a; }
+.dash-owed-cta:active { transform: scale(0.98); }

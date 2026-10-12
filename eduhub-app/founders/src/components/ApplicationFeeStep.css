@@ -32,3 +32,6 @@
 
 .afs-direct { display: inline-flex; align-items: center; gap: 8px; margin: 6px 0 10px; padding: 7px 12px; background: #f0f4ee; border: 1px dashed rgba(47, 107, 79, 0.4); border-radius: 10px; font-size: 0.86rem; color: #2a1119; cursor: pointer; }
 .afs-direct input[type="checkbox"] { width: 16px; height: 16px; accent-color: #2f6b4f; cursor: pointer; }
+
+.afs-onbehalf { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 7px 12px; background: #faf3e3; border: 1px dashed rgba(184, 154, 90, 0.5); border-radius: 10px; font-size: 0.86rem; color: #2a1119; cursor: pointer; }
+.afs-onbehalf input[type="checkbox"] { width: 16px; height: 16px; accent-color: #b89a5a; cursor: pointer; }

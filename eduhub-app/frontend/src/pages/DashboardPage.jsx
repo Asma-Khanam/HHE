@@ -127,6 +127,13 @@ export default function DashboardPage() {
   const dueMoney = dueTotal
     ? `${dueCurrency} ${dueTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : "";
+  // "Paid by us" fees surface up top (Miss Heather, 12 Oct 2026): HHE
+  // paid the school on behalf, family owes HHE now.
+  const owedToHhe = feesForDue.filter((f) => f.hhe_paid_school_on_behalf && f.status !== "paid" && f.sent_to_family_at);
+  const owedTotal = owedToHhe.reduce((t, r) => t + (Number(r.amount) || 0), 0);
+  const owedMoney = owedTotal
+    ? `${(owedToHhe[0]?.currency || "AED")} ${owedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : "";
   // Same shape ApplicationForm builds — schoolsByChild is keyed by child id,
   // this lines it up as one array parallel to `children` by index.
   const currentSchools = children.map((c) => data?.schoolsByChild?.[c.id] || {});
@@ -283,6 +290,28 @@ export default function DashboardPage() {
           </button>
         )}
       </section>
+
+      {owedToHhe.length > 0 && (
+        <section className="dash-owed">
+          <div className="dash-owed-head">
+            <span className="dash-owed-eyebrow">Paid by HHE on your behalf</span>
+            <h2>{owedMoney} owed to HHE</h2>
+            <p>
+              {owedToHhe.length} school fee{owedToHhe.length === 1 ? "" : "s"} HHE paid the school for.
+              Please settle with us when you can.
+            </p>
+          </div>
+          <ul className="dash-owed-list">
+            {owedToHhe.map((f) => (
+              <li key={f.id}>
+                <span className="dash-owed-school">{f.application?.school?.name || "School"}</span>
+                <span className="dash-owed-amount">{(f.currency || "AED")} {Number(f.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="dash-owed-cta" onClick={() => navigate("/app/billing")}>Open Billing</button>
+        </section>
+      )}
 
 
       <div className={"dash-grid" + (missingFields.length ? "" : " is-single")}>

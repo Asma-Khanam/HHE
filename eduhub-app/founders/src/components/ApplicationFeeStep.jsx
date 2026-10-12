@@ -219,6 +219,26 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
               <span>Paid directly by the family (not through HHE)</span>
             </label>
 
+            {!fee.paid_direct_by_family && (
+              <label className="afs-onbehalf">
+                <input
+                  type="checkbox"
+                  checked={!!fee.hhe_paid_school_on_behalf}
+                  onChange={(e) => {
+                    const flag = e.target.checked;
+                    patchFee(fee, { hhe_paid_school_on_behalf: flag }).then((saved) =>
+                      saved && onLog?.(flag ? "Fee marked as paid by HHE on behalf of family" : "Fee no longer marked as paid by HHE on behalf", "fee_invoiced")
+                    );
+                  }}
+                />
+                <span>HHE paid the school on behalf of the family (family owes HHE)</span>
+              </label>
+            )}
+
+            {!!fee.hhe_paid_school_on_behalf && !fee.paid_direct_by_family && (
+              <span className="afs-source" title="Family will see this at the top of their dashboard with a Pay link and an invoice">Owed to HHE on family dashboard</span>
+            )}
+
             <div className="afs-grid">
               <AutosaveField
                 label="Name of the fee"

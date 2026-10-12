@@ -54,3 +54,5 @@
 }
 .appfee-btn.is-primary { background: var(--hh-burgundy); color: #fff; }
 .appfee-soon { font-size: 0.85rem; opacity: 0.55; }
+
+.appfee-badge.is-owed { background: #faf3e3; color: #7a5f1e; border: 1px solid rgba(184, 154, 90, 0.4); }
