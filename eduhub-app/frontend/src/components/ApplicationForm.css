@@ -616,13 +616,17 @@
 .app-section-plain > .move-card:last-child { margin-bottom: 0; }
 .app-section-plain > .move-card:first-of-type .move-card-head h3 { display: none; }
 
-/* Red flag on any unfilled field (Miss Lyndsay / Miss Heather, 12 Oct 2026).
-   An unfilled section doesn't block saving the application, so we flag each
-   empty field so parents can see at a glance what still needs attention. */
-.hh-field.is-empty > label::before {
-  content: "\1F6A9 ";  /* 🚩 */
-  margin-right: 2px;
-}
-.hh-field.is-empty > label {
-  color: var(--hh-error, #b3261e);
+/* Instagram-style red corner flag on any unfilled input / select / textarea
+   (Miss Lyndsay / Miss Heather, 12 Oct 2026). An unfilled field doesn't
+   block saving the application; this just makes the gap unmistakable. */
+.hh-field.is-empty > input,
+.hh-field.is-empty > select,
+.hh-field.is-empty > textarea,
+.hh-field.is-empty .phone-field,
+.hh-field.is-empty .select-wrap,
+.hh-field.is-empty .input-wrap {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path d='M20 0 L0 0 L20 20 Z' fill='%23b3261e'/></svg>");
+  background-repeat: no-repeat;
+  background-position: top right;
+  background-size: 16px 16px;
 }
