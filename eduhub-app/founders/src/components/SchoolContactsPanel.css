@@ -10,7 +10,7 @@
 .sc-head,
 .sc-row {
   display: grid;
-  grid-template-columns: 28px minmax(140px, 1.2fr) minmax(130px, 1fr) minmax(180px, 1.4fr) minmax(130px, 1fr) max-content;
+  grid-template-columns: 28px minmax(140px, 1.2fr) minmax(130px, 1fr) minmax(180px, 1.4fr) minmax(130px, 1fr) max-content max-content;
   gap: 8px;
   align-items: center;
 }
@@ -103,3 +103,7 @@
     grid-column: 2;
   }
 }
+
+.sc-share { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; white-space: nowrap; cursor: pointer; }
+.sc-head > span:nth-last-child(2) { white-space: nowrap; }
+@media (max-width: 900px) { .sc-share span { display: inline; } }

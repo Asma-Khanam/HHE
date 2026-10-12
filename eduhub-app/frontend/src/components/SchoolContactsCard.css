@@ -1,0 +1,10 @@
+.scc-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.scc-school { padding: 12px 0; border-bottom: 1px solid var(--hh-track); }
+.scc-school:last-child { border-bottom: none; }
+.scc-school > strong { color: var(--hh-burgundy); font-size: 0.95rem; }
+.scc-people { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
+.scc-people li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 0.88rem; }
+.scc-name { font-weight: 600; }
+.scc-title { opacity: 0.65; font-size: 0.8rem; }
+.scc-links { display: flex; flex-wrap: wrap; gap: 4px 14px; flex-basis: 100%; }
+.scc-links a { color: var(--hh-burgundy); text-decoration: underline; word-break: break-all; }

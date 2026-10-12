@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { fetchApplicationFees } from "../lib/applicationFees";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import SchoolUpdatesCard from "../components/SchoolUpdatesCard";
+import SchoolContactsCard from "../components/SchoolContactsCard";
 import IntroductionsCard from "../components/IntroductionsCard";
 import UpcomingToursCard from "../components/UpcomingToursCard";
 import PackageUsageCard from "../components/PackageUsageCard";
@@ -390,6 +391,7 @@ export default function DashboardPage() {
           <UpcomingToursCard />
 
           <SchoolUpdatesCard />
+          <SchoolContactsCard />
 
           <IntroductionsCard />
         </div>

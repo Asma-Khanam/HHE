@@ -154,6 +154,7 @@ export default function SchoolContactsPanel({ school, onSchoolChange }) {
               <span>Job title</span>
               <span>Email</span>
               <span>Phone</span>
+              <span>Parents see</span>
               <span />
             </div>
             {active.map((c) => (
@@ -178,13 +179,21 @@ export default function SchoolContactsPanel({ school, onSchoolChange }) {
                   <AutosaveField bare value={c.phone} placeholder="+971 …" onSave={field(c, "phone")} />
                   {c.phone && <CopyButton text={c.phone} label="Copy phone" />}
                 </span>
+                <label className="sc-share" title="Show this contact on the family's dashboard">
+                  <input
+                    type="checkbox"
+                    checked={c.share_with_family !== false}
+                    onChange={(e) => field(c, "share_with_family")(e.target.checked)}
+                  />
+                  <span>Parents see</span>
+                </label>
                 <button type="button" className="sc-archive" onClick={() => archive(c, true)} disabled={busy}>
                   Left the school
                 </button>
               </div>
             ))}
           </div>
-          <p className="sc-hint">★ is the main contact, shown first on every family&apos;s School visits tab.</p>
+          <p className="sc-hint">★ is the main contact, shown first on every family&apos;s School visits tab. Ticked contacts also show on the parent dashboard for families with this school.</p>
         </>
       )}
 
