@@ -77,6 +77,12 @@ export default function SchoolUpdatesCard() {
   const [rows, setRows] = useState(null);
   // Closed by default so it isn't always in the family's face (Sept 2026).
   const [open, setOpen] = useState(false);
+  // Which school is expanded to show its full update history (Miss Lyndsay,
+  // 12 Oct 2026): one tap on the school opens or closes it. Parents still
+  // never see case notes — those are staff-only (addendum 5), nothing on
+  // this card leaks any of that; only updates staff explicitly pushed with
+  // Update family or application outcomes show here.
+  const [openSchoolId, setOpenSchoolId] = useState(null);
 
   const childKey = (data?.children || []).map((c) => c.id).join(",");
 
@@ -163,12 +169,20 @@ export default function SchoolUpdatesCard() {
             // Per-child lines for outcomes that came from the application
             // itself (e.g. "Amaya — Offer received").
             const childLines = updates.filter((u) => u.fromApplication && OUTCOMES[u.stage]);
+            const sid = school?.id || latest.id;
+            const schoolOpen = openSchoolId === sid;
             return (
-              <li className="su-school" key={school?.id || latest.id}>
-                <div className="su-school-head">
+              <li className={"su-school" + (schoolOpen ? " is-open" : "")} key={sid}>
+                <button
+                  type="button"
+                  className="su-school-head su-school-head-btn"
+                  onClick={() => setOpenSchoolId(schoolOpen ? null : sid)}
+                  aria-expanded={schoolOpen}
+                >
                   <strong>{school?.name || "School"}</strong>
                   {latest.created_at && <span className="su-school-when">Updated {shortDate(latest.created_at)}</span>}
-                </div>
+                  <span className="su-school-caret"><IconChevronDown size={16} /></span>
+                </button>
 
                 <ol className="su-track">
                   {STEPS.map((step) => {
@@ -207,6 +221,21 @@ export default function SchoolUpdatesCard() {
                   )}
                   {latest.note}
                 </p>
+                )}
+
+                {schoolOpen && (
+                  <ol className="su-history">
+                    {[...updates].reverse().map((u) => (
+                      <li className="su-history-item" key={u.id}>
+                        <span className="su-history-date">{u.created_at ? shortDate(u.created_at) : ""}</span>
+                        <span className="su-history-stage">{STAGE_LABEL[u.stage] || u.stage}</span>
+                        {u.child_id && childName(u.child_id) && (
+                          <span className="su-history-child">{childName(u.child_id)}</span>
+                        )}
+                        {u.note && <span className="su-history-note">{u.note}</span>}
+                      </li>
+                    ))}
+                  </ol>
                 )}
               </li>
             );
