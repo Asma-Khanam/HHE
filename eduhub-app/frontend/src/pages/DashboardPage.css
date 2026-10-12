@@ -712,3 +712,23 @@
 .dash-chip.is-due { background: #fff2d6; color: #8a4e00; border: 1px solid rgba(154, 91, 0, 0.3); font-weight: 700; cursor: pointer; transition: background 0.15s ease, transform 0.08s ease; }
 .dash-chip.is-due:hover { background: #ffe5b2; }
 .dash-chip.is-due:active { transform: scale(0.98); }
+
+/* Red-highlight incomplete sections (Miss Lyndsay, 12 Oct 2026). */
+.dash-row.is-incomplete {
+  border-left: 3px solid var(--hh-error, #b3261e);
+  background: rgba(179, 38, 30, 0.03);
+}
+.dash-row.is-incomplete:hover { background: rgba(179, 38, 30, 0.06); }
+.dash-pill.tone-pending {
+  background: rgba(179, 38, 30, 0.1);
+  color: var(--hh-error, #b3261e);
+  border: 1px solid rgba(179, 38, 30, 0.25);
+  font-weight: 700;
+}
+/* Red bullet on the Still to fill in list, so each outstanding item reads
+   as urgent. The item at the top is the next one Spotlight auto-focuses on. */
+.dash-list .dash-bullet { background: var(--hh-error, #b3261e); }
+.dash-list li:first-child button {
+  background: rgba(179, 38, 30, 0.04);
+  box-shadow: inset 3px 0 0 var(--hh-error, #b3261e);
+}

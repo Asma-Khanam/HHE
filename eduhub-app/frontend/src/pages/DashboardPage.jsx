@@ -323,8 +323,14 @@ export default function DashboardPage() {
             <div className="dash-rows">
               {people.map((person) => {
                 const status = statusFor(person.pct);
+                const incomplete = person.pct < 100;
                 return (
-                  <button type="button" className="dash-row" key={person.key} onClick={() => openForm(person.stepKey)}>
+                  <button
+                    type="button"
+                    className={"dash-row" + (incomplete ? " is-incomplete" : "")}
+                    key={person.key}
+                    onClick={() => openForm(person.stepKey)}
+                  >
                     <PersonAvatar
                       doc={person.photo}
                       name={person.name}
@@ -340,7 +346,7 @@ export default function DashboardPage() {
                     </span>
                     <span className="dash-row-meta">
                       <Segments pct={person.pct} />
-                      <span className={"dash-pill tone-" + status.tone}>{status.label}</span>
+                      <span className={"dash-pill tone-" + (incomplete ? "pending" : status.tone)}>{status.label}</span>
                       <IconChevronRight size={16} />
                     </span>
                   </button>
