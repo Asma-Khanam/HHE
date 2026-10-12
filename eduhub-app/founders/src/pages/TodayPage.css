@@ -419,3 +419,163 @@
     gap: 2px;
   }
 }
+
+/* ---- Oct 2026 polish pass ---- */
+.today-page {
+  background:
+    radial-gradient(ellipse 60% 40% at 85% -5%, rgba(184, 154, 90, 0.08), transparent 60%),
+    radial-gradient(ellipse 50% 45% at 10% 110%, rgba(83, 1, 38, 0.04), transparent 60%);
+  min-height: calc(100vh - 100px);
+  padding: 4px 2px 24px;
+}
+
+.today-header h1 {
+  letter-spacing: -0.015em;
+  font-size: 1.75rem;
+}
+
+.today-header h1::after {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 2px;
+  margin-top: 8px;
+  background: linear-gradient(90deg, var(--hh-gold), var(--hh-burgundy));
+  border-radius: 2px;
+  opacity: 0.7;
+}
+
+.today-stat {
+  border-left: none;
+  position: relative;
+  overflow: hidden;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.today-stat::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(184, 154, 90, 0.4), rgba(83, 1, 38, 0.3));
+  border-radius: var(--hh-radius) var(--hh-radius) 0 0;
+}
+
+.today-stat.is-good::before {
+  background: linear-gradient(90deg, var(--hh-good), rgba(27, 175, 122, 0.5));
+}
+
+.today-stat.is-bad::before {
+  background: linear-gradient(90deg, var(--hh-error), rgba(179, 38, 30, 0.5));
+}
+
+.today-stat.is-progress::before {
+  background: linear-gradient(90deg, var(--hh-gold), rgba(184, 154, 90, 0.5));
+}
+
+.today-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(83, 1, 38, 0.1);
+}
+
+.today-stat-value {
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+}
+
+.today-stat-pill {
+  background: rgba(83, 1, 38, 0.04);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.today-stat-pill.is-good {
+  background: rgba(27, 175, 122, 0.1);
+  opacity: 1;
+}
+
+.today-stat-pill.is-bad {
+  background: rgba(179, 38, 30, 0.1);
+  opacity: 1;
+}
+
+.today-stat-pill.is-progress {
+  background: rgba(184, 154, 90, 0.15);
+  opacity: 1;
+}
+
+.today-card {
+  position: relative;
+  transition: box-shadow 180ms ease;
+}
+
+.today-card:hover {
+  box-shadow: 0 8px 22px rgba(83, 1, 38, 0.08);
+}
+
+.today-card-head h2 {
+  font-size: 1.05rem;
+  letter-spacing: -0.005em;
+}
+
+.today-card-head h2::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: linear-gradient(180deg, var(--hh-gold), var(--hh-burgundy));
+  border-radius: 2px;
+  margin-right: 10px;
+  vertical-align: -2px;
+}
+
+.today-owner-banner {
+  background: linear-gradient(135deg, rgba(179, 38, 30, 0.07), rgba(184, 154, 90, 0.05));
+  border-color: rgba(179, 38, 30, 0.2);
+  padding: 12px 18px;
+  font-weight: 500;
+}
+
+.today-owner-chip {
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.today-owner-chip:hover {
+  transform: translateY(-1px);
+}
+
+.today-check {
+  transition: transform 120ms ease, background var(--hh-transition), border-color var(--hh-transition);
+}
+
+.today-check:hover {
+  transform: scale(1.08);
+}
+
+.today-check.is-checked {
+  box-shadow: 0 0 0 3px rgba(27, 175, 122, 0.15);
+}
+
+.today-task {
+  transition: background 120ms ease;
+  padding-left: 4px;
+  padding-right: 4px;
+  margin-left: -4px;
+  margin-right: -4px;
+  border-radius: 6px;
+}
+
+.today-task:hover {
+  background: rgba(184, 154, 90, 0.04);
+}
+
+.today-activity-avatar {
+  background: linear-gradient(135deg, rgba(184, 154, 90, 0.3), rgba(83, 1, 38, 0.15));
+  box-shadow: 0 1px 3px rgba(83, 1, 38, 0.1);
+}

@@ -124,3 +124,154 @@
   .in-grid, .in-findings ul { grid-template-columns: minmax(0, 1fr); }
   .in-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ---- Oct 2026 polish pass ---- */
+.in-page {
+  background:
+    radial-gradient(ellipse 60% 40% at 85% -5%, rgba(184, 154, 90, 0.08), transparent 60%),
+    radial-gradient(ellipse 50% 45% at 10% 110%, rgba(83, 1, 38, 0.04), transparent 60%);
+  min-height: calc(100vh - 100px);
+  padding: 4px 2px 24px;
+}
+
+.in-head h1 {
+  letter-spacing: -0.015em;
+  font-size: 1.75rem;
+}
+
+.in-head h1::after {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 2px;
+  margin-top: 8px;
+  background: linear-gradient(90deg, var(--hh-gold), var(--hh-burgundy));
+  border-radius: 2px;
+  opacity: 0.7;
+}
+
+.in-seg {
+  background: rgba(241, 234, 237, 0.7);
+  padding: 4px;
+  border-radius: 12px;
+}
+
+.in-seg button {
+  transition: background 120ms ease;
+  padding: 7px 14px;
+}
+
+.in-seg button.is-on {
+  box-shadow: 0 2px 8px rgba(83, 1, 38, 0.1);
+}
+
+.in-kpi {
+  position: relative;
+  overflow: hidden;
+  border-top: none;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.in-kpi::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--hh-gold), var(--in-series));
+  border-radius: 12px 12px 0 0;
+}
+
+.in-kpi.is-good::before {
+  background: linear-gradient(90deg, var(--hh-good), rgba(27, 175, 122, 0.5));
+}
+
+.in-kpi.is-warn::before {
+  background: linear-gradient(90deg, #e0a100, var(--hh-gold));
+}
+
+.in-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(83, 1, 38, 0.1);
+}
+
+.in-kpi-value {
+  font-size: 1.85rem;
+  letter-spacing: -0.02em;
+  color: var(--hh-burgundy);
+  font-family: var(--hh-font-heading);
+}
+
+.in-kpi-label {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.in-findings {
+  background: linear-gradient(135deg, var(--hh-burgundy) 0%, #6a1a3a 60%, var(--hh-burgundy-light) 100%);
+  box-shadow: 0 10px 28px rgba(83, 1, 38, 0.18);
+  padding: 20px 26px;
+  position: relative;
+  overflow: hidden;
+}
+
+.in-findings::before {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle, rgba(184, 154, 90, 0.3), transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.in-findings h2 {
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  margin-bottom: 12px;
+}
+
+.in-findings ul {
+  position: relative;
+  z-index: 1;
+}
+
+.in-findings li {
+  padding-left: 2px;
+}
+
+.in-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.in-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--hh-gold), var(--hh-burgundy));
+  opacity: 0.35;
+}
+
+.in-card:hover {
+  box-shadow: 0 10px 26px rgba(83, 1, 38, 0.1);
+}
+
+.in-card-head h2 {
+  font-size: 1.02rem;
+  color: var(--hh-burgundy);
+  letter-spacing: -0.005em;
+}
+
+.in-money strong {
+  color: var(--hh-burgundy);
+  font-family: var(--hh-font-heading);
+  letter-spacing: -0.02em;
+}
