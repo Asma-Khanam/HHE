@@ -76,3 +76,9 @@
 .ov-fee-chip.is-good { background: #e9f2ed; color: #2f6b4f; }
 .ov-fee-chip.is-warn { background: #fff2d6; color: #9a5b00; }
 .ov-fee-chip.is-muted { background: rgba(42, 17, 25, 0.08); color: rgba(42, 17, 25, 0.6); }
+
+.ov-start { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px; padding: 9px 14px; border-radius: 10px; background: rgba(184, 154, 90, 0.14); border: 1px solid rgba(184, 154, 90, 0.35); }
+.ov-start .ov-eyebrow { margin: 0; }
+.ov-start-value { font-weight: 600; color: var(--hh-burgundy, var(--hh-ink)); font-size: 1rem; }
+.ov-start.is-empty { background: rgba(83, 1, 38, 0.04); border-color: rgba(83, 1, 38, 0.12); }
+.ov-start.is-empty .ov-start-value { font-weight: 400; opacity: 0.55; }

@@ -68,6 +68,16 @@ export default function OverviewPanel({
 }) {
   const [mother, father] = namedParents;
 
+  // Entry year(s) and term(s) the parents chose on the form. The same for the
+  // whole family, so it's read across all the children and shown once at the
+  // very top (schools always ask when the family needs a space).
+  const uniq = (key) => [
+    ...new Set((familyChildren || []).flatMap((c) => (Array.isArray(c[key]) ? c[key] : [])).filter(Boolean)),
+  ];
+  const entryYears = uniq("academic_years_of_entry").sort();
+  const entryTerms = uniq("terms");
+  const entryLine = [entryYears.join(", "), entryTerms.join(", ")].filter(Boolean).join(" · ");
+
   return (
     <div className="family-detail-tab-stack">
       <section className="family-detail-card ov-card">
@@ -83,6 +93,12 @@ export default function OverviewPanel({
             {family.membership_type ? packageLabel(family.membership_type) : "No package set"}
           </span>
         </header>
+
+        <div className={"ov-start" + (entryLine ? "" : " is-empty")}>
+          <span className="ov-eyebrow">Starting</span>
+          <span className="ov-start-value">{entryLine || "Not chosen by the family yet"}</span>
+          {entryLine && <CopyButton text={entryLine} label="Copy start term" />}
+        </div>
 
         <div className="ov-family-row">
           {[mother, father].map((parent, i) => (
