@@ -197,8 +197,27 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
               <span className={"afs-pill " + (paid ? "is-paid" : waived ? "is-waived" : "is-due")}>
                 {paid ? `Paid${fee.paid_at ? " " + shortDate(String(fee.paid_at).slice(0, 10)) : ""}` : waived ? "Waived" : "Unpaid"}
               </span>
+              {fee.paid_direct_by_family && <span className="afs-source" title="Family pays the school directly">Direct to school</span>}
               {fee.source === "openapply_sync" && <span className="afs-source">From OpenApply</span>}
             </div>
+
+            {/* Paid-directly tick (Miss Lyndsay, 12 Oct 2026) */}
+            <label className="afs-direct">
+              <input
+                type="checkbox"
+                checked={!!fee.paid_direct_by_family}
+                onChange={(e) => {
+                  const direct = e.target.checked;
+                  const patch = { paid_direct_by_family: direct };
+                  if (direct) {
+                    patch.payment_proof_path = null;
+                    patch.payment_proof_name = null;
+                  }
+                  patchFee(fee, patch).then((saved) => saved && onLog?.(direct ? "Fee marked as paid directly by family" : "Fee marked as paid through HHE", "fee_invoiced"));
+                }}
+              />
+              <span>Paid directly by the family (not through HHE)</span>
+            </label>
 
             <div className="afs-grid">
               <AutosaveField
@@ -282,6 +301,7 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
               />
             </div>
 
+            {!fee.paid_direct_by_family && (
             <div className="afs-invoice">
               <span className="afs-label">We paid the school</span>
               {fee.payment_proof_path ? (
@@ -317,8 +337,9 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
                 }}
               />
             </div>
+            )}
 
-<AutosaveField
+            <AutosaveField
               label="Payment link (add when it's ready)"
               placeholder="https://…"
               value={fee.payment_url}

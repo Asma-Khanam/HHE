@@ -56,6 +56,8 @@ export default function ApplicationFeesCard({ fees = [], loadError = "", billTo 
               <div className="appfee-actions">
                 {paid ? (
                   <span className="appfee-badge is-paid">Paid {f.paid_at ? day(f.paid_at) : ""}</span>
+                ) : f.paid_direct_by_family ? (
+                  <span className="appfee-badge">Paid directly to the school</span>
                 ) : (
                   <span className="appfee-badge">Awaiting payment</span>
                 )}
@@ -74,7 +76,7 @@ export default function ApplicationFeesCard({ fees = [], loadError = "", billTo 
                     Receipt
                   </button>
                 )}
-                {!paid &&
+                {!paid && !f.paid_direct_by_family &&
                   (f.payment_url ? (
                     <a className="appfee-btn is-primary" href={f.payment_url} target="_blank" rel="noopener noreferrer">
                       Pay now
