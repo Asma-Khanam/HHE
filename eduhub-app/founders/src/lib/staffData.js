@@ -1009,6 +1009,58 @@ function slugFor(name, fallback = "family") {
   );
 }
 
+// Some schools' signup forms reject any email longer than 40 characters
+// (Aldar does -- found 13 Oct 2026). "@applications.heatherharries.com" is
+// already 32 of those, so the part before the @ may be at most 8 characters.
+// Every generated address is kept inside that so it works everywhere.
+const ALIAS_DOMAIN_SUFFIX = "@applications.heatherharries.com";
+const MAX_EMAIL_LENGTH = 40;
+const MAX_ALIAS_LENGTH = MAX_EMAIL_LENGTH - ALIAS_DOMAIN_SUFFIX.length; // 8
+
+// A person: first initial + surname (letters only, cut to fit), e.g.
+// "Benjamin Boiteux-Buchanan" -> "bboiteux".
+function shortPersonAlias(fullName, fallback = "parent") {
+  const words = (fullName || "").trim().split(/\s+/).filter(Boolean);
+  const clean = (w) =>
+    (w || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z]/g, "");
+  const first = clean(words[0]);
+  const last = words.length > 1 ? clean(words[words.length - 1]) : "";
+  const base = (last ? first.charAt(0) + last : first) || fallback;
+  return base.slice(0, MAX_ALIAS_LENGTH);
+}
+
+// A family: its slug, cut to fit.
+function shortFamilyAlias(displayName) {
+  return slugFor(displayName, "family").slice(0, MAX_ALIAS_LENGTH);
+}
+
+// Tries the base alias; if someone already has it, keeps the start of it and
+// adds two digits (still inside the length cap) and tries again.
+async function saveAliasWithRetry(table, id, base) {
+  let alias = base;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const { data, error } = await supabase
+      .from(table)
+      .update({ application_alias: alias, application_alias_status: "active", application_password: randomApplicationPassword() })
+      .eq("id", id)
+      .select()
+      .single();
+    // 23505 = unique_violation -- someone else already has this exact alias.
+    if (error?.code === "23505") {
+      const suffix = String(Math.floor(10 + Math.random() * 90));
+      alias = base.slice(0, MAX_ALIAS_LENGTH - suffix.length) + suffix;
+      continue;
+    }
+    if (error) throw error;
+    return data;
+  }
+  throw aliasTakenError(alias);
+}
+
 function aliasTakenError(alias) {
   return new Error(
     `${alias}@applications.heatherharries.com is already used by someone else. Check the name on this record, or ask Heather which address to use.`
@@ -1034,17 +1086,7 @@ function randomApplicationPassword() {
 }
 
 export async function generateApplicationAlias(familyId, familyDisplayNameValue) {
-  const alias = slugFor(familyDisplayNameValue, "family");
-  const { data, error } = await supabase
-    .from("families")
-    .update({ application_alias: alias, application_alias_status: "active", application_password: randomApplicationPassword() })
-    .eq("id", familyId)
-    .select()
-    .single();
-  // 23505 = unique_violation — someone else already has this exact name.
-  if (error?.code === "23505") throw aliasTakenError(alias);
-  if (error) throw error;
-  return data;
+  return saveAliasWithRetry("families", familyId, shortFamilyAlias(familyDisplayNameValue));
 }
 
 export async function setApplicationAliasStatus(familyId, status) {
@@ -1088,16 +1130,7 @@ export async function generateParentApplicationAlias(parentId, parentFullName, _
   if (!(parentFullName || "").trim()) {
     throw new Error("Add this parent's name first — the application email is made from it.");
   }
-  const alias = slugFor(parentFullName, "parent");
-  const { data, error } = await supabase
-    .from("parents")
-    .update({ application_alias: alias, application_alias_status: "active", application_password: randomApplicationPassword() })
-    .eq("id", parentId)
-    .select()
-    .single();
-  if (error?.code === "23505") throw aliasTakenError(alias);
-  if (error) throw error;
-  return data;
+  return saveAliasWithRetry("parents", parentId, shortPersonAlias(parentFullName, "parent"));
 }
 
 export async function setParentApplicationAliasStatus(parentId, status) {
