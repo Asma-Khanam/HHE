@@ -148,6 +148,11 @@ export default async function handler(req, res) {
     const host = (ev.event_memberships || [])[0]?.user_name || null;
     const joinUrl = ev.location?.join_url || null;
     const ref = `calendly:${inviteeUri}`;
+    const phone = p.text_reminder_number || null;
+    const answers = (p.questions_and_answers || [])
+      .filter((q) => q?.question && q?.answer)
+      .map((q) => ({ question: String(q.question).slice(0, 300), answer: String(q.answer).slice(0, 1000) }));
+    const pay = p.payment || null;
 
     if (event === "invitee.created") {
       const familyId = await findFamilyId(email);
@@ -164,6 +169,11 @@ export default async function handler(req, res) {
           start_time: start,
           end_time: end,
           join_url: joinUrl,
+          invitee_phone: phone,
+          answers,
+          payment_amount: pay?.amount ?? null,
+          payment_currency: pay?.currency || null,
+          payment_paid: pay ? pay.successful !== false : null,
           status: "active",
           rescheduled: false,
           cancel_reason: null,
@@ -181,6 +191,8 @@ export default async function handler(req, res) {
         start ? `When: ${fmt(start)}` : null,
         host ? `With: ${host}` : null,
         p.name ? `Booked by: ${p.name}${email ? ` (${email})` : ""}` : null,
+        phone ? `Phone: ${phone}` : null,
+        ...answers.map((a) => `${a.question}: ${a.answer}`),
         joinUrl ? `Join link: ${joinUrl}` : null,
         p.rescheduled || p.old_invitee ? "This replaces an earlier booking (rescheduled)." : null,
       ].filter(Boolean);

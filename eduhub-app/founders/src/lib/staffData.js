@@ -2131,3 +2131,66 @@ export async function listSiblingUnpaidFeesAtSchool({ familyId, schoolId, exclud
     return { fee: f, child, childName: child?.preferred_name || child?.first_name || child?.full_name || "sibling" };
   });
 }
+
+// ---------------------------------------------------------------------------
+// Consultations -- Calendly bookings (addenda 105, 106)
+// ---------------------------------------------------------------------------
+
+export async function listCalendlyBookings() {
+  return (
+    unwrap(await supabase.from("calendly_bookings").select("*").order("start_time", { ascending: false, nullsFirst: false })) || []
+  );
+}
+
+// Links a booking to a family and puts it on that family's Meetings tab, the
+// same note the webhook writes when an email matches on its own.
+export async function linkCalendlyBooking(booking, familyId) {
+  unwrap(
+    await supabase
+      .from("calendly_bookings")
+      .update({ family_id: familyId, updated_at: new Date().toISOString() })
+      .eq("id", booking.id)
+      .select("id")
+      .single()
+  );
+  const when = booking.start_time
+    ? new Date(booking.start_time).toLocaleString("en-GB", { timeZone: "Asia/Dubai", dateStyle: "full", timeStyle: "short" }) + " (Dubai time)"
+    : "";
+  const lines = [
+    `${booking.status === "canceled" ? "Cancelled" : "Booked"}: ${booking.event_name || "Calendly call"}`,
+    when && `When: ${when}`,
+    booking.host_name && `With: ${booking.host_name}`,
+    booking.invitee_name && `Booked by: ${booking.invitee_name}${booking.invitee_email ? ` (${booking.invitee_email})` : ""}`,
+    booking.invitee_phone && `Phone: ${booking.invitee_phone}`,
+    ...(booking.answers || []).map((a) => `${a.question}: ${a.answer}`),
+    booking.join_url && `Join link: ${booking.join_url}`,
+  ].filter(Boolean);
+  await supabase.from("case_notes").upsert(
+    {
+      family_id: familyId,
+      kind: "meeting",
+      subject: `${booking.status === "canceled" ? "Cancelled" : "Booked"}: ${booking.event_name || "Calendly call"}`,
+      body: lines.join("\n"),
+      occurred_at: booking.start_time || new Date().toISOString(),
+      external_ref: `calendly:${booking.invitee_uri}`,
+    },
+    { onConflict: "external_ref", ignoreDuplicates: true }
+  );
+  const zoomId = booking.join_url && /zoom\.us\/j\/(\d+)/i.exec(booking.join_url)?.[1];
+  if (zoomId) {
+    await supabase
+      .from("zoom_meeting_links")
+      .insert({ family_id: familyId, zoom_meeting_id: zoomId, join_url: booking.join_url, topic: booking.event_name || null });
+  }
+}
+
+export async function saveCalendlyBookingNote(bookingId, note) {
+  unwrap(
+    await supabase
+      .from("calendly_bookings")
+      .update({ staff_note: note.trim() || null, updated_at: new Date().toISOString() })
+      .eq("id", bookingId)
+      .select("id")
+      .single()
+  );
+}

@@ -8,6 +8,7 @@ import InsightsPage from "./pages/InsightsPage";
 import FamiliesListPage from "./pages/FamiliesListPage";
 import FamilyDetailPage from "./pages/FamilyDetailPage";
 import CalendarPage from "./pages/CalendarPage";
+import ConsultationsPage from "./pages/ConsultationsPage";
 import TeamPage from "./pages/TeamPage";
 import SchoolsPage from "./pages/SchoolsPage";
 import SchoolDetailPage from "./pages/SchoolDetailPage";
@@ -40,6 +41,7 @@ function App() {
         <Route path="families" element={<FamiliesListPage />} />
         <Route path="families/:familyId" element={<FamilyDetailPage />} />
         <Route path="calendar" element={<CalendarPage />} />
+        <Route path="consultations" element={<ConsultationsPage />} />
         <Route path="team" element={<TeamPage />} />
         <Route path="schools" element={<SchoolsPage />} />
         <Route path="schools/:schoolId" element={<SchoolDetailPage />} />
