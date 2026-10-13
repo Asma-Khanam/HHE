@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { updateFamily, listFamilyStageHistory, listShortlistForFamily, listChildApplications, getFamilyAllowance, saveFamilyAllowance, createPayment } from "../lib/staffData";
+import { updateFamily, listFamilyStageHistory, listShortlistForFamily, listChildApplications, getFamilyAllowance, saveFamilyAllowance, createPayment, listFamilyApplicationFees } from "../lib/staffData";
 import { allowanceFor, countUsage } from "../lib/packageUsage";
-import PackageMeter from "./PackageMeter";
 import { PIPELINE_STAGES, CLIENT_STAGES, clientStageLabel, stageIndex } from "../lib/workflow";
 import { PACKAGES, packageLabel } from "../data/packages";
 import "./panels.css";
@@ -80,6 +79,28 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
       alive = false;
     };
   }, [family.id, childKey, values.membership_type]);
+  // Money owed: application fees HHE paid the school for (addendum 102) that
+  // the family hasn't paid back yet. Miss Lyndsay, 13 Oct 2026: replaces the
+  // Package use box on the Case card.
+  const [owed, setOwed] = useState({ loaded: false, byCurrency: [], count: 0 });
+  useEffect(() => {
+    let alive = true;
+    listFamilyApplicationFees(family.id)
+      .then((fees) => {
+        if (!alive) return;
+        const open = (fees || []).filter((f) => f.hhe_paid_school_on_behalf && f.status === "unpaid");
+        const totals = {};
+        open.forEach((f) => {
+          const cur = f.currency || "AED";
+          totals[cur] = (totals[cur] || 0) + (Number(f.amount) || 0);
+        });
+        setOwed({ loaded: true, byCurrency: Object.entries(totals), count: open.length });
+      })
+      .catch(() => alive && setOwed({ loaded: true, byCurrency: [], count: 0 }));
+    return () => {
+      alive = false;
+    };
+  }, [family.id]);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
@@ -174,7 +195,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
     <CaseCardBody
       saved={saved} error={error}
       atIndex={atIndex} progressPct={progressPct}
-      allowance={allowance} usage={usage} owner={owner}
+      allowance={allowance} usage={usage} owed={owed} owner={owner}
       values={values} save={save}
       override={override} setOverride={setOverride} saveOverride={saveOverride}
       staff={staff}
@@ -269,7 +290,7 @@ function FieldStatic({ label, icon, display, extra }) {
 
 function CaseCardBody({
   saved, error, atIndex, progressPct,
-  allowance, usage, owner,
+  allowance, usage, owed, owner,
   values, save,
   override, setOverride, saveOverride,
   staff,
@@ -410,26 +431,34 @@ function CaseCardBody({
         )}
       </div>
 
-      {usage && (
-        <div className="cv-package">
+      {(owed?.loaded || usage) && (
+        <div className="cv-package cv-owed">
           <div className="cv-package-head">
-            <h3 className="cv-package-title">Package use</h3>
-            {allowance && (
+            <h3 className="cv-package-title">Money owed</h3>
+            {usage && allowance && (
               <button type="button" className="cv-link" aria-expanded={adjustOpen} onClick={() => setAdjustOpen((v) => !v)}>
                 {adjustOpen ? "Done" : "Adjust allowance & top up"}
               </button>
             )}
           </div>
-          {allowance ? (
-            <div className="cv-package-grid">
-              <PackageMeter label="School tours" used={usage.toursUsed} done={usage.toursDone} total={allowance.tours} />
-              <PackageMeter label="Applications" used={usage.applicationsUsed} total={allowance.applications} />
+          {owed?.count > 0 ? (
+            <div className="cv-owed-body">
+              <div className="cv-owed-amount">
+                {owed.byCurrency.map(([cur, total]) => (
+                  <span key={cur}>
+                    {cur} {total.toLocaleString("en-GB", { maximumFractionDigits: 2 })}
+                  </span>
+                ))}
+              </div>
+              <p className="cv-owed-sub">
+                HHE paid {owed.count} application fee{owed.count === 1 ? "" : "s"} for this family and hasn't been paid back yet.
+              </p>
             </div>
           ) : (
-            <p className="cv-adjust-hint">This package doesn't include set tours or applications.</p>
+            <p className="cv-owed-none">Nothing owed to HHE right now.</p>
           )}
 
-          {adjustOpen && allowance && (
+          {adjustOpen && usage && allowance && (
             <div className="cv-adjust">
               <div className="cv-adjust-row">
                 <div className="cv-adjust-field">

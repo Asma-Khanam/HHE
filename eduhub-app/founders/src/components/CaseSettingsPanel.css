@@ -431,3 +431,8 @@
 .cv-start-value { font-weight: 700; color: var(--hh-burgundy, #530126); font-size: 0.95rem; }
 .cv-start.is-empty { background: rgba(83, 1, 38, 0.05); border-color: rgba(83, 1, 38, 0.12); }
 .cv-start.is-empty .cv-start-value { font-weight: 400; opacity: 0.5; }
+
+/* Money owed (replaces the Package use meters, 13 Oct 2026) */
+.cv-owed-body { display: flex; flex-direction: column; gap: 4px; }
+.cv-owed-amount { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--hh-font-heading); font-size: 1.5rem; color: var(--hh-burgundy); font-weight: 700; }
+.cv-owed-sub, .cv-owed-none { margin: 0; font-size: 0.86rem; opacity: 0.7; }
