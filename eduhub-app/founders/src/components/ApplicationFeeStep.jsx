@@ -1,31 +1,55 @@
-import { useEffect, useRef, useState } from "react";
-import AutosaveField from "./Autosave";
-import { createApplicationFee, updateApplicationFee, uploadFeeInvoice, uploadFeePaymentProof, clearFeeEvidence, listSiblingUnpaidFeesAtSchool } from "../lib/staffData";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createApplicationFee, updateApplicationFee, deleteApplicationFee, uploadFeeInvoice, uploadFeePaymentProof, clearFeeEvidence, listSiblingUnpaidFeesAtSchool } from "../lib/staffData";
 import { getSignedUrl } from "../lib/documents";
 import { shortDate } from "../lib/placement";
 import "./ApplicationFeeStep.css";
 
+// Application fee step (redesign, 13 Oct 2026). Miss Lyndsay: "when i open
+// each step they feel like its getting very complicated... shed like it to be
+// tight, everything understood at a glance when they are on a call". So each
+// fee is one row -- amount, who it covers, who paid, two file slots, delete.
+// A fee that covers more than one child is one fee with its sibling chips
+// ticked, not a separate line per child (Miss Lyndsay's "single payment
+// across multiple siblings" ask). The database fields are unchanged.
+
 const today = () => new Date().toISOString().slice(0, 10);
 
-function money(fee) {
+function moneyText(fee) {
   if (fee.amount === null || fee.amount === undefined || fee.amount === "") return "No amount yet";
   return `${fee.currency || "AED"} ${Number(fee.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// The "Application fee" step, between Apply and Assessment (Miss Lyndsay,
-// 7 Oct 2026): what the fee is, when it was paid, the invoice file, and a
-// button that puts it on the family's Billing page. Everything saves itself.
+// Three mutually-exclusive "who paid" modes derived from the two existing
+// booleans + status. Changing the mode writes those three fields together.
+function whoMode(fee) {
+  if (fee.paid_direct_by_family) return "direct";       // family paid school
+  if (fee.status === "paid") return "settled";           // family paid HHE
+  if (fee.hhe_paid_school_on_behalf) return "hhe";       // HHE paid school, family owes HHE
+  return "pending";                                      // not decided yet
+}
+function patchForMode(mode) {
+  if (mode === "direct")
+    return { paid_direct_by_family: true, hhe_paid_school_on_behalf: false, payment_proof_path: null, payment_proof_name: null };
+  if (mode === "hhe")
+    return { paid_direct_by_family: false, hhe_paid_school_on_behalf: true };
+  if (mode === "settled")
+    return { paid_direct_by_family: false, hhe_paid_school_on_behalf: false, status: "paid", paid_at: new Date().toISOString() };
+  // pending
+  return { paid_direct_by_family: false, hhe_paid_school_on_behalf: false };
+}
+
 export default function ApplicationFeeStep({ application, fees, familyId, onFeesChange, onLog }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [adding, setAdding] = useState({ amount: "", currency: "AED" });
   const fileInputs = useRef({});
   const paymentInputs = useRef({});
-  // Visible sibling tick box (Miss Heather, 12 Oct 2026): on the fee step
-  // itself, show "Also applies to {names}'s fee at {school}" so staff can
-  // see upfront whether an upload or Mark paid will copy across to siblings
-  // at the same school.
+
+  // Siblings at the same school with no fee of their own yet -- the chips
+  // in each fee row show them so one fee can cover more than one child.
   const [siblings, setSiblings] = useState([]);
-  const [coverSiblings, setCoverSiblings] = useState(true);
+  const [coverSiblings, setCoverSiblings] = useState({});
   useEffect(() => {
     let alive = true;
     if (!application?.school_id || !familyId) return;
@@ -39,10 +63,10 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
     return () => {
       alive = false;
     };
-    // fees in the dep list so a sibling getting paid elsewhere refreshes
   }, [familyId, application?.id, application?.school_id, fees]);
 
   const replace = (saved) => onFeesChange((list) => list.map((f) => (f.id === saved.id ? saved : f)));
+  const drop = (id) => onFeesChange((list) => list.filter((f) => f.id !== id));
 
   async function patchFee(fee, changes) {
     try {
@@ -60,13 +84,33 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
     setBusy("add");
     setError("");
     try {
-      const row = await createApplicationFee({ applicationId: application.id, label: "Application fee", currency: "AED" });
+      const row = await createApplicationFee({
+        applicationId: application.id,
+        label: "Application fee",
+        currency: adding.currency,
+        amount: adding.amount === "" ? null : Number(adding.amount),
+      });
       onFeesChange((list) => [...list, row]);
+      setAdding({ amount: "", currency: "AED" });
       onLog?.("Application fee added", "fee_invoiced");
+      // The new fee covers the current child by default; the sibling chips
+      // start on, so an upload below spreads to any siblings in one go.
+      setCoverSiblings((m) => ({ ...m, [row.id]: true }));
     } catch {
       setError("Couldn't add the fee. Please try again.");
     } finally {
       setBusy("");
+    }
+  }
+
+  async function removeFee(fee) {
+    try {
+      await deleteApplicationFee(fee.id);
+      drop(fee.id);
+      onLog?.(`Application fee removed (${moneyText(fee)})`, "fee_invoiced");
+      setConfirmDelete(null);
+    } catch (err) {
+      setError(err?.message || "Couldn't delete that fee.");
     }
   }
 
@@ -78,330 +122,311 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
       const saved = await uploadFeeInvoice({ familyId, fee, file });
       replace(saved);
       onLog?.(`Invoice uploaded for ${fee.label}`, "fee_invoiced");
-      await offerSiblingCopy({ changes: { invoice_path: saved.invoice_path, invoice_name: saved.invoice_name }, markPaid: false, humanLabel: "the school invoice/receipt" });
+      await offerSiblingCopy(fee, { changes: { invoice_path: saved.invoice_path, invoice_name: saved.invoice_name }, markPaid: false });
     } catch (err) {
       setError(err.message || "Couldn't upload that invoice.");
     } finally {
       setBusy("");
     }
   }
-
-  async function viewInvoice(fee) {
-    try {
-      window.open(await getSignedUrl(fee.invoice_path), "_blank", "noopener");
-    } catch {
-      setError("Couldn't open that invoice.");
-    }
-  }
-
-  // Addendum 98 (Heather, 9 Oct 2026): bank evidence that HHE paid the school.
-  async function handleEvidence(fee, which, file) {
+  async function handleEvidence(fee, file) {
     if (!file) return;
-    setBusy(`${which}-${fee.id}`);
+    setBusy(`proof-${fee.id}`);
     setError("");
     try {
       const saved = await uploadFeePaymentProof({ familyId, fee, file });
       replace(saved);
-      onLog?.(`Bank payment evidence uploaded for ${fee.label}`, "fee_paid");
-      await offerSiblingCopy({ changes: { payment_proof_path: saved.payment_proof_path, payment_proof_name: saved.payment_proof_name }, markPaid: false, humanLabel: "the bank payment evidence" });
+      onLog?.(`Bank evidence uploaded for ${fee.label}`, "fee_paid");
+      await offerSiblingCopy(fee, { changes: { payment_proof_path: saved.payment_proof_path, payment_proof_name: saved.payment_proof_name }, markPaid: false });
     } catch (err) {
       setError(err.message || "Couldn't upload that file.");
     } finally {
       setBusy("");
     }
   }
-
-  // Heather, 9 Oct 2026: when the same payment covers more than one child
-  // ("add the invoice to the eldest, auto-update the others"), after an
-  // upload or a mark-paid, offer to copy the file onto the siblings' fees at
-  // the same school and mark theirs paid too, in one confirm box.
-  async function offerSiblingCopy({ changes, markPaid, humanLabel }) {
-    try {
-      const schoolId = application?.school_id;
-      if (!schoolId || !familyId) return;
-      // Pulled fresh each time, so a sibling marked paid by another route
-      // doesn't get touched a second time.
-      const rows = await listSiblingUnpaidFeesAtSchool({
-        familyId,
-        schoolId,
-        excludeApplicationId: application.id,
-      });
-      if (!rows.length) return;
-      const schoolName = application?.school?.name || "this school";
-      const names = rows.map((s) => s.childName).join(", ");
-      // If the staff member has UN-ticked the visible tick box, don't ask
-      // again and don't copy anything. If the tick is on, apply straight
-      // away (no confirm pop-up — the tick is the consent).
-      if (!coverSiblings) return;
-      const patch = { ...changes };
-      if (markPaid) {
-        patch.status = "paid";
-        patch.paid_at = patch.paid_at || new Date().toISOString();
-      }
-      const updated = await Promise.all(
-        rows.map((s) => updateApplicationFee(s.fee.id, patch).catch(() => null))
-      );
-      const done = updated.filter(Boolean).length;
-      onLog?.(`Also applied to ${done} sibling fee${done === 1 ? "" : "s"} at ${schoolName}`, "fee_paid");
-      // humanLabel is kept in the log event so it isn't lost.
-      void humanLabel;
-    } catch {
-      /* best-effort, don't block the main action */
-    }
-  }
-
-  async function viewEvidence(fee, which) {
-    const path = which === "payment_proof" ? fee.payment_proof_path : fee.school_receipt_path;
+  async function viewFile(path) {
     try {
       window.open(await getSignedUrl(path), "_blank", "noopener");
     } catch {
       setError("Couldn't open that file.");
     }
   }
-
   async function removeEvidence(fee, which) {
     try {
       const saved = await clearFeeEvidence({ fee, which });
       replace(saved);
     } catch {
-      setError("Couldn't remove that file. Please try again.");
+      setError("Couldn't remove that file.");
     }
   }
 
-  async function send(fee) {
-    const saved = await patchFee(fee, { sent_to_family_at: new Date().toISOString() });
-    if (saved) onLog?.(`${fee.label} sent to the family's dashboard`, "fee_invoiced");
+  // Siblings: when the chip for the current fee is ticked, apply the same
+  // change to siblings' unpaid fees at the same school in one go.
+  async function offerSiblingCopy(fee, { changes, markPaid }) {
+    try {
+      const schoolId = application?.school_id;
+      if (!schoolId || !familyId) return;
+      if (!coverSiblings[fee.id]) return;
+      const rows = await listSiblingUnpaidFeesAtSchool({ familyId, schoolId, excludeApplicationId: application.id });
+      if (!rows.length) return;
+      const patch = { ...changes };
+      if (markPaid) {
+        patch.status = "paid";
+        patch.paid_at = patch.paid_at || new Date().toISOString();
+      }
+      const updated = await Promise.all(rows.map((s) => updateApplicationFee(s.fee.id, patch).catch(() => null)));
+      const n = updated.filter(Boolean).length;
+      const schoolName = application?.school?.name || "this school";
+      onLog?.(`Also applied to ${n} sibling fee${n === 1 ? "" : "s"} at ${schoolName}`, "fee_paid");
+    } catch {
+      /* best-effort */
+    }
   }
 
-  async function markPaid(fee, date) {
-    const saved = await patchFee(fee, date ? { status: "paid", paid_at: `${date}T12:00:00Z` } : { status: "unpaid", paid_at: null });
-    if (saved && date) {
-      onLog?.(`${fee.label} paid on ${shortDate(date)}`, "fee_paid");
-      await offerSiblingCopy({ changes: { paid_at: `${date}T12:00:00Z` }, markPaid: true, humanLabel: `the payment date (${shortDate(date)})` });
+  async function setMode(fee, mode) {
+    const patch = patchForMode(mode);
+    const saved = await patchFee(fee, patch);
+    if (!saved) return;
+    if (mode === "settled") {
+      onLog?.(`${fee.label} marked settled`, "fee_paid");
+      await offerSiblingCopy(fee, { changes: {}, markPaid: true });
+    } else if (mode === "hhe") {
+      onLog?.(`Fee marked as paid by HHE on behalf of family`, "fee_invoiced");
+    } else if (mode === "direct") {
+      onLog?.(`Fee marked as paid directly by family`, "fee_invoiced");
     }
   }
 
   return (
     <div className="afs">
-      {fees.length === 0 && <p className="ps-hint">No application fee yet. Add it when the school sends its invoice.</p>}
+      {fees.length === 0 && (
+        <p className="afs-empty">No application fee yet. Add it when the school sends its invoice.</p>
+      )}
 
-      {fees.map((fee) => {
-        const paid = fee.status === "paid";
-        const waived = fee.status === "waived";
-        const sent = !!fee.sent_to_family_at;
-        return (
-          <div key={fee.id} className={"afs-fee" + (paid ? " is-paid" : "")}>
-            <div className="afs-head">
-              <strong>{fee.label}</strong>
-              <span className="afs-amount">{money(fee)}</span>
-              <span className={"afs-pill " + (paid ? "is-paid" : waived ? "is-waived" : "is-due")}>
-                {paid ? `Paid${fee.paid_at ? " " + shortDate(String(fee.paid_at).slice(0, 10)) : ""}` : waived ? "Waived" : "Unpaid"}
-              </span>
-              {fee.paid_direct_by_family && <span className="afs-source" title="Family pays the school directly">Direct to school</span>}
-              {fee.source === "openapply_sync" && <span className="afs-source">From OpenApply</span>}
+      {fees.map((fee) => (
+        <FeeRow
+          key={fee.id}
+          fee={fee}
+          mode={whoMode(fee)}
+          onMode={(m) => setMode(fee, m)}
+          onAmount={(v) => patchFee(fee, { amount: v === "" || v === null ? null : Number(v) })}
+          siblings={siblings}
+          coverSib={!!coverSiblings[fee.id]}
+          setCoverSib={(v) => setCoverSiblings((m) => ({ ...m, [fee.id]: v }))}
+          onInvoice={(file) => handleInvoice(fee, file)}
+          onEvidence={(file) => handleEvidence(fee, file)}
+          onViewInvoice={() => viewFile(fee.invoice_path)}
+          onViewEvidence={() => viewFile(fee.payment_proof_path)}
+          onClearEvidence={() => removeEvidence(fee, "payment_proof")}
+          invoiceInputRef={(el) => (fileInputs.current[fee.id] = el)}
+          proofInputRef={(el) => (paymentInputs.current[fee.id] = el)}
+          invoiceInput={fileInputs.current[fee.id]}
+          proofInput={paymentInputs.current[fee.id]}
+          busy={busy}
+          schoolName={application?.school?.name}
+          currentChildName={application?.child?.preferred_name || application?.child?.first_name || application?.child?.full_name}
+          onDelete={() => setConfirmDelete(fee)}
+        />
+      ))}
+
+      {/* Compact add form */}
+      <div className="afs-add">
+        <div className="afs-add-field">
+          <label>Amount</label>
+          <input
+            type="number"
+            inputMode="decimal"
+            placeholder="e.g. 500"
+            value={adding.amount}
+            onChange={(e) => setAdding((a) => ({ ...a, amount: e.target.value }))}
+          />
+        </div>
+        <div className="afs-add-field afs-add-ccy">
+          <label>Currency</label>
+          <select value={adding.currency} onChange={(e) => setAdding((a) => ({ ...a, currency: e.target.value }))}>
+            <option>AED</option>
+            <option>GBP</option>
+            <option>USD</option>
+            <option>EUR</option>
+          </select>
+        </div>
+        <button type="button" className="afs-add-btn" disabled={busy === "add"} onClick={addFee}>
+          + Add fee
+        </button>
+      </div>
+
+      {error && <p className="afs-error">{error}</p>}
+
+      {confirmDelete && (
+        <div className="afs-confirm" role="dialog" aria-modal="true" onClick={() => setConfirmDelete(null)}>
+          <div className="afs-confirm-box" onClick={(e) => e.stopPropagation()}>
+            <h3>Delete this fee?</h3>
+            <p>
+              {moneyText(confirmDelete)}. This can&rsquo;t be undone. Any uploaded invoice or bank evidence is removed too.
+            </p>
+            <div className="afs-confirm-actions">
+              <button type="button" className="afs-btn" onClick={() => setConfirmDelete(null)}>Cancel</button>
+              <button type="button" className="afs-btn afs-btn-danger" onClick={() => removeFee(confirmDelete)}>Delete fee</button>
             </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
-            {/* Paid-directly tick (Miss Lyndsay, 12 Oct 2026) */}
-            <label className="afs-direct">
-              <input
-                type="checkbox"
-                checked={!!fee.paid_direct_by_family}
-                onChange={(e) => {
-                  const direct = e.target.checked;
-                  const patch = { paid_direct_by_family: direct };
-                  if (direct) {
-                    patch.payment_proof_path = null;
-                    patch.payment_proof_name = null;
-                  }
-                  patchFee(fee, patch).then((saved) => saved && onLog?.(direct ? "Fee marked as paid directly by family" : "Fee marked as paid through HHE", "fee_invoiced"));
-                }}
-              />
-              <span>Paid directly by the family (not through HHE)</span>
-            </label>
+// =============================================================================
+function FeeRow({
+  fee, mode, onMode, onAmount, siblings, coverSib, setCoverSib,
+  onInvoice, onEvidence, onViewInvoice, onViewEvidence, onClearEvidence,
+  invoiceInputRef, proofInputRef, invoiceInput, proofInput,
+  busy, schoolName, currentChildName, onDelete,
+}) {
+  // Who's covered line for the snapshot and the step head
+  const coveredNames = useMemo(() => {
+    const names = [currentChildName].filter(Boolean);
+    if (coverSib) names.push(...siblings.map((s) => s.childName));
+    return names;
+  }, [currentChildName, siblings, coverSib]);
 
-            {!fee.paid_direct_by_family && (
-              <label className="afs-onbehalf">
-                <input
-                  type="checkbox"
-                  checked={!!fee.hhe_paid_school_on_behalf}
-                  onChange={(e) => {
-                    const flag = e.target.checked;
-                    patchFee(fee, { hhe_paid_school_on_behalf: flag }).then((saved) =>
-                      saved && onLog?.(flag ? "Fee marked as paid by HHE on behalf of family" : "Fee no longer marked as paid by HHE on behalf", "fee_invoiced")
-                    );
-                  }}
-                />
-                <span>HHE paid the school on behalf of the family (family owes HHE)</span>
-              </label>
-            )}
+  const paid = fee.status === "paid";
 
-            {!!fee.hhe_paid_school_on_behalf && !fee.paid_direct_by_family && (
-              <span className="afs-source" title="Family will see this at the top of their dashboard with a Pay link and an invoice">Owed to HHE on family dashboard</span>
-            )}
+  // Status tags (right side of the snapshot)
+  const tags = [];
+  if (paid) {
+    tags.push({ cls: "afs-tag-green", text: `Settled${fee.paid_at ? " · " + shortDate(String(fee.paid_at).slice(0, 10)) : ""}` });
+  } else if (mode === "hhe") {
+    tags.push({ cls: "afs-tag-blue", text: "HHE paid the school" });
+    tags.push({ cls: "afs-tag-amber", text: `Family owes HHE ${moneyText(fee)}` });
+  } else if (mode === "direct") {
+    tags.push({ cls: "afs-tag-grey", text: "Family paid school directly" });
+  } else {
+    tags.push({ cls: "afs-tag-grey", text: "Who paid?" });
+  }
 
-            <div className="afs-grid">
-              <AutosaveField
-                label="Name of the fee"
-                value={fee.label}
-                onSave={async (v) => !!(await patchFee(fee, { label: v || "Application fee" }))}
-              />
-              <AutosaveField
-                label="Amount (AED)"
-                type="number"
-                value={fee.amount === null || fee.amount === undefined ? "" : String(fee.amount)}
-                onSave={async (v) => !!(await patchFee(fee, { amount: v === null || v === "" ? null : Number(v) }))}
-              />
-              <label className="ps-field">
-                <span>Due date</span>
-                <input
-                  type="date"
-                  className="panel-input"
-                  value={fee.due_date ? String(fee.due_date).slice(0, 10) : ""}
-                  onChange={(e) => patchFee(fee, { due_date: e.target.value || null })}
-                />
-              </label>
-              <label className="ps-field">
-                <span>Date paid</span>
-                <input
-                  type="date"
-                  className="panel-input"
-                  value={paid && fee.paid_at ? String(fee.paid_at).slice(0, 10) : ""}
-                  onChange={(e) => markPaid(fee, e.target.value || null)}
-                />
-              </label>
-            </div>
-            {siblings.length > 0 && !waived && (
-              <label className="afs-sibling">
-                <input
-                  type="checkbox"
-                  checked={coverSiblings}
-                  onChange={(e) => setCoverSiblings(e.target.checked)}
-                />
-                <span>
-                  Also applies to {siblings.map((s) => s.childName).join(" and ")}&rsquo;s fee at {application?.school?.name || "this school"}
-                </span>
-              </label>
-            )}
-            {!paid && !waived && (
-              <button type="button" className="apx-link" onClick={() => markPaid(fee, today())}>
-                Mark as paid today
-              </button>
-            )}
+  return (
+    <div className={"afs-fee" + (paid ? " is-paid" : "")}>
+      {/* Snapshot bar: amount + who's covered + status tags */}
+      <div className="afs-snap">
+        <div className="afs-snap-main">
+          <span className="afs-amount">{moneyText(fee)}</span>
+          <span className="afs-covers">{coveredNames.length ? "covers " + coveredNames.join(" & ") : "no child yet"}</span>
+        </div>
+        <div className="afs-snap-tags">
+          {tags.map((t, i) => (
+            <span key={i} className={"afs-tag " + t.cls}>{t.text}</span>
+          ))}
+        </div>
+      </div>
 
-            <div className="afs-invoice">
-              <span className="afs-label">School invoice / receipt</span>
-              {fee.invoice_path ? (
-                <>
-                  <button type="button" className="apx-link" onClick={() => viewInvoice(fee)}>
-                    {fee.invoice_name || "View invoice"} ↗
-                  </button>
-                  <button type="button" className="apx-link" onClick={() => fileInputs.current[fee.id]?.click()}>
-                    Replace
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="panel-btn"
-                  disabled={busy === `inv-${fee.id}`}
-                  onClick={() => fileInputs.current[fee.id]?.click()}
-                >
-                  {busy === `inv-${fee.id}` ? "Uploading…" : "Upload invoice"}
-                </button>
-              )}
-              <input
-                ref={(el) => (fileInputs.current[fee.id] = el)}
-                type="file"
-                accept=".pdf,image/*"
-                hidden
-                onChange={(e) => {
-                  handleInvoice(fee, e.target.files?.[0]);
-                  e.target.value = "";
-                }}
-              />
-            </div>
+      {/* Siblings covered (chips) */}
+      {siblings.length > 0 && (
+        <div className="afs-sibs" title="Tick every child this one fee covers">
+          <span className="afs-sibs-label">Covers:</span>
+          <label className="afs-sib afs-sib-current">
+            <input type="checkbox" checked disabled />
+            {currentChildName || "This child"}
+          </label>
+          <label className={"afs-sib" + (coverSib ? " is-on" : "")}>
+            <input type="checkbox" checked={coverSib} onChange={(e) => setCoverSib(e.target.checked)} />
+            {siblings.map((s) => s.childName).join(", ")}
+          </label>
+          <span className="afs-sibs-hint">at {schoolName || "this school"}</span>
+        </div>
+      )}
 
-            {!fee.paid_direct_by_family && (
-            <div className="afs-invoice">
-              <span className="afs-label">We paid the school</span>
-              {fee.payment_proof_path ? (
-                <>
-                  <button type="button" className="apx-link" onClick={() => viewEvidence(fee, "payment_proof")}>
-                    {fee.payment_proof_name || "View file"} ↗
-                  </button>
-                  <button type="button" className="apx-link" onClick={() => paymentInputs.current[fee.id]?.click()}>
-                    Replace
-                  </button>
-                  <button type="button" className="apx-link apx-link-quiet" onClick={() => removeEvidence(fee, "payment_proof")}>
-                    Remove
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="panel-btn"
-                  disabled={busy === `payment_proof-${fee.id}`}
-                  onClick={() => paymentInputs.current[fee.id]?.click()}
-                >
-                  {busy === `payment_proof-${fee.id}` ? "Uploading…" : "Upload bank payment evidence"}
-                </button>
-              )}
-              <input
-                ref={(el) => (paymentInputs.current[fee.id] = el)}
-                type="file"
-                accept=".pdf,image/*"
-                hidden
-                onChange={(e) => {
-                  handleEvidence(fee, "payment_proof", e.target.files?.[0]);
-                  e.target.value = "";
-                }}
-              />
-            </div>
-            )}
+      {/* Who paid - three options in one line */}
+      <div className="afs-whopaid" role="radiogroup" aria-label="Who paid">
+        {[
+          { k: "direct", t: "Family paid school", s: "We record it." },
+          { k: "hhe", t: "HHE paid school", s: "Family owes HHE." },
+          { k: "settled", t: "Family paid HHE", s: "Settled." },
+        ].map((o) => (
+          <label key={o.k} className={"afs-opt" + (mode === o.k ? " is-on" : "")}>
+            <input type="radio" name={`who-${fee.id}`} checked={mode === o.k} onChange={() => onMode(o.k)} />
+            <span>
+              <span className="afs-opt-t">{o.t}</span>
+              <span className="afs-opt-s">{o.s}</span>
+            </span>
+          </label>
+        ))}
+      </div>
 
-            <AutosaveField
-              label="Payment link (add when it's ready)"
-              placeholder="https://…"
-              value={fee.payment_url}
-              onSave={async (v) => !!(await patchFee(fee, { payment_url: v }))}
+      {/* Amount edit + files */}
+      <div className="afs-row">
+        <label className="afs-amt">
+          <span>Amount</span>
+          <div className="afs-amt-input">
+            <span className="afs-amt-ccy">{fee.currency || "AED"}</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              defaultValue={fee.amount == null ? "" : fee.amount}
+              onBlur={(e) => {
+                const v = e.target.value;
+                if (String(fee.amount ?? "") !== v) onAmount(v);
+              }}
             />
+          </div>
+        </label>
 
-            <div className="afs-send">
-              {sent ? (
-                <>
-                  <span className="afs-sent">✓ On the family&apos;s dashboard since {shortDate(String(fee.sent_to_family_at).slice(0, 10))}</span>
-                  <button type="button" className="apx-link" onClick={() => patchFee(fee, { sent_to_family_at: null })}>
-                    Hide from the family
-                  </button>
-                </>
+        <div className={"afs-file" + (fee.invoice_path ? " is-done" : "")}>
+          <div className="afs-file-main">
+            <span className="afs-file-icon">📄</span>
+            <div className="afs-file-text">
+              <div className="afs-file-label">School invoice</div>
+              {fee.invoice_path ? (
+                <button type="button" className="afs-file-name" onClick={onViewInvoice} title="Open">
+                  {fee.invoice_name || "invoice"} ↗
+                </button>
               ) : (
-                <>
-                  <button
-                    type="button"
-                    className="panel-btn panel-btn-primary"
-                    disabled={paid || fee.amount === null || fee.amount === undefined}
-                    onClick={() => send(fee)}
-                  >
-                    Send to family dashboard
-                  </button>
-                  <span className="ps-hint">
-                    {fee.amount === null || fee.amount === undefined
-                      ? "Add the amount first."
-                      : paid
-                      ? "Already paid."
-                      : "The family sees the amount, the invoice and the payment link on their Billing page."}
-                  </span>
-                </>
+                <div className="afs-file-none">None yet</div>
               )}
             </div>
           </div>
-        );
-      })}
+          <button type="button" className="afs-btn" onClick={() => invoiceInput?.click()} disabled={busy === `inv-${fee.id}`}>
+            {busy === `inv-${fee.id}` ? "Uploading…" : fee.invoice_path ? "Replace" : "Upload"}
+          </button>
+          <input ref={invoiceInputRef} type="file" accept=".pdf,image/*" hidden
+            onChange={(e) => { onInvoice(e.target.files?.[0]); e.target.value = ""; }} />
+        </div>
 
-      {error && <p className="afs-error">{error}</p>}
-      <div className="ps-actions">
-        <button type="button" className="panel-btn" disabled={busy === "add"} onClick={addFee}>
-          + Add a fee
+        {mode === "hhe" && (
+          <div className={"afs-file" + (fee.payment_proof_path ? " is-done" : "")}>
+            <div className="afs-file-main">
+              <span className="afs-file-icon">🏦</span>
+              <div className="afs-file-text">
+                <div className="afs-file-label">Bank evidence</div>
+                {fee.payment_proof_path ? (
+                  <button type="button" className="afs-file-name" onClick={onViewEvidence} title="Open">
+                    {fee.payment_proof_name || "evidence"} ↗
+                  </button>
+                ) : (
+                  <div className="afs-file-none">None yet</div>
+                )}
+              </div>
+            </div>
+            <div className="afs-file-actions">
+              <button type="button" className="afs-btn" onClick={() => proofInput?.click()} disabled={busy === `proof-${fee.id}`}>
+                {busy === `proof-${fee.id}` ? "Uploading…" : fee.payment_proof_path ? "Replace" : "Upload"}
+              </button>
+              {fee.payment_proof_path && (
+                <button type="button" className="afs-btn-ghost" onClick={onClearEvidence}>Remove</button>
+              )}
+            </div>
+            <input ref={proofInputRef} type="file" accept=".pdf,image/*" hidden
+              onChange={(e) => { onEvidence(e.target.files?.[0]); e.target.value = ""; }} />
+          </div>
+        )}
+      </div>
+
+      <div className="afs-foot">
+        <span className="afs-foot-note">
+          {fee.source === "openapply_sync" ? "From OpenApply · " : ""}
+          {fee.sent_to_family_at ? `On family dashboard since ${shortDate(String(fee.sent_to_family_at).slice(0, 10))}` : "Not on family dashboard yet"}
+        </span>
+        <button type="button" className="afs-btn-ghost afs-btn-del" onClick={onDelete} title="Delete this fee">
+          🗑 Delete
         </button>
       </div>
     </div>
