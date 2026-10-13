@@ -8,11 +8,21 @@
 }
 
 .staff-sidebar {
+  /* Sticky to the viewport (13 Oct 2026): on long families the sign-out and
+     the profile name used to sit at the bottom of the whole page content,
+     scrolled far down. The sidebar now stays fixed to the window and only
+     the nav scrolls if it ever outgrows the height. */
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  max-height: 100vh;
   background: var(--hh-burgundy);
   color: var(--hh-white);
   display: flex;
   flex-direction: column;
   padding: 24px 18px;
+  z-index: 20;
 }
 
 .staff-sidebar-brand {
@@ -47,7 +57,17 @@
   flex-direction: column;
   gap: 4px;
   flex: 1;
+  min-height: 0; /* lets the nav scroll instead of expanding */
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* thin scrollbar, only when needed, matched to the burgundy */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  padding-right: 2px;
 }
+.staff-sidebar-nav::-webkit-scrollbar { width: 6px; }
+.staff-sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
+.staff-sidebar-nav::-webkit-scrollbar-track { background: transparent; }
 
 .staff-nav-item {
   display: block;
@@ -131,6 +151,9 @@
     grid-template-columns: 1fr;
   }
   .staff-sidebar {
+    position: static;
+    height: auto;
+    max-height: none;
     flex-direction: row;
     align-items: center;
     gap: 16px;
@@ -142,6 +165,8 @@
   .staff-sidebar-nav {
     flex-direction: row;
     flex: none;
+    overflow-y: visible;
+    overflow-x: auto;
   }
   .staff-sidebar-footer {
     border-top: none;
