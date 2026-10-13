@@ -774,13 +774,18 @@ export async function loadCalendarEvents({ from, to } = {}) {
   );
   const tours1Query = range(supabase.from("school_shortlist").select("*").not("tour_date", "is", null), "tour_date");
   const tours2Query = range(supabase.from("school_shortlist").select("*").not("tour2_date", "is", null), "tour2_date");
+  // Calendly consultations (addendum 105/106): booked calls, cancelled ones left off.
+  let calendlyQuery = supabase.from("calendly_bookings").select("*").neq("status", "canceled").not("start_time", "is", null);
+  if (from) calendlyQuery = calendlyQuery.gte("start_time", new Date(from).toISOString());
+  if (to) calendlyQuery = calendlyQuery.lt("start_time", new Date(to).toISOString());
 
-  const [events, visits, assessments, tours1, tours2, families, parents, staff, children, schools] = await Promise.all([
+  const [events, visits, assessments, tours1, tours2, calendly, families, parents, staff, children, schools] = await Promise.all([
     eventsQuery.then(unwrap),
     visitsQuery.then(unwrap),
     assessmentsQuery.then(unwrap).catch(() => []), // addendum 80 may not have run yet
     tours1Query.then(unwrap).catch(() => []),
     tours2Query.then(unwrap).catch(() => []), // addendum 58 (second tour slot)
+    calendlyQuery.then(unwrap).catch(() => []), // addendum 105 may not have run yet
     supabase.from("families").select("*").then(unwrap),
     supabase.from("parents").select("id, family_id, relationship, full_name, user_id").then(unwrap),
     listStaff(),
@@ -909,6 +914,41 @@ export async function loadCalendarEvents({ from, to } = {}) {
       child_id: a.child_id,
       application_id: a.id,
       ...familyBits(child?.family_id),
+    });
+  });
+
+  // Calendly consultations: a booked call from the Consultations page, shown
+  // read-only on the calendar. Linked ones carry their family; unlinked ones
+  // just show the booker.
+  (calendly || []).forEach((b) => {
+    const start = new Date(b.start_time);
+    const end = b.end_time ? new Date(b.end_time) : null;
+    const name = b.event_name || "";
+    const label = /sanity/i.test(name) ? "Sanity check" : /consult/i.test(name) ? "Paid consult" : "Call";
+    out.push({
+      id: b.id,
+      key: `calendly-${b.id}`,
+      source: "calendly_booking",
+      kind: "consultation",
+      category: "consultation",
+      title: `${label}: ${b.invitee_name || b.invitee_email || "Unknown booker"}`,
+      notes: "",
+      date: localDateKey(start),
+      start: localHHMM(start),
+      end: end ? localHHMM(end) : null,
+      all_day: false,
+      status: "upcoming",
+      eventName: name,
+      bookerName: b.invitee_name || "",
+      bookerEmail: b.invitee_email || "",
+      bookerPhone: b.invitee_phone || "",
+      joinUrl: b.join_url || "",
+      hostName: b.host_name || "",
+      payment_paid: b.payment_paid,
+      payment_amount: b.payment_amount,
+      payment_currency: b.payment_currency,
+      ...familyBits(b.family_id),
+      packageKey: null,
     });
   });
 

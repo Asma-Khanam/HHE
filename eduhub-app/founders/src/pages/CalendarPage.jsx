@@ -23,6 +23,7 @@ import "./CalendarPage.css";
 const CATEGORIES = [
   { key: "tour", label: "Tours" },
   { key: "assessment", label: "Assessments" },
+  { key: "consultation", label: "Consultations" },
   { key: "other", label: "Other" },
 ];
 
@@ -115,6 +116,7 @@ function tone(ev) {
   // Colour by service package (Guided, Family Partnership...), not by family.
   if (ev.packageKey && PKG_KEYS.includes(ev.packageKey) && (ev.category === "tour" || ev.category === "assessment"))
     return "tone-pkg pkg-" + ev.packageKey;
+  if (ev.category === "consultation") return "tone-consult";
   if (ev.category === "tour") return "tone-tour";
   if (ev.category === "assessment") return "tone-assessment";
   if (ev.kind === "deadline") return "tone-deadline";
@@ -171,7 +173,7 @@ export default function CalendarPage() {
   const [staff, setStaff] = useState([]);
   const [families, setFamilies] = useState([]);
   const [consultantFilter, setConsultantFilter] = useState("all");
-  const [shown, setShown] = useState({ tour: true, assessment: true, other: true });
+  const [shown, setShown] = useState({ tour: true, assessment: true, consultation: true, other: true });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState(null); // null = modal closed
@@ -253,7 +255,7 @@ export default function CalendarPage() {
     [events, shown, consultantFilter]
   );
   const counts = useMemo(() => {
-    const c = { tour: 0, assessment: 0, other: 0 };
+    const c = { tour: 0, assessment: 0, consultation: 0, other: 0 };
     const inView =
       view === "month"
         ? events.filter((e) => fromKey(e.date).getMonth() === anchor.getMonth())
@@ -296,6 +298,8 @@ export default function CalendarPage() {
       setForm({ mode: "tour", ev, date: ev.date, start: ev.start || "", end: ev.end || "", status: ev.status });
     } else if (ev.source === "application_assessment") {
       setForm({ mode: "assessment", ev, date: ev.date, start: ev.start || "", notes: ev.notes || "" });
+    } else if (ev.source === "calendly_booking") {
+      setForm({ mode: "consultation", ev });
     } else if (ev.source === "application_visit") {
       setForm({ mode: "visit", ev, date: ev.date, notes: ev.notes || "" });
     } else {
@@ -331,6 +335,7 @@ export default function CalendarPage() {
   async function handleSave(e) {
     e.preventDefault();
     const f = form;
+    if (f.mode === "consultation") return setForm(null); // read-only, edited on the Consultations page
     if (f.mode === "tour") {
       const p = f.ev.slot === 2 ? "tour2_" : "tour_";
       return run(
@@ -481,6 +486,9 @@ export default function CalendarPage() {
             <i /> {p.label}
           </span>
         ))}
+        <span className="cal-legend-item tone-consult">
+          <i /> Consultations (Calendly)
+        </span>
       </p>
 
       <p className="cal-keys">
@@ -726,7 +734,52 @@ function EventModal({ form, setForm, families, onSave, onRemove, onClose }) {
   let heading;
   let removeLabel = null;
 
-  if (f.mode === "tour" || f.mode === "assessment" || f.mode === "visit") {
+  if (f.mode === "consultation") {
+    const ev = f.ev;
+    heading = "Consultation";
+    const pay =
+      ev.payment_paid === null || ev.payment_paid === undefined
+        ? null
+        : `${ev.payment_paid ? "Paid" : "Not paid"}${
+            ev.payment_amount != null ? ` · ${ev.payment_currency || ""} ${Number(ev.payment_amount).toLocaleString()}`.trimEnd() : ""
+          }`;
+    body = (
+      <>
+        <div className={"cal-modal-tag " + tone(ev)}>
+          <strong>{ev.bookerName || ev.bookerEmail || "Unknown booker"}</strong>
+          <span>{ev.eventName || "Calendly call"}</span>
+          <Link to="/staff/consultations" className="cal-modal-link">
+            Open Consultations ›
+          </Link>
+        </div>
+        <p className="cal-hint">
+          {fromKey(ev.date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          {" · "}
+          {time12(ev.start)}
+          {ev.end ? ` – ${time12(ev.end)}` : ""}
+          {ev.hostName ? ` · with ${ev.hostName}` : ""}
+        </p>
+        <p className="cal-hint">
+          {ev.bookerEmail || "No email"}
+          {ev.bookerPhone ? ` · ${ev.bookerPhone}` : ""}
+          {pay ? ` · ${pay}` : ""}
+        </p>
+        {ev.familyName && (
+          <p className="cal-hint">
+            Family: <Link to={`/staff/families/${ev.family_id}`}>{ev.familyName}</Link>
+          </p>
+        )}
+        {ev.joinUrl && (
+          <div className="cal-join">
+            <a href={ev.joinUrl} target="_blank" rel="noreferrer" className="cal-join-btn">
+              Open join link ↗
+            </a>
+          </div>
+        )}
+        <p className="cal-hint">Booked in Calendly. Link it to a family or add notes on the Consultations page.</p>
+      </>
+    );
+  } else if (f.mode === "tour" || f.mode === "assessment" || f.mode === "visit") {
     const ev = f.ev;
     const tab = f.mode === "assessment" ? "applications" : "visits";
     const link = familyLink(ev, tab);
@@ -916,11 +969,13 @@ function EventModal({ form, setForm, families, onSave, onRemove, onClose }) {
           )}
           <div className="cal-modal-actions-right">
             <button type="button" onClick={onClose}>
-              Cancel
+              {f.mode === "consultation" ? "Close" : "Cancel"}
             </button>
-            <button type="submit" className="cal-save-btn">
-              Save
-            </button>
+            {f.mode === "consultation" ? null : (
+              <button type="submit" className="cal-save-btn">
+                Save
+              </button>
+            )}
           </div>
         </div>
       </form>

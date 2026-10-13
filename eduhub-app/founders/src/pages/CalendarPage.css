@@ -16,6 +16,8 @@
   --team-bg: #e8eef5;
   --other: #5f5a5c;
   --other-bg: #f0eeee;
+  --consult: #0f7a8a;
+  --consult-bg: #e0f2f4;
 }
 
 /* ---- toolbar ---- */
@@ -164,9 +166,11 @@
 .chip-tour .cal-chip-dot { background: var(--tour); }
 .chip-assessment .cal-chip-dot { background: var(--assess); }
 .chip-other .cal-chip-dot { background: var(--remind); }
+.chip-consultation .cal-chip-dot { background: var(--consult); }
 .chip-tour.is-on { border-color: #bcdcca; }
 .chip-assessment.is-on { border-color: #d5c4e8; }
 .chip-other.is-on { border-color: #e6d6b3; }
+.chip-consultation.is-on { border-color: #b7dde2; }
 .cal-chip-count {
   font-size: 0.72rem;
   background: #f4eff1;
@@ -200,6 +204,7 @@
 .tone-deadline { --c: var(--deadline); --bg: var(--deadline-bg); }
 .tone-team { --c: var(--team); --bg: var(--team-bg); }
 .tone-other { --c: var(--other); --bg: var(--other-bg); }
+.tone-consult { --c: var(--consult); --bg: var(--consult-bg); }
 
 /* Package colours (tours + assessments). */
 .pkg-new_starts { --c: #2f7d6d; --bg: #e3f2ee; }
