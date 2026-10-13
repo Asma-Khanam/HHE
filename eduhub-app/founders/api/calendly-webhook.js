@@ -209,6 +209,17 @@ export default async function handler(req, res) {
         }),
       });
 
+      // A paid consultation moves a "Free sanity check" family to "Paid consult"
+      // on the Caseload. The filter means a family already further along is
+      // never moved back, and a 10-minute sanity check changes nothing.
+      if (/consult/i.test(eventName) && !/sanity/i.test(eventName)) {
+        await sb(`families?id=eq.${familyId}&client_stage=eq.free_sanity_check`, {
+          method: "PATCH",
+          headers: { Prefer: "return=minimal" },
+          body: JSON.stringify({ client_stage: "paid_consult" }),
+        });
+      }
+
       // Zoom: remember the meeting id so the AI summary finds this family later.
       const zoomId = joinUrl && /zoom\.us\/j\/(\d+)/i.exec(joinUrl)?.[1];
       if (zoomId) {

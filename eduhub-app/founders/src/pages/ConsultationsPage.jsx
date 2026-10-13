@@ -49,6 +49,7 @@ function BookingCard({ booking, families, onChanged }) {
   const [note, setNote] = useState(booking.staff_note || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [moved, setMoved] = useState(false);
 
   const family = families.find((f) => f.id === booking.family_id) || null;
   const pay = paymentLabel(booking);
@@ -59,7 +60,8 @@ function BookingCard({ booking, families, onChanged }) {
     setBusy(true);
     setError("");
     try {
-      await linkCalendlyBooking(booking, pick);
+      const r = await linkCalendlyBooking(booking, pick);
+      setMoved(!!r?.movedToPaidConsult);
       setPick("");
       await onChanged();
     } catch (e) {
@@ -144,6 +146,7 @@ function BookingCard({ booking, families, onChanged }) {
             <p className="consult-linked">
               Linked to{" "}
               <Link to={`/staff/families/${family.id}`}>{family.displayName}</Link>. It is on their Meetings tab.
+              {moved ? " They have been moved to Paid consult on the Caseload." : ""}
             </p>
           ) : (
             <div className="panel-form consult-link-form">

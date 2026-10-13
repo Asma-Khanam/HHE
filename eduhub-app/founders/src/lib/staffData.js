@@ -2182,6 +2182,27 @@ export async function linkCalendlyBooking(booking, familyId) {
       .from("zoom_meeting_links")
       .insert({ family_id: familyId, zoom_meeting_id: zoomId, join_url: booking.join_url, topic: booking.event_name || null });
   }
+  // A paid consultation moves a "Free sanity check" family to "Paid consult"
+  // on the Caseload. Only that one step: a family already further along is
+  // never moved back, and a 10-minute sanity check changes nothing.
+  let movedToPaidConsult = false;
+  if (booking.status !== "canceled" && isPaidConsultEvent(booking.event_name)) {
+    const { data, error } = await supabase
+      .from("families")
+      .update({ client_stage: "paid_consult" })
+      .eq("id", familyId)
+      .eq("client_stage", "free_sanity_check")
+      .select("id");
+    movedToPaidConsult = !error && (data || []).length > 0;
+  }
+  return { movedToPaidConsult };
+}
+
+// "30 - Minute consult with Heather" is the paid consultation; "10 - Minute
+// Sanity Check" is the free one. Matched on the event name.
+export function isPaidConsultEvent(name) {
+  const n = String(name || "").toLowerCase();
+  return /consult/.test(n) && !/sanity/.test(n);
 }
 
 export async function saveCalendlyBookingNote(bookingId, note) {
