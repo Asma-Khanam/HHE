@@ -1,179 +1,229 @@
+/* Consultant shell -- fixed sidebar + aesthetic pass (13 Oct 2026).
+   Sidebar is pinned to the viewport (position: fixed, so sticky edge cases
+   on long pages can't push it away), with a subtle gold accent, pill-shape
+   nav items, a gold left bar for the active route, and a tidier profile
+   footer. The main area is offset by the sidebar's width. */
+
 .staff-shell {
   min-height: 100vh;
   width: 100%;
-  display: grid;
-  grid-template-columns: 240px 1fr;
   font-family: var(--hh-font-body);
   background: var(--hh-cream);
 }
 
 .staff-sidebar {
-  /* Sticky to the viewport (13 Oct 2026): on long families the sign-out and
-     the profile name used to sit at the bottom of the whole page content,
-     scrolled far down. The sidebar now stays fixed to the window and only
-     the nav scrolls if it ever outgrows the height. */
-  position: sticky;
+  position: fixed;
   top: 0;
-  align-self: start;
+  left: 0;
+  width: 248px;
   height: 100vh;
-  max-height: 100vh;
-  background: var(--hh-burgundy);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 160px),
+    radial-gradient(120% 60% at 100% 0%, rgba(184, 154, 90, 0.14), transparent 60%),
+    var(--hh-burgundy);
   color: var(--hh-white);
   display: flex;
   flex-direction: column;
-  padding: 24px 18px;
+  padding: 22px 16px 16px;
   z-index: 20;
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.08);
 }
 
+/* ---- brand ---- */
 .staff-sidebar-brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 6px 28px;
+  padding: 4px 6px 20px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-
 .staff-sidebar-logo {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
 }
-
 .staff-sidebar-brand-name {
   font-family: var(--hh-font-heading);
   font-weight: 600;
-  font-size: 0.95rem;
-  line-height: 1.2;
+  font-size: 1rem;
+  line-height: 1.15;
 }
-
 .staff-sidebar-brand-sub {
   font-size: 0.68rem;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  opacity: 0.65;
+  color: var(--hh-gold);
+  opacity: 0.85;
+  margin-top: 2px;
 }
 
+/* ---- nav ---- */
 .staff-sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   flex: 1;
-  min-height: 0; /* lets the nav scroll instead of expanding */
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  /* thin scrollbar, only when needed, matched to the burgundy */
+  padding-right: 2px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-  padding-right: 2px;
 }
 .staff-sidebar-nav::-webkit-scrollbar { width: 6px; }
-.staff-sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
+.staff-sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 3px; }
 .staff-sidebar-nav::-webkit-scrollbar-track { background: transparent; }
 
 .staff-nav-item {
-  display: block;
-  padding: 10px 12px;
-  border-radius: var(--hh-radius);
-  color: var(--hh-white);
-  opacity: 0.75;
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 10px 14px 10px 18px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.78);
   text-decoration: none;
   font-size: 0.92rem;
   font-weight: 500;
-  transition: background var(--hh-transition), opacity var(--hh-transition);
+  letter-spacing: 0.01em;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
 }
-
+.staff-nav-item::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0.3);
+  width: 3px;
+  height: 20px;
+  border-radius: 3px;
+  background: var(--hh-gold);
+  opacity: 0;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
 .staff-nav-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  opacity: 1;
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
 }
-
 .staff-nav-item.is-active {
   background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-weight: 600;
+}
+.staff-nav-item.is-active::before {
   opacity: 1;
+  transform: translateY(-50%) scaleY(1);
 }
 
+/* ---- footer / profile ---- */
 .staff-sidebar-footer {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding-top: 18px;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  gap: 11px;
+  margin-top: 14px;
+  padding: 12px 10px;
+  background: rgba(0, 0, 0, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
 }
-
 .staff-sidebar-avatar {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: var(--hh-gold);
+  background: linear-gradient(135deg, var(--hh-gold), #d9b770);
   color: var(--hh-burgundy);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 0.85rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  box-shadow:
+    0 0 0 2px rgba(184, 154, 90, 0.3),
+    0 2px 6px rgba(0, 0, 0, 0.2);
 }
-
 .staff-sidebar-footer-text {
   min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
-
 .staff-sidebar-name {
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 0.86rem;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #fff;
 }
-
 .staff-sidebar-signout {
   background: none;
   border: none;
   padding: 0;
-  color: var(--hh-white);
-  opacity: 0.6;
-  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.55);
+  opacity: 1;
+  font-size: 0.74rem;
+  font-weight: 500;
   cursor: pointer;
+  text-decoration: none;
+  text-align: left;
+  letter-spacing: 0.02em;
+  transition: color 160ms ease;
+}
+.staff-sidebar-signout:hover {
+  color: var(--hh-gold);
   text-decoration: underline;
 }
 
-.staff-sidebar-signout:hover {
-  opacity: 1;
-}
-
+/* ---- main ---- */
 .staff-main {
+  margin-left: 248px;
   padding: 32px 40px;
   min-width: 0;
   overflow-x: auto;
 }
 
+/* ---- mobile: collapse sidebar to a top strip ---- */
 @media (max-width: 780px) {
-  .staff-shell {
-    grid-template-columns: 1fr;
-  }
   .staff-sidebar {
     position: static;
+    width: auto;
     height: auto;
     max-height: none;
     flex-direction: row;
     align-items: center;
     gap: 16px;
-    padding: 14px 16px;
+    padding: 12px 14px;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+    background: var(--hh-burgundy);
   }
   .staff-sidebar-brand {
     padding: 0;
+    margin: 0;
+    border-bottom: none;
   }
+  .staff-sidebar-logo { width: 28px; height: 28px; }
   .staff-sidebar-nav {
     flex-direction: row;
     flex: none;
     overflow-y: visible;
     overflow-x: auto;
   }
+  .staff-nav-item { padding: 8px 12px; }
+  .staff-nav-item::before { display: none; }
   .staff-sidebar-footer {
-    border-top: none;
-    padding-top: 0;
-    margin-left: auto;
+    margin: 0 0 0 auto;
+    padding: 6px 10px;
+    background: transparent;
+    border: none;
   }
   .staff-main {
+    margin-left: 0;
     padding: 20px;
   }
 }
