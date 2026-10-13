@@ -212,7 +212,8 @@ export default async function handler(req, res) {
       // A paid consultation moves a "Free sanity check" family to "Paid consult"
       // on the Caseload. The filter means a family already further along is
       // never moved back, and a 10-minute sanity check changes nothing.
-      if (/consult/i.test(eventName) && !/sanity/i.test(eventName)) {
+      // (Skipped for the one-off import of old bookings, "backfill".)
+      if (!p.backfill && /consult/i.test(eventName) && !/sanity/i.test(eventName)) {
         await sb(`families?id=eq.${familyId}&client_stage=eq.free_sanity_check`, {
           method: "PATCH",
           headers: { Prefer: "return=minimal" },
@@ -221,7 +222,7 @@ export default async function handler(req, res) {
       }
 
       // Zoom: remember the meeting id so the AI summary finds this family later.
-      const zoomId = joinUrl && /zoom\.us\/j\/(\d+)/i.exec(joinUrl)?.[1];
+      const zoomId = !p.backfill && joinUrl && /zoom\.us\/j\/(\d+)/i.exec(joinUrl)?.[1];
       if (zoomId) {
         await sb("zoom_meeting_links", {
           method: "POST",
