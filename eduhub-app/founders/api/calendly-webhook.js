@@ -77,6 +77,10 @@ function validSignature(header, raw, key) {
   return v1.length === expected.length && crypto.timingSafeEqual(Buffer.from(v1), Buffer.from(expected));
 }
 
+// Calendly event names that count as relocation bookings (paid consult, free
+// sanity check, meeting with Heather). Everything else is ignored.
+const RELOCATION_EVENT = /consult|sanity|meeting with heather/i;
+
 const enc = (s) => encodeURIComponent(s);
 
 // parents.email first (case-insensitive). Returns the family id, or null.
@@ -143,6 +147,14 @@ export default async function handler(req, res) {
 
     const ev = p.scheduled_event || {};
     const eventName = ev.name || "Calendly call";
+    // Only relocation bookings belong on the Consultations page. The same
+    // Calendly account also takes Teacher Interviews and Intern Interviews
+    // (recruitment), which hold candidates' personal details and must never be
+    // saved here.
+    if (!RELOCATION_EVENT.test(eventName)) {
+      await record(event, null, "ignored_event_type", eventName);
+      return res.status(200).json({ ignored: "not a relocation booking" });
+    }
     const start = ev.start_time || null;
     const end = ev.end_time || null;
     const host = (ev.event_memberships || [])[0]?.user_name || null;

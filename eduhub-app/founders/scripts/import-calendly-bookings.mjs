@@ -18,6 +18,9 @@ const TOKEN = process.env.CALENDLY_TOKEN;
 const KEY = process.env.CALENDLY_WEBHOOK_SIGNING_KEY;
 const URL_ = process.env.WEBHOOK_URL || "https://hhe-founders.vercel.app/api/calendly-webhook";
 const DRY = process.argv.includes("--dry");
+// Only relocation bookings (same rule as the webhook). Teacher and Intern
+// Interviews are recruitment and are never imported.
+const RELOCATION_EVENT = /consult|sanity|meeting with heather/i;
 const sinceArg = process.argv.find((a) => a.startsWith("--since="));
 const since = sinceArg ? new Date(sinceArg.split("=")[1]) : new Date(Date.now() - 365 * 24 * 3600 * 1000);
 
@@ -73,9 +76,14 @@ console.log(`Found ${events.length} events.`);
 
 let imported = 0;
 let skipped = 0;
+let skippedOther = 0;
 for (const ev of events) {
   const invitees = await all(`${ev.uri.replace("https://api.calendly.com", "")}/invitees?count=100`);
   for (const inv of invitees) {
+    if (!RELOCATION_EVENT.test(ev.name || "")) {
+      skippedOther++;
+      continue;
+    }
     const when = new Date(ev.start_time).toLocaleString("en-GB", { timeZone: "Asia/Dubai" });
     if (ev.status === "canceled" || inv.status === "canceled") {
       skipped++;
@@ -108,4 +116,4 @@ for (const ev of events) {
     await new Promise((res) => setTimeout(res, 250));
   }
 }
-console.log(`${DRY ? "Would import" : "Imported"} ${imported}; skipped ${skipped} cancelled.`);
+console.log(`${DRY ? "Would import" : "Imported"} ${imported}; skipped ${skipped} cancelled and ${skippedOther} non-relocation (interviews etc.).`);
