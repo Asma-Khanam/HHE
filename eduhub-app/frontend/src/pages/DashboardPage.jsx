@@ -1,19 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchApplicationFees } from "../lib/applicationFees";
-import { fetchFamilyTimetable, fetchFamilyApplications } from "../lib/timetableData";
-import { toursOfRow, parseDay } from "../lib/tourDetails";
-import { hasAssessment } from "../lib/assessment";
 import { useApplicationData } from "../context/ApplicationDataContext";
-import SchoolUpdatesCard from "../components/SchoolUpdatesCard";
+import SchoolsPipelineCard from "../components/SchoolsPipelineCard";
 import SchoolContactsCard from "../components/SchoolContactsCard";
 import { PageError, PageLoading } from "../components/StatePanels";
 import IntroductionsCard from "../components/IntroductionsCard";
-import UpcomingToursCard from "../components/UpcomingToursCard";
 import PackageUsageCard from "../components/PackageUsageCard";
-import UpcomingAssessmentsCard from "../components/UpcomingAssessmentsCard";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
-import { IconCheckCircle, IconChevronDown, IconChevronRight, IconAlertCircle, IconUser, IconClipboard } from "../components/icons";
+import { IconCheckCircle, IconChevronDown, IconChevronRight, IconAlertCircle, IconUser } from "../components/icons";
 import {
   getMissingItems,
   getReadinessPct,
@@ -22,22 +17,13 @@ import {
 } from "../lib/completeness";
 import "./DashboardPage.css";
 
-// Assessment statuses that still count as "live" (same list
-// UpcomingAssessmentsCard uses) -- anything else, or a date already past,
-// means the assessment itself is done and done things belong in the side
-// panel, not the main screen.
-const ASSESSMENT_ACTIVE = ["submitted", "assessment_booked", "under_review", "waitlisted", "draft"];
+// The Dashboard — 14 Oct 2026 redesign. Earlier version had five boxes
+// telling the same story (big "Needs your attention", Where you're at
+// per-school, Upcoming tours, Upcoming assessments, Recently completed).
+// New shape: one slim banner, package card at the top, then one tabbed
+// pipeline card doing the work of all five, then the family/contacts/
+// intros grid under it.
 
-// The Dashboard — built against the founders' own consultant-view mockup and
-// then trimmed twice on their feedback (2026-09-02).
-//
-// Three things came out along the way, all for the same reason — the page was
-// saying the same thing more than once: the five-step "Where we're up to"
-// tracker (the progress meters already said it), "Needs you today" (it was the
-// outstanding-documents list under another name), and the separate Household
-// card (the same people as "Your application", listed twice). What's left
-// answers three questions and stops: how far along are we, who still needs
-// something, and what's the one next thing.
 function greetingForNow() {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
@@ -54,10 +40,8 @@ function surnameOf(fullName) {
   return parts.length > 1 ? parts[parts.length - 1] : "";
 }
 
-// "The Khan family" — the founders asked for the father's surname here
-// specifically, whichever parent happens to be filling the form in. Falls back
-// to a child's last name, then the account holder's, and is skipped entirely
-// rather than guessed at when none of those exist yet.
+// "The Khan family" — father's surname first, then a child's, then the
+// account holder's. Skipped rather than guessed when none exist yet.
 function familySurname({ father, children, holder }) {
   return (
     surnameOf(father?.full_name) ||
@@ -96,16 +80,10 @@ function statusFor(pct) {
 export default function DashboardPage() {
   const { data, user, status, error, reload } = useApplicationData();
   const navigate = useNavigate();
-  // "Your family" opens and closes like a dropdown (September 2026).
   const [familyOpen, setFamilyOpen] = useState(false);
 
   const children = data?.children || [];
   const rawParents = data?.parents || [];
-  // Same [Mother, Father] order the Application form uses (see
-  // buildInitialParents there), so "parent-0"/"parent-1" in a missing
-  // item's link points at the same person's card on both pages. Straight
-  // database order could put Father first and send the family to the wrong
-  // card.
   const parents = orderParents(rawParents);
   const family = data?.family || {};
   const familyAnswers = {
@@ -114,10 +92,10 @@ export default function DashboardPage() {
     budgetStatus: family.budget_status || "",
   };
   const documentsByOwner = data?.documentsByOwner || {};
-  // Outstanding payments chip (Miss Lyndsay, 12 Oct 2026): families kept
-  // asking "what do I still owe?" — pull every unpaid payment and every
-  // unpaid fee the consultant has sent, show the total and item count on
-  // the dashboard header with a tap through to Billing.
+
+  // Outstanding payments chip in the top banner (kept, Miss Lyndsay, 12 Oct
+  // 2026) -- but no longer blown up into its own box; it's a chip now, and
+  // the fees themselves live inside the pipeline's Assessments tab.
   const [feesForDue, setFeesForDue] = useState([]);
   useEffect(() => {
     let alive = true;
@@ -129,114 +107,9 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // "Next step" view (Miss Lyndsay, 13 Oct 2026 meeting): a finished tour, a
-  // decided assessment, a fee that's been paid -- these used to just vanish
-  // off the home screen once done (the upcoming cards already hide anything
-  // that isn't live). Nothing was wrong with that for today's to-do, but it
-  // meant a family had no way to look back and confirm "yes, that happened".
-  // This pulls those same three things back in, read-only, into the side
-  // panel instead of the home screen, so the main column stays just the
-  // active next steps.
-  const familyIdForDone = data?.family?.id;
-  const childIdsKey = children.map((c) => c.id).join(",");
-  const [doneItems, setDoneItems] = useState([]);
-  // "What's next" (Miss Lyndsay, 14 Oct 2026 after Asma pushed for the
-  // client view to really match the consultant view): pull the family's
-  // own live to-dos -- upcoming tours and assessments -- so the Dashboard
-  // leads with what they need to do, not just what's happened.
-  const [upcomingItems, setUpcomingItems] = useState([]);
-  useEffect(() => {
-    if (!familyIdForDone) return undefined;
-    let alive = true;
-    const childIds = childIdsKey ? childIdsKey.split(",") : [];
-    Promise.all([fetchFamilyTimetable(familyIdForDone), fetchFamilyApplications(childIds).catch(() => [])])
-      .then(([{ shortlist }, apps]) => {
-        if (!alive) return;
-        const today = new Date().toLocaleDateString("en-CA");
-        const schoolById = Object.fromEntries((shortlist || []).map((r) => [r.school_id, r.school || {}]));
-
-        const completedTours = (shortlist || [])
-          .flatMap(toursOfRow)
-          .filter((t) => t.status === "completed")
-          .map((t) => ({
-            key: `tour-${t.key}`,
-            date: t.date,
-            label: `${t.row.school?.name || "School"} tour`,
-            sub: "Completed",
-          }));
-
-        const doneAssessments = (apps || [])
-          .filter((a) => hasAssessment(a) && (!ASSESSMENT_ACTIVE.includes(a.status) || (a.assessment_date && a.assessment_date < today)))
-          .map((a) => ({
-            key: `assess-${a.id}`,
-            date: a.assessment_date || a.submitted_at || "",
-            label: `${schoolById[a.school_id]?.name || "School"} assessment`,
-            sub: "Completed",
-          }));
-
-        setDoneItems([...completedTours, ...doneAssessments]);
-
-        const upTours = (shortlist || [])
-          .flatMap(toursOfRow)
-          .filter((t) => t.status !== "completed" && t.status !== "cancelled" && t.date >= today)
-          .map((t) => ({
-            key: `up-tour-${t.key}`,
-            date: t.date,
-            label: `Tour: ${t.row.school?.name || "School"}`,
-            sub: t.start ? `${t.date} · ${t.start}` : t.date,
-            go: "/app/timetable",
-          }));
-
-        const upAssessments = (apps || [])
-          .filter((a) => ASSESSMENT_ACTIVE.includes(a.status) && hasAssessment(a))
-          .filter((a) => a.assessment_video_requested || !a.assessment_date || a.assessment_date >= today)
-          .map((a) => {
-            const sname = schoolById[a.school_id]?.name || "School";
-            if (a.assessment_video_requested) {
-              return {
-                key: `up-assess-${a.id}`,
-                date: a.assessment_date || "9999",
-                label: `Video assessment: ${sname}`,
-                sub: a.assessment_video_sent_at ? `Sent ${a.assessment_video_sent_at}` : "Not sent yet",
-                go: "/app/timetable",
-              };
-            }
-            const sub = [a.assessment_date, a.assessment_time, a.assessment_in_person ? "at the school" : a.assessment_link ? "online" : ""]
-              .filter(Boolean)
-              .join(" · ");
-            return {
-              key: `up-assess-${a.id}`,
-              date: a.assessment_date || "9999",
-              label: `Assessment: ${sname}`,
-              sub: sub || "Details coming",
-              go: "/app/timetable",
-            };
-          });
-
-        setUpcomingItems([...upTours, ...upAssessments].sort((a, b) => String(a.date).localeCompare(String(b.date))));
-      })
-      .catch(() => alive && setDoneItems([]));
-    return () => {
-      alive = false;
-    };
-  }, [familyIdForDone, childIdsKey]);
-
-  const donePaidFees = feesForDue
-    .filter((f) => f.status === "paid" || !!f.paid_at)
-    .map((f) => ({
-      key: `fee-${f.id}`,
-      date: f.paid_at || "",
-      label: `${f.application?.school?.name || "School"} application fee`,
-      sub: `Paid${f.amount ? ` · ${f.currency || "AED"} ${Number(f.amount).toLocaleString()}` : ""}`,
-    }));
-
-  const completedItems = [...doneItems, ...donePaidFees]
-    .filter((i) => i.date)
-    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
-    .slice(0, 8);
-
   if (status === "loading") return <PageLoading label="Loading your dashboard…" />;
   if (status === "error") return <PageError title="We couldn’t load your dashboard" message={error} onRetry={reload} />;
+
   const paymentsForDue = data?.payments || [];
   const dueItems = [
     ...paymentsForDue.filter((p) => p.status === "unpaid"),
@@ -247,15 +120,7 @@ export default function DashboardPage() {
   const dueMoney = dueTotal
     ? `${dueCurrency} ${dueTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : "";
-  // "Paid by us" fees surface up top (Miss Heather, 12 Oct 2026): HHE
-  // paid the school on behalf, family owes HHE now.
-  const owedToHhe = feesForDue.filter((f) => f.hhe_paid_school_on_behalf && f.status !== "paid" && f.sent_to_family_at);
-  const owedTotal = owedToHhe.reduce((t, r) => t + (Number(r.amount) || 0), 0);
-  const owedMoney = owedTotal
-    ? `${(owedToHhe[0]?.currency || "AED")} ${owedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : "";
-  // Same shape ApplicationForm builds — schoolsByChild is keyed by child id,
-  // this lines it up as one array parallel to `children` by index.
+
   const currentSchools = children.map((c) => data?.schoolsByChild?.[c.id] || {});
 
   const holder = rawParents.find((p) => p.user_id === user?.id) || rawParents[0];
@@ -288,49 +153,36 @@ export default function DashboardPage() {
     return ownerId ? documentsByOwner[`${ownerType}:${ownerId}`] || [] : [];
   }
 
-  // The one next thing, as a single call to action. Deliberately never about
-  // documents — those have their own panel, and saying "2 documents to upload"
-  // here as well was just the same sentence twice.
-  let spotlight;
+  // One compact status line under the greeting -- replaces the whole old
+  // "Your application is with us" / "Next step" banner. Everything that
+  // was there is in two words plus a chevron CTA now; the big story is on
+  // the pipeline card below.
+  let statusLine;
   if (isSubmitted) {
-    spotlight = {
-      icon: <IconCheckCircle size={16} />,
-      eyebrow: "Submitted",
-      title: "Your application is with us",
-      body: submittedAt
-        ? `Sent on ${new Date(submittedAt).toLocaleDateString(undefined, {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}. You can still go back and change anything.`
-        : "You can still go back and change anything.",
+    statusLine = {
+      tone: "good",
+      icon: <IconCheckCircle size={14} />,
+      text: submittedAt
+        ? `Application submitted on ${new Date(submittedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`
+        : "Application submitted",
       cta: null,
     };
   } else if (missingFields.length) {
-    spotlight = {
-      icon: <IconAlertCircle size={16} />,
-      eyebrow: "Next step",
-      title: `${missingFields.length} required field${missingFields.length === 1 ? "" : "s"} to finish`,
-      body: "Everything you've typed is already saved. Fill these in and you'll be able to submit.",
-      cta: {
-        label: "Continue the application",
-        onClick: () => openForm(missingFields[0].stepKey, missingFields[0].fieldKey),
-      },
+    statusLine = {
+      tone: "warn",
+      icon: <IconAlertCircle size={14} />,
+      text: `${missingFields.length} field${missingFields.length === 1 ? "" : "s"} to finish on your application`,
+      cta: { label: "Continue", onClick: () => openForm(missingFields[0].stepKey, missingFields[0].fieldKey) },
     };
   } else {
-    spotlight = {
-      icon: <IconClipboard size={16} />,
-      eyebrow: "Ready",
-      title: "You can submit whenever you're ready",
-      body: "Everything required is filled in. Anything still to upload can follow afterwards.",
+    statusLine = {
+      tone: "ready",
+      icon: <IconCheckCircle size={14} />,
+      text: "Everything required is filled in — ready to submit",
       cta: { label: "Go to the application", onClick: () => openForm() },
     };
   }
 
-  // Everyone on the application, in the order the form itself shows them —
-  // whoever is filling it in first. One list, used once: this replaced the
-  // separate "Your application" and "Household" cards, which were the same
-  // people twice.
   const people = [];
   const parentOrder = accountHolderRole === "Father" ? ["Father", "Mother"] : ["Mother", "Father"];
   parentOrder.forEach((role) => {
@@ -366,34 +218,37 @@ export default function DashboardPage() {
 
   return (
     <div className="dash">
-      {/* ---------- family header + the one readiness number ---------- */}
-      <header className="dash-top">
-        <div className="dash-top-identity">
+      {/* ---------- one slim banner: greeting + status + readiness ---------- */}
+      <header className="dash-banner">
+        <div className="dash-banner-left">
           <div className="dash-crest">{(surname || greetingName || "?").charAt(0).toUpperCase()}</div>
-          <div className="dash-top-text">
+          <div className="dash-banner-text">
             <h1>
               {greetingForNow()}
               {greetingName ? ", " : ""}
-              <span className="dash-name">{greetingName}</span>.
+              <span className="dash-name">{greetingName}</span>
             </h1>
-            <p className="dash-top-family">
+            <p className="dash-banner-sub">
               {surname ? `The ${surname} family` : "Your application"}
               {children.length > 0 && ` · ${children.length} ${children.length === 1 ? "child" : "children"}`}
             </p>
-            <div className="dash-chips">
-              <span className={"dash-chip" + (isSubmitted ? " is-submitted" : "")}>
-                {isSubmitted && <IconCheckCircle size={13} />}
-                {isSubmitted ? "Submitted" : "Draft"}
-              </span>
-              {!isSubmitted && missingFields.length === 0 && <span className="dash-chip is-quiet">Ready to submit</span>}
+            <div className={"dash-status dash-status--" + statusLine.tone}>
+              <span className="dash-status-icon">{statusLine.icon}</span>
+              <span className="dash-status-text">{statusLine.text}</span>
+              {statusLine.cta && (
+                <button type="button" className="dash-status-cta" onClick={statusLine.cta.onClick}>
+                  {statusLine.cta.label} <IconChevronRight size={14} />
+                </button>
+              )}
               {dueItems.length > 0 && (
                 <button
                   type="button"
-                  className="dash-chip is-due"
+                  className="dash-status-pay"
                   onClick={() => navigate("/app/billing")}
                   title="Open Billing"
                 >
                   {dueMoney ? `${dueMoney} outstanding` : `${dueItems.length} item${dueItems.length === 1 ? "" : "s"} outstanding`}
+                  <IconChevronRight size={13} />
                 </button>
               )}
             </div>
@@ -403,80 +258,15 @@ export default function DashboardPage() {
         <Readiness pct={overallPct} />
       </header>
 
-      <section className="dash-spotlight">
-        <span className="dash-spotlight-eyebrow">
-          <span className="dash-spotlight-icon">{spotlight.icon}</span>
-          {spotlight.eyebrow}
-        </span>
-        <h2>{spotlight.title}</h2>
-        <p>{spotlight.body}</p>
-        {spotlight.cta && (
-          <button type="button" className="dash-spotlight-cta" onClick={spotlight.cta.onClick}>
-            {spotlight.cta.label}
-          </button>
-        )}
-      </section>
+      {/* ---------- package at the top ---------- */}
+      <PackageUsageCard />
 
-      {(owedToHhe.length > 0 || dueItems.filter((r) => !r.hhe_paid_school_on_behalf).length > 0 || upcomingItems.length > 0) && (
-        <section className="dash-card dash-whatsnext">
-          <div className="dash-card-head">
-            <h2><span className="dash-card-icon dash-card-icon--gold"><IconAlertCircle size={16} /></span>Needs your attention</h2>
-          </div>
-          <ul>
-            {owedToHhe.length > 0 && (
-              <li className="dash-wn-item is-owed">
-                <button type="button" onClick={() => navigate("/app/billing")}>
-                  <span className="dash-wn-tag">Owed</span>
-                  <span className="dash-wn-main">
-                    <strong>{owedMoney} to HHE</strong>
-                    <span>
-                      {owedToHhe.length} school fee{owedToHhe.length === 1 ? "" : "s"} paid on your behalf · settle in
-                      Billing
-                    </span>
-                  </span>
-                  <IconChevronRight size={16} />
-                </button>
-              </li>
-            )}
-            {dueItems
-              .filter((r) => !r.hhe_paid_school_on_behalf)
-              .slice(0, 4)
-              .map((r) => (
-                <li key={`due-${r.id}`} className="dash-wn-item is-pay">
-                  <button type="button" onClick={() => navigate("/app/billing")}>
-                    <span className="dash-wn-tag">Pay</span>
-                    <span className="dash-wn-main">
-                      <strong>
-                        {r.application?.school?.name || r.label || "School fee"}
-                        {r.amount ? ` · ${r.currency || "AED"} ${Number(r.amount).toLocaleString()}` : ""}
-                      </strong>
-                      <span>{r.due_date ? `Due ${r.due_date}` : "To pay"}</span>
-                    </span>
-                    <IconChevronRight size={16} />
-                  </button>
-                </li>
-              ))}
-            {upcomingItems.slice(0, 5).map((it) => (
-              <li key={it.key} className="dash-wn-item">
-                <button type="button" onClick={() => navigate(it.go)}>
-                  <span className="dash-wn-tag">{it.label.startsWith("Tour") ? "Tour" : "Assess"}</span>
-                  <span className="dash-wn-main">
-                    <strong>{it.label.replace(/^(Tour|Assessment|Video assessment): /, "")}</strong>
-                    <span>{it.sub}</span>
-                  </span>
-                  <IconChevronRight size={16} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* ---------- schools pipeline (the main thing on the page) ---------- */}
+      <SchoolsPipelineCard />
 
-      <div className={"dash-grid" + (missingFields.length || completedItems.length ? "" : " is-single")}>
-        {/* ---------- main column ---------- */}
+      {/* ---------- rest of the dashboard ---------- */}
+      <div className={"dash-grid" + (missingFields.length ? "" : " is-single")}>
         <div className="dash-main">
-          <SchoolUpdatesCard />
-
           <section className={"dash-card dash-family" + (familyOpen ? " is-open" : "")}>
             <div className="dash-card-head">
               <button
@@ -550,79 +340,40 @@ export default function DashboardPage() {
             )}
           </section>
 
-
-          <UpcomingAssessmentsCard />
-          <UpcomingToursCard />
-
-          <PackageUsageCard />
           <SchoolContactsCard />
-
           <IntroductionsCard />
         </div>
 
-        {(missingFields.length > 0 || completedItems.length > 0) && (
+        {missingFields.length > 0 && (
           <aside className="dash-side">
-            {missingFields.length > 0 && (
-              <section className="dash-card">
-                <div className="dash-card-head">
-                  <h2><span className="dash-card-icon dash-card-icon--error"><IconAlertCircle size={16} /></span>Still to fill in</h2>
-                  <span className="dash-count">{missingFields.length}</span>
-                </div>
-                <ul className="dash-list">
-                  {missingFields.slice(0, 8).map((item) => (
-                    <li key={item.fieldKey}>
-                      <button type="button" onClick={() => openForm(item.stepKey, item.fieldKey)}>
-                        <span className="dash-bullet" />
-                        <span className="dash-list-label">{item.label}</span>
-                        <IconChevronRight size={15} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                {missingFields.length > 8 && (
-                  <p className="dash-note">+ {missingFields.length - 8} more, once these are done.</p>
-                )}
-              </section>
-            )}
-
-            {completedItems.length > 0 && (
-              <section className="dash-card dash-done">
-                <div className="dash-card-head">
-                  <h2><span className="dash-card-icon dash-card-icon--good"><IconCheckCircle size={16} /></span>Recently completed</h2>
-                </div>
-                <ul className="dash-done-list">
-                  {completedItems.map((item) => {
-                    const d = parseDay(item.date);
-                    return (
-                      <li key={item.key} className="dash-done-item">
-                        <IconCheckCircle size={16} className="dash-done-icon" />
-                        <span className="dash-done-text">
-                          <span className="dash-done-label">{item.label}</span>
-                          <span className="dash-done-sub">
-                            {item.sub}
-                            {d && !Number.isNaN(d.getTime())
-                              ? ` · ${d.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
-                              : ""}
-                          </span>
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            )}
+            <section className="dash-card">
+              <div className="dash-card-head">
+                <h2><span className="dash-card-icon dash-card-icon--error"><IconAlertCircle size={16} /></span>Still to fill in</h2>
+                <span className="dash-count">{missingFields.length}</span>
+              </div>
+              <ul className="dash-list">
+                {missingFields.slice(0, 8).map((item) => (
+                  <li key={item.fieldKey}>
+                    <button type="button" onClick={() => openForm(item.stepKey, item.fieldKey)}>
+                      <span className="dash-bullet" />
+                      <span className="dash-list-label">{item.label}</span>
+                      <IconChevronRight size={15} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {missingFields.length > 8 && (
+                <p className="dash-note">+ {missingFields.length - 8} more, once these are done.</p>
+              )}
+            </section>
           </aside>
         )}
       </div>
-
-
     </div>
   );
 }
 
-// The four-segment progress meter from the founders' mockup — easier to read
-// at a glance than a continuous bar, because "two of four" is a shape you
-// recognise without reading a number.
+// Four-segment meter from the founders' mockup.
 const SEGMENT_COUNT = 4;
 
 function Segments({ pct }) {
@@ -636,11 +387,10 @@ function Segments({ pct }) {
   );
 }
 
-// The one number on the page, as a ring. Deliberately the only percentage
-// shown large, so nothing on the Dashboard can appear to contradict it.
+// Small readiness ring — the one headline number on the page.
 function Readiness({ pct }) {
-  const size = 116;
-  const stroke = 11;
+  const size = 96;
+  const stroke = 9;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.max(0, Math.min(100, pct));

@@ -1,15 +1,15 @@
 /* Dashboard — cream page, white cards, one accent colour doing one job.
-   Built to the founders' consultant-view mockup: a wide main column with a
-   narrower rail beside it, not one full-width stack. */
+   14 Oct 2026 redesign (Asma): the top of the page is now one slim banner,
+   the package card sits right under it, and the schools pipeline is the
+   main card after that. Everything that used to be its own standalone
+   box (Needs your attention, Where you're at per-school, Upcoming tours,
+   Upcoming assessments, Recently completed) folds into the pipeline. */
 
-/* Everything here scales with the window rather than snapping between a
-   handful of fixed sizes — the first version had a fixed max width and fixed
-   padding, which left it looking wrong at most real screen sizes. */
 .dash {
   padding: clamp(16px, 2.2vw, 32px) clamp(16px, 2.6vw, 40px) 60px;
   display: flex;
   flex-direction: column;
-  gap: clamp(18px, 2vw, 26px);
+  gap: clamp(16px, 1.8vw, 22px);
   background:
     radial-gradient(1200px 400px at 10% -5%, rgba(184, 154, 90, 0.08), transparent 60%),
     radial-gradient(900px 500px at 110% 10%, rgba(83, 1, 38, 0.05), transparent 60%),
@@ -19,137 +19,136 @@
   min-width: 0;
 }
 
-/* Cards arrive with a small settle rather than snapping in — enough to feel
-   considered, short enough that nobody waits for it. */
 @keyframes dash-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
 }
-
-.dash-top,
-.dash-card,
-.dash-spotlight {
-  animation: dash-rise 0.4s ease both;
-}
-
-.dash-spotlight {
-  animation-delay: 0.05s;
-}
-
-.dash-grid > * {
-  animation-delay: 0.1s;
-}
+.dash-banner,
+.dash-card { animation: dash-rise 0.35s ease both; }
+.dash-grid > * { animation-delay: 0.05s; }
 
 @media (prefers-reduced-motion: reduce) {
-  .dash-top,
-  .dash-card,
-  .dash-spotlight {
-    animation: none;
-  }
+  .dash-banner, .dash-card { animation: none; }
 }
 
-/* ---------------------------------------------------------- family header */
+/* ================================================================ banner */
 
-.dash-top {
+.dash-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: clamp(16px, 2.4vw, 28px);
+  gap: clamp(16px, 2vw, 24px);
   flex-wrap: wrap;
   background: var(--hh-white);
   border: 1px solid var(--hh-track);
-  border-radius: 18px;
-  padding: clamp(20px, 2.2vw, 28px) clamp(20px, 2.4vw, 30px);
-  box-shadow: 0 10px 30px rgba(83, 1, 38, 0.06);
+  border-radius: 16px;
+  padding: clamp(16px, 1.8vw, 22px) clamp(18px, 2.2vw, 26px);
+  box-shadow: 0 6px 20px rgba(83, 1, 38, 0.05);
 }
 
-.dash-top-identity {
+.dash-banner-left {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
-/* The family crest — a single letter, the one purely decorative thing on the
-   page, and the reason the header reads as "this family" not "a dashboard". */
 .dash-crest {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: clamp(50px, 4.5vw, 66px);
-  height: clamp(50px, 4.5vw, 66px);
+  width: clamp(44px, 4vw, 56px);
+  height: clamp(44px, 4vw, 56px);
   flex-shrink: 0;
   border-radius: 50%;
   background: radial-gradient(circle at 30% 25%, var(--hh-burgundy-light), var(--hh-burgundy) 70%);
   color: var(--hh-white);
-  font-size: clamp(1.25rem, 1.6vw, 1.7rem);
+  font-size: clamp(1.1rem, 1.4vw, 1.4rem);
   font-weight: 600;
   letter-spacing: 0.02em;
-  box-shadow: 0 8px 20px rgba(83, 1, 38, 0.28);
+  box-shadow: 0 6px 14px rgba(83, 1, 38, 0.22);
 }
 
-.dash-top-text {
-  min-width: 0;
-}
-
-.dash-top-text h1 {
+.dash-banner-text { min-width: 0; }
+.dash-banner-text h1 {
   margin: 0;
   font-family: var(--hh-font-heading);
-  font-size: clamp(1.35rem, 1.05rem + 1.1vw, 1.9rem);
+  font-size: clamp(1.1rem, 0.95rem + 0.7vw, 1.4rem);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--hh-ink);
+  line-height: 1.2;
 }
+.dash-name { color: var(--hh-burgundy); }
 
-.dash-name {
-  color: var(--hh-burgundy);
-}
-
-.dash-top-family {
-  margin: 5px 0 0;
-  font-size: 0.95rem;
+.dash-banner-sub {
+  margin: 2px 0 0;
+  font-size: 0.86rem;
   color: var(--hh-ink);
   opacity: 0.6;
 }
 
-.dash-chips {
-  display: flex;
+/* The status line that replaces the whole old spotlight box. Flat,
+   inline, flows under the greeting; a tiny CTA on the right. */
+.dash-status {
+  margin-top: 10px;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  color: var(--hh-ink);
 }
+.dash-status-icon { display: inline-grid; place-items: center; }
+.dash-status-text { font-weight: 500; }
 
-.dash-chip {
+.dash-status--good { background: var(--hh-good-bg); color: var(--hh-good); }
+.dash-status--good .dash-status-text { color: var(--hh-good); font-weight: 600; }
+.dash-status--warn { background: rgba(184, 154, 90, 0.18); color: #7a5612; }
+.dash-status--warn .dash-status-text { color: #7a5612; font-weight: 600; }
+.dash-status--ready { background: var(--hh-cream); color: var(--hh-burgundy); border: 1px solid rgba(83, 1, 38, 0.14); }
+.dash-status--ready .dash-status-text { color: var(--hh-burgundy); font-weight: 600; }
+
+.dash-status-cta {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 11px 5px 13px;
+  font: inherit;
   font-size: 0.78rem;
   font-weight: 600;
-  padding: 5px 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+.dash-status-cta:hover { background: var(--hh-burgundy-light); }
+.dash-status-cta:active { transform: translateY(1px); }
+
+.dash-status-pay {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: #fff2d6;
+  color: #8a4e00;
+  border: 1px solid rgba(154, 91, 0, 0.3);
   border-radius: 999px;
-  background: rgba(184, 154, 90, 0.18);
-  color: #7a6228;
+  padding: 4px 10px 4px 12px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease;
 }
+.dash-status-pay:hover { background: #ffe5b2; }
+.dash-status-pay:active { transform: translateY(1px); }
 
-.dash-chip.is-submitted {
-  background: var(--hh-good-bg);
-  color: var(--hh-good);
-}
-
-.dash-chip.is-quiet {
-  background: var(--hh-cream);
-  color: var(--hh-ink);
-  opacity: 0.65;
-  font-weight: 500;
-}
-
-/* ---------------------------------------------------------- readiness ring */
+/* ---- readiness ring (smaller than before) */
 
 .dash-readiness {
   position: relative;
@@ -157,22 +156,9 @@
   display: grid;
   place-items: center;
 }
-
-.dash-readiness svg {
-  display: block;
-  width: clamp(88px, 8vw, 118px);
-  height: auto;
-}
-
-.dash-ring-track {
-  stroke: var(--hh-track);
-}
-
-.dash-ring-fill {
-  stroke: var(--hh-burgundy);
-  transition: stroke-dashoffset 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
+.dash-readiness svg { display: block; width: clamp(76px, 6.5vw, 96px); height: auto; }
+.dash-ring-track { stroke: var(--hh-track); }
+.dash-ring-fill { stroke: var(--hh-burgundy); transition: stroke-dashoffset 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
 .dash-readiness-value {
   position: absolute;
   display: flex;
@@ -180,41 +166,40 @@
   align-items: center;
   line-height: 1.1;
 }
-
 .dash-readiness-value strong {
   font-family: var(--hh-font-heading);
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   color: var(--hh-burgundy);
   font-variant-numeric: tabular-nums;
 }
-
 .dash-readiness-value span {
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--hh-ink);
   opacity: 0.45;
 }
+.dash-readiness::after {
+  content: "";
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 45%, rgba(184, 154, 90, 0.12), transparent 65%);
+  pointer-events: none;
+}
 
-/* ------------------------------------------------------------ page layout */
+/* =================================================================== grid */
 
-/* Two columns only when there's genuinely room for both. Below that the rail
-   goes under the main column rather than being squeezed — checked at 768px,
-   where an auto-fit version put two cramped columns side by side and wrapped
-   every person row onto two lines. */
 .dash-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: clamp(14px, 1.6vw, 20px);
   align-items: start;
 }
-
 @media (min-width: 1060px) {
-  .dash-grid {
-    grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
-  }
+  .dash-grid { grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); }
+  .dash-grid.is-single { grid-template-columns: minmax(0, 1fr); }
 }
-
 .dash-main,
 .dash-side {
   display: flex;
@@ -223,15 +208,8 @@
   min-width: 0;
 }
 
-/* ------------------------------------------------------------ card shell */
+/* ============================================================== card shell */
 
-/* 14 Oct 2026, second pass: the gradient line across the top of every
-   card read as clutter and didn't actually communicate anything, so it's
-   gone. Hierarchy now comes from a plain flat surface for every card, with
-   the two "primary" cards (Where you're at, What's next) told apart by a
-   warm tint instead of a decorative line -- see the dash-whatsnext and
-   su-card rules further down. One quiet shadow, no inset highlight, no
-   hover lift: the page should sit still until something on it changes. */
 .dash-card {
   position: relative;
   background: var(--hh-white);
@@ -246,11 +224,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 0 14px;
+  padding: 18px 0 14px;
   border-bottom: 1px solid var(--hh-track);
   margin-bottom: 6px;
 }
-
 .dash-card-head h2 {
   margin: 0;
   display: flex;
@@ -262,13 +239,6 @@
   color: var(--hh-ink);
 }
 
-/* Icon badge system (14 Oct 2026, full redesign pass): every card head
-   gets a small round icon in the same spot, so a family scanning down the
-   page reads the icon before the words -- "one look tells you what's
-   going on" was the brief. One shape, four tints: burgundy for the thing
-   that's actually happening right now, gold for anything needing money or
-   action, neutral ink for plain reference sections, good/error reuse the
-   same green/red the rest of the page already uses for status. */
 .dash-card-icon {
   flex: none;
   display: grid;
@@ -296,10 +266,7 @@
   color: var(--hh-burgundy);
   cursor: pointer;
 }
-
-.dash-card-link:hover {
-  text-decoration: underline;
-}
+.dash-card-link:hover { text-decoration: underline; }
 
 .dash-count {
   display: inline-grid;
@@ -315,13 +282,61 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ------------------------------------------------------------ person rows */
+/* ======================================================= family dropdown */
 
-.dash-rows {
+.dash-family:not(.is-open) .dash-card-head { border-bottom: none; }
+.dash-family:not(.is-open) { padding-bottom: 6px; }
+.dash-family-toggle {
+  flex: 1;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
 }
+.dash-family-preview {
+  margin-left: 10px;
+  font-size: 0.82rem;
+  color: rgba(42, 17, 25, 0.6);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.dash-family-faces { display: inline-flex; margin-left: auto; }
+.dash-family-faces .dash-family-face {
+  width: 30px;
+  height: 30px;
+  font-size: 0.66rem;
+  border-radius: 50%;
+  border: 2px solid #fbf6f0;
+  margin-left: -8px;
+  box-shadow: 0 2px 5px rgba(83, 1, 38, 0.1);
+}
+.dash-family-faces .dash-family-face:first-child { margin-left: 0; }
+.dash-family.is-open .dash-family-faces { display: none; }
+.dash-family-caret {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--hh-cream);
+  color: var(--hh-burgundy);
+  transition: transform 0.2s ease;
+}
+.dash-family.is-open .dash-family-caret { transform: rotate(180deg); margin-left: auto; }
 
+/* ================================================= family rows (open view) */
+
+.dash-rows { display: flex; flex-direction: column; }
 .dash-row {
   display: flex;
   align-items: center;
@@ -339,15 +354,8 @@
   color: var(--hh-ink);
   transition: background var(--hh-transition);
 }
-
-.dash-row:last-child {
-  border-bottom: none;
-}
-
-.dash-row:hover {
-  background: var(--hh-cream);
-}
-
+.dash-row:last-child { border-bottom: none; }
+.dash-row:hover { background: var(--hh-cream); }
 .dash-row-text {
   display: flex;
   flex-direction: column;
@@ -355,8 +363,6 @@
   flex: 1 1 auto;
   min-width: 0;
 }
-
-/* Meter, status and chevron travel together, so they wrap as one group. */
 .dash-row-meta {
   display: flex;
   align-items: center;
@@ -366,7 +372,6 @@
   color: var(--hh-ink);
   opacity: 0.85;
 }
-
 .dash-row-name {
   font-size: 0.95rem;
   font-weight: 600;
@@ -374,12 +379,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.dash-row-tag {
-  font-weight: 500;
-  opacity: 0.75;
-}
-
+.dash-row-tag { font-weight: 500; opacity: 0.75; }
 .dash-row-detail {
   font-size: 0.79rem;
   opacity: 0.55;
@@ -387,31 +387,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-/* ------------------------------------------------------- segment meter */
-
-.dash-segments {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
+.dash-row.is-incomplete {
+  border-left: 3px solid var(--hh-error);
+  background: rgba(179, 38, 30, 0.03);
 }
+.dash-row.is-incomplete:hover { background: rgba(179, 38, 30, 0.06); }
 
-.dash-segment {
-  width: 22px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--hh-track);
-}
+/* ================================================================ segments */
 
-.dash-segment.is-on {
-  background: var(--hh-gold);
-}
+.dash-segments { display: flex; gap: 4px; flex-shrink: 0; }
+.dash-segment { width: 22px; height: 6px; border-radius: 999px; background: var(--hh-track); }
+.dash-segment.is-on { background: var(--hh-gold); }
+.dash-segment.is-done { background: var(--hh-good); }
 
-.dash-segment.is-done {
-  background: var(--hh-good);
-}
-
-/* ------------------------------------------------------------ status pills */
+/* =================================================================== pills */
 
 .dash-pill {
   flex-shrink: 0;
@@ -421,153 +410,20 @@
   border-radius: 999px;
   white-space: nowrap;
 }
-
-.dash-pill.tone-done {
-  background: var(--hh-good-bg);
-  color: var(--hh-good);
-}
-
-.dash-pill.tone-progress {
-  background: rgba(184, 154, 90, 0.2);
-  color: #7a6228;
-}
-
-.dash-pill.tone-empty {
-  background: var(--hh-cream);
-  color: var(--hh-ink);
-  opacity: 0.6;
-}
-
+.dash-pill.tone-done { background: var(--hh-good-bg); color: var(--hh-good); }
+.dash-pill.tone-progress { background: rgba(184, 154, 90, 0.2); color: #7a6228; }
+.dash-pill.tone-empty { background: var(--hh-cream); color: var(--hh-ink); opacity: 0.6; }
 .dash-pill.tone-pending {
-  background: rgba(179, 38, 30, 0.09);
+  background: rgba(179, 38, 30, 0.1);
   color: var(--hh-error);
-}
-
-/* ------------------------------------------------------------- spotlight */
-
-.dash-spotlight {
-  position: relative;
-  overflow: hidden;
-  border-radius: 16px;
-  padding: clamp(22px, 2.4vw, 30px) clamp(22px, 2.6vw, 32px);
-  color: var(--hh-white);
-  background: radial-gradient(circle at 88% -30%, rgba(184, 154, 90, 0.45), transparent 58%),
-    linear-gradient(135deg, var(--hh-burgundy) 0%, var(--hh-burgundy-light) 100%);
-  box-shadow: 0 14px 34px rgba(83, 1, 38, 0.22);
-}
-
-.dash-spotlight::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1.5px, transparent 1.5px);
-  background-size: 18px 18px;
-  mask-image: linear-gradient(to left, black, transparent 65%);
-  pointer-events: none;
-}
-
-.dash-spotlight > * {
-  position: relative;
-}
-
-/* At a wide window the text alone left half the banner empty, so the button
-   moves out to the right and the two balance instead. */
-@media (min-width: 900px) {
-  .dash-spotlight {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "eyebrow cta"
-      "title   cta"
-      "body    cta";
-    align-items: center;
-    column-gap: 32px;
-  }
-
-  .dash-spotlight-eyebrow {
-    grid-area: eyebrow;
-  }
-
-  .dash-spotlight h2 {
-    grid-area: title;
-  }
-
-  .dash-spotlight p {
-    grid-area: body;
-  }
-
-  .dash-spotlight-cta {
-    grid-area: cta;
-    margin-top: 0;
-    white-space: nowrap;
-  }
-}
-
-.dash-spotlight-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 0.72rem;
+  border: 1px solid rgba(179, 38, 30, 0.25);
   font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--hh-gold);
-  margin-bottom: 8px;
-}
-.dash-spotlight-icon {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.16);
 }
 
-.dash-spotlight h2 {
-  margin: 0;
-  font-family: var(--hh-font-heading);
-  font-size: clamp(1.2rem, 1rem + 0.7vw, 1.55rem);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
+/* ================================================= still-to-fill side list */
 
-.dash-spotlight p {
-  margin: 8px 0 0;
-  font-size: 0.9rem;
-  opacity: 0.82;
-  max-width: 56ch;
-}
-
-.dash-spotlight-cta {
-  margin-top: 18px;
-  background: var(--hh-gold);
-  color: #3b2c0c;
-  border: none;
-  border-radius: 999px;
-  padding: 11px 24px;
-  font-family: var(--hh-font-body);
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform var(--hh-transition), box-shadow var(--hh-transition);
-}
-
-.dash-spotlight-cta:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
-}
-
-/* ------------------------------------------------------------ plain lists */
-
-.dash-list,
-.dash-docs {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.dash-list button,
-.dash-docs button {
+.dash-list { list-style: none; margin: 0; padding: 0; }
+.dash-list button {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -584,75 +440,19 @@
   color: var(--hh-ink);
   transition: background var(--hh-transition);
 }
-
-.dash-list li:last-child button,
-.dash-docs li:last-child button {
-  border-bottom: none;
-}
-
-.dash-list button:hover,
-.dash-docs button:hover {
-  background: var(--hh-cream);
-}
-
-.dash-list-label {
-  flex: 1;
-  font-size: 0.9rem;
-}
-
+.dash-list li:last-child button { border-bottom: none; }
+.dash-list button:hover { background: var(--hh-cream); }
+.dash-list-label { flex: 1; font-size: 0.9rem; }
 .dash-bullet {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--hh-gold);
+  background: var(--hh-error);
   flex-shrink: 0;
 }
-
-.dash-doc-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-/* A dashed ring — "expected, not here yet", visibly different from the solid
-   green tick the Document Vault uses for a file that's actually on file. */
-.dash-doc-mark {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 2px dashed rgba(179, 38, 30, 0.45);
-}
-
-.dash-household {
-  display: flex;
-  flex-direction: column;
-}
-
-.dash-household-row {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  padding: 13px 0;
-  border-bottom: 1px solid var(--hh-track);
-}
-
-.dash-household-row:last-child {
-  border-bottom: none;
-}
-
-.dash-allclear {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--hh-good);
-  padding: 14px 0 6px;
-}
-
-.dash-allclear p {
-  margin: 0;
-  font-size: 0.88rem;
-  color: var(--hh-ink);
-  opacity: 0.7;
+.dash-list li:first-child button {
+  background: rgba(179, 38, 30, 0.04);
+  box-shadow: inset 3px 0 0 var(--hh-error);
 }
 
 .dash-note {
@@ -662,144 +462,8 @@
   opacity: 0.55;
 }
 
-.dash-note-soft {
-  padding-top: 10px;
-  border-top: 1px solid var(--hh-track);
-}
+/* ============================================================= misc small */
 
-/* ------------------------------------------------------------ narrow screens */
-
-/* The segment meter is the first thing to go when space gets tight — the
-   status pill next to it already says the same thing in words. */
-@media (max-width: 680px) {
-  .dash-segments {
-    display: none;
-  }
-}
-
-@media (max-width: 560px) {
-  /* On a phone the header stacks: the crest sits beside the greeting at the
-     top, and the ring goes underneath rather than fighting it for width. */
-  .dash-top {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 18px;
-  }
-
-  .dash-top-identity {
-    align-items: flex-start;
-  }
-
-  .dash-crest {
-    margin-top: 3px;
-  }
-
-  .dash-readiness {
-    align-self: center;
-  }
-
-  .dash-readiness svg {
-    width: 92px;
-  }
-
-  /* The chevron is decoration once the whole row is the tap target. */
-  .dash-row-meta svg {
-    display: none;
-  }
-
-  /* On a phone the name gets the whole line and the status drops underneath
-     it, indented to line up with the text. Keeping them side by side truncated
-     "Haseebunnisa Aijaz Khan" down to "Haseebunni…" to make room for a pill
-     saying "In progress" — the name is the more useful of the two. */
-  .dash-row {
-    flex-wrap: wrap;
-    row-gap: 8px;
-  }
-
-  /* Full width minus the avatar and its gap, so the avatar stays on the same
-     line as the name and only the status pill drops below. */
-  .dash-row-text {
-    flex: 1 1 calc(100% - 54px);
-  }
-
-  .dash-row-meta {
-    margin-left: 54px;
-  }
-}
-
-/* ---------------- September 2026: one column when nothing's left to fill */
-@media (min-width: 1060px) {
-  .dash-grid.is-single { grid-template-columns: minmax(0, 1fr); }
-}
-
-/* "Your family" as a dropdown -- click the header to open/close. */
-.dash-family:not(.is-open) .dash-card-head { border-bottom: none; }
-.dash-family:not(.is-open) { padding-bottom: 6px; }
-.dash-family-toggle {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
-  color: inherit;
-}
-.dash-family-faces { display: inline-flex; margin-left: auto; }
-.dash-family-faces .dash-family-face { width: 28px; height: 28px; font-size: 0.66rem; border-radius: 50%; border: 2px solid var(--hh-white); margin-left: -8px; }
-.dash-family-faces .dash-family-face:first-child { margin-left: 0; }
-.dash-family.is-open .dash-family-faces { display: none; }
-.dash-family-caret { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--hh-cream); color: var(--hh-burgundy); transition: transform 0.2s ease; }
-.dash-family.is-open .dash-family-caret { transform: rotate(180deg); margin-left: auto; }
-
-/* Outstanding payments chip in the header (Miss Lyndsay, 12 Oct 2026). */
-.dash-chip.is-due { background: #fff2d6; color: #8a4e00; border: 1px solid rgba(154, 91, 0, 0.3); font-weight: 700; cursor: pointer; transition: background 0.15s ease, transform 0.08s ease; }
-.dash-chip.is-due:hover { background: #ffe5b2; }
-.dash-chip.is-due:active { transform: scale(0.98); }
-
-/* Red-highlight incomplete sections (Miss Lyndsay, 12 Oct 2026). */
-.dash-row.is-incomplete {
-  border-left: 3px solid var(--hh-error, #b3261e);
-  background: rgba(179, 38, 30, 0.03);
-}
-.dash-row.is-incomplete:hover { background: rgba(179, 38, 30, 0.06); }
-.dash-pill.tone-pending {
-  background: rgba(179, 38, 30, 0.1);
-  color: var(--hh-error, #b3261e);
-  border: 1px solid rgba(179, 38, 30, 0.25);
-  font-weight: 700;
-}
-/* Red bullet on the Still to fill in list, so each outstanding item reads
-   as urgent. The item at the top is the next one Spotlight auto-focuses on. */
-.dash-list .dash-bullet { background: var(--hh-error, #b3261e); }
-.dash-list li:first-child button {
-  background: rgba(179, 38, 30, 0.04);
-  box-shadow: inset 3px 0 0 var(--hh-error, #b3261e);
-}
-
-/* Dead: .dash-owed and .dash-owed-strip were two earlier, discarded
-   shapes for the "paid by us" callout -- both folded into the "Owed" row
-   inside the What's next card (14 Oct 2026 redesign), removed here. */
-
-/* Collapsed Your family / School updates / School contacts preview text next
-   to the heading, so a closed card still tells you something. */
-.dash-family-preview {
-  margin-left: 10px;
-  font-size: 0.82rem;
-  color: rgba(42, 17, 25, 0.6);
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-  min-width: 0;
-}
-
-/* Package card: tidier label row, softer meter dots in warm gold rather
-   than the heavy burgundy. */
 .pkg-card-chip {
   background: linear-gradient(135deg, rgba(184, 154, 90, 0.22), rgba(184, 154, 90, 0.1));
   color: #7a6228;
@@ -810,153 +474,28 @@
   font-weight: 600;
   letter-spacing: 0.01em;
 }
-
-/* Softer package meter dots (overrides PackageMeter.css). */
 .pkg-dot { height: 8px; background: #f0e6ea; }
 .pkg-dot.is-booked { background: linear-gradient(90deg, #d8ba76, #c99c3a); }
 .pkg-dot.is-done { background: linear-gradient(90deg, #7a1a3a, #530126); }
 
-/* Readiness ring gets a soft inner glow to feel less flat. */
-.dash-readiness::after {
-  content: "";
-  position: absolute;
-  inset: 10%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 45%, rgba(184, 154, 90, 0.12), transparent 65%);
-  pointer-events: none;
+/* =============================================================== narrow */
+
+@media (max-width: 680px) {
+  .dash-segments { display: none; }
 }
 
-/* A touch more air inside each card head. */
-.dash-card-head {
-  padding-top: 18px;
-  padding-bottom: 14px;
-}
-
-/* Family avatars border now matches cream so they blend. */
-.dash-family-faces .dash-family-face {
-  width: 30px;
-  height: 30px;
-  border-color: #fbf6f0;
-  box-shadow: 0 2px 5px rgba(83, 1, 38, 0.1);
-}
-
-/* Spotlight: trim some weight and add a soft shine. */
-.dash-spotlight {
-  padding: clamp(20px, 2.1vw, 26px) clamp(22px, 2.6vw, 30px);
-  box-shadow: 0 12px 28px rgba(83, 1, 38, 0.18);
-}
-.dash-spotlight h2 { font-size: clamp(1.15rem, 1rem + 0.6vw, 1.4rem); }
-.dash-spotlight p { font-size: 0.88rem; }
-.dash-spotlight-cta {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
-}
-
-/* ---------------- "Recently completed" side panel (13 Oct 2026 meeting) --
-   finished tours, decided assessments and paid fees used to just disappear
-   off the home screen; now they collect here instead, so a family can still
-   look back and see that something did happen. */
-.dash-done-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.dash-done-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 9px 2px;
-  border-bottom: 1px solid rgba(83, 1, 38, 0.06);
-}
-.dash-done-item:last-child { border-bottom: none; }
-.dash-done-icon {
-  flex: none;
-  margin-top: 2px;
-  color: var(--hh-good, #2e7d4f);
-  opacity: 0.85;
-}
-.dash-done-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-.dash-done-label {
-  font-size: 0.86rem;
-  font-weight: 600;
-  color: var(--hh-ink);
-}
-.dash-done-sub {
-  font-size: 0.76rem;
-  opacity: 0.6;
-}
-
-/* "What's next" (14 Oct 2026, second pass): this is the one card a family
-   should read every time they land here, so instead of another accent
-   line it gets a plain warm tint -- the same cream as the page background,
-   just a shade stronger -- so it visibly sits apart from the white
-   reference cards below it without adding any extra shape or border.
-   Owed/Pay rows come first (consequence), then upcoming tours and
-   assessments by date. */
-.dash-whatsnext {
-  margin: 0;
-  background: linear-gradient(180deg, rgba(184, 154, 90, 0.1), rgba(184, 154, 90, 0.03));
-  border-color: rgba(184, 154, 90, 0.35);
-}
-.dash-whatsnext .dash-card-head h2 { font-size: 1.15rem; }
-.dash-whatsnext ul { list-style: none; margin: 0; padding: 4px 0 2px; }
-.dash-wn-item + .dash-wn-item { border-top: 1px solid var(--hh-track); }
-.dash-wn-item button {
-  display: flex; align-items: center; gap: 14px;
-  width: 100%; background: none; border: 0;
-  padding: 13px 4px; text-align: left; cursor: pointer;
-  font: inherit; color: inherit;
-  border-radius: 10px;
-  transition: background 0.15s ease;
-}
-.dash-wn-item button:hover { background: rgba(83, 1, 38, 0.035); }
-.dash-wn-tag {
-  flex: none; padding: 4px 10px; border-radius: 999px;
-  background: rgba(83, 1, 38, 0.08); color: var(--hh-burgundy);
-  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-}
-.dash-wn-item.is-pay .dash-wn-tag,
-.dash-wn-item.is-owed .dash-wn-tag { background: rgba(184, 154, 90, 0.22); color: #7a5612; }
-.dash-wn-main { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.dash-wn-main strong { font-weight: 600; color: var(--hh-ink); font-size: 0.95rem; }
-.dash-wn-main span { font-size: 0.8rem; color: var(--hh-ink); opacity: 0.6; }
-.dash-wn-item button svg { flex: none; opacity: 0.4; }
-.dash-wn-item button:hover svg { opacity: 0.75; }
-
-/* Dashboard redesign (14 Oct 2026): the SUBMITTED spotlight was taking
-   half the screen for the same one-sentence status. Shrunk to a slim
-   contextual banner so the per-school tracker and What's next are the
-   main things on the page. */
-.dash-spotlight {
-  padding: 14px 22px !important;
-  border-radius: 12px !important;
-  box-shadow: none !important;
-  background: linear-gradient(135deg, var(--hh-burgundy) 0%, var(--hh-burgundy-light) 100%) !important;
-}
-.dash-spotlight::before { display: none !important; }
-.dash-spotlight-eyebrow {
-  font-size: 0.72rem !important;
-  letter-spacing: 0.09em !important;
-  opacity: 0.75 !important;
-}
-.dash-spotlight h2 {
-  font-size: 1.1rem !important;
-  margin: 2px 0 !important;
-  line-height: 1.25 !important;
-}
-.dash-spotlight p {
-  font-size: 0.86rem !important;
-  opacity: 0.9 !important;
-  margin: 2px 0 0 !important;
-}
-.dash-spotlight-cta {
-  font-size: 0.82rem !important;
-  padding: 6px 14px !important;
+@media (max-width: 560px) {
+  .dash-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+  .dash-banner-left { align-items: flex-start; }
+  .dash-readiness { align-self: center; }
+  .dash-readiness svg { width: 76px; }
+  .dash-row-meta svg { display: none; }
+  .dash-row { flex-wrap: wrap; row-gap: 8px; }
+  .dash-row-text { flex: 1 1 calc(100% - 54px); }
+  .dash-row-meta { margin-left: 54px; }
+  .dash-status { padding: 7px 10px; font-size: 0.8rem; }
 }

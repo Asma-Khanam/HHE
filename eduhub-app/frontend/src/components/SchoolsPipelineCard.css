@@ -1,0 +1,264 @@
+/* Schools pipeline card — the main thing on the Dashboard now (Asma,
+   14 Oct 2026). One pipeline across every school, tabs flip to the view
+   for that stage. Replaces the old Where you're at (per-school), the
+   Needs your attention / What's next banner, Upcoming tours, Upcoming
+   assessments and Recently completed -- those were all telling the same
+   story in five different boxes. */
+
+.sp-card {
+  background: linear-gradient(180deg, rgba(184, 154, 90, 0.1), rgba(184, 154, 90, 0.03));
+  border-color: rgba(184, 154, 90, 0.35);
+}
+.sp-card .dash-card-head h2 { font-size: 1.18rem; letter-spacing: -0.005em; }
+
+/* --- tabs: a plain row of pills, the active one filled burgundy so a
+   family's eye lands on where they currently are. The dot on the left
+   of each pill is the only decorative element -- it carries the colour
+   that comes back on the content below (burgundy for the active step,
+   gold for the ones still to do, neutral otherwise). */
+/* Seven numbered tabs across the top, visually a pipeline — the same seven
+   stages the consultant site uses. On wide screens they lay out as one
+   horizontal row with a dotted connecting line behind them (reads as a
+   journey, not a nav bar); on narrow screens they wrap to multiple rows
+   and the connecting line is dropped. */
+
+.sp-tabs {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 0 14px;
+  margin: 0;
+  border-bottom: 1px solid rgba(184, 154, 90, 0.3);
+}
+.sp-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px 6px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(184, 154, 90, 0.3);
+  background: var(--hh-white);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--hh-ink);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.08s ease, box-shadow 0.15s ease;
+}
+.sp-tab:hover { border-color: rgba(83, 1, 38, 0.45); box-shadow: 0 4px 10px rgba(83, 1, 38, 0.08); }
+.sp-tab.is-active {
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  border-color: var(--hh-burgundy);
+  box-shadow: 0 4px 12px rgba(83, 1, 38, 0.22);
+}
+.sp-tab.is-empty { opacity: 0.55; }
+.sp-tab.is-empty:not(.is-active) { background: rgba(255, 255, 255, 0.45); }
+
+/* Step number in a circle on the left of each pill — the one bit of chrome
+   that makes the whole row read as a staged journey rather than tabs. */
+.sp-tab-step {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--hh-cream);
+  color: var(--hh-burgundy);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.sp-tab.is-active .sp-tab-step {
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--hh-white);
+}
+.sp-tab.is-empty .sp-tab-step { background: rgba(42, 17, 25, 0.06); color: rgba(42, 17, 25, 0.5); }
+
+.sp-tab-label { white-space: nowrap; }
+.sp-tab-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(184, 154, 90, 0.2);
+  color: #7a6228;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sp-tab.is-active .sp-tab-count { background: rgba(255, 255, 255, 0.22); color: var(--hh-white); }
+
+/* --- panel + rows */
+
+.sp-panel { padding: 14px 0 2px; }
+.sp-empty { margin: 20px 0 8px; font-size: 0.9rem; color: var(--hh-ink); opacity: 0.6; }
+
+.sp-tour-groups { display: flex; flex-direction: column; gap: 20px; }
+.sp-group-title {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hh-ink);
+  opacity: 0.6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sp-group-title span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(184, 154, 90, 0.2);
+  color: #7a6228;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.sp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.sp-row,
+.sp-row-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--hh-white);
+  border: 1px solid rgba(184, 154, 90, 0.22);
+  border-radius: 12px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: default;
+}
+.sp-row-btn { cursor: pointer; transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.08s ease; }
+.sp-row-btn:not(:disabled):hover { border-color: rgba(83, 1, 38, 0.35); box-shadow: 0 4px 14px rgba(83, 1, 38, 0.08); }
+.sp-row-btn:not(:disabled):active { transform: translateY(1px); }
+
+.sp-row--muted { opacity: 0.75; }
+.sp-row--placed { border-color: rgba(47, 107, 79, 0.35); background: linear-gradient(180deg, rgba(47, 107, 79, 0.06), var(--hh-white)); }
+
+.sp-row-main { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sp-row-main strong { font-weight: 600; color: var(--hh-ink); font-size: 0.95rem; }
+.sp-row-main > span { font-size: 0.82rem; color: var(--hh-ink); opacity: 0.65; }
+.sp-row-main .sp-row-meta { display: flex; flex-wrap: wrap; gap: 6px; opacity: 1; }
+
+.sp-tag {
+  flex: none;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(184, 154, 90, 0.2);
+  color: #7a6228;
+}
+
+.sp-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.sp-pill--good { background: var(--hh-good-bg); color: var(--hh-good); }
+.sp-pill--gold { background: rgba(184, 154, 90, 0.22); color: #7a5612; }
+.sp-pill--neutral { background: var(--hh-cream); color: var(--hh-ink); border: 1px solid rgba(42, 17, 25, 0.1); }
+.sp-pill--muted { background: var(--hh-cream); color: var(--hh-ink); opacity: 0.65; }
+
+.sp-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.sp-chip--good { background: var(--hh-good-bg); color: var(--hh-good); }
+.sp-chip--gold { background: rgba(184, 154, 90, 0.2); color: #7a5612; }
+.sp-chip--neutral { background: var(--hh-cream); color: var(--hh-ink); border: 1px solid rgba(42, 17, 25, 0.08); }
+.sp-chip--bad { background: rgba(179, 38, 30, 0.08); color: var(--hh-error); }
+.sp-chip--muted { background: var(--hh-cream); color: var(--hh-ink); opacity: 0.6; }
+
+.sp-date {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  padding: 6px 0;
+  border-radius: 10px;
+  background: var(--hh-burgundy);
+  color: var(--hh-white);
+  text-align: center;
+  line-height: 1;
+}
+.sp-date span { font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.85; }
+.sp-date strong { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+.sp-caret {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--hh-cream);
+  color: var(--hh-burgundy);
+  transition: transform 0.18s ease;
+  flex: none;
+}
+.sp-caret.is-open { transform: rotate(180deg); }
+
+.sp-expandable { padding: 0; }
+.sp-expandable .sp-row-btn { border: 1px solid rgba(184, 154, 90, 0.22); background: var(--hh-white); }
+.sp-expandable.is-open .sp-row-btn {
+  border-color: rgba(83, 1, 38, 0.3);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.sp-expand-body {
+  padding: 14px 16px 16px;
+  border: 1px solid rgba(83, 1, 38, 0.3);
+  border-top: none;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  background: var(--hh-cream);
+}
+
+/* bad-outcome pill (declined / not successful) */
+.sp-pill--bad {
+  background: rgba(179, 38, 30, 0.08);
+  color: var(--hh-error);
+}
+
+/* narrow screens */
+@media (max-width: 760px) {
+  .sp-tabs { gap: 5px; padding-top: 6px; }
+  .sp-tab { padding: 5px 11px 5px 5px; font-size: 0.78rem; gap: 6px; }
+  .sp-tab-step { width: 20px; height: 20px; font-size: 0.66rem; }
+}
+@media (max-width: 560px) {
+  .sp-tab-label { max-width: 10ch; overflow: hidden; text-overflow: ellipsis; }
+  .sp-row, .sp-row-btn { padding: 11px 12px; gap: 10px; }
+  .sp-date { width: 40px; }
+  .sp-row-main > span { font-size: 0.78rem; }
+  .sp-row-main .sp-row-meta { gap: 4px; }
+  .sp-chip { padding: 2px 7px; font-size: 0.68rem; }
+}
