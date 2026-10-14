@@ -456,16 +456,25 @@ export default function ApplicationProcess({
   };
 
   // 1b. Application fee (Miss Lyndsay, 7 Oct 2026): between Apply and Assessment.
+  // 14 Oct 2026 (Miss Lyndsay, Kirkton family): a fee marked "paid directly
+  // by family" was still showing as "1 unpaid" here because status stays
+  // "unpaid" in that case (the family paid the school directly, so nothing
+  // is owed to HHE). For the pipeline step the school has been paid --
+  // treat direct-pay fees as done.
   const feeRows = fees || [];
-  const unpaid = feeRows.filter((f) => f.status === "unpaid");
+  const isSettled = (f) => f.status === "paid" || f.paid_direct_by_family;
+  const unpaid = feeRows.filter((f) => !isSettled(f));
   const allPaid = feeRows.length > 0 && unpaid.length === 0;
   const money = (f) => (f.amount ? `AED ${Number(f.amount).toLocaleString()}` : "");
+  const paidSample = feeRows.find((f) => isSettled(f));
+  const paidWhen = paidSample?.paid_at ? " " + shortDate(String(paidSample.paid_at).slice(0, 10)) : "";
+  const paidHow = paidSample && !paidSample.paid_at && paidSample.paid_direct_by_family ? " · direct to school" : "";
   const sFee = {
     key: "fee",
     label: "Application fee",
     state: allPaid ? "done" : feeRows.length ? "todo" : "na",
     summary: allPaid
-      ? `Paid${feeRows[0].paid_at ? " " + shortDate(String(feeRows[0].paid_at).slice(0, 10)) : ""}`
+      ? `Paid${paidWhen}${paidHow}`
       : feeRows.length
       ? `${unpaid.length} unpaid${money(unpaid[0]) ? " · " + money(unpaid[0]) : ""}${unpaid[0]?.sent_to_family_at ? " · sent to family" : ""}`
       : "No fee added yet",
@@ -490,9 +499,12 @@ export default function ApplicationProcess({
 export function applicationMiniSteps(a, fees = []) {
   const cur = CURRENT[a.status] ?? 0;
   const applied = cur >= 1; // past Apply
+  // 14 Oct 2026 (Miss Lyndsay, Kirkton family): "paid directly by family"
+  // counts as paid for the mini bar too -- the school's been paid, status
+  // just stays "unpaid" because nothing is owed to HHE.
   const feeRows = (fees || []).filter((f) => f.status !== "waived");
   const feeExists = feeRows.length > 0;
-  const feeUnpaid = feeRows.some((f) => f.status !== "paid");
+  const feeUnpaid = feeRows.some((f) => f.status !== "paid" && !f.paid_direct_by_family);
   const feeAllPaid = feeExists && !feeUnpaid;
   const feeState = feeAllPaid
     ? "done"
