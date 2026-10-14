@@ -225,26 +225,20 @@
 
 /* ------------------------------------------------------------ card shell */
 
+/* 14 Oct 2026, second pass: the gradient line across the top of every
+   card read as clutter and didn't actually communicate anything, so it's
+   gone. Hierarchy now comes from a plain flat surface for every card, with
+   the two "primary" cards (Where you're at, What's next) told apart by a
+   warm tint instead of a decorative line -- see the dash-whatsnext and
+   su-card rules further down. One quiet shadow, no inset highlight, no
+   hover lift: the page should sit still until something on it changes. */
 .dash-card {
   position: relative;
   background: var(--hh-white);
   border: 1px solid var(--hh-track);
-  border-radius: 18px;
-  padding: 6px 24px 20px;
-  box-shadow: 0 6px 22px rgba(83, 1, 38, 0.045), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-.dash-card:hover { box-shadow: 0 10px 30px rgba(83, 1, 38, 0.07); }
-.dash-card::before {
-  content: "";
-  position: absolute;
-  left: 20px;
-  right: 20px;
-  top: 0;
-  height: 2px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, rgba(184, 154, 90, 0.55), rgba(83, 1, 38, 0.35));
-  opacity: 0.85;
+  border-radius: 16px;
+  padding: 4px 22px 22px;
+  box-shadow: 0 1px 3px rgba(83, 1, 38, 0.05);
 }
 
 .dash-card-head {
@@ -865,12 +859,19 @@
   opacity: 0.6;
 }
 
-/* "What's next" (Oct 2026, redesigned): uses the shared .dash-card shell
-   (the gradient top accent, border, shadow every other card uses) instead
-   of a bespoke flat box, so it reads as part of the same system rather
-   than bolted on. It leads the page -- Owed/Pay rows first (consequence),
-   then upcoming tours and assessments by date. */
-.dash-whatsnext { margin: 0; }
+/* "What's next" (14 Oct 2026, second pass): this is the one card a family
+   should read every time they land here, so instead of another accent
+   line it gets a plain warm tint -- the same cream as the page background,
+   just a shade stronger -- so it visibly sits apart from the white
+   reference cards below it without adding any extra shape or border.
+   Owed/Pay rows come first (consequence), then upcoming tours and
+   assessments by date. */
+.dash-whatsnext {
+  margin: 0;
+  background: linear-gradient(180deg, rgba(184, 154, 90, 0.1), rgba(184, 154, 90, 0.03));
+  border-color: rgba(184, 154, 90, 0.35);
+}
+.dash-whatsnext .dash-card-head h2 { font-size: 1.15rem; }
 .dash-whatsnext ul { list-style: none; margin: 0; padding: 4px 0 2px; }
 .dash-wn-item + .dash-wn-item { border-top: 1px solid var(--hh-track); }
 .dash-wn-item button {

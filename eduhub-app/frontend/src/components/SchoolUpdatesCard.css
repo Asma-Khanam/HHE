@@ -128,12 +128,16 @@
   .su-history-item { grid-template-columns: 1fr; }
 }
 
-/* Hero treatment (14 Oct 2026): this is the main thing on the Dashboard
-   now, so it gets a touch more visual weight than the other cards -- a
-   warm tinted wash behind the header and a slightly bigger heading --
-   instead of being identical to every other white card on the page. */
+/* Hero treatment (14 Oct 2026, second pass): the first attempt was a
+   gradient wash behind just the header, which read as barely-there next
+   to the plain white cards around it. Matches "What's next" now instead:
+   one flat warm tint across the whole card, same family as the page
+   background, no gradient, no extra decoration -- the two cards a family
+   actually needs to check share one unmistakable colour, everything else
+   on the page is plain white. */
 .su-card {
-  background: linear-gradient(180deg, rgba(184, 154, 90, 0.07) 0%, rgba(255, 255, 255, 0) 90px), var(--hh-white);
+  background: linear-gradient(180deg, rgba(184, 154, 90, 0.1), rgba(184, 154, 90, 0.03));
+  border-color: rgba(184, 154, 90, 0.35);
 }
 .su-card .dash-card-head h2 {
   font-size: 1.18rem;
@@ -141,4 +145,5 @@
 }
 .su-card:not(.is-open) {
   background: var(--hh-white);
+  border-color: var(--hh-track);
 }
