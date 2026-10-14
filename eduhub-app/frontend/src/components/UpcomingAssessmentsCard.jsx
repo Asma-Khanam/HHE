@@ -7,7 +7,7 @@ import { parseDay } from "../lib/tourDetails";
 import { hasAssessment, assessmentOf, assessmentWhen } from "../lib/assessment";
 import { placedByChild, appClosed } from "../lib/placement";
 import AssessmentCard from "./AssessmentCard";
-import { IconChevronDown } from "./icons";
+import { IconChevronDown, IconClipboard } from "./icons";
 import { CardError } from "./StatePanels";
 import "./UpcomingToursCard.css";
 
@@ -62,7 +62,7 @@ export default function UpcomingAssessmentsCard() {
   return (
     <section className="dash-card utc">
       <div className="dash-card-head">
-        <h2>{items.length === 1 ? "Your next assessment" : `Your upcoming assessments (${items.length})`}</h2>
+        <h2><span className="dash-card-icon dash-card-icon--neutral"><IconClipboard size={16} /></span>{items.length === 1 ? "Your next assessment" : `Your upcoming assessments (${items.length})`}</h2>
         <Link to="/app/timetable" className="dash-card-link">
           All your schools →
         </Link>

@@ -7,6 +7,7 @@ import { allowanceFor, countUsage } from "../lib/packageUsage";
 import PackageMeter from "./PackageMeter";
 import { displayNameForChild } from "../lib/completeness";
 import { CardError, CardSkeleton } from "./StatePanels";
+import { IconWallet } from "./icons";
 import "./PackageUsageCard.css";
 
 // Dashboard: "Your package" -- how many of the school tours and applications
@@ -59,7 +60,7 @@ export default function PackageUsageCard() {
   return (
     <section className="dash-card pkg-card">
       <div className="dash-card-head">
-        <h2>Your package</h2>
+        <h2><span className="dash-card-icon dash-card-icon--neutral"><IconWallet size={16} /></span>Your package</h2>
         <span className="pkg-card-chip">{packageLabel(packageKey)}</span>
       </div>
       <div className="pkg-card-meters">

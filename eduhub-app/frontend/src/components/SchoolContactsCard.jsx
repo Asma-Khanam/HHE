@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import { fetchFamilyApplications, fetchFamilyTimetable } from "../lib/timetableData";
-import { IconChevronDown } from "./icons";
+import { IconChevronDown, IconUser } from "./icons";
 import { CardError, CardSkeleton } from "./StatePanels";
 import "./SchoolContactsCard.css";
 
@@ -67,7 +67,7 @@ export default function SchoolContactsCard() {
     <section className={"dash-card sc-card" + (open ? " is-open" : "")}>
       <div className="dash-card-head">
         <button type="button" className="su-toggle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          <h2>School contacts</h2>
+          <h2><span className="dash-card-icon dash-card-icon--neutral"><IconUser size={16} /></span>School contacts</h2>
           <span className="dash-count">{groups.length}</span>
           <span className="su-caret"><IconChevronDown size={18} /></span>
         </button>

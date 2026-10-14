@@ -13,7 +13,7 @@ import UpcomingToursCard from "../components/UpcomingToursCard";
 import PackageUsageCard from "../components/PackageUsageCard";
 import UpcomingAssessmentsCard from "../components/UpcomingAssessmentsCard";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
-import { IconCheckCircle, IconChevronDown, IconChevronRight } from "../components/icons";
+import { IconCheckCircle, IconChevronDown, IconChevronRight, IconAlertCircle, IconUser, IconClipboard } from "../components/icons";
 import {
   getMissingItems,
   getReadinessPct,
@@ -294,6 +294,7 @@ export default function DashboardPage() {
   let spotlight;
   if (isSubmitted) {
     spotlight = {
+      icon: <IconCheckCircle size={16} />,
       eyebrow: "Submitted",
       title: "Your application is with us",
       body: submittedAt
@@ -307,6 +308,7 @@ export default function DashboardPage() {
     };
   } else if (missingFields.length) {
     spotlight = {
+      icon: <IconAlertCircle size={16} />,
       eyebrow: "Next step",
       title: `${missingFields.length} required field${missingFields.length === 1 ? "" : "s"} to finish`,
       body: "Everything you've typed is already saved. Fill these in and you'll be able to submit.",
@@ -317,6 +319,7 @@ export default function DashboardPage() {
     };
   } else {
     spotlight = {
+      icon: <IconClipboard size={16} />,
       eyebrow: "Ready",
       title: "You can submit whenever you're ready",
       body: "Everything required is filled in. Anything still to upload can follow afterwards.",
@@ -401,7 +404,10 @@ export default function DashboardPage() {
       </header>
 
       <section className="dash-spotlight">
-        <span className="dash-spotlight-eyebrow">{spotlight.eyebrow}</span>
+        <span className="dash-spotlight-eyebrow">
+          <span className="dash-spotlight-icon">{spotlight.icon}</span>
+          {spotlight.eyebrow}
+        </span>
         <h2>{spotlight.title}</h2>
         <p>{spotlight.body}</p>
         {spotlight.cta && (
@@ -414,7 +420,7 @@ export default function DashboardPage() {
       {(owedToHhe.length > 0 || dueItems.filter((r) => !r.hhe_paid_school_on_behalf).length > 0 || upcomingItems.length > 0) && (
         <section className="dash-card dash-whatsnext">
           <div className="dash-card-head">
-            <h2>Needs your attention</h2>
+            <h2><span className="dash-card-icon dash-card-icon--gold"><IconAlertCircle size={16} /></span>Needs your attention</h2>
           </div>
           <ul>
             {owedToHhe.length > 0 && (
@@ -479,7 +485,7 @@ export default function DashboardPage() {
                 onClick={() => setFamilyOpen((o) => !o)}
                 aria-expanded={familyOpen}
               >
-                <h2>Your family</h2>
+                <h2><span className="dash-card-icon dash-card-icon--neutral"><IconUser size={16} /></span>Your family</h2>
                 {!familyOpen && (
                   <span className="dash-family-preview">
                     {people.map((p) => firstNameOf(p.name) || p.role).filter(Boolean).join(" · ") || "Add your family"}
@@ -559,7 +565,7 @@ export default function DashboardPage() {
             {missingFields.length > 0 && (
               <section className="dash-card">
                 <div className="dash-card-head">
-                  <h2>Still to fill in</h2>
+                  <h2><span className="dash-card-icon dash-card-icon--error"><IconAlertCircle size={16} /></span>Still to fill in</h2>
                   <span className="dash-count">{missingFields.length}</span>
                 </div>
                 <ul className="dash-list">
@@ -582,7 +588,7 @@ export default function DashboardPage() {
             {completedItems.length > 0 && (
               <section className="dash-card dash-done">
                 <div className="dash-card-head">
-                  <h2>Recently completed</h2>
+                  <h2><span className="dash-card-icon dash-card-icon--good"><IconCheckCircle size={16} /></span>Recently completed</h2>
                 </div>
                 <ul className="dash-done-list">
                   {completedItems.map((item) => {

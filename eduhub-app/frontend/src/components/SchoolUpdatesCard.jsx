@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import { fetchFamilyApplications, fetchFamilyTimetable } from "../lib/timetableData";
 import { fetchApplicationFees } from "../lib/applicationFees";
-import { IconChevronDown } from "./icons";
+import { IconChevronDown, IconSchool } from "./icons";
 import { CardError, CardSkeleton } from "./StatePanels";
 import "./SchoolUpdatesCard.css";
 
@@ -230,7 +230,7 @@ export default function SchoolUpdatesCard() {
     <section className={"dash-card su-card" + (open ? " is-open" : "")}>
       <div className="dash-card-head">
         <button type="button" className="su-toggle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          <h2>Where you're at</h2>
+          <h2><span className="dash-card-icon dash-card-icon--burgundy"><IconSchool size={16} /></span>Where you're at</h2>
           {schools.length > 0 && <span className="dash-count">{schools.length}</span>}
           {!open && newest && (
             <span className="su-peek">

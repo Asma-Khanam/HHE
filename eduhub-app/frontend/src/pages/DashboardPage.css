@@ -253,11 +253,35 @@
 
 .dash-card-head h2 {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--hh-font-heading);
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--hh-ink);
 }
+
+/* Icon badge system (14 Oct 2026, full redesign pass): every card head
+   gets a small round icon in the same spot, so a family scanning down the
+   page reads the icon before the words -- "one look tells you what's
+   going on" was the brief. One shape, four tints: burgundy for the thing
+   that's actually happening right now, gold for anything needing money or
+   action, neutral ink for plain reference sections, good/error reuse the
+   same green/red the rest of the page already uses for status. */
+.dash-card-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+}
+.dash-card-icon--burgundy { background: rgba(83, 1, 38, 0.1); color: var(--hh-burgundy); }
+.dash-card-icon--gold { background: rgba(184, 154, 90, 0.22); color: #7a5612; }
+.dash-card-icon--neutral { background: var(--hh-cream); color: var(--hh-ink); opacity: 0.75; }
+.dash-card-icon--good { background: var(--hh-good-bg); color: var(--hh-good); }
+.dash-card-icon--error { background: rgba(179, 38, 30, 0.1); color: var(--hh-error); }
 
 .dash-card-link {
   display: inline-flex;
@@ -480,13 +504,23 @@
 }
 
 .dash-spotlight-eyebrow {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--hh-gold);
   margin-bottom: 8px;
+}
+.dash-spotlight-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .dash-spotlight h2 {

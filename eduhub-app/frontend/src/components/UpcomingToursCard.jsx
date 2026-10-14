@@ -5,7 +5,7 @@ import { fetchFamilyTimetable, fetchFamilyApplications } from "../lib/timetableD
 import { placedByChild, schoolClosed } from "../lib/placement";
 import { parseDay, timeRange, toursOfRow } from "../lib/tourDetails";
 import TourDetailsCard from "./TourDetailsCard";
-import { IconChevronDown } from "./icons";
+import { IconChevronDown, IconSchool } from "./icons";
 import { CardError } from "./StatePanels";
 import "./UpcomingToursCard.css";
 
@@ -52,7 +52,7 @@ export default function UpcomingToursCard() {
   return (
     <section className="dash-card utc">
       <div className="dash-card-head">
-        <h2>{tours.length === 1 ? "Your next school tour" : `Your upcoming school tours (${tours.length})`}</h2>
+        <h2><span className="dash-card-icon dash-card-icon--neutral"><IconSchool size={16} /></span>{tours.length === 1 ? "Your next school tour" : `Your upcoming school tours (${tours.length})`}</h2>
         <Link to="/app/timetable" className="dash-card-link">
           All your schools →
         </Link>
