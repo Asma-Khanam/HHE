@@ -42,6 +42,7 @@ export default function ApplicationProcess({
   const cur = CURRENT[a.status] ?? 0;
   const declined = a.status === "rejected";
   const hasAssessment = !!(a.assessment_date || a.assessment_link || a.assessment_video_requested);
+  const assessMode = a.assessment_video_requested ? "video" : a.assessment_in_person ? "in_person" : "online";
   const state = (i) => (i < cur ? "done" : i === cur ? "current" : "todo");
 
   const save = (changes) => async (v) => {
@@ -161,50 +162,43 @@ export default function ApplicationProcess({
             />
           </label>
         </div>
-        {/* In-person tick (Miss Lyndsay, 12 Oct 2026): when ticked, the
-            online meeting fields disappear so the Assessment card stays
-            clean for school visits. The family sees "At the school" instead
-            of an empty join link. */}
-        <label className="apx-inperson">
-          <input
-            type="checkbox"
-            checked={!!a.assessment_in_person}
-            onChange={(e) => {
-              const inPerson = e.target.checked;
-              const patch = { assessment_in_person: inPerson };
-              // Clear any lingering online fields when flipping to in-person,
-              // so a stale join link / meeting id doesn't confuse the family.
-              if (inPerson) {
-                patch.assessment_link = null;
-                patch.assessment_meeting_id = null;
-                patch.assessment_passcode = null;
-              }
-              onPatch(patch).then((ok) => ok && onLog(inPerson ? "Assessment set as in person at the school" : "Assessment set as online", "assessment_booked"));
-            }}
-          />
-          <span>At the school (in person)</span>
-        </label>
-        {/* Video assessment (Miss Lyndsay, 14 Oct 2026, WhatsApp): schools ask
-            under-10s to send a video of themselves instead of an in-person or
-            online slot. We don't hold the video -- just that it was asked
-            for, and when it went across -- so the stage has something to
-            show as done for this child. */}
-        <label className="apx-inperson">
-          <input
-            type="checkbox"
-            checked={!!a.assessment_video_requested}
-            onChange={(e) => {
-              const requested = e.target.checked;
-              const patch = { assessment_video_requested: requested };
-              if (!requested) patch.assessment_video_sent_at = null;
-              onPatch(patch).then(
-                (ok) => ok && onLog(requested ? "Child asked to send an assessment video (under 10)" : "Assessment video no longer needed", "assessment_booked")
-              );
-            }}
-          />
-          <span>Child asked to send a video (under 10)</span>
-        </label>
-        {a.assessment_video_requested && (
+        {/* How the assessment happens -- one choice, not two independent
+            ticks (Miss Lyndsay, 14 Oct 2026, asked for the video option to
+            improve on the earlier cramped layout). Online / in person / video
+            are mutually exclusive, so picking one clears the fields that only
+            belong to the others. */}
+        <div className="apx-mode-row" role="radiogroup" aria-label="How the assessment happens">
+          {[
+            { k: "online", t: "Online", s: "Join link, meeting ID & passcode" },
+            { k: "in_person", t: "At the school", s: "In person" },
+            { k: "video", t: "Video (under 10)", s: "Child sends a video instead" },
+          ].map((o) => (
+            <label key={o.k} className={"apx-mode-opt" + (assessMode === o.k ? " is-on" : "")}>
+              <input
+                type="radio"
+                name={`assess-mode-${a.id}`}
+                checked={assessMode === o.k}
+                onChange={() => {
+                  if (assessMode === o.k) return;
+                  const patch = { assessment_in_person: o.k === "in_person", assessment_video_requested: o.k === "video" };
+                  if (o.k !== "video") patch.assessment_video_sent_at = null;
+                  if (o.k !== "online") {
+                    patch.assessment_link = null;
+                    patch.assessment_meeting_id = null;
+                    patch.assessment_passcode = null;
+                  }
+                  const label = o.k === "in_person" ? "in person at the school" : o.k === "video" ? "a video from the child (under 10)" : "online";
+                  onPatch(patch).then((ok) => ok && onLog(`Assessment set as ${label}`, "assessment_booked"));
+                }}
+              />
+              <span>
+                <span className="apx-mode-t">{o.t}</span>
+                <span className="apx-mode-s">{o.s}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {assessMode === "video" && (
           <div className="ps-grid">
             <label className="ps-field">
               <span>Video sent on</span>
@@ -221,12 +215,12 @@ export default function ApplicationProcess({
             </label>
           </div>
         )}
-        {!a.assessment_in_person && a.assessment_link && (
+        {assessMode === "online" && a.assessment_link && (
           <a className="panel-btn apx-portal-btn" href={a.assessment_link} target="_blank" rel="noreferrer">
             Open join link ↗
           </a>
         )}
-        {!a.assessment_in_person && (
+        {assessMode === "online" && (
           <>
             <AutosaveField
               collapsible

@@ -1,3 +1,26 @@
 
-.apx-inperson { display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 4px; padding: 7px 12px; background: #fdf7ee; border: 1px dashed rgba(184, 154, 90, 0.5); border-radius: 10px; font-size: 0.86rem; color: #2a1119; cursor: pointer; }
-.apx-inperson input[type="checkbox"] { width: 16px; height: 16px; accent-color: #530126; cursor: pointer; }
+/* How the assessment happens -- three mutually-exclusive options, mirroring
+   the "who paid" row in ApplicationFeeStep.css so the card reads the same
+   way at a glance. */
+.apx-mode-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+.apx-mode-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid rgba(83, 1, 38, 0.12);
+  background: #fff;
+  border-radius: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.apx-mode-opt input { margin-top: 3px; accent-color: #530126; cursor: pointer; }
+.apx-mode-opt.is-on { border-color: #530126; background: rgba(83, 1, 38, 0.04); }
+.apx-mode-t { display: block; font-weight: 600; font-size: 0.88rem; color: #2a1119; }
+.apx-mode-s { display: block; color: #2a1119; opacity: 0.6; font-size: 0.76rem; margin-top: 1px; }
+@media (max-width: 640px) { .apx-mode-row { grid-template-columns: 1fr; } }
