@@ -33,6 +33,28 @@ function hasSen(child) {
   return st !== "" && !st.startsWith("No, none");
 }
 
+// Mixed-parent families (Miss Lyndsay, 8 Oct 2026): a child from an earlier
+// marriage can have a different surname from the parents on file, and the
+// short first-name label used everywhere else in the app doesn't show that.
+// Here specifically -- the one place staff look to see the household at a
+// glance -- a child whose last name doesn't match either parent's gets their
+// full name called out in a yellow box, so nobody mixes up who belongs to
+// whom on a call.
+function surnameOf(fullName) {
+  const parts = String(fullName || "").trim().split(/\s+/);
+  return parts.length > 1 ? parts[parts.length - 1] : "";
+}
+
+function fullNameOf(child) {
+  return (child?.full_name || "").trim() || [child?.first_name, child?.last_name].filter(Boolean).join(" ");
+}
+
+function hasDifferentSurname(child, parentSurnames) {
+  const last = (child?.last_name || "").trim().toLowerCase();
+  if (!last || !parentSurnames.length) return false;
+  return !parentSurnames.some((s) => s.toLowerCase() === last);
+}
+
 // Read-only line: value (or a dash) with a copy icon. Editing lives in the
 // Family details tab; this card only displays what's already on file.
 function ReadLine({ value, label, icon, strong, copy }) {
@@ -67,6 +89,7 @@ export default function OverviewPanel({
   currentSchools,
 }) {
   const [mother, father] = namedParents;
+  const parentSurnames = [surnameOf(mother?.full_name), surnameOf(father?.full_name)].filter(Boolean);
 
   // Entry year(s) and term(s) the parents chose on the form. The same for the
   // whole family, so it's read across all the children and shown once at the
@@ -154,6 +177,11 @@ export default function OverviewPanel({
                         </span>
                       )}
                     </div>
+                    {hasDifferentSurname(c, parentSurnames) && (
+                      <span className="ov-surname-flag" title="Different surname from the parents on file">
+                        {fullNameOf(c)}
+                      </span>
+                    )}
                     <span className="ov-sub">Date of birth</span>
                     <ReadLine value={dobLine(c.date_of_birth)} copy={dobPlain(c.date_of_birth)} label="Copy date of birth" />
                     <span className="ov-sub">Applying for</span>

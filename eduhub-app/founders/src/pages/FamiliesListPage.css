@@ -318,3 +318,14 @@
 
 .hh-avatar.families-avatar { width: 32px; height: 32px; background: var(--hh-burgundy); color: var(--hh-white); font-family: var(--hh-font-heading); font-size: 0.85rem; }
 .hh-avatar.families-avatar.has-photo { background: transparent; }
+
+/* Mixed-parent families: a child whose surname doesn't match either
+   parent's on file, called out on the Caseload table too (8 Oct 2026). */
+.families-child-flag {
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: #fde9a8;
+  border: 1px solid #e0b93c;
+  color: #4a3200;
+  font-weight: 600;
+}

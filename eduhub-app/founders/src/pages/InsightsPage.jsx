@@ -228,6 +228,45 @@ export default function InsightsPage() {
               : "No payments recorded yet."}
           </p>
         </ChartCard>
+
+        <ChartCard
+          wide
+          title="Paid out, not charged back"
+          subtitle="Application fees HHE paid the school for, that the family hasn't paid back yet"
+          table={{
+            columns: ["Family", "School", "Amount"],
+            rows: d.owedToHhe.rows.map((r) => [r.familyName, r.school, `${r.currency} ${r.amount.toLocaleString()}`]),
+          }}
+        >
+          {d.owedToHhe.count > 0 ? (
+            <>
+              <div className="in-money">
+                {d.owedToHhe.totalsByCurrency.map(([cur, total]) => (
+                  <div key={cur}>
+                    <span>{cur}</span>
+                    <strong>{Math.round(total).toLocaleString()}</strong>
+                  </div>
+                ))}
+              </div>
+              <ul className="in-owed-list">
+                {d.owedToHhe.rows.slice(0, 10).map((r) => (
+                  <li key={r.id}>
+                    <Link to={`/staff/families/${r.familyId}`}>{r.familyName}</Link>
+                    <span className="in-owed-school">{r.school}</span>
+                    <span className="in-owed-amount">
+                      {r.currency} {r.amount.toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {d.owedToHhe.rows.length > 10 && (
+                <p className="in-card-foot">+ {d.owedToHhe.rows.length - 10} more.</p>
+              )}
+            </>
+          ) : (
+            <Empty>Nothing outstanding right now — every fee HHE has fronted has been paid back.</Empty>
+          )}
+        </ChartCard>
       </div>
     </div>
   );

@@ -56,6 +56,24 @@ export function resolveAccountHolderRole(family, parents) {
 // short id. This is deliberately built from real data already on the row,
 // not a guessed-at surname (parents.full_name is free text, not split into
 // first/last the way children's names are).
+// Mixed-parent families (Miss Lyndsay, 8 Oct 2026): flags a child whose last
+// name doesn't match either parent's on file, so the Caseload table can call
+// their full name out instead of just the short first-name label everyone
+// else uses.
+function surnameOf(fullName) {
+  const parts = String(fullName || "").trim().split(/\s+/);
+  return parts.length > 1 ? parts[parts.length - 1] : "";
+}
+function childSurnameDiffers(child, parents) {
+  const last = (child?.last_name || "").trim().toLowerCase();
+  if (!last) return false;
+  const parentSurnames = (parents || [])
+    .map((p) => surnameOf(p.full_name))
+    .filter(Boolean)
+    .map((s) => s.toLowerCase());
+  return parentSurnames.length > 0 && !parentSurnames.includes(last);
+}
+
 export function familyDisplayName(family, parents) {
   const holderRole = resolveAccountHolderRole(family, parents);
   const holder = (parents || []).find((p) => p.relationship === holderRole && p.full_name);
@@ -206,7 +224,7 @@ export async function listFamilies() {
     supabase.from("parents").select("id, family_id, relationship, full_name, user_id").then(unwrap),
     supabase
       .from("children")
-      .select("id, family_id, full_name, preferred_name, first_name, year_group_applying_for, created_at")
+      .select("id, family_id, full_name, preferred_name, first_name, last_name, year_group_applying_for, created_at")
       .order("created_at")
       .then(unwrap),
     supabase.from("tasks").select("*").is("done_at", null).order("due_date", { nullsFirst: false }).then(unwrap),
@@ -238,7 +256,8 @@ export async function listFamilies() {
       children: familyChildren,
       childLabels: familyChildren.map((c, i) => {
         const name = displayNameForChild(c, i);
-        return c.year_group_applying_for ? `${name} (${c.year_group_applying_for})` : name;
+        const base = c.year_group_applying_for ? `${name} (${c.year_group_applying_for})` : name;
+        return { text: base, flagged: childSurnameDiffers(c, familyParents) };
       }),
       displayName: familyDisplayName(family, familyParents),
       photoDoc:

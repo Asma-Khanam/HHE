@@ -888,3 +888,45 @@
 .dash-spotlight-cta {
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
 }
+
+/* ---------------- "Recently completed" side panel (13 Oct 2026 meeting) --
+   finished tours, decided assessments and paid fees used to just disappear
+   off the home screen; now they collect here instead, so a family can still
+   look back and see that something did happen. */
+.dash-done-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dash-done-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 2px;
+  border-bottom: 1px solid rgba(83, 1, 38, 0.06);
+}
+.dash-done-item:last-child { border-bottom: none; }
+.dash-done-icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--hh-good, #2e7d4f);
+  opacity: 0.85;
+}
+.dash-done-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.dash-done-label {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--hh-ink);
+}
+.dash-done-sub {
+  font-size: 0.76rem;
+  opacity: 0.6;
+}

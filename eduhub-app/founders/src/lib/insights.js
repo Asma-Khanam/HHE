@@ -13,7 +13,7 @@ async function all(table, columns = "*") {
 }
 
 export async function loadInsightsData() {
-  const [families, parents, children, currentSchools, applications, schools, shortlist, placements, payments, history, staff] =
+  const [families, parents, children, currentSchools, applications, schools, shortlist, placements, payments, history, staff, owedFeesRaw] =
     await Promise.all([
       all("families"),
       all("parents", "id, family_id, relationship, full_name, user_id, nationality"),
@@ -26,8 +26,23 @@ export async function loadInsightsData() {
       all("payments"),
       all("family_stage_history"),
       all("staff"),
+      // Fees HHE has already paid the school for, out of its own pocket, that
+      // the family hasn't paid back yet (Miss Heather, 13 Oct 2026 meeting:
+      // "a clear overview of what the company has paid out but not yet
+      // charged back"). Each family's own Case card already shows its own
+      // total; this is the same thing added up across the whole caseload.
+      supabase
+        .from("application_fees")
+        .select(
+          "id, amount, currency, status, sent_to_family_at, application:applications!inner(school:schools(name), child:children!inner(family_id))"
+        )
+        .eq("hhe_paid_school_on_behalf", true)
+        .neq("status", "paid")
+        .not("sent_to_family_at", "is", null)
+        .then((r) => r.data || [])
+        .catch(() => []),
     ]);
-  return { families, parents, children, currentSchools, applications, schools, shortlist, placements, payments, history, staff };
+  return { families, parents, children, currentSchools, applications, schools, shortlist, placements, payments, history, staff, owedFeesRaw };
 }
 
 // ---------------------------------------------------------------- helpers
@@ -261,6 +276,33 @@ export function computeInsights(raw, { range = "all", hideTest = true } = {}) {
   const collected = sum(aed.filter((p) => p.status === "paid"));
   const outstanding = sum(aed.filter((p) => p.status === "unpaid" || p.status === "submitted"));
 
+  // -- Paid out by HHE, not charged back yet (Miss Heather, 13 Oct 2026):
+  // every family's own Case card already totals its own unpaid "HHE paid the
+  // school on behalf" fees; this is that same total rolled up across every
+  // family still on the caseload, with enough detail to chase each one.
+  const owedFamilyName = Object.fromEntries(families.map((f) => [f.id, f.name]));
+  const owedRows = (raw.owedFeesRaw || [])
+    .map((f) => ({
+      id: f.id,
+      familyId: f.application?.child?.family_id,
+      school: f.application?.school?.name || "School",
+      amount: Number(f.amount) || 0,
+      currency: f.currency || "AED",
+    }))
+    .filter((f) => f.familyId && famIds.has(f.familyId))
+    .map((f) => ({ ...f, familyName: owedFamilyName[f.familyId] || "Family" }));
+  const owedTotalsByCurrency = Object.entries(
+    owedRows.reduce((m, f) => {
+      m[f.currency] = (m[f.currency] || 0) + f.amount;
+      return m;
+    }, {})
+  );
+  const owedToHhe = {
+    rows: owedRows.sort((a, b) => b.amount - a.amount),
+    totalsByCurrency: owedTotalsByCurrency,
+    count: owedRows.length,
+  };
+
   const kpis = {
     families: families.length,
     children: children.length,
@@ -297,6 +339,6 @@ export function computeInsights(raw, { range = "all", hideTest = true } = {}) {
   return {
     kpis, findings, familySize, months, movingAvg, funnel, referral, referralMissing, origins, originMissing,
     fromSchools, curriculum, reasons, yearGroups, feeRange, clientStages, arrivals, scorecard, outcomesBySchool,
-    caseload, stageDays, withdrawn: apps.filter((a) => a.status === "withdrawn").length,
+    caseload, stageDays, withdrawn: apps.filter((a) => a.status === "withdrawn").length, owedToHhe,
   };
 }

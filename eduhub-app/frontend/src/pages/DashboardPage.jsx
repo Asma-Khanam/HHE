@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchApplicationFees } from "../lib/applicationFees";
+import { fetchFamilyTimetable, fetchFamilyApplications } from "../lib/timetableData";
+import { toursOfRow, parseDay } from "../lib/tourDetails";
+import { hasAssessment } from "../lib/assessment";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import SchoolUpdatesCard from "../components/SchoolUpdatesCard";
 import SchoolContactsCard from "../components/SchoolContactsCard";
@@ -18,6 +21,12 @@ import {
   displayNameForChild,
 } from "../lib/completeness";
 import "./DashboardPage.css";
+
+// Assessment statuses that still count as "live" (same list
+// UpcomingAssessmentsCard uses) -- anything else, or a date already past,
+// means the assessment itself is done and done things belong in the side
+// panel, not the main screen.
+const ASSESSMENT_ACTIVE = ["submitted", "assessment_booked", "under_review", "waitlisted", "draft"];
 
 // The Dashboard — built against the founders' own consultant-view mockup and
 // then trimmed twice on their feedback (2026-09-02).
@@ -119,6 +128,69 @@ export default function DashboardPage() {
       alive = false;
     };
   }, []);
+
+  // "Next step" view (Miss Lyndsay, 13 Oct 2026 meeting): a finished tour, a
+  // decided assessment, a fee that's been paid -- these used to just vanish
+  // off the home screen once done (the upcoming cards already hide anything
+  // that isn't live). Nothing was wrong with that for today's to-do, but it
+  // meant a family had no way to look back and confirm "yes, that happened".
+  // This pulls those same three things back in, read-only, into the side
+  // panel instead of the home screen, so the main column stays just the
+  // active next steps.
+  const familyIdForDone = data?.family?.id;
+  const childIdsKey = children.map((c) => c.id).join(",");
+  const [doneItems, setDoneItems] = useState([]);
+  useEffect(() => {
+    if (!familyIdForDone) return undefined;
+    let alive = true;
+    const childIds = childIdsKey ? childIdsKey.split(",") : [];
+    Promise.all([fetchFamilyTimetable(familyIdForDone), fetchFamilyApplications(childIds).catch(() => [])])
+      .then(([{ shortlist }, apps]) => {
+        if (!alive) return;
+        const today = new Date().toLocaleDateString("en-CA");
+        const schoolById = Object.fromEntries((shortlist || []).map((r) => [r.school_id, r.school || {}]));
+
+        const completedTours = (shortlist || [])
+          .flatMap(toursOfRow)
+          .filter((t) => t.status === "completed")
+          .map((t) => ({
+            key: `tour-${t.key}`,
+            date: t.date,
+            label: `${t.row.school?.name || "School"} tour`,
+            sub: "Completed",
+          }));
+
+        const doneAssessments = (apps || [])
+          .filter((a) => hasAssessment(a) && (!ASSESSMENT_ACTIVE.includes(a.status) || (a.assessment_date && a.assessment_date < today)))
+          .map((a) => ({
+            key: `assess-${a.id}`,
+            date: a.assessment_date || a.submitted_at || "",
+            label: `${schoolById[a.school_id]?.name || "School"} assessment`,
+            sub: "Completed",
+          }));
+
+        setDoneItems([...completedTours, ...doneAssessments]);
+      })
+      .catch(() => alive && setDoneItems([]));
+    return () => {
+      alive = false;
+    };
+  }, [familyIdForDone, childIdsKey]);
+
+  const donePaidFees = feesForDue
+    .filter((f) => f.status === "paid" || !!f.paid_at)
+    .map((f) => ({
+      key: `fee-${f.id}`,
+      date: f.paid_at || "",
+      label: `${f.application?.school?.name || "School"} application fee`,
+      sub: `Paid${f.amount ? ` · ${f.currency || "AED"} ${Number(f.amount).toLocaleString()}` : ""}`,
+    }));
+
+  const completedItems = [...doneItems, ...donePaidFees]
+    .filter((i) => i.date)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+    .slice(0, 8);
+
   if (status === "loading") return <PageLoading label="Loading your dashboard…" />;
   if (status === "error") return <PageError title="We couldn’t load your dashboard" message={error} onRetry={reload} />;
   const paymentsForDue = data?.payments || [];
@@ -314,7 +386,7 @@ export default function DashboardPage() {
       )}
 
 
-      <div className={"dash-grid" + (missingFields.length ? "" : " is-single")}>
+      <div className={"dash-grid" + (missingFields.length || completedItems.length ? "" : " is-single")}>
         {/* ---------- main column ---------- */}
         <div className="dash-main">
           <section className={"dash-card dash-family" + (familyOpen ? " is-open" : "")}>
@@ -400,28 +472,57 @@ export default function DashboardPage() {
           <IntroductionsCard />
         </div>
 
-        {missingFields.length > 0 && (
+        {(missingFields.length > 0 || completedItems.length > 0) && (
           <aside className="dash-side">
-            <section className="dash-card">
-              <div className="dash-card-head">
-                <h2>Still to fill in</h2>
-                <span className="dash-count">{missingFields.length}</span>
-              </div>
-              <ul className="dash-list">
-                {missingFields.slice(0, 8).map((item) => (
-                  <li key={item.fieldKey}>
-                    <button type="button" onClick={() => openForm(item.stepKey, item.fieldKey)}>
-                      <span className="dash-bullet" />
-                      <span className="dash-list-label">{item.label}</span>
-                      <IconChevronRight size={15} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {missingFields.length > 8 && (
-                <p className="dash-note">+ {missingFields.length - 8} more, once these are done.</p>
-              )}
-            </section>
+            {missingFields.length > 0 && (
+              <section className="dash-card">
+                <div className="dash-card-head">
+                  <h2>Still to fill in</h2>
+                  <span className="dash-count">{missingFields.length}</span>
+                </div>
+                <ul className="dash-list">
+                  {missingFields.slice(0, 8).map((item) => (
+                    <li key={item.fieldKey}>
+                      <button type="button" onClick={() => openForm(item.stepKey, item.fieldKey)}>
+                        <span className="dash-bullet" />
+                        <span className="dash-list-label">{item.label}</span>
+                        <IconChevronRight size={15} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {missingFields.length > 8 && (
+                  <p className="dash-note">+ {missingFields.length - 8} more, once these are done.</p>
+                )}
+              </section>
+            )}
+
+            {completedItems.length > 0 && (
+              <section className="dash-card dash-done">
+                <div className="dash-card-head">
+                  <h2>Recently completed</h2>
+                </div>
+                <ul className="dash-done-list">
+                  {completedItems.map((item) => {
+                    const d = parseDay(item.date);
+                    return (
+                      <li key={item.key} className="dash-done-item">
+                        <IconCheckCircle size={16} className="dash-done-icon" />
+                        <span className="dash-done-text">
+                          <span className="dash-done-label">{item.label}</span>
+                          <span className="dash-done-sub">
+                            {item.sub}
+                            {d && !Number.isNaN(d.getTime())
+                              ? ` · ${d.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
+                              : ""}
+                          </span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )}
           </aside>
         )}
       </div>
