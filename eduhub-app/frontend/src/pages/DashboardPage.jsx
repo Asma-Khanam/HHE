@@ -414,7 +414,7 @@ export default function DashboardPage() {
       {(owedToHhe.length > 0 || dueItems.filter((r) => !r.hhe_paid_school_on_behalf).length > 0 || upcomingItems.length > 0) && (
         <section className="dash-card dash-whatsnext">
           <div className="dash-card-head">
-            <h2>What's next</h2>
+            <h2>Needs your attention</h2>
           </div>
           <ul>
             {owedToHhe.length > 0 && (
