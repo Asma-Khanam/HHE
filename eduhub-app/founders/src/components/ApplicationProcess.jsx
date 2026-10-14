@@ -41,7 +41,7 @@ export default function ApplicationProcess({
 }) {
   const cur = CURRENT[a.status] ?? 0;
   const declined = a.status === "rejected";
-  const hasAssessment = !!(a.assessment_date || a.assessment_link);
+  const hasAssessment = !!(a.assessment_date || a.assessment_link || a.assessment_video_requested);
   const state = (i) => (i < cur ? "done" : i === cur ? "current" : "todo");
 
   const save = (changes) => async (v) => {
@@ -111,6 +111,11 @@ export default function ApplicationProcess({
         a.assessment_link ? " · " + meetingPlatform(a.assessment_link) : ""
       }`
     : "";
+  const videoNote = a.assessment_video_requested
+    ? a.assessment_video_sent_at
+      ? `video sent ${shortDate(a.assessment_video_sent_at)}`
+      : "video requested, not sent yet"
+    : "";
   const s2 = {
     key: "assessment",
     label: "Assessment",
@@ -118,10 +123,12 @@ export default function ApplicationProcess({
     summary:
       cur > 1
         ? hasAssessment
-          ? `Done · ${assessWhen || (a.assessment_in_person ? "in person" : "online")}`
+          ? `Done · ${assessWhen || videoNote || (a.assessment_in_person ? "in person" : "online")}`
           : "No assessment"
         : assessWhen
         ? `Booked · ${assessWhen}${a.assessment_in_person ? " · in person" : ""}`
+        : videoNote
+        ? `Booked · ${videoNote}`
         : cur === 1
         ? "Not booked yet"
         : "",
@@ -177,6 +184,43 @@ export default function ApplicationProcess({
           />
           <span>At the school (in person)</span>
         </label>
+        {/* Video assessment (Miss Lyndsay, 14 Oct 2026, WhatsApp): schools ask
+            under-10s to send a video of themselves instead of an in-person or
+            online slot. We don't hold the video -- just that it was asked
+            for, and when it went across -- so the stage has something to
+            show as done for this child. */}
+        <label className="apx-inperson">
+          <input
+            type="checkbox"
+            checked={!!a.assessment_video_requested}
+            onChange={(e) => {
+              const requested = e.target.checked;
+              const patch = { assessment_video_requested: requested };
+              if (!requested) patch.assessment_video_sent_at = null;
+              onPatch(patch).then(
+                (ok) => ok && onLog(requested ? "Child asked to send an assessment video (under 10)" : "Assessment video no longer needed", "assessment_booked")
+              );
+            }}
+          />
+          <span>Child asked to send a video (under 10)</span>
+        </label>
+        {a.assessment_video_requested && (
+          <div className="ps-grid">
+            <label className="ps-field">
+              <span>Video sent on</span>
+              <input
+                type="date"
+                className="panel-input"
+                value={a.assessment_video_sent_at || ""}
+                onChange={(e) =>
+                  onPatch({ assessment_video_sent_at: e.target.value || null }).then(
+                    (ok) => ok && e.target.value && onLog(`Assessment video sent ${shortDate(e.target.value)}`, "assessment_booked")
+                  )
+                }
+              />
+            </label>
+          </div>
+        )}
         {!a.assessment_in_person && a.assessment_link && (
           <a className="panel-btn apx-portal-btn" href={a.assessment_link} target="_blank" rel="noreferrer">
             Open join link ↗
@@ -465,7 +509,7 @@ export function applicationMiniSteps(a, fees = []) {
     {
       key: "3",
       label: "Assessment",
-      state: assessmentDone ? "done" : cur === 1 && (a.assessment_date || a.assessment_link) ? "current" : applied ? "todo" : "todo",
+      state: assessmentDone ? "done" : cur === 1 && (a.assessment_date || a.assessment_link || a.assessment_video_requested) ? "current" : applied ? "todo" : "todo",
     },
     { key: "4", label: "Outcome", state: outcomeDone ? "done" : outcomeBad ? "bad" : outcomeCurrent ? "current" : "todo" },
     { key: "5", label: "Placed", state: placedDone ? "done" : "todo" },
