@@ -752,75 +752,9 @@
   box-shadow: inset 3px 0 0 var(--hh-error, #b3261e);
 }
 
-/* "Paid by us" top-of-dashboard callout (Miss Heather, 12 Oct 2026). */
-.dash-owed {
-  margin: 14px 0 0;
-  padding: 18px 22px;
-  background: linear-gradient(135deg, #fdf5ea 0%, #faecd4 100%);
-  border: 1px solid rgba(184, 154, 90, 0.4);
-  border-radius: 16px;
-  display: grid;
-  gap: 12px;
-}
-.dash-owed-head h2 { margin: 2px 0 4px; font-size: 1.2rem; color: var(--hh-burgundy, #530126); }
-.dash-owed-head p { margin: 0; font-size: 0.9rem; color: rgba(42, 17, 25, 0.75); }
-.dash-owed-eyebrow { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: #7a5f1e; font-weight: 700; }
-.dash-owed-list { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 6px; }
-.dash-owed-list li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 12px; background: rgba(255, 255, 255, 0.6); border-radius: 10px; font-size: 0.9rem; }
-.dash-owed-school { font-weight: 600; }
-.dash-owed-amount { font-weight: 700; color: var(--hh-burgundy, #530126); }
-.dash-owed-cta { align-self: start; background: var(--hh-burgundy, #530126); color: #fff; border: 0; border-radius: 10px; padding: 9px 18px; font: inherit; font-weight: 600; cursor: pointer; transition: background 0.15s ease, transform 0.08s ease; }
-.dash-owed-cta:hover { background: #7b1e3a; }
-.dash-owed-cta:active { transform: scale(0.98); }
-
-
-
-/* -------------------- Oct 2026 polish pass (one-shot UI/UX refresh) ------- */
-
-/* Slim HHE-paid-on-behalf banner (replaces the heavy yellow card).
-   Clickable: whole strip goes to Billing. */
-.dash-owed-strip {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  text-align: left;
-  padding: 12px 18px;
-  border-radius: 14px;
-  border: 1px solid rgba(154, 91, 0, 0.28);
-  background: linear-gradient(90deg, #fdf5ea 0%, #faecd4 100%);
-  color: #5d4512;
-  font: inherit;
-  cursor: pointer;
-  transition: transform 0.08s ease, box-shadow 0.15s ease;
-  box-shadow: 0 4px 14px rgba(154, 91, 0, 0.08);
-}
-.dash-owed-strip:hover { box-shadow: 0 8px 22px rgba(154, 91, 0, 0.14); }
-.dash-owed-strip:active { transform: scale(0.995); }
-.dash-owed-dot {
-  width: 10px;
-  height: 10px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: #c08a2a;
-  box-shadow: 0 0 0 4px rgba(192, 138, 42, 0.18);
-}
-.dash-owed-strip-text { flex: 1; font-size: 0.95rem; min-width: 0; }
-.dash-owed-strip-text strong { color: var(--hh-burgundy); font-weight: 700; font-size: 1.02rem; }
-.dash-owed-strip-sub { color: rgba(93, 69, 18, 0.75); font-size: 0.86rem; }
-.dash-owed-strip-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  font-weight: 600;
-  color: var(--hh-burgundy);
-  font-size: 0.88rem;
-  white-space: nowrap;
-}
-@media (max-width: 640px) {
-  .dash-owed-strip-sub { display: block; margin-top: 2px; }
-}
+/* Dead: .dash-owed and .dash-owed-strip were two earlier, discarded
+   shapes for the "paid by us" callout -- both folded into the "Owed" row
+   inside the What's next card (14 Oct 2026 redesign), removed here. */
 
 /* Collapsed Your family / School updates / School contacts preview text next
    to the heading, so a closed card still tells you something. */
@@ -931,39 +865,35 @@
   opacity: 0.6;
 }
 
-/* "What's next" (Oct 2026): a short, action-first list between the greeting
-   and the main cards. Each row is one tap through to the page that handles it. */
-.dash-whatsnext {
-  background: #fff;
-  border-radius: var(--hh-radius);
-  box-shadow: var(--hh-shadow);
-  padding: 18px 22px;
-  margin: 0 0 20px;
-}
-.dash-whatsnext h2 {
-  margin: 0 0 10px;
-  font-family: var(--hh-font-heading);
-  font-size: 1rem;
-  color: var(--hh-burgundy);
-}
-.dash-whatsnext ul { list-style: none; margin: 0; padding: 0; }
-.dash-wn-item + .dash-wn-item { border-top: 1px solid rgba(83, 1, 38, 0.08); }
+/* "What's next" (Oct 2026, redesigned): uses the shared .dash-card shell
+   (the gradient top accent, border, shadow every other card uses) instead
+   of a bespoke flat box, so it reads as part of the same system rather
+   than bolted on. It leads the page -- Owed/Pay rows first (consequence),
+   then upcoming tours and assessments by date. */
+.dash-whatsnext { margin: 0; }
+.dash-whatsnext ul { list-style: none; margin: 0; padding: 4px 0 2px; }
+.dash-wn-item + .dash-wn-item { border-top: 1px solid var(--hh-track); }
 .dash-wn-item button {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 14px;
   width: 100%; background: none; border: 0;
-  padding: 12px 2px; text-align: left; cursor: pointer;
+  padding: 13px 4px; text-align: left; cursor: pointer;
   font: inherit; color: inherit;
+  border-radius: 10px;
+  transition: background 0.15s ease;
 }
-.dash-wn-item button:hover { background: rgba(83, 1, 38, 0.03); }
+.dash-wn-item button:hover { background: rgba(83, 1, 38, 0.035); }
 .dash-wn-tag {
-  flex: none; padding: 3px 9px; border-radius: 999px;
+  flex: none; padding: 4px 10px; border-radius: 999px;
   background: rgba(83, 1, 38, 0.08); color: var(--hh-burgundy);
-  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
 }
-.dash-wn-item.is-pay .dash-wn-tag { background: #fdf1d9; color: #7a5612; }
-.dash-wn-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.dash-wn-main strong { font-weight: 600; color: var(--hh-ink); }
-.dash-wn-main span { font-size: 0.82rem; color: var(--hh-ink); opacity: 0.65; }
+.dash-wn-item.is-pay .dash-wn-tag,
+.dash-wn-item.is-owed .dash-wn-tag { background: rgba(184, 154, 90, 0.22); color: #7a5612; }
+.dash-wn-main { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dash-wn-main strong { font-weight: 600; color: var(--hh-ink); font-size: 0.95rem; }
+.dash-wn-main span { font-size: 0.8rem; color: var(--hh-ink); opacity: 0.6; }
+.dash-wn-item button svg { flex: none; opacity: 0.4; }
+.dash-wn-item button:hover svg { opacity: 0.75; }
 
 /* Dashboard redesign (14 Oct 2026): the SUBMITTED spotlight was taking
    half the screen for the same one-sentence status. Shrunk to a slim

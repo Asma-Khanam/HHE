@@ -127,3 +127,18 @@
 @media (max-width: 600px) {
   .su-history-item { grid-template-columns: 1fr; }
 }
+
+/* Hero treatment (14 Oct 2026): this is the main thing on the Dashboard
+   now, so it gets a touch more visual weight than the other cards -- a
+   warm tinted wash behind the header and a slightly bigger heading --
+   instead of being identical to every other white card on the page. */
+.su-card {
+  background: linear-gradient(180deg, rgba(184, 154, 90, 0.07) 0%, rgba(255, 255, 255, 0) 90px), var(--hh-white);
+}
+.su-card .dash-card-head h2 {
+  font-size: 1.18rem;
+  letter-spacing: -0.005em;
+}
+.su-card:not(.is-open) {
+  background: var(--hh-white);
+}

@@ -411,28 +411,27 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {owedToHhe.length > 0 && (
-        <button
-          type="button"
-          className="dash-owed-strip"
-          onClick={() => navigate("/app/billing")}
-          title={owedToHhe.map((f) => f.application?.school?.name || "School").join(", ")}
-        >
-          <span className="dash-owed-dot" aria-hidden="true" />
-          <span className="dash-owed-strip-text">
-            <strong>{owedMoney}</strong> owed to HHE
-            <span className="dash-owed-strip-sub">
-              {" "}· {owedToHhe.length} school fee{owedToHhe.length === 1 ? "" : "s"} we paid on your behalf
-            </span>
-          </span>
-          <span className="dash-owed-strip-cta">Settle in Billing <IconChevronRight size={14} /></span>
-        </button>
-      )}
-
-      {(dueItems.filter((r) => !r.hhe_paid_school_on_behalf).length > 0 || upcomingItems.length > 0) && (
-        <section className="dash-whatsnext">
-          <h2>What's next</h2>
+      {(owedToHhe.length > 0 || dueItems.filter((r) => !r.hhe_paid_school_on_behalf).length > 0 || upcomingItems.length > 0) && (
+        <section className="dash-card dash-whatsnext">
+          <div className="dash-card-head">
+            <h2>What's next</h2>
+          </div>
           <ul>
+            {owedToHhe.length > 0 && (
+              <li className="dash-wn-item is-owed">
+                <button type="button" onClick={() => navigate("/app/billing")}>
+                  <span className="dash-wn-tag">Owed</span>
+                  <span className="dash-wn-main">
+                    <strong>{owedMoney} to HHE</strong>
+                    <span>
+                      {owedToHhe.length} school fee{owedToHhe.length === 1 ? "" : "s"} paid on your behalf · settle in
+                      Billing
+                    </span>
+                  </span>
+                  <IconChevronRight size={16} />
+                </button>
+              </li>
+            )}
             {dueItems
               .filter((r) => !r.hhe_paid_school_on_behalf)
               .slice(0, 4)
