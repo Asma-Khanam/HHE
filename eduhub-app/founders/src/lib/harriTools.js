@@ -91,7 +91,7 @@ async function find_families(input = {}) {
         family_id: f.id,
         name: f.displayName,
         ref: shortId(f.id),
-        children: f.childLabels.map((l) => l.text),
+        children: f.childLabels,
         pipeline_stage: f.pipeline_stage,
         client_stage: f.client_stage,
         owner: f.ownerName,

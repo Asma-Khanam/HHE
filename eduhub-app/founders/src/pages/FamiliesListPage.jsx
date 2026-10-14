@@ -65,7 +65,7 @@ export default function FamiliesListPage() {
       (f) =>
         f.displayName.toLowerCase().includes(q) ||
         shortId(f.id).toLowerCase().includes(q.replace(/\s/g, "")) ||
-        f.childLabels.map((l) => l.text).join(" ").toLowerCase().includes(q) ||
+        f.childLabels.join(" ").toLowerCase().includes(q) ||
         (f.destination || "").toLowerCase().includes(q)
     );
   }, [families, search, tab]);
@@ -163,18 +163,7 @@ export default function FamiliesListPage() {
                     </div>
                   </td>
                   <td className="families-cell-children">
-                    {family.childLabels.length ? (
-                      family.childLabels.map((l, i) => (
-                        <span key={i}>
-                          {i > 0 && ", "}
-                          <span className={l.flagged ? "families-child-flag" : undefined} title={l.flagged ? "Different surname from the parents on file" : undefined}>
-                            {l.text}
-                          </span>
-                        </span>
-                      ))
-                    ) : (
-                      <span className="is-muted">None yet</span>
-                    )}
+                    {family.childLabels.length ? family.childLabels.join(", ") : <span className="is-muted">None yet</span>}
                   </td>
                   <td>{family.destination || <span className="is-muted">—</span>}</td>
                   <td>

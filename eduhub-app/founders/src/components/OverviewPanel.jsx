@@ -156,6 +156,7 @@ export default function OverviewPanel({
           {familyChildren.map((c, i) => {
                 const school = currentSchools?.[i]?.school_name;
                 const years = Array.isArray(c.academic_years_of_entry) ? c.academic_years_of_entry.join(", ") : "";
+                const childLabel = hasDifferentSurname(c, parentSurnames) ? fullNameOf(c) : displayNameForChild(c, i);
                 return (
                   <div className="ov-child" key={c.id}>
                     <div className="ov-child-top">
@@ -166,10 +167,10 @@ export default function OverviewPanel({
                           onClick={() => onGoToMember(`child-${c.id}`)}
                           title="Open in Family details"
                         >
-                          {displayNameForChild(c, i)}
+                          {childLabel}
                         </button>
                       ) : (
-                        <span className="ov-child-title">{displayNameForChild(c, i)}</span>
+                        <span className="ov-child-title">{childLabel}</span>
                       )}
                       {hasSen(c) && (
                         <span className="ov-sen" title={c.sen_status}>
@@ -177,11 +178,6 @@ export default function OverviewPanel({
                         </span>
                       )}
                     </div>
-                    {hasDifferentSurname(c, parentSurnames) && (
-                      <span className="ov-surname-flag" title="Different surname from the parents on file">
-                        {fullNameOf(c)}
-                      </span>
-                    )}
                     <span className="ov-sub">Date of birth</span>
                     <ReadLine value={dobLine(c.date_of_birth)} copy={dobPlain(c.date_of_birth)} label="Copy date of birth" />
                     <span className="ov-sub">Applying for</span>

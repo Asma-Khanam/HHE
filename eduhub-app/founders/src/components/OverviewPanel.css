@@ -120,17 +120,3 @@
 .ov-start-value { font-weight: 600; color: var(--hh-burgundy, var(--hh-ink)); font-size: 1rem; }
 .ov-start.is-empty { background: rgba(83, 1, 38, 0.04); border-color: rgba(83, 1, 38, 0.12); }
 .ov-start.is-empty .ov-start-value { font-weight: 400; opacity: 0.55; }
-
-/* Child's surname doesn't match either parent's (8 Oct 2026, mixed-parent
-   families) -- their full name, called out so it isn't missed on a call. */
-.ov-surname-flag {
-  display: inline-block;
-  margin-top: 4px;
-  padding: 2px 9px;
-  border-radius: 7px;
-  background: #fde9a8;
-  border: 1px solid #e0b93c;
-  color: #4a3200;
-  font-size: 0.74rem;
-  font-weight: 600;
-}

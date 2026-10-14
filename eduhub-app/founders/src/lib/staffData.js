@@ -255,9 +255,9 @@ export async function listFamilies() {
       parents: familyParents,
       children: familyChildren,
       childLabels: familyChildren.map((c, i) => {
-        const name = displayNameForChild(c, i);
-        const base = c.year_group_applying_for ? `${name} (${c.year_group_applying_for})` : name;
-        return { text: base, flagged: childSurnameDiffers(c, familyParents) };
+        const differs = childSurnameDiffers(c, familyParents);
+        const name = differs ? (c.full_name || "").trim() || displayNameForChild(c, i) : displayNameForChild(c, i);
+        return c.year_group_applying_for ? `${name} (${c.year_group_applying_for})` : name;
       }),
       displayName: familyDisplayName(family, familyParents),
       photoDoc:
