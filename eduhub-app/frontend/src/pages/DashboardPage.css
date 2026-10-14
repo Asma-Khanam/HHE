@@ -964,3 +964,34 @@
 .dash-wn-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .dash-wn-main strong { font-weight: 600; color: var(--hh-ink); }
 .dash-wn-main span { font-size: 0.82rem; color: var(--hh-ink); opacity: 0.65; }
+
+/* Dashboard redesign (14 Oct 2026): the SUBMITTED spotlight was taking
+   half the screen for the same one-sentence status. Shrunk to a slim
+   contextual banner so the per-school tracker and What's next are the
+   main things on the page. */
+.dash-spotlight {
+  padding: 14px 22px !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  background: linear-gradient(135deg, var(--hh-burgundy) 0%, var(--hh-burgundy-light) 100%) !important;
+}
+.dash-spotlight::before { display: none !important; }
+.dash-spotlight-eyebrow {
+  font-size: 0.72rem !important;
+  letter-spacing: 0.09em !important;
+  opacity: 0.75 !important;
+}
+.dash-spotlight h2 {
+  font-size: 1.1rem !important;
+  margin: 2px 0 !important;
+  line-height: 1.25 !important;
+}
+.dash-spotlight p {
+  font-size: 0.86rem !important;
+  opacity: 0.9 !important;
+  margin: 2px 0 0 !important;
+}
+.dash-spotlight-cta {
+  font-size: 0.82rem !important;
+  padding: 6px 14px !important;
+}

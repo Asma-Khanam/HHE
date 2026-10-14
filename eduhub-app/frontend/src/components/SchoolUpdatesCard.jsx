@@ -11,12 +11,15 @@ import "./SchoolUpdatesCard.css";
 // family, per school, as a horizontal timeline. Each step lights up only
 // when the consultant presses "Update family" for it on their side (see
 // addendum 74); anything not updated yet stays grey.
-// Realigned 14 Oct 2026 (Miss Lyndsay / Asma): the client-side stage names
-// now match the consultant side exactly -- Apply, Fee, Assessment, Outcome,
-// Placed -- so staff and families use the same words. Pre-application
-// stages (shortlisted, toured) still live on "Your schools"; this timeline
-// is the application's own journey, which is what the family cares about.
+// Full journey (14 Oct 2026): shortlist and tour live on "Your schools"
+// as their own tab, but families want to see the whole arc per school in
+// one place -- Shortlisted / Toured / Apply / Fee / Assessment / Outcome
+// / Placed. Shortlisted is on from the moment a school is on the family's
+// shortlist; Toured lights up when any tour on that row is marked
+// completed; the rest come from the application + fees.
 const STEPS = [
+  { key: "shortlisted", label: "Shortlisted" },
+  { key: "toured", label: "Toured" },
   { key: "applied", label: "Apply" },
   { key: "fee", label: "Fee" },
   { key: "assessment", label: "Assessment" },
@@ -33,15 +36,13 @@ const OUTCOMES = {
 };
 
 const STAGE_LABEL = {
+  shortlisted: "Shortlisted",
+  toured: "Toured",
   applied: "Apply",
   fee: "Fee",
   assessment: "Assessment",
   outcome: "Outcome",
   placed: "Placed",
-  // Legacy stage keys still in the database from before the realignment;
-  // mapped so old updates still render with a sensible label.
-  shortlisted: "Shortlisted",
-  toured: "Toured",
   ...Object.fromEntries(Object.entries(OUTCOMES).map(([k, v]) => [k, v.label])),
 };
 
@@ -87,6 +88,40 @@ function fromApplications(apps, schoolById) {
 // Addendum (14 Oct 2026): once a fee on an application is paid, light up
 // the Fee step on that application's timeline automatically -- no staff
 // click needed.
+function fromShortlist(shortlist) {
+  const out = [];
+  (shortlist || []).forEach((row) => {
+    if (!row.school) return;
+    const school = { id: row.school_id, name: row.school.name };
+    out.push({
+      id: `sl-${row.id}`,
+      school_id: row.school_id,
+      child_id: null,
+      stage: "shortlisted",
+      note: null,
+      created_at: row.shortlisted_at || null,
+      school,
+      fromApplication: true,
+    });
+    const touredDate =
+      (row.tour_status === "completed" ? row.tour_date : null) ||
+      (row.tour2_status === "completed" ? row.tour2_date : null);
+    if (touredDate) {
+      out.push({
+        id: `sl-${row.id}-tour`,
+        school_id: row.school_id,
+        child_id: null,
+        stage: "toured",
+        note: null,
+        created_at: touredDate,
+        school,
+        fromApplication: true,
+      });
+    }
+  });
+  return out;
+}
+
 function fromFees(fees, apps, schoolById) {
   const appById = Object.fromEntries(apps.map((a) => [a.id, a]));
   return fees
@@ -113,8 +148,9 @@ function fromFees(fees, apps, schoolById) {
 export default function SchoolUpdatesCard() {
   const { familyId, data } = useApplicationData();
   const [rows, setRows] = useState(null);
-  // Closed by default so it isn't always in the family's face (Sept 2026).
-  const [open, setOpen] = useState(false);
+  // Open by default (14 Oct 2026 redesign): this is the main story on
+  // the Dashboard now -- where each school is at -- so it leads.
+  const [open, setOpen] = useState(true);
   // Which school is expanded to show its full update history (Miss Lyndsay,
   // 12 Oct 2026): one tap on the school opens or closes it. Parents still
   // never see case notes — those are staff-only (addendum 5), nothing on
@@ -150,7 +186,11 @@ export default function SchoolUpdatesCard() {
         (shortlist || []).forEach((row) => {
           if (row.school) schoolById[row.school_id] = { id: row.school_id, name: row.school.name };
         });
-        fromApps = [...fromApplications(apps, schoolById), ...fromFees(fees, apps, schoolById)];
+        fromApps = [
+          ...fromShortlist(shortlist || []),
+          ...fromApplications(apps, schoolById),
+          ...fromFees(fees, apps, schoolById),
+        ];
       } catch {
         fromApps = [];
       }
@@ -190,7 +230,7 @@ export default function SchoolUpdatesCard() {
     <section className={"dash-card su-card" + (open ? " is-open" : "")}>
       <div className="dash-card-head">
         <button type="button" className="su-toggle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          <h2>School updates</h2>
+          <h2>Where you're at</h2>
           {schools.length > 0 && <span className="dash-count">{schools.length}</span>}
           {!open && newest && (
             <span className="su-peek">

@@ -470,6 +470,8 @@ export default function DashboardPage() {
       <div className={"dash-grid" + (missingFields.length || completedItems.length ? "" : " is-single")}>
         {/* ---------- main column ---------- */}
         <div className="dash-main">
+          <SchoolUpdatesCard />
+
           <section className={"dash-card dash-family" + (familyOpen ? " is-open" : "")}>
             <div className="dash-card-head">
               <button
@@ -543,11 +545,11 @@ export default function DashboardPage() {
             )}
           </section>
 
-          <PackageUsageCard />
+
           <UpcomingAssessmentsCard />
           <UpcomingToursCard />
 
-          <SchoolUpdatesCard />
+          <PackageUsageCard />
           <SchoolContactsCard />
 
           <IntroductionsCard />
