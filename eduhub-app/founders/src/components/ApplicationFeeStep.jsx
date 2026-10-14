@@ -208,10 +208,61 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
     }
   }
 
+  // Guard added 14 Oct 2026 after a case where two fees were sitting on the
+  // same application -- one with the right invoice, one with a sibling's
+  // invoice uploaded by mistake. The sibling-chip pattern (one fee covering
+  // more than one child) is the intended shape; this just flags it loudly
+  // when the data doesn't look right so staff can clean it up.
+  const currentChildFirstName = (
+    application?.child?.preferred_name ||
+    application?.child?.first_name ||
+    (application?.child?.full_name || "").split(/\s+/)[0] ||
+    ""
+  ).toLowerCase();
+  const siblingFirstNames = (siblings || [])
+    .map((s) => (s.childName || "").split(/\s+/)[0].toLowerCase())
+    .filter(Boolean);
+  const warnDuplicate = fees.length > 1;
+  const siblingNamedInvoices = fees
+    .map((fee) => {
+      const n = (fee.invoice_name || "").toLowerCase();
+      if (!n) return null;
+      const match = siblingFirstNames.find((sn) => sn && n.includes(sn));
+      if (match && !n.includes(currentChildFirstName)) return { fee, match };
+      return null;
+    })
+    .filter(Boolean);
+
   return (
     <div className="afs">
       {fees.length === 0 && (
         <p className="afs-empty">No application fee yet. Add it when the school sends its invoice.</p>
+      )}
+
+      {(warnDuplicate || siblingNamedInvoices.length > 0) && (
+        <div className="afs-warn" role="alert">
+          <span className="afs-warn-icon" aria-hidden="true">!</span>
+          <div>
+            {warnDuplicate && (
+              <p>
+                <strong>Two fees on this application.</strong> If the school issued one invoice that covers more than
+                one child, delete the extra row and tick the sibling under <em>Covers</em> on the fee you're keeping.
+              </p>
+            )}
+            {siblingNamedInvoices.length > 0 && (
+              <p>
+                <strong>Check this invoice:</strong>{" "}
+                {siblingNamedInvoices.map((x, i) => (
+                  <span key={x.fee.id}>
+                    {i > 0 ? ", " : ""}
+                    {x.fee.invoice_name} looks like it belongs to {x.match}, not {currentChildFirstName || "this child"}
+                  </span>
+                ))}
+                .
+              </p>
+            )}
+          </div>
+        </div>
       )}
 
       {fees.map((fee) => (

@@ -930,3 +930,37 @@
   font-size: 0.76rem;
   opacity: 0.6;
 }
+
+/* "What's next" (Oct 2026): a short, action-first list between the greeting
+   and the main cards. Each row is one tap through to the page that handles it. */
+.dash-whatsnext {
+  background: #fff;
+  border-radius: var(--hh-radius);
+  box-shadow: var(--hh-shadow);
+  padding: 18px 22px;
+  margin: 0 0 20px;
+}
+.dash-whatsnext h2 {
+  margin: 0 0 10px;
+  font-family: var(--hh-font-heading);
+  font-size: 1rem;
+  color: var(--hh-burgundy);
+}
+.dash-whatsnext ul { list-style: none; margin: 0; padding: 0; }
+.dash-wn-item + .dash-wn-item { border-top: 1px solid rgba(83, 1, 38, 0.08); }
+.dash-wn-item button {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; background: none; border: 0;
+  padding: 12px 2px; text-align: left; cursor: pointer;
+  font: inherit; color: inherit;
+}
+.dash-wn-item button:hover { background: rgba(83, 1, 38, 0.03); }
+.dash-wn-tag {
+  flex: none; padding: 3px 9px; border-radius: 999px;
+  background: rgba(83, 1, 38, 0.08); color: var(--hh-burgundy);
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.dash-wn-item.is-pay .dash-wn-tag { background: #fdf1d9; color: #7a5612; }
+.dash-wn-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.dash-wn-main strong { font-weight: 600; color: var(--hh-ink); }
+.dash-wn-main span { font-size: 0.82rem; color: var(--hh-ink); opacity: 0.65; }

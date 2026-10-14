@@ -140,6 +140,11 @@ export default function DashboardPage() {
   const familyIdForDone = data?.family?.id;
   const childIdsKey = children.map((c) => c.id).join(",");
   const [doneItems, setDoneItems] = useState([]);
+  // "What's next" (Miss Lyndsay, 14 Oct 2026 after Asma pushed for the
+  // client view to really match the consultant view): pull the family's
+  // own live to-dos -- upcoming tours and assessments -- so the Dashboard
+  // leads with what they need to do, not just what's happened.
+  const [upcomingItems, setUpcomingItems] = useState([]);
   useEffect(() => {
     if (!familyIdForDone) return undefined;
     let alive = true;
@@ -170,6 +175,45 @@ export default function DashboardPage() {
           }));
 
         setDoneItems([...completedTours, ...doneAssessments]);
+
+        const upTours = (shortlist || [])
+          .flatMap(toursOfRow)
+          .filter((t) => t.status !== "completed" && t.status !== "cancelled" && t.date >= today)
+          .map((t) => ({
+            key: `up-tour-${t.key}`,
+            date: t.date,
+            label: `Tour: ${t.row.school?.name || "School"}`,
+            sub: t.start ? `${t.date} · ${t.start}` : t.date,
+            go: "/app/timetable",
+          }));
+
+        const upAssessments = (apps || [])
+          .filter((a) => ASSESSMENT_ACTIVE.includes(a.status) && hasAssessment(a))
+          .filter((a) => a.assessment_video_requested || !a.assessment_date || a.assessment_date >= today)
+          .map((a) => {
+            const sname = schoolById[a.school_id]?.name || "School";
+            if (a.assessment_video_requested) {
+              return {
+                key: `up-assess-${a.id}`,
+                date: a.assessment_date || "9999",
+                label: `Video assessment: ${sname}`,
+                sub: a.assessment_video_sent_at ? `Sent ${a.assessment_video_sent_at}` : "Not sent yet",
+                go: "/app/timetable",
+              };
+            }
+            const sub = [a.assessment_date, a.assessment_time, a.assessment_in_person ? "at the school" : a.assessment_link ? "online" : ""]
+              .filter(Boolean)
+              .join(" · ");
+            return {
+              key: `up-assess-${a.id}`,
+              date: a.assessment_date || "9999",
+              label: `Assessment: ${sname}`,
+              sub: sub || "Details coming",
+              go: "/app/timetable",
+            };
+          });
+
+        setUpcomingItems([...upTours, ...upAssessments].sort((a, b) => String(a.date).localeCompare(String(b.date))));
       })
       .catch(() => alive && setDoneItems([]));
     return () => {
@@ -385,6 +429,43 @@ export default function DashboardPage() {
         </button>
       )}
 
+      {(dueItems.filter((r) => !r.hhe_paid_school_on_behalf).length > 0 || upcomingItems.length > 0) && (
+        <section className="dash-whatsnext">
+          <h2>What's next</h2>
+          <ul>
+            {dueItems
+              .filter((r) => !r.hhe_paid_school_on_behalf)
+              .slice(0, 4)
+              .map((r) => (
+                <li key={`due-${r.id}`} className="dash-wn-item is-pay">
+                  <button type="button" onClick={() => navigate("/app/billing")}>
+                    <span className="dash-wn-tag">Pay</span>
+                    <span className="dash-wn-main">
+                      <strong>
+                        {r.application?.school?.name || r.label || "School fee"}
+                        {r.amount ? ` · ${r.currency || "AED"} ${Number(r.amount).toLocaleString()}` : ""}
+                      </strong>
+                      <span>{r.due_date ? `Due ${r.due_date}` : "To pay"}</span>
+                    </span>
+                    <IconChevronRight size={16} />
+                  </button>
+                </li>
+              ))}
+            {upcomingItems.slice(0, 5).map((it) => (
+              <li key={it.key} className="dash-wn-item">
+                <button type="button" onClick={() => navigate(it.go)}>
+                  <span className="dash-wn-tag">{it.label.startsWith("Tour") ? "Tour" : "Assess"}</span>
+                  <span className="dash-wn-main">
+                    <strong>{it.label.replace(/^(Tour|Assessment|Video assessment): /, "")}</strong>
+                    <span>{it.sub}</span>
+                  </span>
+                  <IconChevronRight size={16} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className={"dash-grid" + (missingFields.length || completedItems.length ? "" : " is-single")}>
         {/* ---------- main column ---------- */}

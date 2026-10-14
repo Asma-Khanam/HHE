@@ -30,10 +30,23 @@ export default function TourSchedulePanel({ familyId, onGoToVisits }) {
         if (!alive) return;
         const out = [];
         for (const r of rows) {
+          const feedback =
+            r.feedback_text || r.feedback_rating
+              ? {
+                  rating: r.feedback_rating || 0,
+                  text: r.feedback_text || "",
+                  by: r.feedback_by || null,
+                }
+              : null;
+          let seenFeedback = false;
           for (const p of ["tour_", "tour2_"]) {
             const date = r[p + "date"];
             const status = r[p + "status"];
             if (!date || status === "cancelled") continue;
+            // Attach the family's own rating / comment to the last completed
+            // tour on this shortlist row -- so the staff see at a glance
+            // what the family thought of the visit without hopping pages.
+            const attach = feedback && (status === "completed" || date < new Date().toISOString().slice(0, 10));
             out.push({
               key: r.id + p,
               date,
@@ -41,7 +54,9 @@ export default function TourSchedulePanel({ familyId, onGoToVisits }) {
               end: r[p + "end_time"],
               status,
               school: r.school?.name || "School",
+              feedback: attach && !seenFeedback ? feedback : null,
             });
+            if (attach) seenFeedback = true;
           }
         }
         out.sort((a, b) => (a.date + (a.start || "")).localeCompare(b.date + (b.start || "")));
@@ -87,6 +102,18 @@ export default function TourSchedulePanel({ familyId, onGoToVisits }) {
               <span className="ov-tour-time">{fmtTime(t.start)}{t.end ? `–${fmtTime(t.end)}` : ""}</span>
               <span className="ov-tour-school">{t.school}</span>
               {t.status && <span className="ov-pill">{STATUS_LABEL[t.status] || t.status}</span>}
+              {t.feedback && (
+                <span className="ov-tour-feedback" title={t.feedback.by === "family" ? "From the family" : "Noted by us"}>
+                  {t.feedback.rating > 0 && (
+                    <span className="ov-tour-stars" aria-label={`${t.feedback.rating} out of 5`}>
+                      {"★".repeat(t.feedback.rating)}
+                      {"☆".repeat(5 - t.feedback.rating)}
+                    </span>
+                  )}
+                  {t.feedback.text && <span className="ov-tour-note">{t.feedback.text}</span>}
+                  <span className="ov-tour-fby">{t.feedback.by === "family" ? "from the family" : "noted by us"}</span>
+                </span>
+              )}
             </li>
           ))}
         </ul>

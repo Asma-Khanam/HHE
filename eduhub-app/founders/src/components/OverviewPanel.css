@@ -120,3 +120,18 @@
 .ov-start-value { font-weight: 600; color: var(--hh-burgundy, var(--hh-ink)); font-size: 1rem; }
 .ov-start.is-empty { background: rgba(83, 1, 38, 0.04); border-color: rgba(83, 1, 38, 0.12); }
 .ov-start.is-empty .ov-start-value { font-weight: 400; opacity: 0.55; }
+
+/* Family's own rating + comment on a past tour (14 Oct 2026) -- shown
+   inline on the family's Overview so staff see it on calls without
+   switching to the Schools page's cross-family feedback panel. */
+.ov-tour { grid-template-columns: 110px 100px 1fr auto !important; }
+.ov-tour-feedback {
+  grid-column: 1 / -1;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  margin-top: 6px; padding-top: 6px;
+  border-top: 1px dashed rgba(184, 154, 90, 0.6);
+  font-size: 0.84rem; color: #2a1119;
+}
+.ov-tour-stars { color: #b8902f; letter-spacing: 1px; font-size: 0.9rem; }
+.ov-tour-note { color: #2a1119; }
+.ov-tour-fby { color: #2a1119; opacity: 0.55; font-size: 0.76rem; }

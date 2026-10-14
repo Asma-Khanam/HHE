@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import { fetchFamilyApplications, fetchFamilyTimetable } from "../lib/timetableData";
+import { fetchApplicationFees } from "../lib/applicationFees";
 import { IconChevronDown } from "./icons";
 import { CardError, CardSkeleton } from "./StatePanels";
 import "./SchoolUpdatesCard.css";
@@ -10,12 +11,17 @@ import "./SchoolUpdatesCard.css";
 // family, per school, as a horizontal timeline. Each step lights up only
 // when the consultant presses "Update family" for it on their side (see
 // addendum 74); anything not updated yet stays grey.
+// Realigned 14 Oct 2026 (Miss Lyndsay / Asma): the client-side stage names
+// now match the consultant side exactly -- Apply, Fee, Assessment, Outcome,
+// Placed -- so staff and families use the same words. Pre-application
+// stages (shortlisted, toured) still live on "Your schools"; this timeline
+// is the application's own journey, which is what the family cares about.
 const STEPS = [
-  { key: "shortlisted", label: "Shortlisted" },
-  { key: "toured", label: "Toured" },
-  { key: "applied", label: "Application sent" },
+  { key: "applied", label: "Apply" },
+  { key: "fee", label: "Fee" },
   { key: "assessment", label: "Assessment" },
   { key: "outcome", label: "Outcome" },
+  { key: "placed", label: "Placed" },
 ];
 
 const OUTCOMES = {
@@ -27,10 +33,15 @@ const OUTCOMES = {
 };
 
 const STAGE_LABEL = {
+  applied: "Apply",
+  fee: "Fee",
+  assessment: "Assessment",
+  outcome: "Outcome",
+  placed: "Placed",
+  // Legacy stage keys still in the database from before the realignment;
+  // mapped so old updates still render with a sensible label.
   shortlisted: "Shortlisted",
   toured: "Toured",
-  applied: "Application sent",
-  assessment: "Assessment",
   ...Object.fromEntries(Object.entries(OUTCOMES).map(([k, v]) => [k, v.label])),
 };
 
@@ -73,6 +84,32 @@ function fromApplications(apps, schoolById) {
   return out;
 }
 
+// Addendum (14 Oct 2026): once a fee on an application is paid, light up
+// the Fee step on that application's timeline automatically -- no staff
+// click needed.
+function fromFees(fees, apps, schoolById) {
+  const appById = Object.fromEntries(apps.map((a) => [a.id, a]));
+  return fees
+    .filter((f) => f.status === "paid" || !!f.paid_at)
+    .map((f) => {
+      const app = appById[f.application_id];
+      if (!app) return null;
+      const school = schoolById[app.school_id];
+      if (!school) return null;
+      return {
+        id: `fee-${f.id}`,
+        school_id: app.school_id,
+        child_id: app.child_id,
+        stage: "fee",
+        note: null,
+        created_at: f.paid_at || null,
+        school,
+        fromApplication: true,
+      };
+    })
+    .filter(Boolean);
+}
+
 export default function SchoolUpdatesCard() {
   const { familyId, data } = useApplicationData();
   const [rows, setRows] = useState(null);
@@ -104,15 +141,16 @@ export default function SchoolUpdatesCard() {
       let fromApps = [];
       try {
         const childIds = childKey ? childKey.split(",") : [];
-        const [{ shortlist }, apps] = await Promise.all([
+        const [{ shortlist }, apps, fees] = await Promise.all([
           fetchFamilyTimetable(familyId),
           fetchFamilyApplications(childIds),
+          fetchApplicationFees().catch(() => []),
         ]);
         const schoolById = {};
         (shortlist || []).forEach((row) => {
           if (row.school) schoolById[row.school_id] = { id: row.school_id, name: row.school.name };
         });
-        fromApps = fromApplications(apps, schoolById);
+        fromApps = [...fromApplications(apps, schoolById), ...fromFees(fees, apps, schoolById)];
       } catch {
         fromApps = [];
       }
@@ -194,8 +232,20 @@ export default function SchoolUpdatesCard() {
 
                 <ol className="su-track">
                   {STEPS.map((step) => {
-                    const hit = step.key === "outcome" ? outcome : latestOf(step.key);
-                    const meta = step.key === "outcome" && outcome ? OUTCOMES[outcome.stage] : null;
+                    const hit =
+                      step.key === "outcome"
+                        ? outcome && outcome.stage !== "placed"
+                          ? outcome
+                          : null
+                        : step.key === "placed"
+                        ? latestOf("placed")
+                        : latestOf(step.key);
+                    const meta =
+                      step.key === "outcome" && hit
+                        ? OUTCOMES[hit.stage]
+                        : step.key === "placed" && hit
+                        ? OUTCOMES.placed
+                        : null;
                     const tone = hit ? meta?.tone || "good" : "off";
                     return (
                       <li key={step.key} className={"su-step is-" + tone}>
