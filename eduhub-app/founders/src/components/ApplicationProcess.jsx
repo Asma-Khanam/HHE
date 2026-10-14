@@ -4,6 +4,7 @@ import ApplicationFeeStep from "./ApplicationFeeStep";
 import { REJECTION_REASONS } from "../lib/workflow";
 import { meetingPlatform } from "../lib/meetingLink";
 import { shortDate, oneMonthAfter } from "../lib/placement";
+import "./ApplicationProcess.css";
 
 // One application as a process (founders, 25 Sept 2026):
 //   Apply -> Assessment -> Outcome -> Placed
