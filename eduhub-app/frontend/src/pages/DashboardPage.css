@@ -462,12 +462,71 @@
   opacity: 0.55;
 }
 
+/* ====================================================== collapsible cards
+
+   School contacts, School updates and anything else with the "click the
+   head to open" pattern uses .su-toggle / .su-caret / .su-peek on top of
+   .dash-card. Keeping these in the Dashboard stylesheet now instead of in
+   SchoolUpdatesCard.css, because SchoolUpdatesCard is no longer imported
+   from the Dashboard but SchoolContactsCard still relies on the same
+   classes. 14 Oct 2026 (Asma: "school contacts page is all weird"). */
+
+.sc-card:not(.is-open) .dash-card-head { border-bottom: none; }
+.sc-card:not(.is-open) { padding-bottom: 6px; }
+.su-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+}
+.su-peek {
+  margin-left: auto;
+  font-size: 0.8rem;
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.su-caret {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--hh-cream);
+  color: var(--hh-burgundy);
+  transition: transform 0.2s ease;
+  margin-left: auto;
+}
+.sc-card.is-open .su-caret { transform: rotate(180deg); }
+@media (max-width: 640px) { .su-peek { display: none; } }
+
+/* School-contacts list styling nudged up so each school's block feels
+   like its own tile within the opened card. */
+.sc-card.is-open .dash-card-head { border-bottom: 1px solid rgba(184, 154, 90, 0.3); }
+
 /* ============================================================= misc small */
 
+.pkg-card {
+  background: linear-gradient(135deg, rgba(184, 154, 90, 0.08), rgba(255, 255, 255, 0.6)),
+              linear-gradient(0deg, var(--hh-white), var(--hh-white));
+  border-color: rgba(184, 154, 90, 0.35);
+}
+
 .pkg-card-chip {
-  background: linear-gradient(135deg, rgba(184, 154, 90, 0.22), rgba(184, 154, 90, 0.1));
+  background: linear-gradient(135deg, rgba(184, 154, 90, 0.3), rgba(184, 154, 90, 0.12));
   color: #7a6228;
-  border: 1px solid rgba(184, 154, 90, 0.32);
+  border: 1px solid rgba(184, 154, 90, 0.4);
   padding: 4px 12px;
   border-radius: 999px;
   font-size: 0.78rem;

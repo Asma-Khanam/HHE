@@ -6,12 +6,12 @@ import { fetchFamilyTimetable, fetchFamilyApplications } from "../lib/timetableD
 import { fetchApplicationFees } from "../lib/applicationFees";
 import { toursOfRow, parseDay, timeRange } from "../lib/tourDetails";
 import { hasAssessment, assessmentOf, assessmentWhen } from "../lib/assessment";
-import { placedByChild, appClosed, schoolClosed, currentRoundApps } from "../lib/placement";
+import { placedByChild, appClosed, currentRoundApps } from "../lib/placement";
 import { displayNameForChild } from "../lib/completeness";
 import TourDetailsCard from "./TourDetailsCard";
 import AssessmentCard from "./AssessmentCard";
 import { CardError, CardSkeleton } from "./StatePanels";
-import { IconSchool, IconChevronDown, IconCheckCircle } from "./icons";
+import { IconSchool, IconChevronDown, IconCheckCircle, IconFolder, IconDocument, IconWallet, IconClipboard, IconAlertCircle } from "./icons";
 import "./SchoolsPipelineCard.css";
 
 // Dashboard: one pipeline across every school on the family's shortlist,
@@ -109,20 +109,56 @@ export default function SchoolsPipelineCard() {
       (feesByApp[f.application_id] = feesByApp[f.application_id] || []).push(f);
     });
 
-    // ---- 1. Shortlisted: every school on the shortlist the family hasn't
-    // declined and that isn't closed by a placement elsewhere.
+    // ---- 1. Shortlisted: every school on the shortlist, matching the
+    // consultant site's School visits panel exactly -- active rows at the
+    // top, closed ones (withdrawn, placed elsewhere, placed here) kept
+    // visible at the bottom for reference, with a status chip saying why.
+    // 14 Oct 2026 (Asma): earlier version filtered closed rows out, so
+    // the family only saw 1 of 6 schools -- the two sides read as out of
+    // sync. They should always see the same list.
+    const appsBySchool = {};
+    (applications || []).forEach((a) => {
+      (appsBySchool[a.school_id] = appsBySchool[a.school_id] || []).push(a);
+    });
+    const shortlistStatus = (row) => {
+      if (row.family_decision === "declined") return { kind: "declined", label: "Not for us", tone: "muted" };
+      const sApps = appsBySchool[row.school_id] || [];
+      const placedHere = sApps.find((a) => a.status === "offer_accepted");
+      if (placedHere) {
+        const idx = children.findIndex((c) => c.id === placedHere.child_id);
+        const name = idx === -1 ? "" : displayNameForChild(children[idx], idx) || "";
+        return { kind: "placed", label: name ? `${name} placed here` : "Placed here", tone: "good" };
+      }
+      const anyWithdrawn = sApps.some((a) => a.status === "withdrawn");
+      if (anyWithdrawn && sApps.every((a) => a.status === "withdrawn")) return { kind: "withdrawn", label: "Withdrawn", tone: "muted" };
+      // Child placed somewhere else — this school is kept for reference
+      const anyChildPlacedElsewhere = childIds.some((cid) => placed[cid] && String(placed[cid]) !== String(row.school_id));
+      const noAppHere = sApps.length === 0;
+      if (anyChildPlacedElsewhere && (noAppHere || sApps.every((a) => a.status !== "offer_accepted"))) {
+        return { kind: "elsewhere", label: "Placed elsewhere", tone: "muted" };
+      }
+      // Active: still in play
+      return { kind: "active", label: "On your shortlist", tone: "burgundy" };
+    };
+
     const shortlistedList = (shortlist || [])
-      .filter((r) => r.family_decision !== "declined")
-      .filter((r) => !schoolClosed(placed, childIds, r.school_id, applications))
-      .map((r) => ({
-        key: `sl-${r.id}`,
-        schoolId: r.school_id,
-        school: schoolById[r.school_id] || { name: "School" },
-        row: r,
-        priority: r.priority,
-        interest: r.family_interest,
-      }))
-      .sort((a, b) => (a.school.name || "").localeCompare(b.school.name || ""));
+      .map((r) => {
+        const status = shortlistStatus(r);
+        return {
+          key: `sl-${r.id}`,
+          schoolId: r.school_id,
+          school: schoolById[r.school_id] || { name: "School" },
+          row: r,
+          priority: r.priority,
+          interest: r.family_interest,
+          status,
+        };
+      })
+      .sort((a, b) => {
+        // Active first, then placed, then everything closed; name-order within
+        const bucket = (s) => (s.status.kind === "active" ? 0 : s.status.kind === "placed" ? 1 : 2);
+        return bucket(a) - bucket(b) || (a.school.name || "").localeCompare(b.school.name || "");
+      });
 
     // ---- 2. Tours: upcoming / completed / cancelled
     const today = new Date().toLocaleDateString("en-CA");
@@ -261,13 +297,13 @@ export default function SchoolsPipelineCard() {
       .sort((a, b) => (a.childName || "").localeCompare(b.childName || ""));
 
     return [
-      { key: "shortlisted", label: "Shortlisted", count: shortlistedList.length, items: shortlistedList },
-      { key: "tours", label: "Tours", count: tourCount, items: tourGroups },
-      { key: "apply", label: "Apply", count: applyList.length, items: applyList },
-      { key: "fee", label: "Fee", count: feeList.length, items: feeList },
-      { key: "assessment", label: "Assessment", count: assessmentList.length, items: assessmentList },
-      { key: "outcome", label: "Outcome", count: outcomeList.length, items: outcomeList },
-      { key: "placed", label: "Placed", count: placedList.length, items: placedList },
+      { key: "shortlisted", label: "Shortlisted", Icon: IconFolder, count: shortlistedList.length, items: shortlistedList },
+      { key: "tours", label: "Tours", Icon: IconSchool, count: tourCount, items: tourGroups },
+      { key: "apply", label: "Apply", Icon: IconDocument, count: applyList.length, items: applyList },
+      { key: "fee", label: "Fee", Icon: IconWallet, count: feeList.length, items: feeList },
+      { key: "assessment", label: "Assessment", Icon: IconClipboard, count: assessmentList.length, items: assessmentList },
+      { key: "outcome", label: "Outcome", Icon: IconAlertCircle, count: outcomeList.length, items: outcomeList },
+      { key: "placed", label: "Placed", Icon: IconCheckCircle, count: placedList.length, items: placedList },
     ];
   }, [shortlist, applications, fees, placements, children]);
 
@@ -304,24 +340,38 @@ export default function SchoolsPipelineCard() {
         <Link to="/app/timetable" className="dash-card-link">Full view →</Link>
       </div>
 
-      <nav className="sp-tabs" role="tablist">
-        {tabs.map((t, i) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === t.key}
-            className={"sp-tab" + (activeTab === t.key ? " is-active" : "") + (t.count === 0 ? " is-empty" : "")}
-            onClick={() => {
-              setActiveTab(t.key);
-              setOpenKey(null);
-            }}
-          >
-            <span className="sp-tab-step">{i + 1}</span>
-            <span className="sp-tab-label">{t.label}</span>
-            {t.count > 0 && <span className="sp-tab-count">{t.count}</span>}
-          </button>
-        ))}
+      <nav className="sp-pipeline" role="tablist" aria-label="Your schools pipeline">
+        <div className="sp-pipeline-track" aria-hidden="true" />
+        {tabs.map((t, i) => {
+          const Icon = t.Icon;
+          const done = t.count > 0 && i < tabs.findIndex((x) => x.key === activeTab);
+          const active = activeTab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              className={
+                "sp-stage" +
+                (active ? " is-active" : "") +
+                (done ? " is-done" : "") +
+                (t.count === 0 ? " is-empty" : "")
+              }
+              onClick={() => {
+                setActiveTab(t.key);
+                setOpenKey(null);
+              }}
+            >
+              <span className="sp-stage-node">
+                <span className="sp-stage-step">{i + 1}</span>
+                <span className="sp-stage-icon"><Icon size={16} /></span>
+                {t.count > 0 && <span className="sp-stage-count" aria-label={`${t.count}`}>{t.count}</span>}
+              </span>
+              <span className="sp-stage-label">{t.label}</span>
+            </button>
+          );
+        })}
       </nav>
 
       <div className="sp-panel">
@@ -347,18 +397,25 @@ function ShortlistedPanel({ items }) {
   if (!items.length) return <EmptyPanel text="Nothing on the shortlist yet — your consultant will add schools here." />;
   return (
     <ul className="sp-list">
-      {items.map((s) => (
-        <li key={s.key} className="sp-row">
-          <span className="sp-row-main">
-            <strong>{s.school.name}</strong>
-            <span>
-              {s.school.area || "On your shortlist"}
-              {s.interest === "keen" ? " · You said: keen" : s.interest === "maybe" ? " · You said: maybe" : ""}
+      {items.map((s) => {
+        const toneClass = "sp-row--" + s.status.tone;
+        const closed = s.status.kind !== "active";
+        return (
+          <li key={s.key} className={"sp-row " + toneClass + (closed ? " sp-row--closed" : "")}>
+            <span className={"sp-pill sp-pill--" + s.status.tone}>
+              {s.status.kind === "placed" && <IconCheckCircle size={13} />} {s.status.label}
             </span>
-          </span>
-          {s.priority && <span className="sp-tag">Priority {s.priority}</span>}
-        </li>
-      ))}
+            <span className="sp-row-main">
+              <strong>{s.school.name}</strong>
+              <span>
+                {s.school.area || "Shortlisted"}
+                {s.interest === "keen" ? " · You said: keen" : s.interest === "maybe" ? " · You said: maybe" : ""}
+              </span>
+            </span>
+            {s.priority && !closed && <span className="sp-tag">Priority {s.priority}</span>}
+          </li>
+        );
+      })}
     </ul>
   );
 }

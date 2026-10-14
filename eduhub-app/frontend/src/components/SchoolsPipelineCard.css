@@ -1,113 +1,200 @@
-/* Schools pipeline card — the main thing on the Dashboard now (Asma,
-   14 Oct 2026). One pipeline across every school, tabs flip to the view
-   for that stage. Replaces the old Where you're at (per-school), the
-   Needs your attention / What's next banner, Upcoming tours, Upcoming
-   assessments and Recently completed -- those were all telling the same
-   story in five different boxes. */
+/* Schools pipeline card — the hero card on the Dashboard. Asma asked for
+   something that reads as a real pipeline graphic, not a row of tabs: a
+   connected line through seven numbered nodes, each with an icon, the stage
+   label underneath and the count sitting on the node like a badge. The
+   active stage lights up burgundy; already-visited stages are filled gold;
+   stages still to come are outlined. The whole card sits on a warm gradient
+   so it reads as the centerpiece of the page.
+   14 Oct 2026 (Asma, "no colour on the page, make it like a pipeline typa
+   graphic, amazing design aesthetics please"). */
 
 .sp-card {
-  background: linear-gradient(180deg, rgba(184, 154, 90, 0.1), rgba(184, 154, 90, 0.03));
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 300px at 100% 0%, rgba(184, 154, 90, 0.14), transparent 60%),
+    radial-gradient(700px 300px at 0% 100%, rgba(83, 1, 38, 0.08), transparent 60%),
+    linear-gradient(180deg, #fdf9f4 0%, #faf2e8 100%);
   border-color: rgba(184, 154, 90, 0.35);
+  box-shadow: 0 6px 24px rgba(83, 1, 38, 0.08);
 }
-.sp-card .dash-card-head h2 { font-size: 1.18rem; letter-spacing: -0.005em; }
+.sp-card .dash-card-head h2 { font-size: 1.2rem; letter-spacing: -0.005em; }
+.sp-card .dash-card-head { border-bottom-color: rgba(184, 154, 90, 0.3); }
 
-/* --- tabs: a plain row of pills, the active one filled burgundy so a
-   family's eye lands on where they currently are. The dot on the left
-   of each pill is the only decorative element -- it carries the colour
-   that comes back on the content below (burgundy for the active step,
-   gold for the ones still to do, neutral otherwise). */
-/* Seven numbered tabs across the top, visually a pipeline — the same seven
-   stages the consultant site uses. On wide screens they lay out as one
-   horizontal row with a dotted connecting line behind them (reads as a
-   journey, not a nav bar); on narrow screens they wrap to multiple rows
-   and the connecting line is dropped. */
+/* ======================================================= pipeline graphic */
 
-.sp-tabs {
+.sp-pipeline {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  padding: 22px 4px 10px;
+  margin: 0 -4px;
+}
+
+/* The gradient line that threads through every node. Sits behind the nodes;
+   nodes are drawn on top with their own backgrounds so the line passes
+   cleanly through the middle of each one. */
+.sp-pipeline-track {
+  position: absolute;
+  top: 42px;              /* lines up with the vertical centre of the node */
+  left: calc(100% / 14);  /* half a column in from the edge */
+  right: calc(100% / 14);
+  height: 3px;
+  background: linear-gradient(90deg,
+    #b89a5a 0%,
+    #c99c3a 25%,
+    #7a1743 60%,
+    #530126 85%,
+    #2f6b4f 100%);
+  border-radius: 2px;
+  opacity: 0.55;
+}
+
+.sp-stage {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px 0 14px;
-  margin: 0;
-  border-bottom: 1px solid rgba(184, 154, 90, 0.3);
-}
-.sp-tab {
-  position: relative;
-  display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 7px;
-  padding: 6px 13px 6px 6px;
-  border-radius: 999px;
-  border: 1px solid rgba(184, 154, 90, 0.3);
-  background: var(--hh-white);
+  gap: 10px;
+  padding: 0 2px;
+  background: none;
+  border: 0;
   font: inherit;
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: var(--hh-ink);
+  color: inherit;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.08s ease, box-shadow 0.15s ease;
+  min-width: 0;
 }
-.sp-tab:hover { border-color: rgba(83, 1, 38, 0.45); box-shadow: 0 4px 10px rgba(83, 1, 38, 0.08); }
-.sp-tab.is-active {
-  background: var(--hh-burgundy);
-  color: var(--hh-white);
-  border-color: var(--hh-burgundy);
-  box-shadow: 0 4px 12px rgba(83, 1, 38, 0.22);
-}
-.sp-tab.is-empty { opacity: 0.55; }
-.sp-tab.is-empty:not(.is-active) { background: rgba(255, 255, 255, 0.45); }
 
-/* Step number in a circle on the left of each pill — the one bit of chrome
-   that makes the whole row read as a staged journey rather than tabs. */
-.sp-tab-step {
-  display: inline-grid;
+.sp-stage-node {
+  position: relative;
+  display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: var(--hh-cream);
-  color: var(--hh-burgundy);
-  font-size: 0.72rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  flex: none;
+  background: var(--hh-white);
+  border: 2px solid rgba(184, 154, 90, 0.5);
+  color: var(--hh-ink);
+  box-shadow: 0 4px 10px rgba(83, 1, 38, 0.1);
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.2s ease,
+              border-color 0.2s ease,
+              box-shadow 0.2s ease;
 }
-.sp-tab.is-active .sp-tab-step {
-  background: rgba(255, 255, 255, 0.22);
-  color: var(--hh-white);
-}
-.sp-tab.is-empty .sp-tab-step { background: rgba(42, 17, 25, 0.06); color: rgba(42, 17, 25, 0.5); }
+.sp-stage:hover .sp-stage-node { transform: translateY(-2px); border-color: var(--hh-burgundy); }
 
-.sp-tab-label { white-space: nowrap; }
-.sp-tab-count {
-  display: inline-grid;
+/* Step number tucked at the top of the circle, visible but quiet. */
+.sp-stage-step {
+  position: absolute;
+  top: -4px;
+  background: var(--hh-white);
+  color: rgba(42, 17, 25, 0.55);
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(184, 154, 90, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-stage-icon {
+  display: grid;
   place-items: center;
+  color: var(--hh-burgundy);
+  opacity: 0.75;
+}
+
+/* Count badge, top-right of the node. */
+.sp-stage-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
+  display: grid;
+  place-items: center;
   border-radius: 999px;
-  background: rgba(184, 154, 90, 0.2);
-  color: #7a6228;
-  font-size: 0.7rem;
-  font-weight: 700;
+  background: var(--hh-gold);
+  color: #3b2c0c;
+  font-size: 0.68rem;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
+  border: 2px solid var(--hh-white);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
 }
-.sp-tab.is-active .sp-tab-count { background: rgba(255, 255, 255, 0.22); color: var(--hh-white); }
 
-/* --- panel + rows */
+.sp-stage-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--hh-ink);
+  text-align: center;
+  line-height: 1.15;
+  opacity: 0.75;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
 
-.sp-panel { padding: 14px 0 2px; }
-.sp-empty { margin: 20px 0 8px; font-size: 0.9rem; color: var(--hh-ink); opacity: 0.6; }
+/* ---- stage states */
+
+.sp-stage.is-done .sp-stage-node {
+  background: linear-gradient(135deg, #d8ba76, #b89a5a);
+  border-color: #b89a5a;
+}
+.sp-stage.is-done .sp-stage-icon { color: #3b2c0c; opacity: 1; }
+.sp-stage.is-done .sp-stage-step { color: #5a4a1e; border-color: #c99c3a; }
+
+.sp-stage.is-active .sp-stage-node {
+  background: linear-gradient(135deg, var(--hh-burgundy-light), var(--hh-burgundy));
+  border-color: var(--hh-burgundy);
+  box-shadow: 0 8px 22px rgba(83, 1, 38, 0.32), 0 0 0 6px rgba(83, 1, 38, 0.1);
+  transform: translateY(-3px);
+}
+.sp-stage.is-active .sp-stage-icon { color: var(--hh-white); opacity: 1; }
+.sp-stage.is-active .sp-stage-step { background: var(--hh-burgundy); color: var(--hh-white); border-color: var(--hh-burgundy-light); }
+.sp-stage.is-active .sp-stage-label { color: var(--hh-burgundy); opacity: 1; font-weight: 700; }
+
+.sp-stage.is-empty:not(.is-active):not(.is-done) .sp-stage-node {
+  background: rgba(255, 255, 255, 0.5);
+  border-style: dashed;
+  border-color: rgba(184, 154, 90, 0.4);
+}
+.sp-stage.is-empty:not(.is-active):not(.is-done) .sp-stage-icon { opacity: 0.35; }
+.sp-stage.is-empty:not(.is-active):not(.is-done) .sp-stage-label { opacity: 0.5; }
+
+/* "Placed" node pulls green when it's the end of the line and already done */
+.sp-stage.is-done:last-child .sp-stage-node,
+.sp-stage.is-active:last-child .sp-stage-node {
+  background: linear-gradient(135deg, #4a9372, var(--hh-good));
+  border-color: var(--hh-good);
+}
+.sp-stage.is-active:last-child .sp-stage-node {
+  box-shadow: 0 8px 22px rgba(47, 107, 79, 0.32), 0 0 0 6px rgba(47, 107, 79, 0.12);
+}
+.sp-stage.is-active:last-child .sp-stage-label { color: var(--hh-good); }
+
+/* ================================================================= panel */
+
+.sp-panel {
+  margin-top: 10px;
+  padding: 16px 2px 2px;
+  border-top: 1px dashed rgba(184, 154, 90, 0.35);
+}
+.sp-empty { margin: 20px 0 8px; font-size: 0.9rem; color: var(--hh-ink); opacity: 0.6; text-align: center; }
 
 .sp-tour-groups { display: flex; flex-direction: column; gap: 20px; }
 .sp-group-title {
   margin: 0 0 8px;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--hh-ink);
-  opacity: 0.6;
+  color: var(--hh-burgundy);
+  opacity: 0.7;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -115,18 +202,18 @@
 .sp-group-title span {
   display: inline-grid;
   place-items: center;
-  min-width: 20px;
+  min-width: 22px;
   height: 20px;
-  padding: 0 6px;
+  padding: 0 7px;
   border-radius: 999px;
-  background: rgba(184, 154, 90, 0.2);
+  background: rgba(184, 154, 90, 0.22);
   color: #7a6228;
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: 0.72rem;
+  font-weight: 800;
   letter-spacing: 0;
 }
 
-.sp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 
 .sp-row,
 .sp-row-btn {
@@ -134,37 +221,40 @@
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 12px 14px;
+  padding: 13px 16px;
   background: var(--hh-white);
-  border: 1px solid rgba(184, 154, 90, 0.22);
-  border-radius: 12px;
+  border: 1px solid rgba(184, 154, 90, 0.25);
+  border-radius: 14px;
   font: inherit;
   color: inherit;
   text-align: left;
   cursor: default;
+  box-shadow: 0 1px 3px rgba(83, 1, 38, 0.04);
 }
 .sp-row-btn { cursor: pointer; transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.08s ease; }
-.sp-row-btn:not(:disabled):hover { border-color: rgba(83, 1, 38, 0.35); box-shadow: 0 4px 14px rgba(83, 1, 38, 0.08); }
-.sp-row-btn:not(:disabled):active { transform: translateY(1px); }
+.sp-row-btn:not(:disabled):hover { border-color: rgba(83, 1, 38, 0.35); box-shadow: 0 6px 18px rgba(83, 1, 38, 0.1); transform: translateY(-1px); }
+.sp-row-btn:not(:disabled):active { transform: translateY(0); }
 
-.sp-row--muted { opacity: 0.75; }
-.sp-row--placed { border-color: rgba(47, 107, 79, 0.35); background: linear-gradient(180deg, rgba(47, 107, 79, 0.06), var(--hh-white)); }
+.sp-row--muted,
+.sp-row--closed { opacity: 0.68; background: rgba(255, 255, 255, 0.5); }
+.sp-row--placed { border-color: rgba(47, 107, 79, 0.4); background: linear-gradient(180deg, rgba(47, 107, 79, 0.08), var(--hh-white)); }
+.sp-row--burgundy { border-left: 3px solid var(--hh-burgundy); }
+.sp-row--good { border-left: 3px solid var(--hh-good); }
 
-.sp-row-main { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sp-row-main { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .sp-row-main strong { font-weight: 600; color: var(--hh-ink); font-size: 0.95rem; }
 .sp-row-main > span { font-size: 0.82rem; color: var(--hh-ink); opacity: 0.65; }
-.sp-row-main .sp-row-meta { display: flex; flex-wrap: wrap; gap: 6px; opacity: 1; }
 
 .sp-tag {
   flex: none;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(184, 154, 90, 0.2);
-  color: #7a6228;
+  background: linear-gradient(135deg, rgba(184, 154, 90, 0.3), rgba(184, 154, 90, 0.15));
+  color: #7a5612;
 }
 
 .sp-pill {
@@ -174,14 +264,16 @@
   gap: 5px;
   font-size: 0.74rem;
   font-weight: 700;
-  padding: 5px 10px;
+  padding: 5px 11px;
   border-radius: 999px;
   white-space: nowrap;
 }
 .sp-pill--good { background: var(--hh-good-bg); color: var(--hh-good); }
 .sp-pill--gold { background: rgba(184, 154, 90, 0.22); color: #7a5612; }
 .sp-pill--neutral { background: var(--hh-cream); color: var(--hh-ink); border: 1px solid rgba(42, 17, 25, 0.1); }
-.sp-pill--muted { background: var(--hh-cream); color: var(--hh-ink); opacity: 0.65; }
+.sp-pill--muted { background: #ece6e2; color: rgba(42, 17, 25, 0.65); }
+.sp-pill--bad { background: rgba(179, 38, 30, 0.08); color: var(--hh-error); }
+.sp-pill--burgundy { background: rgba(83, 1, 38, 0.08); color: var(--hh-burgundy); }
 
 .sp-chip {
   display: inline-flex;
@@ -195,23 +287,23 @@
 .sp-chip--good { background: var(--hh-good-bg); color: var(--hh-good); }
 .sp-chip--gold { background: rgba(184, 154, 90, 0.2); color: #7a5612; }
 .sp-chip--neutral { background: var(--hh-cream); color: var(--hh-ink); border: 1px solid rgba(42, 17, 25, 0.08); }
-.sp-chip--bad { background: rgba(179, 38, 30, 0.08); color: var(--hh-error); }
-.sp-chip--muted { background: var(--hh-cream); color: var(--hh-ink); opacity: 0.6; }
 
+/* Date tile for upcoming tours — a mini calendar square */
 .sp-date {
   flex: none;
   display: grid;
   place-items: center;
-  width: 46px;
+  width: 48px;
   padding: 6px 0;
   border-radius: 10px;
-  background: var(--hh-burgundy);
+  background: linear-gradient(135deg, var(--hh-burgundy-light), var(--hh-burgundy));
   color: var(--hh-white);
   text-align: center;
   line-height: 1;
+  box-shadow: 0 3px 8px rgba(83, 1, 38, 0.22);
 }
-.sp-date span { font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.85; }
-.sp-date strong { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.sp-date span { font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.9; }
+.sp-date strong { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
 
 .sp-caret {
   display: grid;
@@ -227,38 +319,36 @@
 .sp-caret.is-open { transform: rotate(180deg); }
 
 .sp-expandable { padding: 0; }
-.sp-expandable .sp-row-btn { border: 1px solid rgba(184, 154, 90, 0.22); background: var(--hh-white); }
+.sp-expandable .sp-row-btn { background: var(--hh-white); }
 .sp-expandable.is-open .sp-row-btn {
-  border-color: rgba(83, 1, 38, 0.3);
+  border-color: var(--hh-burgundy);
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
 .sp-expand-body {
   padding: 14px 16px 16px;
-  border: 1px solid rgba(83, 1, 38, 0.3);
+  border: 1px solid var(--hh-burgundy);
   border-top: none;
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
-  background: var(--hh-cream);
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+  background: linear-gradient(180deg, var(--hh-cream), rgba(255, 255, 255, 0.6));
 }
 
-/* bad-outcome pill (declined / not successful) */
-.sp-pill--bad {
-  background: rgba(179, 38, 30, 0.08);
-  color: var(--hh-error);
-}
+/* ================================================================= narrow */
 
-/* narrow screens */
 @media (max-width: 760px) {
-  .sp-tabs { gap: 5px; padding-top: 6px; }
-  .sp-tab { padding: 5px 11px 5px 5px; font-size: 0.78rem; gap: 6px; }
-  .sp-tab-step { width: 20px; height: 20px; font-size: 0.66rem; }
+  .sp-pipeline { padding: 18px 2px 8px; gap: 0; }
+  .sp-pipeline-track { top: 36px; left: calc(100% / 14); right: calc(100% / 14); }
+  .sp-stage-node { width: 48px; height: 48px; }
+  .sp-stage-count { min-width: 18px; height: 18px; font-size: 0.62rem; top: -5px; right: -5px; }
+  .sp-stage-step { font-size: 0.55rem; padding: 1px 5px; }
+  .sp-stage-label { font-size: 0.7rem; }
 }
 @media (max-width: 560px) {
-  .sp-tab-label { max-width: 10ch; overflow: hidden; text-overflow: ellipsis; }
+  .sp-stage-node { width: 42px; height: 42px; }
+  .sp-pipeline-track { top: 32px; }
+  .sp-stage-label { font-size: 0.65rem; max-width: 10ch; }
   .sp-row, .sp-row-btn { padding: 11px 12px; gap: 10px; }
   .sp-date { width: 40px; }
   .sp-row-main > span { font-size: 0.78rem; }
-  .sp-row-main .sp-row-meta { gap: 4px; }
-  .sp-chip { padding: 2px 7px; font-size: 0.68rem; }
 }
