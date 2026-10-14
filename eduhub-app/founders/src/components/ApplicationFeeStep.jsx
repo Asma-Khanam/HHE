@@ -28,14 +28,25 @@ function whoMode(fee) {
   return "pending";                                      // not decided yet
 }
 function patchForMode(mode) {
+  // Leaving "settled" has to clear status/paid_at too -- otherwise
+  // whoMode() keeps reading the fee as settled forever (status "paid" was
+  // checked before the hhe_paid_school_on_behalf flag), which is why
+  // "HHE paid school" looked unclickable once a fee had ever been settled.
   if (mode === "direct")
-    return { paid_direct_by_family: true, hhe_paid_school_on_behalf: false, payment_proof_path: null, payment_proof_name: null };
+    return {
+      paid_direct_by_family: true,
+      hhe_paid_school_on_behalf: false,
+      status: "unpaid",
+      paid_at: null,
+      payment_proof_path: null,
+      payment_proof_name: null,
+    };
   if (mode === "hhe")
-    return { paid_direct_by_family: false, hhe_paid_school_on_behalf: true };
+    return { paid_direct_by_family: false, hhe_paid_school_on_behalf: true, status: "unpaid", paid_at: null };
   if (mode === "settled")
     return { paid_direct_by_family: false, hhe_paid_school_on_behalf: false, status: "paid", paid_at: new Date().toISOString() };
   // pending
-  return { paid_direct_by_family: false, hhe_paid_school_on_behalf: false };
+  return { paid_direct_by_family: false, hhe_paid_school_on_behalf: false, status: "unpaid", paid_at: null };
 }
 
 export default function ApplicationFeeStep({ application, fees, familyId, onFeesChange, onLog }) {
