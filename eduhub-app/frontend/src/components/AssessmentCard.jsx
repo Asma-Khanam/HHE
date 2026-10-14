@@ -50,7 +50,8 @@ function CopyLine({ label, value }) {
 
 export default function AssessmentCard({ assessment: a, showHeading = true }) {
   const [copied, setCopied] = useState(false);
-  const online = !!a.link;
+  const online = a.mode === "online" && !!a.link;
+  const video = a.mode === "video";
 
   return (
     <div className="tdc asc">
@@ -66,24 +67,36 @@ export default function AssessmentCard({ assessment: a, showHeading = true }) {
             <dd>{a.childName}</dd>
           </div>
         )}
-        <div>
-          <dt>When</dt>
-          <dd>{assessmentWhen(a)}</dd>
-        </div>
-        <div>
-          <dt>Where</dt>
-          <dd>
-            {online ? (
-              `Online · ${a.platform}`
-            ) : a.linkText ? (
-              <Linkified text={a.linkText} />
-            ) : (
-              <a href={mapsSearchUrl(a.school)} target="_blank" rel="noopener noreferrer">
-                At the school · open map ↗
-              </a>
-            )}
-          </dd>
-        </div>
+        {video ? (
+          <div>
+            <dt>What's needed</dt>
+            <dd>
+              This school asks for a short video of {a.childName || "your child"} instead of a visit.{" "}
+              {a.videoSentAt ? `Sent ${assessmentWhen({ ...a, date: a.videoSentAt })}.` : "Not sent yet."}
+            </dd>
+          </div>
+        ) : (
+          <>
+            <div>
+              <dt>When</dt>
+              <dd>{assessmentWhen(a)}</dd>
+            </div>
+            <div>
+              <dt>Where</dt>
+              <dd>
+                {online ? (
+                  `Online · ${a.platform}`
+                ) : a.linkText ? (
+                  <Linkified text={a.linkText} />
+                ) : (
+                  <a href={mapsSearchUrl(a.school)} target="_blank" rel="noopener noreferrer">
+                    At the school · open map ↗
+                  </a>
+                )}
+              </dd>
+            </div>
+          </>
+        )}
         {online && (
           <div>
             <dt>Join link</dt>

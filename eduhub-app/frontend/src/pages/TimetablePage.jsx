@@ -8,6 +8,8 @@ import TourDetailsCard from "../components/TourDetailsCard";
 import { downloadTourIcs } from "../lib/tourDetails";
 import AssessmentCard from "../components/AssessmentCard";
 import { hasAssessment, assessmentOf, assessmentWhen } from "../lib/assessment";
+import ApplicationFeesCard from "../components/ApplicationFeesCard";
+import { fetchApplicationFees } from "../lib/applicationFees";
 import { placedByChild, schoolClosed, appClosed } from "../lib/placement";
 import "./TimetablePage.css";
 import { PageError, PageLoading } from "../components/StatePanels";
@@ -119,7 +121,7 @@ function trackFor(row, apps) {
 }
 
 export default function TimetablePage() {
-  const { familyId, data } = useApplicationData();
+  const { familyId, data, user } = useApplicationData();
   const [rows, setRows] = useState([]);
   const [childStatus, setChildStatus] = useState([]);
   const [applications, setApplications] = useState([]);
@@ -128,7 +130,20 @@ export default function TimetablePage() {
   const [openId, setOpenId] = useState(null);
   const [filter, setFilter] = useState("all");
   const [detailsKey, setDetailsKey] = useState(null);
+  const [fees, setFees] = useState([]);
   const cardRefs = useRef({});
+
+  // Fees the team has sent over, so "what do I owe at this school" shows up
+  // right next to that school's progress instead of only on Billing.
+  useEffect(() => {
+    fetchApplicationFees()
+      .then(setFees)
+      .catch(() => {});
+  }, []);
+  const parent = (data?.parents || []).find((x) => x.full_name || x.first_name);
+  const billTo =
+    parent?.full_name || [parent?.first_name, parent?.last_name].filter(Boolean).join(" ") || user?.email || "Family";
+  const feesFor = (row) => fees.filter((f) => String(f.application?.school_id) === String(row.school_id));
 
   const children = data?.children || [];
   const childIds = useMemo(() => children.map((c) => c.id), [children]);
@@ -403,6 +418,8 @@ export default function TimetablePage() {
                   placed={placed}
                   placedLines={placedLines}
                   assessments={assessmentsFor(row)}
+                  fees={feesFor(row)}
+                  billTo={billTo}
                   open={openId === row.id}
                   onToggle={() => setOpenId(openId === row.id ? null : row.id)}
                   onPatch={(changes) => patchRow(row.id, changes)}
@@ -426,7 +443,7 @@ function Stat({ label, value, good }) {
   );
 }
 
-function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch, refCb, closed, placed, placedLines, assessments }) {
+function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch, refCb, closed, placed, placedLines, assessments, fees, billTo }) {
   const declined = row.family_decision === "declined";
   const tours = toursOf(row);
   const interest = INTEREST.find((i) => i.key === row.family_interest);
@@ -499,6 +516,11 @@ function SchoolCard({ row, apps, childList, childStatus, open, onToggle, onPatch
                   <AssessmentCard assessment={a} showHeading={false} />
                 </div>
               ))}
+            </div>
+          )}
+          {!closed && fees.length > 0 && (
+            <div className="ys-block ys-fees">
+              <ApplicationFeesCard fees={fees} billTo={billTo} />
             </div>
           )}
           {declined && (

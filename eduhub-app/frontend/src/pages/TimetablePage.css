@@ -172,3 +172,8 @@
 .ys-pill.is-closed { background: #e2dddf; color: #5a5155; }
 .ys-school.is-closed { border-style: dashed; }
 .ys-school.is-closed .ys-school-icon, .ys-school.is-closed .ys-pill { color: #6f6468; }
+
+/* Application fees nested inside a school's own card (14 Oct 2026) -- same
+   ApplicationFeesCard used on Billing, just toned down so it reads as part
+   of this card rather than a floating card-in-a-card. */
+.ys-fees .appfee-card { box-shadow: none; padding: 0; margin-bottom: 0; background: transparent; }

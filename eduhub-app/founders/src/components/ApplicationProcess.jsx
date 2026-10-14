@@ -26,6 +26,12 @@ function time12(t) {
 }
 const today = () => new Date().toISOString().slice(0, 10);
 
+// Standard reminder Miss Lyndsay asked for (14 Oct 2026, WhatsApp): every
+// assessment -- online, in person, or video -- should tell the family to
+// bring some form of ID. One click adds it to that application's details
+// instead of staff retyping it each time.
+const ID_REMINDER = "Please bring a valid form of ID (Emirates ID or passport).";
+
 export default function ApplicationProcess({
   application: a,
   childName,
@@ -239,6 +245,21 @@ export default function ApplicationProcess({
               <AutosaveField label="Passcode" placeholder="e.g. aB3cD4" value={a.assessment_passcode} onSave={save("assessment_passcode")} />
             </div>
           </>
+        )}
+        {!(a.assessment_notes || "").includes(ID_REMINDER) && (
+          <div className="ap-chips">
+            <span className="ap-chips-label">Quick add</span>
+            <button
+              type="button"
+              className="ap-chip"
+              onClick={() => {
+                const next = [a.assessment_notes, ID_REMINDER].filter(Boolean).join(" ");
+                onPatch({ assessment_notes: next }).then((ok) => ok && onLog("Added ID reminder to assessment details", "assessment_booked"));
+              }}
+            >
+              + Bring ID (Emirates ID / passport)
+            </button>
+          </div>
         )}
         <AutosaveField
           collapsible

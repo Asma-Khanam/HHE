@@ -68,6 +68,8 @@ export async function fetchFamilyApplications(childIds) {
   // 64 the date, link and details. Newest first, falling back so the page
   // never breaks while a migration hasn't been run yet.
   const attempts = [
+    // Addendum 107 adds the under-10 video-instead-of-a-visit fields.
+    `${APPLICATION_COLUMNS}, assessment_date, assessment_time, assessment_link, assessment_meeting_id, assessment_passcode, assessment_notes, assessment_in_person, assessment_video_requested, assessment_video_sent_at, keep_open, round_number`,
     // Addendum 84 adds round_number (a placed child's new search round).
     `${APPLICATION_COLUMNS}, assessment_date, assessment_time, assessment_link, assessment_meeting_id, assessment_passcode, assessment_notes, keep_open, round_number`,
     `${APPLICATION_COLUMNS}, assessment_date, assessment_time, assessment_link, assessment_meeting_id, assessment_passcode, assessment_notes, keep_open`,
