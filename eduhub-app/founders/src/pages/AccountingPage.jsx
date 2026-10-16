@@ -273,24 +273,24 @@ export default function AccountingPage() {
       </header>
 
       <div className="acct-stats">
-        <div className={"acct-stat" + (oldestWaiting >= WAITING_RED_AFTER_DAYS ? " is-risk" : "")}>
+        <div className={"acct-stat acct-stat--amber" + (oldestWaiting >= WAITING_RED_AFTER_DAYS ? " is-risk" : "")}>
           <span className="acct-stat-label">Out of pocket</span>
           <strong>{moneyRound(totals.outOfPocket)}</strong>
           <em>Paid to schools, not yet recovered</em>
         </div>
-        <div className="acct-stat">
+        <div className="acct-stat acct-stat--blue">
           <span className="acct-stat-label">To collect</span>
           <strong>{moneyRound(totals.schoolToCollect + totals.packageToCollect)}</strong>
           <em>
             {moneyRound(totals.schoolToCollect)} school fees · {moneyRound(totals.packageToCollect)} packages
           </em>
         </div>
-        <div className="acct-stat is-good">
+        <div className="acct-stat acct-stat--green is-good">
           <span className="acct-stat-label">Collected</span>
           <strong>{moneyRound(totals.collected)}</strong>
           <em>School fees and packages paid</em>
         </div>
-        <div className="acct-stat">
+        <div className="acct-stat acct-stat--gold">
           <span className="acct-stat-label">Margin on school fees</span>
           <strong>{moneyRound(totals.margin)}</strong>
           <em>{moneyRound(totals.marginEarned)} earned so far · before Stripe's fee</em>
@@ -575,6 +575,7 @@ export default function AccountingPage() {
 // One "where is the money" card: a bar split by stage, then a line per stage.
 function StageCard({ title, sub, empty, stages }) {
   const total = sum(stages, "amount");
+  const max = Math.max(1, ...stages.map((st) => st.amount));
   return (
     <section className="acct-card">
       <div className="acct-card-head">
@@ -584,22 +585,24 @@ function StageCard({ title, sub, empty, stages }) {
       {total === 0 ? (
         <p className="acct-empty">{empty}</p>
       ) : (
-        <div className="acct-bar" role="img" aria-label={title}>
+        <div className="acct-chart" role="img" aria-label={title}>
           {stages.map((st) => (
-            <span key={st.key} className={"acct-bar-seg is-" + st.key} style={{ width: `${(st.amount / total) * 100}%` }} />
+            <div key={st.key} className="acct-col-bar">
+              <span className="acct-col-val">{moneyRound(st.amount)}</span>
+              <div className="acct-col-track">
+                <div
+                  className={"acct-col-fill is-" + st.key}
+                  style={{ height: `${Math.max(st.amount > 0 ? 6 : 0, (st.amount / max) * 100)}%` }}
+                />
+              </div>
+              <div className="acct-col-foot">
+                <span className="acct-col-count">{st.count}</span>
+                <span className="acct-col-label">{st.label}</span>
+              </div>
+            </div>
           ))}
         </div>
       )}
-      <ul className="acct-legend">
-        {stages.map((st) => (
-          <li key={st.key}>
-            <i className={"is-" + st.key} />
-            <span>{st.label}</span>
-            <strong>{moneyRound(st.amount)}</strong>
-            <em>{st.count}</em>
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }
