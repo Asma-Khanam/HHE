@@ -19,7 +19,8 @@ import "./AccountingPage.css";
 // A school we paid, with no invoice sent yet, is our money out of the bank.
 // It is called out once it has waited this many days.
 const WAITING_RED_AFTER_DAYS = 3;
-const ACTIONS_SHOWN = 6;
+const FAMILIES_SHOWN = 5;
+const ITEMS_PER_FAMILY = 3;
 
 const TABS = [
   ["fees", "School application fees"],
@@ -188,6 +189,25 @@ export default function AccountingPage() {
     return [...map.values()].sort((a, b) => b.school + b.pack - (a.school + a.pack));
   }, [rows, packages]);
 
+  // The same family often has several things to fix; show them once, together.
+  const groups = useMemo(() => {
+    const m = new Map();
+    actions.forEach((a) => {
+      if (!m.has(a.familyId)) m.set(a.familyId, { familyId: a.familyId, family: a.family, items: [], rank: a.rank, tone: a.tone });
+      const g = m.get(a.familyId);
+      g.items.push(a);
+      g.rank = Math.min(g.rank, a.rank);
+      if (a.tone === "late") g.tone = "late";
+    });
+    return [...m.values()].sort((x, y) => x.rank - y.rank || y.items.length - x.items.length);
+  }, [actions]);
+
+  const pk = useMemo(() => {
+    const of = (st) => packages.filter((x) => x.p.status === st);
+    const amt = (list) => sum(list.map((x) => x.p), "amount");
+    return { unpaid: of("unpaid"), submitted: of("submitted"), paid: of("paid"), amt };
+  }, [packages]);
+
   const q = search.trim().toLowerCase();
   const matches = (text) => !q || text.toLowerCase().includes(q);
 
@@ -230,10 +250,8 @@ export default function AccountingPage() {
     );
   }
 
-  const barTotal = totals.openCharged + totals.invoicedCharged + totals.paidCharged;
-  const pct = (n) => (barTotal > 0 ? (n / barTotal) * 100 : 0);
   const oldestWaiting = totals.open.reduce((m, r) => Math.max(m, r.waiting || 0), 0);
-  const visibleActions = showAllActions ? actions : actions.slice(0, ACTIONS_SHOWN);
+  const visibleGroups = showAllActions ? groups : groups.slice(0, FAMILIES_SHOWN);
 
   function pickTab(key) {
     const next = new URLSearchParams(params);
@@ -280,69 +298,66 @@ export default function AccountingPage() {
       </div>
 
       <div className="acct-grid">
-        <section className="acct-card">
-          <div className="acct-card-head">
-            <h2>School fees: where the money is</h2>
-            <span className="acct-card-sub">What we charge families, by stage</span>
-          </div>
-          {barTotal === 0 ? (
-            <p className="acct-empty">No school fees paid by HHE yet.</p>
-          ) : (
-            <>
-              <div className="acct-bar" role="img" aria-label="School fees by stage">
-                <span className="acct-bar-seg is-open" style={{ width: `${pct(totals.openCharged)}%` }} />
-                <span className="acct-bar-seg is-invoiced" style={{ width: `${pct(totals.invoicedCharged)}%` }} />
-                <span className="acct-bar-seg is-paid" style={{ width: `${pct(totals.paidCharged)}%` }} />
-              </div>
-              <ul className="acct-legend">
-                <li>
-                  <i className="is-open" />
-                  <span>School paid, not invoiced</span>
-                  <strong>{moneyRound(totals.openCharged)}</strong>
-                  <em>{totals.open.length}</em>
-                </li>
-                <li>
-                  <i className="is-invoiced" />
-                  <span>Invoiced, waiting for the family</span>
-                  <strong>{moneyRound(totals.invoicedCharged)}</strong>
-                  <em>{totals.invoiced.length}</em>
-                </li>
-                <li>
-                  <i className="is-paid" />
-                  <span>Family paid</span>
-                  <strong>{moneyRound(totals.paidCharged)}</strong>
-                  <em>{totals.paid.length}</em>
-                </li>
-              </ul>
-            </>
-          )}
-        </section>
+        <div className="acct-col">
+          <StageCard
+            title="School fees: where the money is"
+            sub="What we charge families, by stage"
+            empty="No school fees paid by HHE yet."
+            stages={[
+              { key: "open", label: "School paid, not invoiced", amount: totals.openCharged, count: totals.open.length },
+              { key: "invoiced", label: "Invoiced, waiting for the family", amount: totals.invoicedCharged, count: totals.invoiced.length },
+              { key: "paid", label: "Family paid", amount: totals.paidCharged, count: totals.paid.length },
+            ]}
+          />
+          <StageCard
+            title="Package payments: where the money is"
+            sub="Registration, deposits and services"
+            empty="No package payments yet."
+            stages={[
+              { key: "open", label: "Waiting for the family", amount: pk.amt(pk.unpaid), count: pk.unpaid.length },
+              { key: "invoiced", label: "Receipt uploaded, confirm it", amount: pk.amt(pk.submitted), count: pk.submitted.length },
+              { key: "paid", label: "Paid", amount: pk.amt(pk.paid), count: pk.paid.length },
+            ]}
+          />
+        </div>
 
         <section className="acct-card">
           <div className="acct-card-head">
             <h2>Do this today</h2>
-            <span className="acct-card-sub">{actions.length === 0 ? "All clear" : `${actions.length} to look at`}</span>
+            <span className="acct-card-sub">
+              {actions.length === 0 ? "All clear" : `${groups.length} famil${groups.length === 1 ? "y" : "ies"} · ${actions.length} item${actions.length === 1 ? "" : "s"}`}
+            </span>
           </div>
           {actions.length === 0 ? (
             <p className="acct-empty">Nothing is missing, overdue or waiting on us.</p>
           ) : (
             <>
               <ul className="acct-actions">
-                {visibleActions.map((a) => (
-                  <li key={a.id} className={"is-" + a.tone}>
-                    <div>
-                      <strong>{a.family}</strong>
-                      <span>{a.what}</span>
+                {visibleGroups.map((g) => (
+                  <li key={g.familyId} className={"is-" + g.tone}>
+                    <div className="acct-action-main">
+                      <div className="acct-action-top">
+                        <strong>{g.family}</strong>
+                        <span className="acct-action-count">{g.items.length}</span>
+                      </div>
+                      <ul className="acct-action-items">
+                        {g.items.slice(0, ITEMS_PER_FAMILY).map((a) => (
+                          <li key={a.id}>{a.what}</li>
+                        ))}
+                      </ul>
+                      {g.items.length > ITEMS_PER_FAMILY && (
+                        <span className="acct-action-more">+ {g.items.length - ITEMS_PER_FAMILY} more on their tab</span>
+                      )}
                     </div>
-                    <Link to={familyLink(a.familyId)} className="acct-open">
+                    <Link to={familyLink(g.familyId)} className="acct-open">
                       Open
                     </Link>
                   </li>
                 ))}
               </ul>
-              {actions.length > ACTIONS_SHOWN && (
+              {groups.length > FAMILIES_SHOWN && (
                 <button type="button" className="acct-more" onClick={() => setShowAllActions((v) => !v)}>
-                  {showAllActions ? "Show fewer" : `Show all ${actions.length}`}
+                  {showAllActions ? "Show fewer" : `Show all ${groups.length} families`}
                 </button>
               )}
             </>
@@ -554,5 +569,37 @@ export default function AccountingPage() {
         )}
       </section>
     </div>
+  );
+}
+
+// One "where is the money" card: a bar split by stage, then a line per stage.
+function StageCard({ title, sub, empty, stages }) {
+  const total = sum(stages, "amount");
+  return (
+    <section className="acct-card">
+      <div className="acct-card-head">
+        <h2>{title}</h2>
+        <span className="acct-card-sub">{sub}</span>
+      </div>
+      {total === 0 ? (
+        <p className="acct-empty">{empty}</p>
+      ) : (
+        <div className="acct-bar" role="img" aria-label={title}>
+          {stages.map((st) => (
+            <span key={st.key} className={"acct-bar-seg is-" + st.key} style={{ width: `${(st.amount / total) * 100}%` }} />
+          ))}
+        </div>
+      )}
+      <ul className="acct-legend">
+        {stages.map((st) => (
+          <li key={st.key}>
+            <i className={"is-" + st.key} />
+            <span>{st.label}</span>
+            <strong>{moneyRound(st.amount)}</strong>
+            <em>{st.count}</em>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
