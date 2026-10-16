@@ -2274,3 +2274,45 @@ export async function saveCalendlyBookingNote(bookingId, note) {
       .single()
   );
 }
+
+// ---------------------------------------------------------------------------
+// Accounting records (addendum 109). One per school payment HHE makes for a
+// family; staff-only. Amounts live here and never on the family-readable fee.
+// ---------------------------------------------------------------------------
+
+export async function listAccountingRecords(familyId) {
+  if (!familyId) return [];
+  return (
+    unwrap(
+      await supabase
+        .from("accounting_records")
+        .select(
+          "*, school:schools(name), items:accounting_record_items(id, application_fee_id, amount_paid, amount_charged, difference, removed_at, child:children(full_name, preferred_name, first_name), fee:application_fees(payment_proof_path, school_receipt_path, status))"
+        )
+        .eq("family_id", familyId)
+        .neq("status", "void")
+        .order("created_at", { ascending: true })
+    ) || []
+  );
+}
+
+// Changes one field on a record and writes what changed to the log, so the
+// history of who changed what stays complete.
+export async function updateAccountingRecord(recordId, field, value, previous) {
+  const saved = unwrap(
+    await supabase.from("accounting_records").update({ [field]: value }).eq("id", recordId).select().single()
+  );
+  try {
+    const { data } = await supabase.auth.getUser();
+    await supabase.from("accounting_events").insert({
+      record_id: recordId,
+      family_id: saved.family_id,
+      kind: "record_updated",
+      detail: { field, from: previous ?? null, to: value ?? null },
+      actor: data?.user?.id || null,
+    });
+  } catch {
+    // The change itself is saved; a missed log line must not undo it.
+  }
+  return saved;
+}

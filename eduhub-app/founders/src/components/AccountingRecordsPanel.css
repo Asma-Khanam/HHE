@@ -1,0 +1,17 @@
+.ar-list { display: flex; flex-direction: column; gap: 16px; margin-top: 12px; }
+.ar-card { border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 12px; padding: 16px 18px; background: #fff; }
+.ar-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.ar-status { font-size: 0.78rem; padding: 3px 10px; border-radius: 999px; background: #fbf0dc; color: #7a5410; }
+.ar-status.is-invoiced { background: #e8eefb; color: #2b4a8a; }
+.ar-status.is-paid { background: #e8f4ea; color: #2c6a37; }
+.ar-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 16px; margin-bottom: 14px; }
+.ar-select { display: flex; flex-direction: column; gap: 4px; }
+.ar-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.ar-table th { text-align: left; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.6; padding: 6px 8px; }
+.ar-table td { padding: 8px; border-top: 1px solid rgba(0, 0, 0, 0.06); }
+.ar-table th:not(:first-child), .ar-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+.ar-table tfoot td { font-weight: 600; border-top: 2px solid rgba(0, 0, 0, 0.12); }
+.ar-missing { color: #a3262a; font-weight: 600; }
+.ar-paid { margin: 12px 0 0; font-size: 0.9rem; }
+.ar-flags { margin: 10px 0 8px; padding-left: 18px; color: #a3262a; font-size: 0.85rem; }
+.ar-error { color: #a3262a; }

@@ -14,6 +14,7 @@ import PaymentsPanel from "../components/PaymentsPanel";
 import TabErrorBoundary from "../components/TabErrorBoundary";
 import PlacementTimelinePanel from "../components/PlacementTimelinePanel";
 import FamilyBalanceSummary from "../components/FamilyBalanceSummary";
+import AccountingRecordsPanel from "../components/AccountingRecordsPanel";
 import RecordFieldsEditor from "../components/RecordFieldsEditor";
 import OverviewPanel from "../components/OverviewPanel";
 import EmailsPanel from "../components/EmailsPanel";
@@ -1093,6 +1094,7 @@ export default function FamilyDetailPage() {
 
       {activeTab === "accounting" && (
         <div className="family-detail-stack">
+          <AccountingRecordsPanel familyId={family.id} onGoToApplications={() => setActiveTab("applications")} />
           <FamilyBalanceSummary
             familyId={family.id}
             payments={payments}
