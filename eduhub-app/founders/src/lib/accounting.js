@@ -54,3 +54,8 @@ export function recordFlags(record) {
   }
   return flags;
 }
+
+// Whole-number money for headline tiles.
+export function moneyRound(n, currency = "AED") {
+  return `${currency} ${Math.round(Number(n) || 0).toLocaleString()}`;
+}

@@ -2319,7 +2319,7 @@ export async function updateAccountingRecord(recordId, field, value, previous) {
 
 // Everything the overall Accounting page needs in one go: every accounting
 // record (with its children and evidence), the parents' names to label each
-// family, and the package payments still owed or waiting to be confirmed.
+// family, and every package payment (owed, waiting to be confirmed, or paid).
 export async function getAccountingOverview() {
   const [records, parents, payments] = await Promise.all([
     supabase
@@ -2333,8 +2333,7 @@ export async function getAccountingOverview() {
     supabase.from("parents").select("family_id, full_name").then(unwrap),
     supabase
       .from("payments")
-      .select("id, family_id, label, amount, currency, due_date, status")
-      .in("status", ["unpaid", "submitted"])
+      .select("id, family_id, label, amount, currency, due_date, status, paid_at, submitted_at")
       .order("due_date", { ascending: true, nullsFirst: false })
       .then(unwrap),
   ]);

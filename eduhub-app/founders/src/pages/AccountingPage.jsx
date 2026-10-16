@@ -1,25 +1,44 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { getAccountingOverview, friendlyError } from "../lib/staffData";
-import { STATUS_LABEL, money, childName, sum, liveItems, recordFlags, daysSince } from "../lib/accounting";
+import { STATUS_LABEL, money, moneyRound, childName, sum, liveItems, recordFlags, daysSince } from "../lib/accounting";
 import { daysUntil } from "../lib/workflow";
 import "./AccountingPage.css";
 
-// Accounting, across every family (16 Oct 2026). Miss Lyndsay's flowchart: when
-// HHE pays a school, an accounting record opens; the family is invoiced; the
-// family pays. This page is the whole picture for the accounts office: what is
-// waiting on us, on the family, what is missing, and the package payments
-// still owed. Each row opens that family's own Accounting tab. Staff-only.
+// Accounting, across every family (16 Oct 2026). Built around the questions a
+// consultant actually asks when they open it:
+//   1. How much of our money is out there right now?
+//   2. Who do I need to chase or fix today?
+//   3. For one family: what do they owe us, in total?
+// So: a money summary and a recovery bar on top, a short "do this today" list,
+// then the detail in tabs: School application fees (HHE paid the school and
+// invoices the family), Package payments (registration, deposits, services),
+// and a By family view. Each row opens that family's own Accounting tab.
+// Staff-only. Nothing here can be edited; changes happen on the family's tab.
 
-// A school we paid with no invoice sent yet is money out of the bank, so it
-// turns red once it has been waiting this many days.
+// A school we paid, with no invoice sent yet, is our money out of the bank.
+// It is called out once it has waited this many days.
 const WAITING_RED_AFTER_DAYS = 3;
+const ACTIONS_SHOWN = 6;
 
-const FILTERS = [
+const TABS = [
+  ["fees", "School application fees"],
+  ["package", "Package payments"],
+  ["family", "By family"],
+];
+
+const FEE_FILTERS = [
   ["attention", "Needs attention"],
-  ["open", "School paid · not invoiced"],
+  ["open", "Not invoiced"],
   ["invoiced", "Invoiced"],
   ["paid", "Family paid"],
+  ["all", "All"],
+];
+
+const PACKAGE_FILTERS = [
+  ["attention", "Needs attention"],
+  ["upcoming", "Not due yet"],
+  ["paid", "Paid"],
   ["all", "All"],
 ];
 
@@ -29,16 +48,36 @@ function familyLink(familyId) {
 
 function dueText(dueDate) {
   const d = daysUntil(dueDate);
-  if (d === null) return "no due date";
-  if (d === 0) return "due today";
+  if (d === null) return "No due date";
+  if (d === 0) return "Due today";
   if (d < 0) return `${Math.abs(d)} day${Math.abs(d) === 1 ? "" : "s"} overdue`;
-  return `due in ${d} day${d === 1 ? "" : "s"}`;
+  return `Due in ${d} day${d === 1 ? "" : "s"}`;
+}
+
+function shortDate(dateStr) {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+// The state of one package payment in the words a consultant would use.
+function packageState(p) {
+  if (p.status === "paid") return { key: "paid", label: p.paid_at ? `Paid ${shortDate(p.paid_at)}` : "Paid", tone: "good" };
+  if (p.status === "waived") return { key: "paid", label: "Waived", tone: "muted" };
+  if (p.status === "submitted") return { key: "attention", label: "Receipt uploaded · confirm it", tone: "blue" };
+  const d = daysUntil(p.due_date);
+  if (d !== null && d < 0) return { key: "attention", label: dueText(p.due_date), tone: "late" };
+  return { key: "upcoming", label: dueText(p.due_date), tone: "amber" };
 }
 
 export default function AccountingPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState("attention");
+  const [params, setParams] = useSearchParams();
+  const tab = TABS.some(([k]) => k === params.get("tab")) ? params.get("tab") : "fees";
+  const [feeFilter, setFeeFilter] = useState("attention");
+  const [packageFilter, setPackageFilter] = useState("attention");
+  const [search, setSearch] = useState("");
+  const [showAllActions, setShowAllActions] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -50,17 +89,16 @@ export default function AccountingPage() {
     };
   }, []);
 
+  // School application fee records, with the maths done once.
   const rows = useMemo(() => {
     if (!data) return [];
     return data.records.map((record) => {
       const items = liveItems(record);
-      const flags = recordFlags(record);
-      const waiting = record.status === "open" ? daysSince(record.school_paid_at || record.created_at) : null;
       return {
         record,
         items,
-        flags,
-        waiting,
+        flags: recordFlags(record),
+        waiting: record.status === "open" ? daysSince(record.school_paid_at || record.created_at) : null,
         family: data.familyNames[record.family_id] || "Family",
         paid: sum(items, "amount_paid"),
         charged: sum(items, "amount_charged"),
@@ -69,20 +107,111 @@ export default function AccountingPage() {
     });
   }, [data]);
 
-  const counts = useMemo(
-    () => ({
-      attention: rows.filter((r) => r.flags.length > 0).length,
-      open: rows.filter((r) => r.record.status === "open").length,
-      invoiced: rows.filter((r) => r.record.status === "invoiced").length,
-      paid: rows.filter((r) => r.record.status === "paid").length,
-      all: rows.length,
-    }),
-    [rows]
-  );
+  const packages = useMemo(() => {
+    if (!data) return [];
+    return data.payments.map((p) => ({ p, state: packageState(p), family: data.familyNames[p.family_id] || "Family" }));
+  }, [data]);
 
-  const shown = rows.filter((r) =>
-    filter === "attention" ? r.flags.length > 0 : filter === "all" ? true : r.record.status === filter
-  );
+  // Headline money.
+  const totals = useMemo(() => {
+    const byStatus = (s) => rows.filter((r) => r.record.status === s);
+    const open = byStatus("open");
+    const invoiced = byStatus("invoiced");
+    const paid = byStatus("paid");
+    const packOwed = packages.filter((x) => x.p.status === "unpaid" || x.p.status === "submitted");
+    const packPaid = packages.filter((x) => x.p.status === "paid");
+    const outOfPocket = sum(open.map((r) => ({ v: r.paid })), "v") + sum(invoiced.map((r) => ({ v: r.paid })), "v");
+    return {
+      open,
+      invoiced,
+      paid,
+      outOfPocket,
+      schoolToCollect: sum(open.map((r) => ({ v: r.charged })), "v") + sum(invoiced.map((r) => ({ v: r.charged })), "v"),
+      packageToCollect: sum(packOwed.map((x) => x.p), "amount"),
+      collected: sum(paid.map((r) => ({ v: r.charged })), "v") + sum(packPaid.map((x) => x.p), "amount"),
+      margin: sum(rows.map((r) => ({ v: r.difference })), "v"),
+      marginEarned: sum(paid.map((r) => ({ v: r.difference })), "v"),
+      openCharged: sum(open.map((r) => ({ v: r.charged })), "v"),
+      invoicedCharged: sum(invoiced.map((r) => ({ v: r.charged })), "v"),
+      paidCharged: sum(paid.map((r) => ({ v: r.charged })), "v"),
+    };
+  }, [rows, packages]);
+
+  // "Do this today": the things that are costing us money or time right now.
+  const actions = useMemo(() => {
+    const list = [];
+    rows.forEach((r) => {
+      r.flags.forEach((f) =>
+        list.push({ id: `${r.record.id}-${f}`, rank: 1, tone: "late", family: r.family, familyId: r.record.family_id, what: `${r.record.school?.name || "School"}: ${f}` })
+      );
+      if (r.waiting !== null && r.waiting >= WAITING_RED_AFTER_DAYS) {
+        list.push({
+          id: `${r.record.id}-wait`,
+          rank: 2,
+          tone: "late",
+          family: r.family,
+          familyId: r.record.family_id,
+          what: `We paid ${r.record.school?.name || "the school"} ${r.waiting} days ago (${money(r.paid)}) and the family has not been invoiced.`,
+        });
+      }
+    });
+    packages.forEach((x) => {
+      if (x.state.tone === "late")
+        list.push({ id: `pk-${x.p.id}`, rank: 3, tone: "late", family: x.family, familyId: x.p.family_id, what: `${x.p.label} (${money(x.p.amount, x.p.currency || "AED")}) is ${x.state.label.toLowerCase()}.` });
+      if (x.p.status === "submitted")
+        list.push({ id: `pk-${x.p.id}`, rank: 4, tone: "blue", family: x.family, familyId: x.p.family_id, what: `Receipt uploaded for ${x.p.label}. Check it and confirm.` });
+    });
+    return list.sort((a, b) => a.rank - b.rank);
+  }, [rows, packages]);
+
+  // What each family owes us across both kinds of payment.
+  const families = useMemo(() => {
+    const map = new Map();
+    const get = (id, name) => {
+      if (!map.has(id)) map.set(id, { id, name, school: 0, pack: 0, items: 0, worst: null });
+      return map.get(id);
+    };
+    rows.forEach((r) => {
+      if (r.record.status === "paid") return;
+      const f = get(r.record.family_id, r.family);
+      f.school += r.charged;
+      f.items += 1;
+    });
+    packages.forEach((x) => {
+      if (x.p.status !== "unpaid" && x.p.status !== "submitted") return;
+      const f = get(x.p.family_id, x.family);
+      f.pack += Number(x.p.amount) || 0;
+      f.items += 1;
+      const d = daysUntil(x.p.due_date);
+      if (d !== null && d < 0) f.worst = Math.max(f.worst || 0, Math.abs(d));
+    });
+    return [...map.values()].sort((a, b) => b.school + b.pack - (a.school + a.pack));
+  }, [rows, packages]);
+
+  const q = search.trim().toLowerCase();
+  const matches = (text) => !q || text.toLowerCase().includes(q);
+
+  const feeCounts = {
+    attention: rows.filter((r) => r.flags.length > 0).length,
+    open: totals.open.length,
+    invoiced: totals.invoiced.length,
+    paid: totals.paid.length,
+    all: rows.length,
+  };
+  const packageCounts = {
+    attention: packages.filter((x) => x.state.key === "attention").length,
+    upcoming: packages.filter((x) => x.state.key === "upcoming").length,
+    paid: packages.filter((x) => x.state.key === "paid").length,
+    all: packages.length,
+  };
+
+  const shownFees = rows
+    .filter((r) => (feeFilter === "attention" ? r.flags.length > 0 : feeFilter === "all" ? true : r.record.status === feeFilter))
+    .filter((r) => matches(`${r.family} ${r.record.school?.name || ""}`));
+  const shownPackages = packages
+    .filter((x) => (packageFilter === "all" ? true : x.state.key === packageFilter))
+    .filter((x) => matches(`${x.family} ${x.p.label}`));
+  const shownFamilies = families.filter((f) => matches(f.name));
 
   if (error) {
     return (
@@ -101,165 +230,327 @@ export default function AccountingPage() {
     );
   }
 
-  const open = rows.filter((r) => r.record.status === "open");
-  const invoiced = rows.filter((r) => r.record.status === "invoiced");
-  const paid = rows.filter((r) => r.record.status === "paid");
-  const oldestWaiting = open.reduce((m, r) => Math.max(m, r.waiting || 0), 0);
-  const owed = data.payments.filter((p) => p.status === "unpaid");
-  const toConfirm = data.payments.filter((p) => p.status === "submitted");
-  const overdue = owed.filter((p) => (daysUntil(p.due_date) ?? 0) < 0);
+  const barTotal = totals.openCharged + totals.invoicedCharged + totals.paidCharged;
+  const pct = (n) => (barTotal > 0 ? (n / barTotal) * 100 : 0);
+  const oldestWaiting = totals.open.reduce((m, r) => Math.max(m, r.waiting || 0), 0);
+  const visibleActions = showAllActions ? actions : actions.slice(0, ACTIONS_SHOWN);
+
+  function pickTab(key) {
+    const next = new URLSearchParams(params);
+    next.set("tab", key);
+    setParams(next, { replace: true });
+    setSearch("");
+  }
 
   return (
     <div className="acct-page">
-      <h1 className="acct-title">Accounting</h1>
-      <p className="acct-subtitle">
-        Every school HHE has paid for a family, what we charge, and what is still owed, in one place. Open a row to see
-        that family's own Accounting tab.
-      </p>
+      <header className="acct-head">
+        <div>
+          <h1 className="acct-title">Accounting</h1>
+          <p className="acct-subtitle">
+            Where our money is, who needs chasing, and what each family owes. Open any row to work on it in that family's
+            Accounting tab.
+          </p>
+        </div>
+      </header>
 
-      <div className="acct-tiles">
-        <div className={"acct-tile" + (oldestWaiting >= WAITING_RED_AFTER_DAYS ? " is-risk" : "")}>
-          <span>School paid · not invoiced</span>
-          <strong>{money(sum(open.map((r) => ({ v: r.charged })), "v"))}</strong>
+      <div className="acct-stats">
+        <div className={"acct-stat" + (oldestWaiting >= WAITING_RED_AFTER_DAYS ? " is-risk" : "")}>
+          <span className="acct-stat-label">Out of pocket</span>
+          <strong>{moneyRound(totals.outOfPocket)}</strong>
+          <em>Paid to schools, not yet recovered</em>
+        </div>
+        <div className="acct-stat">
+          <span className="acct-stat-label">To collect</span>
+          <strong>{moneyRound(totals.schoolToCollect + totals.packageToCollect)}</strong>
           <em>
-            {open.length} record{open.length === 1 ? "" : "s"}
-            {open.length > 0 ? ` · oldest ${oldestWaiting} day${oldestWaiting === 1 ? "" : "s"}` : ""}
+            {moneyRound(totals.schoolToCollect)} school fees · {moneyRound(totals.packageToCollect)} packages
           </em>
         </div>
-        <div className="acct-tile">
-          <span>Invoiced · waiting for family</span>
-          <strong>{money(sum(invoiced.map((r) => ({ v: r.charged })), "v"))}</strong>
-          <em>
-            {invoiced.length} record{invoiced.length === 1 ? "" : "s"}
-          </em>
+        <div className="acct-stat is-good">
+          <span className="acct-stat-label">Collected</span>
+          <strong>{moneyRound(totals.collected)}</strong>
+          <em>School fees and packages paid</em>
         </div>
-        <div className="acct-tile is-good">
-          <span>Family paid</span>
-          <strong>{money(sum(paid.map((r) => ({ v: r.charged })), "v"))}</strong>
-          <em>
-            {paid.length} record{paid.length === 1 ? "" : "s"}
-          </em>
-        </div>
-        <div className="acct-tile">
-          <span>Difference on school fees</span>
-          <strong>{money(sum(rows.map((r) => ({ v: r.difference })), "v"))}</strong>
-          <em>Before Stripe's own fee</em>
-        </div>
-        <div className={"acct-tile" + (overdue.length > 0 ? " is-risk" : "")}>
-          <span>Package payments owed</span>
-          <strong>{money(sum(owed, "amount"))}</strong>
-          <em>
-            {overdue.length} overdue · {toConfirm.length} receipt{toConfirm.length === 1 ? "" : "s"} to confirm
-          </em>
+        <div className="acct-stat">
+          <span className="acct-stat-label">Margin on school fees</span>
+          <strong>{moneyRound(totals.margin)}</strong>
+          <em>{moneyRound(totals.marginEarned)} earned so far · before Stripe's fee</em>
         </div>
       </div>
 
-      <section className="acct-section">
-        <h2>School payments by HHE</h2>
-        <div className="acct-filters">
-          {FILTERS.map(([key, label]) => (
+      <div className="acct-grid">
+        <section className="acct-card">
+          <div className="acct-card-head">
+            <h2>School fees: where the money is</h2>
+            <span className="acct-card-sub">What we charge families, by stage</span>
+          </div>
+          {barTotal === 0 ? (
+            <p className="acct-empty">No school fees paid by HHE yet.</p>
+          ) : (
+            <>
+              <div className="acct-bar" role="img" aria-label="School fees by stage">
+                <span className="acct-bar-seg is-open" style={{ width: `${pct(totals.openCharged)}%` }} />
+                <span className="acct-bar-seg is-invoiced" style={{ width: `${pct(totals.invoicedCharged)}%` }} />
+                <span className="acct-bar-seg is-paid" style={{ width: `${pct(totals.paidCharged)}%` }} />
+              </div>
+              <ul className="acct-legend">
+                <li>
+                  <i className="is-open" />
+                  <span>School paid, not invoiced</span>
+                  <strong>{moneyRound(totals.openCharged)}</strong>
+                  <em>{totals.open.length}</em>
+                </li>
+                <li>
+                  <i className="is-invoiced" />
+                  <span>Invoiced, waiting for the family</span>
+                  <strong>{moneyRound(totals.invoicedCharged)}</strong>
+                  <em>{totals.invoiced.length}</em>
+                </li>
+                <li>
+                  <i className="is-paid" />
+                  <span>Family paid</span>
+                  <strong>{moneyRound(totals.paidCharged)}</strong>
+                  <em>{totals.paid.length}</em>
+                </li>
+              </ul>
+            </>
+          )}
+        </section>
+
+        <section className="acct-card">
+          <div className="acct-card-head">
+            <h2>Do this today</h2>
+            <span className="acct-card-sub">{actions.length === 0 ? "All clear" : `${actions.length} to look at`}</span>
+          </div>
+          {actions.length === 0 ? (
+            <p className="acct-empty">Nothing is missing, overdue or waiting on us.</p>
+          ) : (
+            <>
+              <ul className="acct-actions">
+                {visibleActions.map((a) => (
+                  <li key={a.id} className={"is-" + a.tone}>
+                    <div>
+                      <strong>{a.family}</strong>
+                      <span>{a.what}</span>
+                    </div>
+                    <Link to={familyLink(a.familyId)} className="acct-open">
+                      Open
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              {actions.length > ACTIONS_SHOWN && (
+                <button type="button" className="acct-more" onClick={() => setShowAllActions((v) => !v)}>
+                  {showAllActions ? "Show fewer" : `Show all ${actions.length}`}
+                </button>
+              )}
+            </>
+          )}
+        </section>
+      </div>
+
+      <section className="acct-card acct-detail">
+        <div className="acct-tabs" role="tablist">
+          {TABS.map(([key, label]) => (
             <button
               key={key}
               type="button"
-              className={"acct-filter" + (filter === key ? " is-active" : "")}
-              onClick={() => setFilter(key)}
+              role="tab"
+              aria-selected={tab === key}
+              className={"acct-tab" + (tab === key ? " is-active" : "")}
+              onClick={() => pickTab(key)}
             >
-              {label} <span className="acct-filter-count">{counts[key]}</span>
+              {label}
+              <span className="acct-tab-count">
+                {key === "fees" ? rows.length : key === "package" ? packages.length : families.length}
+              </span>
             </button>
           ))}
+          <input
+            className="acct-search"
+            type="search"
+            placeholder="Search family, school or item"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
 
-        {shown.length === 0 ? (
-          <p className="acct-empty">
-            {filter === "attention" ? "Nothing is missing. Every record is complete." : "Nothing here."}
-          </p>
-        ) : (
-          <ul className="acct-list">
-            {shown.map((r) => (
-              <li key={r.record.id} className="acct-row">
-                <div className="acct-row-main">
-                  <Link to={familyLink(r.record.family_id)} className="acct-row-family">
-                    {r.family}
-                  </Link>
-                  <span className="acct-row-school">
-                    {r.record.school?.name || "School"} ·{" "}
-                    {r.items.map((i) => childName(i.child)).join(", ") || "no children"}
-                  </span>
-                  {r.flags.length > 0 && (
-                    <ul className="acct-flags">
-                      {r.flags.map((f) => (
-                        <li key={f}>{f}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div className="acct-row-money">
-                  <span>
-                    <em>We paid</em>
-                    {money(r.paid)}
-                  </span>
-                  <span>
-                    <em>We charge</em>
-                    {money(r.charged)}
-                  </span>
-                  <span>
-                    <em>Difference</em>
-                    {money(r.difference)}
-                  </span>
-                </div>
-                <div className="acct-row-status">
-                  <span className={"acct-pill is-" + r.record.status}>{STATUS_LABEL[r.record.status] || r.record.status}</span>
-                  {r.waiting !== null && (
-                    <span className={"acct-waiting" + (r.waiting >= WAITING_RED_AFTER_DAYS ? " is-risk" : "")}>
-                      {r.waiting === 0 ? "paid today" : `waiting ${r.waiting} day${r.waiting === 1 ? "" : "s"}`}
-                    </span>
-                  )}
-                  <Link to={familyLink(r.record.family_id)} className="panel-btn panel-btn-quiet">
-                    Open
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
+        {tab === "fees" && (
+          <>
+            <p className="acct-tab-hint">
+              Schools HHE paid on a family's behalf. The family is charged the flat fee; the difference is ours.
+            </p>
+            <div className="acct-filters">
+              {FEE_FILTERS.map(([key, label]) => (
+                <button key={key} type="button" className={"acct-filter" + (feeFilter === key ? " is-active" : "")} onClick={() => setFeeFilter(key)}>
+                  {label} <span>{feeCounts[key]}</span>
+                </button>
+              ))}
+            </div>
+            {shownFees.length === 0 ? (
+              <p className="acct-empty">{feeFilter === "attention" ? "Nothing is missing. Every record is complete." : "Nothing here."}</p>
+            ) : (
+              <div className="acct-table-wrap">
+                <table className="acct-table">
+                  <thead>
+                    <tr>
+                      <th>Family</th>
+                      <th>School and children</th>
+                      <th className="num">We paid</th>
+                      <th className="num">We charge</th>
+                      <th className="num">Difference</th>
+                      <th>Status</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shownFees.map((r) => (
+                      <tr key={r.record.id}>
+                        <td>
+                          <Link to={familyLink(r.record.family_id)} className="acct-link">
+                            {r.family}
+                          </Link>
+                        </td>
+                        <td>
+                          <div className="acct-cell-main">{r.record.school?.name || "School"}</div>
+                          <div className="acct-cell-sub">{r.items.map((i) => childName(i.child)).join(", ") || "No children"}</div>
+                          {r.flags.length > 0 && (
+                            <ul className="acct-flags">
+                              {r.flags.map((f) => (
+                                <li key={f}>{f}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </td>
+                        <td className="num">{money(r.paid)}</td>
+                        <td className="num">{money(r.charged)}</td>
+                        <td className="num">{money(r.difference)}</td>
+                        <td>
+                          <span className={"acct-pill is-" + r.record.status}>{STATUS_LABEL[r.record.status] || r.record.status}</span>
+                          {r.waiting !== null && (
+                            <div className={"acct-cell-sub" + (r.waiting >= WAITING_RED_AFTER_DAYS ? " is-risk" : "")}>
+                              {r.waiting === 0 ? "Paid today" : `Waiting ${r.waiting} day${r.waiting === 1 ? "" : "s"}`}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <Link to={familyLink(r.record.family_id)} className="acct-open">
+                            Open
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
-      </section>
 
-      <section className="acct-section">
-        <h2>
-          Package and other payments <span className="acct-filter-count">{data.payments.length}</span>
-        </h2>
-        {data.payments.length === 0 ? (
-          <p className="acct-empty">Nothing owed.</p>
-        ) : (
-          <ul className="acct-list">
-            {data.payments.map((p) => {
-              const late = (daysUntil(p.due_date) ?? 0) < 0 && p.status === "unpaid";
-              return (
-                <li key={p.id} className="acct-row">
-                  <div className="acct-row-main">
-                    <Link to={familyLink(p.family_id)} className="acct-row-family">
-                      {data.familyNames[p.family_id] || "Family"}
-                    </Link>
-                    <span className="acct-row-school">{p.label}</span>
-                  </div>
-                  <div className="acct-row-money">
-                    <span>
-                      <em>Amount</em>
-                      {money(p.amount, p.currency || "AED")}
-                    </span>
-                  </div>
-                  <div className="acct-row-status">
-                    <span className={"acct-pill " + (p.status === "submitted" ? "is-invoiced" : late ? "is-late" : "is-open")}>
-                      {p.status === "submitted" ? "Receipt uploaded · confirm it" : dueText(p.due_date)}
-                    </span>
-                    <Link to={familyLink(p.family_id)} className="panel-btn panel-btn-quiet">
-                      Open
-                    </Link>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+        {tab === "package" && (
+          <>
+            <p className="acct-tab-hint">
+              Registration, deposits and service fees added to each family. Families pay and upload a receipt; you confirm it on their tab.
+            </p>
+            <div className="acct-filters">
+              {PACKAGE_FILTERS.map(([key, label]) => (
+                <button key={key} type="button" className={"acct-filter" + (packageFilter === key ? " is-active" : "")} onClick={() => setPackageFilter(key)}>
+                  {label} <span>{packageCounts[key]}</span>
+                </button>
+              ))}
+            </div>
+            {shownPackages.length === 0 ? (
+              <p className="acct-empty">{packageFilter === "attention" ? "Nothing overdue and no receipts waiting." : "Nothing here."}</p>
+            ) : (
+              <div className="acct-table-wrap">
+                <table className="acct-table">
+                  <thead>
+                    <tr>
+                      <th>Family</th>
+                      <th>Item</th>
+                      <th className="num">Amount</th>
+                      <th>Due</th>
+                      <th>Status</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shownPackages.map((x) => (
+                      <tr key={x.p.id}>
+                        <td>
+                          <Link to={familyLink(x.p.family_id)} className="acct-link">
+                            {x.family}
+                          </Link>
+                        </td>
+                        <td>{x.p.label}</td>
+                        <td className="num">{money(x.p.amount, x.p.currency || "AED")}</td>
+                        <td>{x.p.due_date ? shortDate(x.p.due_date) : "—"}</td>
+                        <td>
+                          <span className={"acct-pill is-" + x.state.tone}>{x.state.label}</span>
+                        </td>
+                        <td>
+                          <Link to={familyLink(x.p.family_id)} className="acct-open">
+                            Open
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {tab === "family" && (
+          <>
+            <p className="acct-tab-hint">What each family still owes us across school fees and packages, largest first.</p>
+            {shownFamilies.length === 0 ? (
+              <p className="acct-empty">No family owes us anything right now.</p>
+            ) : (
+              <div className="acct-table-wrap">
+                <table className="acct-table">
+                  <thead>
+                    <tr>
+                      <th>Family</th>
+                      <th className="num">School fees owed</th>
+                      <th className="num">Packages owed</th>
+                      <th className="num">Total owed</th>
+                      <th>Note</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shownFamilies.map((f) => (
+                      <tr key={f.id}>
+                        <td>
+                          <Link to={familyLink(f.id)} className="acct-link">
+                            {f.name}
+                          </Link>
+                        </td>
+                        <td className="num">{money(f.school)}</td>
+                        <td className="num">{money(f.pack)}</td>
+                        <td className="num acct-strong">{money(f.school + f.pack)}</td>
+                        <td>
+                          {f.worst ? (
+                            <span className="acct-pill is-late">Overdue {f.worst} day{f.worst === 1 ? "" : "s"}</span>
+                          ) : (
+                            <span className="acct-cell-sub">{f.items} open item{f.items === 1 ? "" : "s"}</span>
+                          )}
+                        </td>
+                        <td>
+                          <Link to={familyLink(f.id)} className="acct-open">
+                            Open
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>
