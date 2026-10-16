@@ -35,24 +35,61 @@ export function daysSince(dateStr) {
   return Math.max(0, Math.round((today - then) / 86400000));
 }
 
-// What is missing or wrong on a record, in plain words. Empty = nothing to do.
+// What is missing or wrong on a record, as short chip labels. Empty = all good.
+// Kept terse on purpose: these show as chips on the overview, not sentences.
 export function recordFlags(record) {
   const items = liveItems(record);
   const open = record.status === "open";
   const flags = [];
-  items
-    .filter((i) => i.amount_paid === null || i.amount_paid === undefined)
-    .forEach((i) => flags.push(`Enter what we paid the school for ${childName(i.child)} (Application fee step).`));
-  if (open && (!record.school_payment_method || !record.school_paid_at)) {
-    flags.push("Add how and when we paid the school.");
-  }
+  const missing = items.filter((i) => i.amount_paid === null || i.amount_paid === undefined);
+  if (missing.length === 1) flags.push(`Amount missing · ${childName(missing[0].child)}`);
+  else if (missing.length > 1) flags.push(`Amount missing · ${missing.length} children`);
+  if (open && (!record.school_payment_method || !record.school_paid_at)) flags.push("Method & date");
   if (open) {
     const withProof = items.filter((i) => i.fee?.payment_proof_path).length;
     const withReceipt = items.filter((i) => i.fee?.school_receipt_path).length;
-    if (withProof < items.length) flags.push(`Our bank or Qashio evidence is uploaded for ${withProof} of ${items.length} children.`);
-    if (withReceipt < items.length) flags.push(`The school's receipt is uploaded for ${withReceipt} of ${items.length} children.`);
+    if (withProof < items.length) flags.push(`Proof ${withProof}/${items.length}`);
+    if (withReceipt < items.length) flags.push(`Receipt ${withReceipt}/${items.length}`);
   }
   return flags;
+}
+
+// The accounting log, in plain words. Who did what, from an accounting_events row.
+const EVENT_FIELD_LABEL = {
+  name: "the record name",
+  school_payment_method: "how we paid the school",
+  school_paid_at: "the date we paid",
+  school_payment_reference: "the payment reference",
+};
+export function describeEvent(e) {
+  const d = e.detail || {};
+  switch (e.kind) {
+    case "record_opened": return "opened the record";
+    case "child_added": return "added a child";
+    case "child_removed": return "removed a child";
+    case "record_void": return "voided the record";
+    case "amount_paid_changed": return "updated what we paid the school";
+    case "record_updated": return `updated ${EVENT_FIELD_LABEL[d.field] || d.field || "a detail"}`;
+    default: return (e.kind || "changed something").replace(/_/g, " ");
+  }
+}
+
+// Short relative time, e.g. "2d ago". Empty when there is no date.
+export function timeAgo(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "";
+  const secs = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (secs < 45) return "just now";
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  const mos = Math.floor(days / 30);
+  if (mos < 12) return `${mos}mo ago`;
+  return `${Math.floor(mos / 12)}y ago`;
 }
 
 // Whole-number money for headline tiles.

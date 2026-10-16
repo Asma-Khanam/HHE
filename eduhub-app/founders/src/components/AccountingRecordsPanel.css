@@ -1,6 +1,8 @@
 .ar-list { display: flex; flex-direction: column; gap: 16px; margin-top: 12px; }
 .ar-card { border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 12px; padding: 16px 18px; background: #fff; }
-.ar-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.ar-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.ar-card-title { display: flex; flex-direction: column; gap: 2px; }
+.ar-lastchange { font-size: 0.74rem; opacity: 0.5; }
 .ar-status { font-size: 0.78rem; padding: 3px 10px; border-radius: 999px; background: #fbf0dc; color: #7a5410; }
 .ar-status.is-invoiced { background: #e8eefb; color: #2b4a8a; }
 .ar-status.is-paid { background: #e8f4ea; color: #2c6a37; }
@@ -14,4 +16,13 @@
 .ar-missing { color: #a3262a; font-weight: 600; }
 .ar-paid { margin: 12px 0 0; font-size: 0.9rem; }
 .ar-flags { margin: 10px 0 8px; padding-left: 18px; color: #a3262a; font-size: 0.85rem; }
+.ar-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
+.ar-chip { font-size: 0.74rem; font-weight: 500; padding: 2px 9px; border-radius: 7px; background: #fbf0dc; color: #7a5410; }
+.ar-history { margin-top: 12px; border-top: 1px solid rgba(0, 0, 0, 0.06); padding-top: 10px; }
+.ar-history summary { font-size: 0.8rem; font-weight: 600; color: var(--hh-burgundy); cursor: pointer; opacity: 0.8; }
+.ar-history summary:hover { opacity: 1; }
+.ar-history ul { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.ar-history li { font-size: 0.82rem; line-height: 1.4; display: flex; justify-content: space-between; gap: 10px; }
+.ar-history-who { font-weight: 600; color: var(--hh-burgundy); }
+.ar-history-when { opacity: 0.45; font-size: 0.74rem; white-space: nowrap; }
 .ar-error { color: #a3262a; }

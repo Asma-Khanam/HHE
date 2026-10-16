@@ -2282,18 +2282,41 @@ export async function saveCalendlyBookingNote(bookingId, note) {
 
 export async function listAccountingRecords(familyId) {
   if (!familyId) return [];
-  return (
-    unwrap(
-      await supabase
-        .from("accounting_records")
-        .select(
-          "*, school:schools(name), items:accounting_record_items(id, application_fee_id, amount_paid, amount_charged, difference, removed_at, child:children(full_name, preferred_name, first_name), fee:application_fees(payment_proof_path, school_receipt_path, status))"
-        )
-        .eq("family_id", familyId)
-        .neq("status", "void")
-        .order("created_at", { ascending: true })
-    ) || []
-  );
+  const [records, events, staff] = await Promise.all([
+    supabase
+      .from("accounting_records")
+      .select(
+        "*, school:schools(name), items:accounting_record_items(id, application_fee_id, amount_paid, amount_charged, difference, removed_at, child:children(full_name, preferred_name, first_name), fee:application_fees(payment_proof_path, school_receipt_path, status))"
+      )
+      .eq("family_id", familyId)
+      .neq("status", "void")
+      .order("created_at", { ascending: true })
+      .then(unwrap),
+    supabase
+      .from("accounting_events")
+      .select("record_id, kind, detail, actor, created_at")
+      .eq("family_id", familyId)
+      .order("created_at", { ascending: false })
+      .then(unwrap)
+      .catch(() => []),
+    supabase.from("staff").select("user_id, full_name, email").then(unwrap).catch(() => []),
+  ]);
+  const nameOf = accountingActorNamer(staff);
+  const byRecord = {};
+  (events || []).forEach((e) => {
+    (byRecord[e.record_id] ||= []).push({ ...e, by: nameOf(e.actor) });
+  });
+  return (records || []).map((r) => {
+    const hist = byRecord[r.id] || [];
+    return { ...r, history: hist, lastChange: hist[0] || null };
+  });
+}
+
+// Resolve an accounting_events actor (a user_id, or null for the system) to a
+// display name, so every "who did what" line reads as a person, not a UUID.
+function accountingActorNamer(staff) {
+  const byId = Object.fromEntries((staff || []).map((s) => [s.user_id, s]));
+  return (actor) => (actor ? staffName(byId[actor]) || "A teammate" : "System");
 }
 
 // Changes one field on a record and writes what changed to the log, so the
@@ -2321,7 +2344,7 @@ export async function updateAccountingRecord(recordId, field, value, previous) {
 // record (with its children and evidence), the parents' names to label each
 // family, and every package payment (owed, waiting to be confirmed, or paid).
 export async function getAccountingOverview() {
-  const [records, parents, payments] = await Promise.all([
+  const [records, parents, payments, events, staff] = await Promise.all([
     supabase
       .from("accounting_records")
       .select(
@@ -2336,11 +2359,34 @@ export async function getAccountingOverview() {
       .select("id, family_id, label, amount, currency, due_date, status, paid_at, submitted_at")
       .order("due_date", { ascending: true, nullsFirst: false })
       .then(unwrap),
+    supabase
+      .from("accounting_events")
+      .select("record_id, family_id, kind, detail, actor, created_at")
+      .order("created_at", { ascending: false })
+      .limit(300)
+      .then(unwrap)
+      .catch(() => []),
+    supabase.from("staff").select("user_id, full_name, email").then(unwrap).catch(() => []),
   ]);
   const byFamily = {};
   (parents || []).forEach((p) => {
     if (p.full_name) (byFamily[p.family_id] ||= []).push(p.full_name);
   });
   const familyNames = Object.fromEntries(Object.entries(byFamily).map(([id, names]) => [id, names.join(" & ")]));
-  return { records: records || [], payments: payments || [], familyNames };
+
+  // Who last touched each record, and a recent-activity feed across every family.
+  const nameOf = accountingActorNamer(staff);
+  const lastByRecord = {};
+  (events || []).forEach((e) => {
+    if (e.record_id && !lastByRecord[e.record_id]) lastByRecord[e.record_id] = e;
+  });
+  const withChange = (records || []).map((r) => {
+    const e = lastByRecord[r.id];
+    return { ...r, lastChange: e ? { by: nameOf(e.actor), at: e.created_at, kind: e.kind, detail: e.detail } : null };
+  });
+  const activity = (events || [])
+    .slice(0, 14)
+    .map((e) => ({ ...e, by: nameOf(e.actor), family: familyNames[e.family_id] || "Family" }));
+
+  return { records: withChange, payments: payments || [], familyNames, activity };
 }

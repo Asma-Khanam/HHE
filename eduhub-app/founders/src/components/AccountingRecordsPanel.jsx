@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import AutosaveField from "./Autosave";
 import { listAccountingRecords, updateAccountingRecord } from "../lib/staffData";
-import { STATUS_LABEL, money, childName, sum, liveItems, recordFlags } from "../lib/accounting";
+import { STATUS_LABEL, money, childName, sum, liveItems, recordFlags, describeEvent, timeAgo } from "../lib/accounting";
 import "./panels.css";
 import "./AccountingRecordsPanel.css";
 
@@ -76,7 +76,14 @@ export default function AccountingRecordsPanel({ familyId, onGoToApplications })
           return (
             <div key={record.id} className="ar-card">
               <div className="ar-card-head">
-                <strong>{record.school?.name || "School"}</strong>
+                <div className="ar-card-title">
+                  <strong>{record.school?.name || "School"}</strong>
+                  {record.lastChange && (
+                    <span className="ar-lastchange">
+                      Updated by {record.lastChange.by} · {timeAgo(record.lastChange.at)}
+                    </span>
+                  )}
+                </div>
                 <span className={"ar-status is-" + record.status}>{STATUS_LABEL[record.status] || record.status}</span>
               </div>
 
@@ -159,16 +166,32 @@ export default function AccountingRecordsPanel({ familyId, onGoToApplications })
               </p>
 
               {flags.length > 0 && (
-                <ul className="ar-flags">
+                <div className="ar-chips">
                   {flags.map((f) => (
-                    <li key={f}>{f}</li>
+                    <span key={f} className="ar-chip">
+                      {f}
+                    </span>
                   ))}
-                </ul>
+                </div>
               )}
               {onGoToApplications && flags.length > 0 && (
                 <button type="button" className="panel-btn panel-btn-quiet" onClick={onGoToApplications}>
                   Open Applications
                 </button>
+              )}
+
+              {record.history && record.history.length > 0 && (
+                <details className="ar-history">
+                  <summary>History ({record.history.length})</summary>
+                  <ul>
+                    {record.history.map((e, i) => (
+                      <li key={i}>
+                        <span className="ar-history-who">{e.by}</span> {describeEvent(e)}
+                        <span className="ar-history-when">{timeAgo(e.created_at)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
               )}
             </div>
           );
