@@ -108,6 +108,27 @@ export default async function handler(req, res) {
     const alias = (parents.find((p) => p.application_alias)?.application_alias || family.application_alias || "").trim();
     const familyAddress = alias ? `${alias}@${ALIAS_DOMAIN}` : null;
 
+    // 15 Oct 2026: a family with no parent/family application address yet
+    // used to send fine, just silently -- fromAddress fell back to the raw
+    // IMPROVMX_SMTP_USER (e.g. any-alias-1@applications.heatherharries.com)
+    // and replyTo was left unset, so the school's reply had nowhere this app
+    // could match it to a family: ImprovMX's catch-all still forwarded it to
+    // relocate@heatherharries.com (so it looked fine from the shared inbox)
+    // and still posted it to this webhook, but the alias in that reply
+    // ("any-alias-1") isn't any real family's address, so it was silently
+    // dropped instead of logged here. Caught via the Goodburn family: six
+    // emails sent to schools with no address ever created for either
+    // parent, so none of the replies made it into their Emails tab, even
+    // though they were clearly arriving (relocate@'s Titan inbox had them).
+    // Blocking here, instead of sending untracked, is cheap -- creating an
+    // address takes one click on the Applications tab.
+    if (!familyAddress) {
+      return res.status(400).json({
+        error:
+          "This family doesn't have an application email address yet, so any reply wouldn't come back into their record. Create one for a parent on the Applications tab (Application email panel), then send again.",
+      });
+    }
+
     // Attachments: files picked on the computer (sent as base64) plus the
     // family's own documents (fetched here, straight from storage).
     const files = [];
