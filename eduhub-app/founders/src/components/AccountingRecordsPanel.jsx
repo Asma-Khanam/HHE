@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import AutosaveField from "./Autosave";
 import { listAccountingRecords, updateAccountingRecord } from "../lib/staffData";
-import { STATUS_LABEL, money, childName, sum, liveItems, recordFlags, describeEvent, timeAgo } from "../lib/accounting";
+import { STATUS_LABEL, money, childName, sum, liveItems, recordFlags, timeAgo } from "../lib/accounting";
 import "./panels.css";
 import "./AccountingRecordsPanel.css";
 
@@ -178,20 +178,6 @@ export default function AccountingRecordsPanel({ familyId, onGoToApplications })
                 <button type="button" className="panel-btn panel-btn-quiet" onClick={onGoToApplications}>
                   Open Applications
                 </button>
-              )}
-
-              {record.history && record.history.length > 0 && (
-                <details className="ar-history">
-                  <summary>History ({record.history.length})</summary>
-                  <ul>
-                    {record.history.map((e, i) => (
-                      <li key={i}>
-                        <span className="ar-history-who">{e.by}</span> {describeEvent(e)}
-                        <span className="ar-history-when">{timeAgo(e.created_at)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
               )}
             </div>
           );

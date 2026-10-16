@@ -2301,14 +2301,16 @@ export async function listAccountingRecords(familyId) {
       .catch(() => []),
     supabase.from("staff").select("user_id, full_name, email").then(unwrap).catch(() => []),
   ]);
+  // Only changes made by a real person get a name stamp. Rows the database
+  // opened by itself (actor is null) show nothing, not "System".
   const nameOf = accountingActorNamer(staff);
-  const byRecord = {};
+  const lastByRecord = {};
   (events || []).forEach((e) => {
-    (byRecord[e.record_id] ||= []).push({ ...e, by: nameOf(e.actor) });
+    if (e.record_id && e.actor && !lastByRecord[e.record_id]) lastByRecord[e.record_id] = e;
   });
   return (records || []).map((r) => {
-    const hist = byRecord[r.id] || [];
-    return { ...r, history: hist, lastChange: hist[0] || null };
+    const e = lastByRecord[r.id];
+    return { ...r, lastChange: e ? { by: nameOf(e.actor), at: e.created_at } : null };
   });
 }
 
@@ -2374,19 +2376,16 @@ export async function getAccountingOverview() {
   });
   const familyNames = Object.fromEntries(Object.entries(byFamily).map(([id, names]) => [id, names.join(" & ")]));
 
-  // Who last touched each record, and a recent-activity feed across every family.
+  // Who last touched each record -- only real people, never the auto-open trigger.
   const nameOf = accountingActorNamer(staff);
   const lastByRecord = {};
   (events || []).forEach((e) => {
-    if (e.record_id && !lastByRecord[e.record_id]) lastByRecord[e.record_id] = e;
+    if (e.record_id && e.actor && !lastByRecord[e.record_id]) lastByRecord[e.record_id] = e;
   });
   const withChange = (records || []).map((r) => {
     const e = lastByRecord[r.id];
-    return { ...r, lastChange: e ? { by: nameOf(e.actor), at: e.created_at, kind: e.kind, detail: e.detail } : null };
+    return { ...r, lastChange: e ? { by: nameOf(e.actor), at: e.created_at } : null };
   });
-  const activity = (events || [])
-    .slice(0, 14)
-    .map((e) => ({ ...e, by: nameOf(e.actor), family: familyNames[e.family_id] || "Family" }));
 
-  return { records: withChange, payments: payments || [], familyNames, activity };
+  return { records: withChange, payments: payments || [], familyNames };
 }

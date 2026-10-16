@@ -10,7 +10,6 @@ import {
   liveItems,
   recordFlags,
   daysSince,
-  describeEvent,
   timeAgo,
 } from "../lib/accounting";
 import { daysUntil } from "../lib/workflow";
@@ -259,7 +258,6 @@ export default function AccountingPage() {
 
   const oldestWaiting = totals.open.reduce((m, r) => Math.max(m, r.waiting || 0), 0);
   const visibleGroups = showAllActions ? groups : groups.slice(0, FAMILIES_SHOWN);
-  const activity = data.activity || [];
 
   function pickTab(key) {
     const next = new URLSearchParams(params);
@@ -328,26 +326,6 @@ export default function AccountingPage() {
             ]}
           />
 
-          <section className="acct-card">
-            <div className="acct-card-head">
-              <h2>Recent activity</h2>
-              <span className="acct-card-sub">Who changed what</span>
-            </div>
-            {activity.length === 0 ? (
-              <p className="acct-empty">No changes logged yet.</p>
-            ) : (
-              <ul className="acct-feed">
-                {activity.map((e, i) => (
-                  <li key={i}>
-                    <span className="acct-feed-who">{e.by}</span> {describeEvent(e)}
-                    <span className="acct-feed-meta">
-                      {e.family} · {timeAgo(e.created_at)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
         </div>
 
         <section className="acct-card acct-today">
