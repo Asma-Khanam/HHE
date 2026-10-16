@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import AutosaveField from "./Autosave";
 import { listAccountingRecords, updateAccountingRecord } from "../lib/staffData";
+import { STATUS_LABEL, money, childName, sum, liveItems, recordFlags } from "../lib/accounting";
 import "./panels.css";
 import "./AccountingRecordsPanel.css";
 
@@ -15,25 +16,6 @@ const METHODS = [
   ["qashio", "Qashio"],
   ["bank", "Bank transfer"],
 ];
-
-const STATUS_LABEL = {
-  open: "School paid · not invoiced yet",
-  invoiced: "Invoiced · waiting for the family",
-  paid: "Family paid",
-};
-
-function money(n, currency = "AED") {
-  if (n === null || n === undefined || n === "") return "—";
-  return `${currency} ${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function childName(c) {
-  return (c?.preferred_name || c?.first_name || (c?.full_name || "").split(" ")[0] || "Child").trim();
-}
-
-function sum(rows, key) {
-  return rows.reduce((t, r) => t + (Number(r[key]) || 0), 0);
-}
 
 export default function AccountingRecordsPanel({ familyId, onGoToApplications }) {
   const [records, setRecords] = useState(null);
@@ -86,22 +68,10 @@ export default function AccountingRecordsPanel({ familyId, onGoToApplications })
 
       <div className="ar-list">
         {records.map((record) => {
-          const items = (record.items || []).filter((i) => !i.removed_at);
+          const items = liveItems(record);
           const open = record.status === "open";
           const cur = record.currency || "AED";
-          const missingAmount = items.filter((i) => i.amount_paid === null || i.amount_paid === undefined);
-          const withProof = items.filter((i) => i.fee?.payment_proof_path).length;
-          const withReceipt = items.filter((i) => i.fee?.school_receipt_path).length;
-          const flags = [];
-          missingAmount.forEach((i) =>
-            flags.push(`Enter what we paid the school for ${childName(i.child)} (Application fee step).`)
-          );
-          if (open && (!record.school_payment_method || !record.school_paid_at))
-            flags.push("Add how and when we paid the school.");
-          if (open && withProof < items.length)
-            flags.push(`Our bank or Qashio evidence is uploaded for ${withProof} of ${items.length} children.`);
-          if (open && withReceipt < items.length)
-            flags.push(`The school's receipt is uploaded for ${withReceipt} of ${items.length} children.`);
+          const flags = recordFlags(record);
 
           return (
             <div key={record.id} className="ar-card">

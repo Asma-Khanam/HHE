@@ -2316,3 +2316,32 @@ export async function updateAccountingRecord(recordId, field, value, previous) {
   }
   return saved;
 }
+
+// Everything the overall Accounting page needs in one go: every accounting
+// record (with its children and evidence), the parents' names to label each
+// family, and the package payments still owed or waiting to be confirmed.
+export async function getAccountingOverview() {
+  const [records, parents, payments] = await Promise.all([
+    supabase
+      .from("accounting_records")
+      .select(
+        "*, school:schools(name), items:accounting_record_items(id, application_fee_id, amount_paid, amount_charged, difference, removed_at, child:children(full_name, preferred_name, first_name), fee:application_fees(payment_proof_path, school_receipt_path, status))"
+      )
+      .neq("status", "void")
+      .order("created_at", { ascending: false })
+      .then(unwrap),
+    supabase.from("parents").select("family_id, full_name").then(unwrap),
+    supabase
+      .from("payments")
+      .select("id, family_id, label, amount, currency, due_date, status")
+      .in("status", ["unpaid", "submitted"])
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .then(unwrap),
+  ]);
+  const byFamily = {};
+  (parents || []).forEach((p) => {
+    if (p.full_name) (byFamily[p.family_id] ||= []).push(p.full_name);
+  });
+  const familyNames = Object.fromEntries(Object.entries(byFamily).map(([id, names]) => [id, names.join(" & ")]));
+  return { records: records || [], payments: payments || [], familyNames };
+}
