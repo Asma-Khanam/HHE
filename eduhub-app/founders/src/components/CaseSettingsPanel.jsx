@@ -118,7 +118,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
   }
 
   // Top-up: a family that has used up its included applications can buy more.
-  // Adds an unpaid line to the Invoices tab and raises their allowance by the
+  // Adds an unpaid line to the Accounting tab and raises their allowance by the
   // same number, so the meter on their dashboard shows the extra credits.
   const [topUp, setTopUp] = useState({ count: "1", price: "" });
   const [topUpBusy, setTopUpBusy] = useState(false);
@@ -147,7 +147,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
       setRawOverride(row);
       setOverride((o) => ({ ...o, applications: row.applications_included ?? "" }));
       setTopUp({ count: "1", price: topUp.price });
-      setTopUpDone(`Added ${count} extra. It's on the Invoices tab as unpaid.`);
+      setTopUpDone(`Added ${count} extra. It's on the Accounting tab as unpaid.`);
     } catch (err) {
       setError(err.message || "Couldn't add that top-up.");
     } finally {
@@ -522,7 +522,7 @@ function CaseCardBody({
                     </button>
                   </div>
                   {topUpDone && <p className="cv-adjust-hint">{topUpDone}</p>}
-                  <p className="cv-adjust-hint">Adds an unpaid line to the Invoices tab and raises the family's allowance.</p>
+                  <p className="cv-adjust-hint">Adds an unpaid line to the Accounting tab and raises the family's allowance.</p>
                 </>
               )}
             </div>

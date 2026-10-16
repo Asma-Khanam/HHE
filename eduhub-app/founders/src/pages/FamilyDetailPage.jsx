@@ -477,7 +477,7 @@ const FAMILY_DETAIL_TAB_KEYS = [
   "timeline",
   "emails",
   "meetings",
-  "invoices",
+  "accounting",
   "documents",
 ];
 
@@ -491,7 +491,9 @@ export default function FamilyDetailPage() {
   // "start application" handoff, which lands here on ?tab=applications)
   // instead of always opening on Family details.
   const [activeTab, setActiveTab] = useState(() => {
-    const requested = searchParams.get("tab");
+    // "invoices" is the tab's old name: keep old links and bookmarks working.
+    const raw = searchParams.get("tab");
+    const requested = raw === "invoices" ? "accounting" : raw;
     return FAMILY_DETAIL_TAB_KEYS.includes(requested) ? requested : "overview";
   });
   const [activeHouseholdKey, setActiveHouseholdKey] = useState(null);
@@ -727,7 +729,7 @@ export default function FamilyDetailPage() {
           ["timeline", "Placement timeline"],
           ["emails", "Emails"],
           ["meetings", "Meetings"],
-          ["invoices", "Invoices"],
+          ["accounting", "Accounting"],
           ["documents", "Documents"],
         ].map(([key, label]) => (
           <button
@@ -1089,7 +1091,7 @@ export default function FamilyDetailPage() {
         </div>
       )}
 
-      {activeTab === "invoices" && (
+      {activeTab === "accounting" && (
         <div className="family-detail-stack">
           <FamilyBalanceSummary
             familyId={family.id}
