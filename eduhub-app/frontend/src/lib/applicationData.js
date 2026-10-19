@@ -23,6 +23,7 @@ const CHILD_COLUMNS = [
   "preferred_name",
   "gender",
   "academic_year_of_entry",
+  "current_year_group",
   "year_group_applying_for",
   "year_group_reason",
   "term",

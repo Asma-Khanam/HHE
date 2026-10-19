@@ -66,6 +66,7 @@ const emptyChild = {
   // data never has to be reinterpreted as an array.
   academic_year_of_entry: "",
   academic_years_of_entry: [],
+  current_year_group: "",
   year_group_applying_for: "",
   year_group_reason: "",
   term: "",
@@ -1881,6 +1882,15 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                         onChange={(v) => updateChildAt(i, "academic_years_of_entry", v)}
                         options={ACADEMIC_YEARS}
                         hint="Select every year you'd be able to move — families are often flexible about timing."
+                      />
+                      <FormSelect
+                        label="Current year group"
+                        fieldKey={`child-${i}-current_year_group`}
+                        value={child.current_year_group}
+                        onChange={(v) => updateChildAt(i, "current_year_group", v)}
+                        options={YEAR_GROUPS}
+                        placeholder="Select an option"
+                        hint="The year your child is in now, at their current school."
                       />
                       {(() => {
                         const suggestion = suggestedYearGroupLabel(

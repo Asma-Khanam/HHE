@@ -98,6 +98,7 @@ const CHILD_GENERAL_FIELDS = [
   // comma-separated list, same idea as the "date"/"reference_status"
   // formatters just below.
   { key: "academic_years_of_entry", label: "Academic year(s) of entry", type: "multiselect", options: ACADEMIC_YEARS },
+  { key: "current_year_group", type: "select", options: YEAR_GROUPS, label: "Current year group" },
   { key: "year_group_applying_for", type: "select", options: YEAR_GROUPS, label: "Year group applying for" },
   { key: "terms", label: "Term(s)", type: "multiselect", options: TERMS_WITH_FLEXIBLE },
   { key: "first_language", label: "First language", type: "select", options: LANGUAGES },
@@ -900,6 +901,9 @@ export default function FamilyDetailPage() {
                     (activeHouseholdMember.data.date_of_birth
                       ? `DOB ${formatDate(activeHouseholdMember.data.date_of_birth)}`
                       : "DOB not on file") +
+                    (activeHouseholdMember.data.current_year_group
+                      ? ` · now ${activeHouseholdMember.data.current_year_group}`
+                      : "") +
                     (activeHouseholdMember.data.year_group_applying_for
                       ? ` · applying for ${activeHouseholdMember.data.year_group_applying_for}`
                       : "")

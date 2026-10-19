@@ -144,6 +144,7 @@ async function get_family({ family_id }) {
       name: displayNameForChild(c, i),
       full_name: c.full_name,
       date_of_birth: c.date_of_birth,
+      current_year_group: c.current_year_group,
       year_group_applying_for: c.year_group_applying_for,
       current_school: d.currentSchools[i],
       applications: (d.applicationsByChild[c.id] || []).map((a) => ({

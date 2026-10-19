@@ -180,6 +180,8 @@ export default function OverviewPanel({
                     </div>
                     <span className="ov-sub">Date of birth</span>
                     <ReadLine value={dobLine(c.date_of_birth)} copy={dobPlain(c.date_of_birth)} label="Copy date of birth" />
+                    <span className="ov-sub">Current year group</span>
+                    <ReadLine value={c.current_year_group} label="Copy current year group" />
                     <span className="ov-sub">Applying for</span>
                     <ReadLine value={c.year_group_applying_for} label="Copy year group" />
                     {years && <span className="ov-same">{years}</span>}

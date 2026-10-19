@@ -654,7 +654,8 @@ export default function ApplicationsPanel({
             <div className="ap-child-head">
               <div className="ap-child-title">
                 <span className="ap-child-name">{name}</span>
-                {child.year_group_applying_for && <span className="ap-child-year">{child.year_group_applying_for}</span>}
+                {child.current_year_group && <span className="ap-child-year">Now {child.current_year_group}</span>}
+                {child.year_group_applying_for && <span className="ap-child-year">Applying {child.year_group_applying_for}</span>}
               </div>
               <button
                 type="button"
