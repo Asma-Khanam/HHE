@@ -2288,7 +2288,7 @@ export async function saveCalendlyBookingNote(bookingId, note) {
 
 export async function listAccountingRecords(familyId) {
   if (!familyId) return [];
-  const [records, events, staff] = await Promise.all([
+  const [records, events, staff, invoices] = await Promise.all([
     supabase
       .from("accounting_records")
       .select(
@@ -2306,7 +2306,16 @@ export async function listAccountingRecords(familyId) {
       .then(unwrap)
       .catch(() => []),
     supabase.from("staff").select("user_id, full_name, email").then(unwrap).catch(() => []),
+    // The Stripe invoices (addendum 116). Quietly empty if that SQL isn't run yet.
+    supabase
+      .from("parent_invoices")
+      .select("record_id, status, amount, currency, hosted_invoice_url, due_date, paid_at, created_at")
+      .eq("family_id", familyId)
+      .in("status", ["open", "paid", "needs_review"])
+      .then(unwrap)
+      .catch(() => []),
   ]);
+  const invoiceByRecord = Object.fromEntries((invoices || []).map((i) => [i.record_id, i]));
   // Only changes made by a real person get a name stamp. Rows the database
   // opened by itself (actor is null) show nothing, not "System".
   const nameOf = accountingActorNamer(staff);
@@ -2316,9 +2325,32 @@ export async function listAccountingRecords(familyId) {
   });
   return (records || []).map((r) => {
     const e = lastByRecord[r.id];
-    return { ...r, lastChange: e ? { by: nameOf(e.actor), at: e.created_at } : null };
+    return { ...r, invoice: invoiceByRecord[r.id] || null, lastChange: e ? { by: nameOf(e.actor), at: e.created_at } : null };
   });
 }
+
+// Stripe invoice for an open accounting record (runs on the server, see
+// api/stripe-create-invoice.js: the amount is worked out there from the
+// database, never taken from the browser) and the matching void.
+async function stripeCall(path, payload, fallback) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || fallback);
+  return data;
+}
+
+export const createRecordInvoice = (recordId) =>
+  stripeCall("/api/stripe-create-invoice", { recordId }, "Couldn't create the invoice.");
+
+export const voidRecordInvoice = (recordId, reason) =>
+  stripeCall("/api/stripe-void-invoice", { recordId, reason }, "Couldn't void the invoice.");
 
 // Resolve an accounting_events actor (a user_id, or null for the system) to a
 // display name, so every "who did what" line reads as a person, not a UUID.

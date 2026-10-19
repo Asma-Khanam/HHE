@@ -18,3 +18,11 @@
 .ar-flags { margin: 10px 0 8px; padding-left: 18px; color: #a3262a; font-size: 0.85rem; }
 .ar-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
 .ar-chip { font-size: 0.74rem; font-weight: 500; padding: 2px 9px; border-radius: 7px; background: #fbf0dc; color: #7a5410; }
+
+.ar-invoice { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(0, 0, 0, 0.08); display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.ar-invoice-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 0.9rem; }
+.ar-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 0.9rem; padding: 10px 12px; border-radius: 10px; background: #f7f4ee; }
+.ar-danger { background: #a3262a; color: #fff; border-color: #a3262a; }
+.ar-notice { margin: 10px 0 0; font-size: 0.85rem; padding: 8px 12px; border-radius: 8px; }
+.ar-notice.is-ok { background: #e8f4ea; color: #2c6a37; }
+.ar-notice.is-bad { background: #fbe9e9; color: #a3262a; }

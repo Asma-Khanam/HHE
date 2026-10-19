@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import AutosaveField from "./Autosave";
-import { listAccountingRecords, updateAccountingRecord } from "../lib/staffData";
+import { listAccountingRecords, updateAccountingRecord, createRecordInvoice, voidRecordInvoice } from "../lib/staffData";
 import { STATUS_LABEL, money, childName, sum, liveItems, recordFlags, timeAgo } from "../lib/accounting";
 import "./panels.css";
 import "./AccountingRecordsPanel.css";
@@ -17,9 +17,30 @@ const METHODS = [
   ["bank", "Bank transfer"],
 ];
 
+function CopyLink({ value }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className="ae-link"
+      onClick={() => {
+        navigator.clipboard?.writeText(value);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+    >
+      {copied ? "Copied" : "Copy link"}
+    </button>
+  );
+}
+
 export default function AccountingRecordsPanel({ familyId, onGoToApplications }) {
   const [records, setRecords] = useState(null);
   const [error, setError] = useState("");
+  // Which record is asking "are you sure?", which is mid-request, and any message.
+  const [confirm, setConfirm] = useState(null); // { id, kind: "invoice" | "void" }
+  const [working, setWorking] = useState(null);
+  const [notice, setNotice] = useState({});
 
   const load = useCallback(async () => {
     try {
@@ -47,6 +68,32 @@ export default function AccountingRecordsPanel({ familyId, onGoToApplications })
       return true;
     } catch {
       return false;
+    }
+  }
+
+  async function runInvoice(record, kind) {
+    setWorking(record.id);
+    setConfirm(null);
+    setNotice((n) => ({ ...n, [record.id]: null }));
+    try {
+      const result = kind === "invoice" ? await createRecordInvoice(record.id) : await voidRecordInvoice(record.id);
+      setNotice((n) => ({
+        ...n,
+        [record.id]: {
+          ok: true,
+          text:
+            kind === "invoice"
+              ? result.emailed
+                ? "Invoice sent. Stripe has emailed the family their pay link."
+                : "Invoice created, but Stripe could not email it. Copy the pay link and send it."
+              : "Invoice voided. The family can no longer pay it, and the record is open again.",
+        },
+      }));
+      await load();
+    } catch (err) {
+      setNotice((n) => ({ ...n, [record.id]: { ok: false, text: err.message } }));
+    } finally {
+      setWorking(null);
     }
   }
 
@@ -164,6 +211,82 @@ export default function AccountingRecordsPanel({ familyId, onGoToApplications })
               <p className="ar-paid">
                 Family paid: <strong>{record.status === "paid" ? "yes" : "no"}</strong>
               </p>
+
+              {open && items.length > 0 && !record.invoice && (
+                <div className="ar-invoice">
+                  {confirm?.id === record.id && confirm.kind === "invoice" ? (
+                    <div className="ar-confirm">
+                      <span>
+                        Send the family an invoice for <strong>{money(sum(items, "amount_charged"), cur)}</strong> (
+                        {items.length} {items.length === 1 ? "child" : "children"})? Stripe emails it to them.
+                      </span>
+                      <button type="button" className="panel-btn panel-btn-primary" onClick={() => runInvoice(record, "invoice")}>
+                        Yes, send invoice
+                      </button>
+                      <button type="button" className="panel-btn panel-btn-quiet" onClick={() => setConfirm(null)}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="panel-btn panel-btn-primary"
+                      disabled={working === record.id}
+                      onClick={() => setConfirm({ id: record.id, kind: "invoice" })}
+                    >
+                      {working === record.id ? "Creating invoice…" : `Invoice the family · ${money(sum(items, "amount_charged"), cur)}`}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {record.invoice && (
+                <div className="ar-invoice">
+                  <div className="ar-invoice-row">
+                    <span>
+                      Stripe invoice <strong>{money(record.invoice.amount, record.invoice.currency)}</strong> ·{" "}
+                      {record.invoice.status === "paid"
+                        ? `paid ${record.invoice.paid_at ? new Date(record.invoice.paid_at).toLocaleDateString("en-GB") : ""}`
+                        : record.invoice.status === "needs_review"
+                          ? "needs a look: Stripe's payment did not match"
+                          : record.invoice.due_date
+                            ? `waiting, due ${new Date(record.invoice.due_date).toLocaleDateString("en-GB")}`
+                            : "waiting for the family"}
+                    </span>
+                    {record.invoice.hosted_invoice_url && (
+                      <a className="ae-link" href={record.invoice.hosted_invoice_url} target="_blank" rel="noreferrer">
+                        Open pay link
+                      </a>
+                    )}
+                    {record.invoice.hosted_invoice_url && <CopyLink value={record.invoice.hosted_invoice_url} />}
+                  </div>
+                  {record.invoice.status !== "paid" &&
+                    (confirm?.id === record.id && confirm.kind === "void" ? (
+                      <div className="ar-confirm">
+                        <span>Void this invoice? The family will no longer be able to pay it.</span>
+                        <button type="button" className="panel-btn ar-danger" onClick={() => runInvoice(record, "void")}>
+                          Yes, void it
+                        </button>
+                        <button type="button" className="panel-btn panel-btn-quiet" onClick={() => setConfirm(null)}>
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="panel-btn panel-btn-quiet"
+                        disabled={working === record.id}
+                        onClick={() => setConfirm({ id: record.id, kind: "void" })}
+                      >
+                        {working === record.id ? "Working…" : "Void invoice"}
+                      </button>
+                    ))}
+                </div>
+              )}
+
+              {notice[record.id] && (
+                <p className={"ar-notice" + (notice[record.id].ok ? " is-ok" : " is-bad")}>{notice[record.id].text}</p>
+              )}
 
               {flags.length > 0 && (
                 <div className="ar-chips">

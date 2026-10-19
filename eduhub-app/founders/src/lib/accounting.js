@@ -69,6 +69,11 @@ export function describeEvent(e) {
     case "child_removed": return "removed a child";
     case "record_void": return "voided the record";
     case "amount_paid_changed": return "updated what we paid the school";
+    case "invoice_sent": return "sent the invoice";
+    case "invoice_voided": return "voided the invoice";
+    case "family_paid": return "family paid (Stripe)";
+    case "stripe_payment_mismatch": return "Stripe payment did not match the invoice";
+    case "stripe_paid_on_void_invoice": return "money arrived on a voided invoice";
     case "record_updated": return `updated ${EVENT_FIELD_LABEL[d.field] || d.field || "a detail"}`;
     default: return (e.kind || "changed something").replace(/_/g, " ");
   }
