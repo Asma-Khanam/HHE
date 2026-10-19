@@ -15,28 +15,31 @@ import {
 import { daysUntil } from "../lib/workflow";
 import "./AccountingPage.css";
 
-// Accounting, across every family (16 Oct 2026). Built around the questions a
-// consultant actually asks when they open it:
-//   1. How much of our money is out there right now?
-//   2. Who do I need to chase or fix today?
-//   3. For one family: what do they owe us, in total?
-//   4. Who has been working on these records?
-// So: money tiles and two bar charts on top, a grouped "do this today" list and
-// a recent-activity feed, then the detail in tabs (School application fees,
-// Package payments, By family) in the same table style as the Caseload.
-// Staff-only and read-only; every row opens that family's own Accounting tab.
+// Accounting, across every family. The page is one Overview with the money
+// the consultant should see first (headline numbers, what needs a person
+// today, how old the money is, margin), then one top-level tab per list:
+// School fees, Packages, Families, and Needs review when a Stripe event has
+// come back wrong. Every table row opens that family's own Accounting tab,
+// where the actual money work (invoice, void, mark paid) happens -- this page
+// never changes a record itself.
+//
+// The design mirrors the Caseload page: title + search up top, pill tabs
+// below, a single clean table per tab. The old middle grid of charts was
+// repeating what the KPI tiles already said and has been removed.
 
-// A school we paid, with no invoice sent yet, is our money out of the bank.
-// It is called out once it has waited this many days.
 const WAITING_RED_AFTER_DAYS = 3;
 const FAMILIES_SHOWN = 5;
 const SCHOOLS_PER_FAMILY = 2;
 
-const TABS = [
-  ["fees", "School application fees"],
-  ["package", "Package payments"],
-  ["family", "By family"],
+const PAGES = [
+  ["overview", "Overview"],
+  ["records", "School fees"],
+  ["packages", "Packages"],
+  ["families", "By family"],
+  ["review", "Needs review"],
 ];
+
+const LIST_PAGES = new Set(["records", "packages", "families"]);
 
 const FEE_FILTERS = [
   ["attention", "Needs attention"],
@@ -80,7 +83,6 @@ function packageState(p) {
   return { key: "upcoming", label: dueText(p.due_date), tone: "amber" };
 }
 
-// "Updated by Lyndsay · 2d ago", or who opened it when nothing else has happened.
 function lastChangeText(record) {
   if (!record.lastChange) return null;
   return `Updated by ${record.lastChange.by} · ${timeAgo(record.lastChange.at)}`;
@@ -134,7 +136,8 @@ export default function AccountingPage() {
   const [error, setError] = useState("");
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
-  const tab = TABS.some(([k]) => k === params.get("tab")) ? params.get("tab") : "fees";
+  const requested = params.get("view") || "overview";
+  const page = PAGES.some(([k]) => k === requested) ? requested : "overview";
   const [feeFilter, setFeeFilter] = useState("attention");
   const [packageFilter, setPackageFilter] = useState("attention");
   const [search, setSearch] = useState("");
@@ -153,7 +156,12 @@ export default function AccountingPage() {
     };
   }, []);
 
-  // School application fee records, with the maths done once.
+  // Clear the search when the tab changes, so a filter from one tab doesn't
+  // silently hide rows on another.
+  useEffect(() => {
+    setSearch("");
+  }, [page]);
+
   const rows = useMemo(() => {
     if (!data) return [];
     return data.records.map((record) => {
@@ -176,7 +184,6 @@ export default function AccountingPage() {
     return data.payments.map((p) => ({ p, state: packageState(p), family: data.familyNames[p.family_id] || "Family" }));
   }, [data]);
 
-  // Headline money.
   const totals = useMemo(() => {
     const byStatus = (s) => rows.filter((r) => r.record.status === s);
     const open = byStatus("open");
@@ -193,15 +200,9 @@ export default function AccountingPage() {
       schoolToCollect: amt(open, "charged") + amt(invoiced, "charged"),
       packageToCollect: sum(packOwed.map((x) => x.p), "amount"),
       collected: amt(paid, "charged") + sum(packPaid.map((x) => x.p), "amount"),
-      margin: amt(rows, "difference"),
-      marginEarned: amt(paid, "difference"),
-      openCharged: amt(open, "charged"),
-      invoicedCharged: amt(invoiced, "charged"),
-      paidCharged: amt(paid, "charged"),
     };
   }, [rows, packages]);
 
-  // "Do this today", grouped by family then by school, as short chips.
   const groups = useMemo(() => {
     const m = new Map();
     const ensure = (familyId, family) => {
@@ -236,7 +237,6 @@ export default function AccountingPage() {
 
   const totalItems = groups.reduce((n, g) => n + g.count, 0);
 
-  // What each family owes us across both kinds of payment.
   const families = useMemo(() => {
     const map = new Map();
     const get = (id, name) => {
@@ -260,9 +260,6 @@ export default function AccountingPage() {
     return [...map.values()].sort((a, b) => b.school + b.pack - (a.school + a.pack));
   }, [rows, packages]);
 
-  // Ageing: how old is the money we are waiting on. Buckets are days past the
-  // due date for invoices and packages, and days since we paid for records not
-  // yet invoiced.
   const aging = useMemo(() => {
     const empty = () => [0, 1, 2, 3].map(() => ({ amount: 0, count: 0 }));
     const owed = { fees: empty(), packages: empty() };
@@ -299,8 +296,6 @@ export default function AccountingPage() {
     return { owed, notInvoiced, oldest };
   }, [rows, packages]);
 
-  // The margin on school fees, worked only from children whose amount we know,
-  // so a missing amount cannot make the margin look bigger than it is.
   const margin = useMemo(() => {
     let paid = 0;
     let charged = 0;
@@ -325,16 +320,15 @@ export default function AccountingPage() {
 
   const stripeAlerts = (data?.stripeAlerts || []).filter((a) => !reviewed.includes(a.id));
 
-  // The strip at the top: only what needs a person, each one a shortcut to the list.
   const actions = useMemo(() => {
     const countFrom = (list) => list.slice(1).reduce((n, b) => n + b.count, 0);
     const oldest = totals.open.reduce((m, r) => Math.max(m, r.waiting || 0), 0);
     const list = [
-      { key: "open", count: totals.open.length, label: "paid to school, not invoiced", tone: oldest >= WAITING_RED_AFTER_DAYS ? "late" : "amber", tab: "fees", filter: "open" },
-      { key: "missing", count: margin.missing, label: "school amounts missing", tone: "late", tab: "fees", filter: "attention" },
-      { key: "inv", count: countFrom(aging.owed.fees), label: "invoices overdue", tone: "late", tab: "fees", filter: "invoiced" },
-      { key: "pack", count: countFrom(aging.owed.packages), label: "package payments overdue", tone: "late", tab: "package", filter: "attention" },
-      { key: "conf", count: packages.filter((x) => x.p.status === "submitted").length, label: "receipts to confirm", tone: "blue", tab: "package", filter: "attention" },
+      { key: "open", count: totals.open.length, label: "paid to school, not invoiced", tone: oldest >= WAITING_RED_AFTER_DAYS ? "late" : "amber", page: "records", filter: "open" },
+      { key: "missing", count: margin.missing, label: "school amounts missing", tone: "late", page: "records", filter: "attention" },
+      { key: "inv", count: countFrom(aging.owed.fees), label: "invoices overdue", tone: "late", page: "records", filter: "invoiced" },
+      { key: "pack", count: countFrom(aging.owed.packages), label: "package payments overdue", tone: "late", page: "packages", filter: "attention" },
+      { key: "conf", count: packages.filter((x) => x.p.status === "submitted").length, label: "receipts to confirm", tone: "blue", page: "packages", filter: "attention" },
     ];
     return list.filter((a) => a.count > 0);
   }, [totals, margin.missing, aging, packages]);
@@ -359,12 +353,45 @@ export default function AccountingPage() {
   const shownFees = rows
     .filter((r) => (feeFilter === "attention" ? r.flags.length > 0 : feeFilter === "all" ? true : r.record.status === feeFilter))
     .filter((r) => matches(`${r.family} ${r.record.school?.name || ""}`))
-    // Oldest waiting first, so the thing most at risk is always at the top.
     .sort((a, b) => (b.waiting ?? -1) - (a.waiting ?? -1));
   const shownPackages = packages
     .filter((x) => (packageFilter === "all" ? true : x.state.key === packageFilter))
     .filter((x) => matches(`${x.family} ${x.p.label}`));
   const shownFamilies = families.filter((f) => matches(f.name));
+
+  const pageCounts = {
+    overview: 0,
+    records: rows.length,
+    packages: packages.length,
+    families: families.length,
+    review: stripeAlerts.length,
+  };
+
+  const visiblePages = PAGES.filter(([k]) => k !== "review" || stripeAlerts.length > 0);
+
+  function pickPage(key) {
+    const next = new URLSearchParams(params);
+    if (key === "overview") next.delete("view");
+    else next.set("view", key);
+    setParams(next, { replace: true });
+    detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function goTo(view, filter) {
+    if (view === "records") setFeeFilter(filter);
+    else if (view === "packages") setPackageFilter(filter);
+    pickPage(view);
+  }
+
+  async function markReviewed(id) {
+    setAlertError("");
+    try {
+      await resolveStripeEvent(id);
+      setReviewed((list) => [...list, id]);
+    } catch {
+      setAlertError("Couldn't mark that as reviewed. Check that addendum 117 has been run.");
+    }
+  }
 
   if (error) {
     return (
@@ -385,30 +412,7 @@ export default function AccountingPage() {
 
   const oldestWaiting = totals.open.reduce((m, r) => Math.max(m, r.waiting || 0), 0);
   const visibleGroups = showAllActions ? groups : groups.slice(0, FAMILIES_SHOWN);
-
-  function goTo(tabKey, filter) {
-    if (tabKey === "fees") setFeeFilter(filter);
-    else setPackageFilter(filter);
-    pickTab(tabKey);
-    detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  async function markReviewed(id) {
-    setAlertError("");
-    try {
-      await resolveStripeEvent(id);
-      setReviewed((list) => [...list, id]);
-    } catch {
-      setAlertError("Couldn't mark that as reviewed. Check that addendum 117 has been run.");
-    }
-  }
-
-  function pickTab(key) {
-    const next = new URLSearchParams(params);
-    next.set("tab", key);
-    setParams(next, { replace: true });
-    setSearch("");
-  }
+  const actionCount = actions.reduce((n, a) => n + a.count, 0) + stripeAlerts.length;
 
   return (
     <div className="acct-page">
@@ -416,126 +420,173 @@ export default function AccountingPage() {
         <div>
           <h1 className="acct-title">Accounting</h1>
           <p className="acct-subtitle">
-            Where our money is, who needs chasing, and what each family owes. Open any row to work on it in that family's
+            Where our money is, who needs chasing, and what each family owes. Open any row to work on it in that family&apos;s
             Accounting tab.
           </p>
         </div>
+        {LIST_PAGES.has(page) && (
+          <input
+            className="acct-search"
+            type="search"
+            placeholder="Search family, school or item…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        )}
       </header>
 
-      <section className="acct-card acct-actionbar">
-        <div className="acct-card-head">
-          <h2>Needs action today</h2>
-          <span className="acct-card-sub">
-            {actions.length === 0 && stripeAlerts.length === 0
-              ? "All clear"
-              : `${actions.reduce((n, a) => n + a.count, 0) + stripeAlerts.length} item${actions.reduce((n, a) => n + a.count, 0) + stripeAlerts.length === 1 ? "" : "s"}`}
-          </span>
-        </div>
-        {actions.length === 0 && stripeAlerts.length === 0 ? (
-          <p className="acct-empty">Nothing is missing, overdue or waiting on us.</p>
-        ) : (
-          <div className="acct-action-tiles">
-            {actions.map((a) => (
-              <button key={a.key} type="button" className={"acct-action-tile is-" + a.tone} onClick={() => goTo(a.tab, a.filter)}>
-                <strong>{a.count}</strong>
-                <span>{a.label}</span>
-              </button>
-            ))}
-            {stripeAlerts.length > 0 && (
-              <div className="acct-action-tile is-late is-static">
-                <strong>{stripeAlerts.length}</strong>
-                <span>Stripe payment{stripeAlerts.length === 1 ? "" : "s"} need a look</span>
-              </div>
-            )}
-          </div>
-        )}
-        {stripeAlerts.length > 0 && (
-          <ul className="acct-stripe-alerts">
-            {stripeAlerts.map((a) => {
-              const inv = data.invoices.find((i) => i.stripe_invoice_id === a.stripe_invoice_id);
-              return (
-                <li key={a.id}>
-                  <div>
-                    <strong>{a.outcome === "mismatch" ? "Payment did not match the invoice" : a.outcome === "paid_but_void" ? "Money arrived on a voided invoice" : "Stripe payment needs a look"}</strong>
-                    <span>{a.detail || a.type} · {timeAgo(a.received_at)}</span>
-                  </div>
-                  {inv && (
-                    <button type="button" className="acct-open" onClick={() => navigate(familyLink(inv.family_id))}>
-                      Open family
-                    </button>
-                  )}
-                  <button type="button" className="acct-open" onClick={() => markReviewed(a.id)}>
-                    Mark reviewed
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {alertError && <p className="acct-error">{alertError}</p>}
-      </section>
-
-      <div className="acct-stats">
-        <div className={"acct-stat acct-stat--amber" + (oldestWaiting >= WAITING_RED_AFTER_DAYS ? " is-risk" : "")}>
-          <span className="acct-stat-label">Out of pocket</span>
-          <strong>{moneyRound(totals.outOfPocket)}</strong>
-          <em>Paid to schools, not yet recovered</em>
-        </div>
-        <div className="acct-stat acct-stat--blue">
-          <span className="acct-stat-label">To collect</span>
-          <strong>{moneyRound(totals.schoolToCollect + totals.packageToCollect)}</strong>
-          <em>
-            {moneyRound(totals.schoolToCollect)} school fees · {moneyRound(totals.packageToCollect)} packages
-          </em>
-        </div>
-        <div className="acct-stat acct-stat--green is-good">
-          <span className="acct-stat-label">Collected</span>
-          <strong>{moneyRound(totals.collected)}</strong>
-          <em>School fees and packages paid</em>
-        </div>
-        <div className="acct-stat acct-stat--gold">
-          <span className="acct-stat-label">Margin on school fees</span>
-          <strong>{moneyRound(totals.margin)}</strong>
-          <em>{moneyRound(totals.marginEarned)} earned so far · before Stripe's fee</em>
-        </div>
+      <div className="acct-pills" role="tablist" ref={detailRef}>
+        {visiblePages.map(([key, label]) => {
+          const count = pageCounts[key];
+          const isReview = key === "review";
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={page === key}
+              className={"acct-pill" + (page === key ? " is-active" : "") + (isReview ? " is-review" : "")}
+              onClick={() => pickPage(key)}
+            >
+              {label}
+              {count > 0 && <span className="acct-pill-count">{count}</span>}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="acct-grid">
-        <div className="acct-col">
-          <StageCard
-            title="School fees: where the money is"
-            sub="What we charge families, by stage"
-            empty="No school fees paid by HHE yet."
-            stages={[
-              { key: "open", label: "School paid, not invoiced", amount: totals.openCharged, count: totals.open.length },
-              { key: "invoiced", label: "Invoiced, waiting for the family", amount: totals.invoicedCharged, count: totals.invoiced.length },
-              { key: "paid", label: "Family paid", amount: totals.paidCharged, count: totals.paid.length },
-            ]}
-          />
-          <StageCard
-            title="Package payments: where the money is"
-            sub="Registration, deposits and services"
-            empty="No package payments yet."
-            stages={[
-              { key: "open", label: "Waiting for the family", amount: sum(packages.filter((x) => x.p.status === "unpaid").map((x) => x.p), "amount"), count: packages.filter((x) => x.p.status === "unpaid").length },
-              { key: "invoiced", label: "Receipt uploaded, confirm it", amount: sum(packages.filter((x) => x.p.status === "submitted").map((x) => x.p), "amount"), count: packages.filter((x) => x.p.status === "submitted").length },
-              { key: "paid", label: "Paid", amount: sum(packages.filter((x) => x.p.status === "paid").map((x) => x.p), "amount"), count: packages.filter((x) => x.p.status === "paid").length },
-            ]}
-          />
+      {page === "overview" && (
+        <div className="acct-overview">
+          {oldestWaiting >= WAITING_RED_AFTER_DAYS && (
+            <div className="acct-risk-banner">
+              <strong>Attention:</strong> the oldest payment waiting to be invoiced is {oldestWaiting} day{oldestWaiting === 1 ? "" : "s"} old. Open School fees to see which.
+            </div>
+          )}
 
-        </div>
-
-        <section className="acct-card acct-today">
-          <div className="acct-card-head">
-            <h2>Fix by family</h2>
-            <span className="acct-card-sub">
-              {totalItems === 0 ? "All clear" : `${groups.length} famil${groups.length === 1 ? "y" : "ies"} · ${totalItems} item${totalItems === 1 ? "" : "s"}`}
-            </span>
+          <div className="acct-stats">
+            <div className={"acct-stat acct-stat--amber" + (oldestWaiting >= WAITING_RED_AFTER_DAYS ? " is-risk" : "")}>
+              <span className="acct-stat-label">Out of pocket</span>
+              <strong>{moneyRound(totals.outOfPocket)}</strong>
+              <em>Paid to schools, not yet recovered</em>
+            </div>
+            <div className="acct-stat acct-stat--blue">
+              <span className="acct-stat-label">To collect</span>
+              <strong>{moneyRound(totals.schoolToCollect + totals.packageToCollect)}</strong>
+              <em>
+                {moneyRound(totals.schoolToCollect)} school fees · {moneyRound(totals.packageToCollect)} packages
+              </em>
+            </div>
+            <div className="acct-stat acct-stat--green is-good">
+              <span className="acct-stat-label">Collected</span>
+              <strong>{moneyRound(totals.collected)}</strong>
+              <em>School fees and packages paid</em>
+            </div>
+            <div className="acct-stat acct-stat--gold">
+              <span className="acct-stat-label">Margin earned</span>
+              <strong>{moneyRound(margin.earned)}</strong>
+              <em>
+                {moneyRound(margin.pending)} still to come · before Stripe&apos;s fee
+              </em>
+            </div>
           </div>
-          {totalItems === 0 ? (
-            <p className="acct-empty">Nothing is missing, overdue or waiting on us.</p>
-          ) : (
-            <>
+
+          <section className={"acct-card" + (actionCount === 0 ? " is-empty" : "")}>
+            <div className="acct-card-head">
+              <h2>Needs action today</h2>
+              <span className="acct-card-sub">
+                {actionCount === 0 ? "All clear" : `${actionCount} item${actionCount === 1 ? "" : "s"}`}
+              </span>
+            </div>
+            {actionCount === 0 ? (
+              <p className="acct-empty">Nothing missing, overdue or waiting on us.</p>
+            ) : (
+              <div className="acct-action-tiles">
+                {actions.map((a) => (
+                  <button key={a.key} type="button" className={"acct-action-tile is-" + a.tone} onClick={() => goTo(a.page, a.filter)}>
+                    <strong>{a.count}</strong>
+                    <span>{a.label}</span>
+                  </button>
+                ))}
+                {stripeAlerts.length > 0 && (
+                  <button type="button" className="acct-action-tile is-late" onClick={() => pickPage("review")}>
+                    <strong>{stripeAlerts.length}</strong>
+                    <span>Stripe payment{stripeAlerts.length === 1 ? "" : "s"} to review</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+
+          <div className="acct-grid">
+            <section className="acct-card">
+              <div className="acct-card-head">
+                <h2>How old is the money we are waiting on</h2>
+                <span className="acct-card-sub">
+                  {aging.oldest
+                    ? `Oldest: ${aging.oldest.family} · ${aging.oldest.what} · ${aging.oldest.days}d`
+                    : "Nothing is late"}
+                </span>
+              </div>
+              <AgingTable
+                title="Owed by families (days past due)"
+                heads={["Not due yet", "1–7 days", "8–14 days", "15+ days"]}
+                lines={[
+                  ["School fees invoiced", aging.owed.fees],
+                  ["Package payments", aging.owed.packages],
+                ]}
+              />
+              <AgingTable
+                title="Paid to schools, not invoiced (days since we paid)"
+                heads={["0–3 days", "4–7 days", "8–14 days", "15+ days"]}
+                lines={[["School fees", aging.notInvoiced]]}
+              />
+            </section>
+
+            <section className="acct-card">
+              <div className="acct-card-head">
+                <h2>Margin on school fees</h2>
+                <span className="acct-card-sub">
+                  {margin.children} child{margin.children === 1 ? "" : "ren"} · before Stripe&apos;s fee
+                </span>
+              </div>
+              <div className="acct-margin">
+                <div>
+                  <span>We paid schools</span>
+                  <strong>{moneyRound(margin.paid)}</strong>
+                </div>
+                <div>
+                  <span>We charge families</span>
+                  <strong>{moneyRound(margin.charged)}</strong>
+                </div>
+                <div className="is-total">
+                  <span>Margin</span>
+                  <strong>{moneyRound(margin.total)}</strong>
+                </div>
+              </div>
+              <div className="acct-margin-bar" aria-hidden="true">
+                <i style={{ width: margin.total > 0 ? `${Math.max(0, Math.min(100, (margin.earned / margin.total) * 100))}%` : "0%" }} />
+              </div>
+              <p className="acct-margin-foot">
+                <strong>{moneyRound(margin.earned)}</strong> earned (family has paid) ·{" "}
+                <strong>{moneyRound(margin.pending)}</strong> still to come · average{" "}
+                <strong>{moneyRound(margin.perChild)}</strong> per child
+              </p>
+              {margin.missing > 0 && (
+                <p className="acct-warn">
+                  {margin.missing} child{margin.missing === 1 ? "" : "ren"} {margin.missing === 1 ? "has" : "have"} no school amount yet, so the margin here is not counting them.
+                </p>
+              )}
+            </section>
+          </div>
+
+          {groups.length > 0 && (
+            <section className="acct-card acct-today">
+              <div className="acct-card-head">
+                <h2>Fix by family</h2>
+                <span className="acct-card-sub">
+                  {groups.length} famil{groups.length === 1 ? "y" : "ies"} · {totalItems} item{totalItems === 1 ? "" : "s"}
+                </span>
+              </div>
               <ul className="acct-actions">
                 {visibleGroups.map((g) => (
                   <li key={g.familyId} className={"acct-action" + (g.late ? " is-late" : "")}>
@@ -569,7 +620,9 @@ export default function AccountingPage() {
                         </div>
                       )}
                       {g.schools.length > SCHOOLS_PER_FAMILY && (
-                        <span className="acct-action-more">+ {g.schools.length - SCHOOLS_PER_FAMILY} more school{g.schools.length - SCHOOLS_PER_FAMILY === 1 ? "" : "s"} on their tab</span>
+                        <span className="acct-action-more">
+                          + {g.schools.length - SCHOOLS_PER_FAMILY} more school{g.schools.length - SCHOOLS_PER_FAMILY === 1 ? "" : "s"} on their tab
+                        </span>
                       )}
                     </div>
                     <button type="button" className="acct-open" onClick={() => navigate(familyLink(g.familyId))}>
@@ -583,292 +636,205 @@ export default function AccountingPage() {
                   {showAllActions ? "Show fewer" : `Show all ${groups.length} families`}
                 </button>
               )}
-            </>
+            </section>
           )}
-        </section>
-      </div>
+        </div>
+      )}
 
-      <div className="acct-grid">
-        <section className="acct-card">
-          <div className="acct-card-head">
-            <h2>Margin on school fees</h2>
-            <span className="acct-card-sub">
-              {margin.children} child{margin.children === 1 ? "" : "ren"} · before Stripe's fee
-            </span>
-          </div>
-          <div className="acct-margin">
-            <div>
-              <span>We paid schools</span>
-              <strong>{moneyRound(margin.paid)}</strong>
-            </div>
-            <div>
-              <span>We charge families</span>
-              <strong>{moneyRound(margin.charged)}</strong>
-            </div>
-            <div className="is-total">
-              <span>Margin</span>
-              <strong>{moneyRound(margin.total)}</strong>
-            </div>
-          </div>
-          <div className="acct-margin-bar" aria-hidden="true">
-            <i style={{ width: margin.total > 0 ? `${Math.max(0, Math.min(100, (margin.earned / margin.total) * 100))}%` : "0%" }} />
-          </div>
-          <p className="acct-margin-foot">
-            <strong>{moneyRound(margin.earned)}</strong> earned (family has paid) · <strong>{moneyRound(margin.pending)}</strong> still to come ·
-            average <strong>{moneyRound(margin.perChild)}</strong> per child
-          </p>
-          {margin.missing > 0 && (
-            <p className="acct-warn">
-              {margin.missing} child{margin.missing === 1 ? "" : "ren"} {margin.missing === 1 ? "has" : "have"} no school amount yet, so this margin
-              is not counting them.
-            </p>
-          )}
-        </section>
-
-        <section className="acct-card">
-          <div className="acct-card-head">
-            <h2>How old is the money we are waiting on</h2>
-            <span className="acct-card-sub">
-              {aging.oldest
-                ? `Oldest: ${aging.oldest.family}, ${aging.oldest.what}, ${aging.oldest.days} day${aging.oldest.days === 1 ? "" : "s"}`
-                : "Nothing is late"}
-            </span>
-          </div>
-          <AgingTable
-            title="Owed by families (days past due)"
-            heads={["Not due yet", "1–7 days", "8–14 days", "15+ days"]}
-            lines={[
-              ["School fees invoiced", aging.owed.fees],
-              ["Package payments", aging.owed.packages],
-            ]}
-          />
-          <AgingTable
-            title="Paid to schools, not invoiced (days since we paid)"
-            heads={["0–3 days", "4–7 days", "8–14 days", "15+ days"]}
-            lines={[["School fees", aging.notInvoiced]]}
-          />
-        </section>
-      </div>
-
-      <section className="acct-detail" ref={detailRef}>
-        <div className="acct-toolbar">
-          <div className="acct-pills" role="tablist">
-            {TABS.map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={tab === key}
-                className={"acct-pill" + (tab === key ? " is-active" : "")}
-                onClick={() => pickTab(key)}
-              >
-                {label}
-                <span className="acct-pill-count">
-                  {key === "fees" ? rows.length : key === "package" ? packages.length : families.length}
-                </span>
+      {page === "records" && (
+        <div className="acct-list">
+          <div className="acct-filters">
+            {FEE_FILTERS.map(([key, label]) => (
+              <button key={key} type="button" className={"acct-filter" + (feeFilter === key ? " is-active" : "")} onClick={() => setFeeFilter(key)}>
+                {label} <span>{feeCounts[key]}</span>
               </button>
             ))}
           </div>
-          <input
-            className="acct-search"
-            type="search"
-            placeholder="Search family, school or item…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        {tab === "fees" && (
-          <>
-            <div className="acct-filters">
-              {FEE_FILTERS.map(([key, label]) => (
-                <button key={key} type="button" className={"acct-filter" + (feeFilter === key ? " is-active" : "")} onClick={() => setFeeFilter(key)}>
-                  {label} <span>{feeCounts[key]}</span>
-                </button>
-              ))}
-            </div>
-            {shownFees.length === 0 ? (
-              <p className="acct-empty">{feeFilter === "attention" ? "Nothing is missing. Every record is complete." : "Nothing here."}</p>
-            ) : (
-              <div className="acct-table-card">
-                <table className="acct-ctable">
-                  <thead>
-                    <tr>
-                      <th>Family</th>
-                      <th>School and children</th>
-                      <th className="num">We paid</th>
-                      <th className="num">We charge</th>
-                      <th className="num">Difference</th>
-                      <th>Status</th>
+          {shownFees.length === 0 ? (
+            <p className="acct-empty">{feeFilter === "attention" ? "Nothing is missing. Every record is complete." : "Nothing here."}</p>
+          ) : (
+            <div className="acct-table-card">
+              <table className="acct-ctable">
+                <thead>
+                  <tr>
+                    <th>Family</th>
+                    <th>School and children</th>
+                    <th className="num">We paid</th>
+                    <th className="num">We charge</th>
+                    <th className="num">Difference</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shownFees.map((r) => (
+                    <tr key={r.record.id} onClick={() => navigate(familyLink(r.record.family_id))}>
+                      <td>
+                        <span className="acct-ctable-name">{r.family}</span>
+                        {lastChangeText(r.record) && <span className="acct-ctable-sub">{lastChangeText(r.record)}</span>}
+                      </td>
+                      <td>
+                        <div className="acct-cell-main">{r.record.school?.name || "School"}</div>
+                        <div className="acct-cell-sub">{r.items.map((i) => childName(i.child)).join(", ") || "No children"}</div>
+                        {r.flags.length > 0 && (
+                          <span className="acct-chips acct-chips-tight">
+                            {r.flags.map((f) => (
+                              <span key={f} className="acct-chip is-amber">
+                                {f}
+                              </span>
+                            ))}
+                          </span>
+                        )}
+                      </td>
+                      <td className="num">{money(r.paid)}</td>
+                      <td className="num">{money(r.charged)}</td>
+                      <td className="num">{money(r.difference)}</td>
+                      <td>
+                        <span className={"acct-pill-badge is-" + r.record.status}>{STATUS_LABEL[r.record.status] || r.record.status}</span>
+                        {r.waiting !== null && (
+                          <div className={"acct-cell-sub" + (r.waiting >= WAITING_RED_AFTER_DAYS ? " is-risk" : "")}>
+                            {r.waiting === 0 ? "Paid today" : `Waiting ${r.waiting} day${r.waiting === 1 ? "" : "s"}`}
+                          </div>
+                        )}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {shownFees.map((r) => (
-                      <tr key={r.record.id} onClick={() => navigate(familyLink(r.record.family_id))}>
-                        <td>
-                          <span className="acct-ctable-name">{r.family}</span>
-                          {lastChangeText(r.record) && <span className="acct-ctable-sub">{lastChangeText(r.record)}</span>}
-                        </td>
-                        <td>
-                          <div className="acct-cell-main">{r.record.school?.name || "School"}</div>
-                          <div className="acct-cell-sub">{r.items.map((i) => childName(i.child)).join(", ") || "No children"}</div>
-                          {r.flags.length > 0 && (
-                            <span className="acct-chips acct-chips-tight">
-                              {r.flags.map((f) => (
-                                <span key={f} className="acct-chip is-amber">
-                                  {f}
-                                </span>
-                              ))}
-                            </span>
-                          )}
-                        </td>
-                        <td className="num">{money(r.paid)}</td>
-                        <td className="num">{money(r.charged)}</td>
-                        <td className="num">{money(r.difference)}</td>
-                        <td>
-                          <span className={"acct-pill-badge is-" + r.record.status}>{STATUS_LABEL[r.record.status] || r.record.status}</span>
-                          {r.waiting !== null && (
-                            <div className={"acct-cell-sub" + (r.waiting >= WAITING_RED_AFTER_DAYS ? " is-risk" : "")}>
-                              {r.waiting === 0 ? "Paid today" : `Waiting ${r.waiting} day${r.waiting === 1 ? "" : "s"}`}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="acct-table-foot">Click a row to open that family's Accounting tab.</p>
-              </div>
-            )}
-          </>
-        )}
-
-        {tab === "package" && (
-          <>
-            <div className="acct-filters">
-              {PACKAGE_FILTERS.map(([key, label]) => (
-                <button key={key} type="button" className={"acct-filter" + (packageFilter === key ? " is-active" : "")} onClick={() => setPackageFilter(key)}>
-                  {label} <span>{packageCounts[key]}</span>
-                </button>
-              ))}
+                  ))}
+                </tbody>
+              </table>
+              <p className="acct-table-foot">Click a row to open that family&apos;s Accounting tab.</p>
             </div>
-            {shownPackages.length === 0 ? (
-              <p className="acct-empty">{packageFilter === "attention" ? "Nothing overdue and no receipts waiting." : "Nothing here."}</p>
-            ) : (
-              <div className="acct-table-card">
-                <table className="acct-ctable">
-                  <thead>
-                    <tr>
-                      <th>Family</th>
-                      <th>Item</th>
-                      <th className="num">Amount</th>
-                      <th>Due</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {shownPackages.map((x) => (
-                      <tr key={x.p.id} onClick={() => navigate(familyLink(x.p.family_id))}>
-                        <td>
-                          <span className="acct-ctable-name">{x.family}</span>
-                        </td>
-                        <td>{x.p.label}</td>
-                        <td className="num">{money(x.p.amount, x.p.currency || "AED")}</td>
-                        <td>{x.p.due_date ? shortDate(x.p.due_date) : "—"}</td>
-                        <td>
-                          <span className={"acct-pill-badge is-" + x.state.tone}>{x.state.label}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="acct-table-foot">Click a row to open that family's Accounting tab.</p>
-              </div>
-            )}
-          </>
-        )}
-
-        {tab === "family" && (
-          <>
-            {shownFamilies.length === 0 ? (
-              <p className="acct-empty">No family owes us anything right now.</p>
-            ) : (
-              <div className="acct-table-card">
-                <table className="acct-ctable">
-                  <thead>
-                    <tr>
-                      <th>Family</th>
-                      <th className="num">School fees owed</th>
-                      <th className="num">Packages owed</th>
-                      <th className="num">Total owed</th>
-                      <th>Note</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {shownFamilies.map((f) => (
-                      <tr key={f.id} onClick={() => navigate(familyLink(f.id))}>
-                        <td>
-                          <span className="acct-ctable-name">{f.name}</span>
-                        </td>
-                        <td className="num">{money(f.school)}</td>
-                        <td className="num">{money(f.pack)}</td>
-                        <td className="num acct-strong">{money(f.school + f.pack)}</td>
-                        <td>
-                          {f.worst ? (
-                            <span className="acct-pill-badge is-late">
-                              Overdue {f.worst} day{f.worst === 1 ? "" : "s"}
-                            </span>
-                          ) : (
-                            <span className="acct-cell-sub">
-                              {f.items} open item{f.items === 1 ? "" : "s"}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="acct-table-foot">What each family still owes us, largest first. Click a row to open their tab.</p>
-              </div>
-            )}
-          </>
-        )}
-      </section>
-    </div>
-  );
-}
-
-// One "where is the money" card: a small vertical bar chart.
-function StageCard({ title, sub, empty, stages }) {
-  const total = sum(stages, "amount");
-  const max = Math.max(1, ...stages.map((st) => st.amount));
-  return (
-    <section className="acct-card">
-      <div className="acct-card-head">
-        <h2>{title}</h2>
-        <span className="acct-card-sub">{sub}</span>
-      </div>
-      {total === 0 ? (
-        <p className="acct-empty">{empty}</p>
-      ) : (
-        <div className="acct-chart" role="img" aria-label={title}>
-          {stages.map((st) => (
-            <div key={st.key} className="acct-col-bar">
-              <span className="acct-col-val">{moneyRound(st.amount)}</span>
-              <div className="acct-col-track">
-                <div
-                  className={"acct-col-fill is-" + st.key}
-                  style={{ height: `${Math.max(st.amount > 0 ? 6 : 0, (st.amount / max) * 100)}%` }}
-                />
-              </div>
-              <div className="acct-col-foot">
-                <span className="acct-col-count">{st.count}</span>
-                <span className="acct-col-label">{st.label}</span>
-              </div>
-            </div>
-          ))}
+          )}
         </div>
       )}
-    </section>
+
+      {page === "packages" && (
+        <div className="acct-list">
+          <div className="acct-filters">
+            {PACKAGE_FILTERS.map(([key, label]) => (
+              <button key={key} type="button" className={"acct-filter" + (packageFilter === key ? " is-active" : "")} onClick={() => setPackageFilter(key)}>
+                {label} <span>{packageCounts[key]}</span>
+              </button>
+            ))}
+          </div>
+          {shownPackages.length === 0 ? (
+            <p className="acct-empty">{packageFilter === "attention" ? "Nothing overdue and no receipts waiting." : "Nothing here."}</p>
+          ) : (
+            <div className="acct-table-card">
+              <table className="acct-ctable">
+                <thead>
+                  <tr>
+                    <th>Family</th>
+                    <th>Item</th>
+                    <th className="num">Amount</th>
+                    <th>Due</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shownPackages.map((x) => (
+                    <tr key={x.p.id} onClick={() => navigate(familyLink(x.p.family_id))}>
+                      <td>
+                        <span className="acct-ctable-name">{x.family}</span>
+                      </td>
+                      <td>{x.p.label}</td>
+                      <td className="num">{money(x.p.amount, x.p.currency || "AED")}</td>
+                      <td>{x.p.due_date ? shortDate(x.p.due_date) : "—"}</td>
+                      <td>
+                        <span className={"acct-pill-badge is-" + x.state.tone}>{x.state.label}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="acct-table-foot">Click a row to open that family&apos;s Accounting tab.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {page === "families" && (
+        <div className="acct-list">
+          {shownFamilies.length === 0 ? (
+            <p className="acct-empty">No family owes us anything right now.</p>
+          ) : (
+            <div className="acct-table-card">
+              <table className="acct-ctable">
+                <thead>
+                  <tr>
+                    <th>Family</th>
+                    <th className="num">School fees owed</th>
+                    <th className="num">Packages owed</th>
+                    <th className="num">Total owed</th>
+                    <th>Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shownFamilies.map((f) => (
+                    <tr key={f.id} onClick={() => navigate(familyLink(f.id))}>
+                      <td>
+                        <span className="acct-ctable-name">{f.name}</span>
+                      </td>
+                      <td className="num">{money(f.school)}</td>
+                      <td className="num">{money(f.pack)}</td>
+                      <td className="num acct-strong">{money(f.school + f.pack)}</td>
+                      <td>
+                        {f.worst ? (
+                          <span className="acct-pill-badge is-late">
+                            Overdue {f.worst} day{f.worst === 1 ? "" : "s"}
+                          </span>
+                        ) : (
+                          <span className="acct-cell-sub">
+                            {f.items} open item{f.items === 1 ? "" : "s"}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="acct-table-foot">What each family still owes us, largest first. Click a row to open their tab.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {page === "review" && (
+        <div className="acct-list">
+          {alertError && <p className="acct-error">{alertError}</p>}
+          {stripeAlerts.length === 0 ? (
+            <p className="acct-empty">No Stripe payments need a look. The payment webhook will drop anything here if it does not match the invoice.</p>
+          ) : (
+            <ul className="acct-stripe-alerts">
+              {stripeAlerts.map((a) => {
+                const inv = data.invoices.find((i) => i.stripe_invoice_id === a.stripe_invoice_id);
+                const title =
+                  a.outcome === "mismatch"
+                    ? "Payment did not match the invoice"
+                    : a.outcome === "paid_but_void"
+                      ? "Money arrived on a voided invoice"
+                      : a.outcome === "unknown_invoice"
+                        ? "Payment for an invoice we don't have"
+                        : "Stripe payment needs a look";
+                return (
+                  <li key={a.id}>
+                    <div>
+                      <strong>{title}</strong>
+                      <span>{a.detail || a.type} · {timeAgo(a.received_at)}</span>
+                    </div>
+                    {inv && (
+                      <button type="button" className="acct-open" onClick={() => navigate(familyLink(inv.family_id))}>
+                        Open family
+                      </button>
+                    )}
+                    <button type="button" className="acct-open" onClick={() => markReviewed(a.id)}>
+                      Mark reviewed
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
