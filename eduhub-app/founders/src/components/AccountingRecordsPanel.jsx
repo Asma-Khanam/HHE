@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import AutosaveField from "./Autosave";
 import { listAccountingRecords, updateAccountingRecord, createRecordInvoice, voidRecordInvoice } from "../lib/staffData";
-import { STATUS_LABEL, money, childName, sum, liveItems, recordFlags, timeAgo } from "../lib/accounting";
+import { STATUS_LABEL, money, childName, sum, liveItems, recordFlags, invoiceBlockers, timeAgo } from "../lib/accounting";
 import "./panels.css";
 import "./AccountingRecordsPanel.css";
 
@@ -119,6 +119,7 @@ export default function AccountingRecordsPanel({ familyId, onGoToApplications })
           const open = record.status === "open";
           const cur = record.currency || "AED";
           const flags = recordFlags(record);
+          const blockers = open ? invoiceBlockers(record) : [];
 
           return (
             <div key={record.id} className="ar-card">
@@ -214,7 +215,19 @@ export default function AccountingRecordsPanel({ familyId, onGoToApplications })
 
               {open && items.length > 0 && !record.invoice && (
                 <div className="ar-invoice">
-                  {confirm?.id === record.id && confirm.kind === "invoice" ? (
+                  {blockers.length > 0 ? (
+                    <div className="ar-blockers">
+                      <button type="button" className="panel-btn panel-btn-primary" disabled>
+                        {`Invoice the family · ${money(sum(items, "amount_charged"), cur)}`}
+                      </button>
+                      <p className="ar-blockers-title">Before you can invoice:</p>
+                      <ul>
+                        {blockers.map((b) => (
+                          <li key={b}>{b}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : confirm?.id === record.id && confirm.kind === "invoice" ? (
                     <div className="ar-confirm">
                       <span>
                         Send the family an invoice for <strong>{money(sum(items, "amount_charged"), cur)}</strong> (

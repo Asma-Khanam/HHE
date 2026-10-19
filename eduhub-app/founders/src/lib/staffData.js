@@ -2384,7 +2384,7 @@ export async function updateAccountingRecord(recordId, field, value, previous) {
 // record (with its children and evidence), the parents' names to label each
 // family, and every package payment (owed, waiting to be confirmed, or paid).
 export async function getAccountingOverview() {
-  const [records, parents, payments, events, staff] = await Promise.all([
+  const [records, parents, payments, events, staff, invoices, stripeAlerts] = await Promise.all([
     supabase
       .from("accounting_records")
       .select(
@@ -2407,7 +2407,23 @@ export async function getAccountingOverview() {
       .then(unwrap)
       .catch(() => []),
     supabase.from("staff").select("user_id, full_name, email").then(unwrap).catch(() => []),
+    // Stripe (addenda 116/117). Quietly empty if that SQL isn't run yet.
+    supabase
+      .from("parent_invoices")
+      .select("record_id, family_id, stripe_invoice_id, status, amount, currency, due_date, paid_at")
+      .in("status", ["open", "paid", "needs_review"])
+      .then(unwrap)
+      .catch(() => []),
+    supabase
+      .from("stripe_events")
+      .select("id, type, outcome, detail, stripe_invoice_id, received_at")
+      .eq("needs_attention", true)
+      .order("received_at", { ascending: false })
+      .limit(20)
+      .then(unwrap)
+      .catch(() => []),
   ]);
+  const invoiceByRecord = Object.fromEntries((invoices || []).map((i) => [i.record_id, i]));
   const byFamily = {};
   (parents || []).forEach((p) => {
     if (p.full_name) (byFamily[p.family_id] ||= []).push(p.full_name);
@@ -2422,8 +2438,14 @@ export async function getAccountingOverview() {
   });
   const withChange = (records || []).map((r) => {
     const e = lastByRecord[r.id];
-    return { ...r, lastChange: e ? { by: nameOf(e.actor), at: e.created_at } : null };
+    return { ...r, invoice: invoiceByRecord[r.id] || null, lastChange: e ? { by: nameOf(e.actor), at: e.created_at } : null };
   });
 
-  return { records: withChange, payments: payments || [], familyNames };
+  return { records: withChange, payments: payments || [], familyNames, invoices: invoices || [], stripeAlerts: stripeAlerts || [] };
+}
+
+// Mark a flagged Stripe event as looked at (addendum 117). Stays in the table.
+export async function resolveStripeEvent(eventId) {
+  const { error } = await supabase.rpc("resolve_stripe_event", { p_event_id: eventId });
+  if (error) throw error;
 }

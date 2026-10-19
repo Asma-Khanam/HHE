@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { getAccountingOverview, friendlyError } from "../lib/staffData";
+import { getAccountingOverview, resolveStripeEvent, friendlyError } from "../lib/staffData";
 import {
   STATUS_LABEL,
   money,
@@ -86,6 +86,49 @@ function lastChangeText(record) {
   return `Updated by ${record.lastChange.by} · ${timeAgo(record.lastChange.at)}`;
 }
 
+// One small ageing table: rows of money, columns of how old it is. Late columns
+// turn red so a quick glance shows where the risk is.
+function AgingTable({ title, heads, lines }) {
+  return (
+    <div className="acct-aging">
+      <h3>{title}</h3>
+      <table>
+        <thead>
+          <tr>
+            <th />
+            {heads.map((h, i) => (
+              <th key={h} className={i >= 2 ? "is-late" : ""}>
+                {h}
+              </th>
+            ))}
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map(([label, buckets]) => (
+            <tr key={label}>
+              <td>{label}</td>
+              {buckets.map((b, i) => (
+                <td key={i} className={b.count && i >= 2 ? "is-late" : b.count ? "" : "is-zero"}>
+                  {b.count ? (
+                    <>
+                      {moneyRound(b.amount)}
+                      <em>{b.count}</em>
+                    </>
+                  ) : (
+                    "–"
+                  )}
+                </td>
+              ))}
+              <td className="is-total">{moneyRound(buckets.reduce((n, b) => n + b.amount, 0))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function AccountingPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -96,6 +139,9 @@ export default function AccountingPage() {
   const [packageFilter, setPackageFilter] = useState("attention");
   const [search, setSearch] = useState("");
   const [showAllActions, setShowAllActions] = useState(false);
+  const [reviewed, setReviewed] = useState([]);
+  const [alertError, setAlertError] = useState("");
+  const detailRef = useRef(null);
 
   useEffect(() => {
     let alive = true;
@@ -214,6 +260,85 @@ export default function AccountingPage() {
     return [...map.values()].sort((a, b) => b.school + b.pack - (a.school + a.pack));
   }, [rows, packages]);
 
+  // Ageing: how old is the money we are waiting on. Buckets are days past the
+  // due date for invoices and packages, and days since we paid for records not
+  // yet invoiced.
+  const aging = useMemo(() => {
+    const empty = () => [0, 1, 2, 3].map(() => ({ amount: 0, count: 0 }));
+    const owed = { fees: empty(), packages: empty() };
+    const notInvoiced = empty();
+    let oldest = null;
+    const lateBucket = (days) => (days <= 0 ? 0 : days <= 7 ? 1 : days <= 14 ? 2 : 3);
+    const waitBucket = (days) => (days <= 3 ? 0 : days <= 7 ? 1 : days <= 14 ? 2 : 3);
+    const add = (list, i, amount) => {
+      list[i].amount += Number(amount) || 0;
+      list[i].count += 1;
+    };
+    const note = (days, familyId, family, what) => {
+      if (days > 0 && (!oldest || days > oldest.days)) oldest = { days, familyId, family, what };
+    };
+    rows.forEach((r) => {
+      if (r.record.status === "open") {
+        const w = r.waiting ?? 0;
+        add(notInvoiced, waitBucket(w), r.charged);
+        note(w, r.record.family_id, r.family, "paid to school, not invoiced");
+      } else if (r.record.status === "invoiced") {
+        const d = daysUntil(r.record.invoice?.due_date);
+        const late = d === null ? 0 : -d;
+        add(owed.fees, lateBucket(late), r.record.invoice?.amount ?? r.charged);
+        note(late, r.record.family_id, r.family, "invoice overdue");
+      }
+    });
+    packages.forEach((x) => {
+      if (x.p.status !== "unpaid" && x.p.status !== "submitted") return;
+      const d = daysUntil(x.p.due_date);
+      const late = d === null ? 0 : -d;
+      add(owed.packages, lateBucket(late), x.p.amount);
+      note(late, x.p.family_id, x.family, `${x.p.label} overdue`);
+    });
+    return { owed, notInvoiced, oldest };
+  }, [rows, packages]);
+
+  // The margin on school fees, worked only from children whose amount we know,
+  // so a missing amount cannot make the margin look bigger than it is.
+  const margin = useMemo(() => {
+    let paid = 0;
+    let charged = 0;
+    let children = 0;
+    let missing = 0;
+    let earned = 0;
+    rows.forEach((r) =>
+      r.items.forEach((i) => {
+        if (i.amount_paid === null || i.amount_paid === undefined) {
+          missing += 1;
+          return;
+        }
+        paid += Number(i.amount_paid);
+        charged += Number(i.amount_charged);
+        children += 1;
+        if (r.record.status === "paid") earned += Number(i.amount_charged) - Number(i.amount_paid);
+      })
+    );
+    const total = charged - paid;
+    return { paid, charged, total, children, missing, earned, pending: total - earned, perChild: children ? total / children : 0 };
+  }, [rows]);
+
+  const stripeAlerts = (data?.stripeAlerts || []).filter((a) => !reviewed.includes(a.id));
+
+  // The strip at the top: only what needs a person, each one a shortcut to the list.
+  const actions = useMemo(() => {
+    const countFrom = (list) => list.slice(1).reduce((n, b) => n + b.count, 0);
+    const oldest = totals.open.reduce((m, r) => Math.max(m, r.waiting || 0), 0);
+    const list = [
+      { key: "open", count: totals.open.length, label: "paid to school, not invoiced", tone: oldest >= WAITING_RED_AFTER_DAYS ? "late" : "amber", tab: "fees", filter: "open" },
+      { key: "missing", count: margin.missing, label: "school amounts missing", tone: "late", tab: "fees", filter: "attention" },
+      { key: "inv", count: countFrom(aging.owed.fees), label: "invoices overdue", tone: "late", tab: "fees", filter: "invoiced" },
+      { key: "pack", count: countFrom(aging.owed.packages), label: "package payments overdue", tone: "late", tab: "package", filter: "attention" },
+      { key: "conf", count: packages.filter((x) => x.p.status === "submitted").length, label: "receipts to confirm", tone: "blue", tab: "package", filter: "attention" },
+    ];
+    return list.filter((a) => a.count > 0);
+  }, [totals, margin.missing, aging, packages]);
+
   const q = search.trim().toLowerCase();
   const matches = (text) => !q || text.toLowerCase().includes(q);
 
@@ -233,7 +358,9 @@ export default function AccountingPage() {
 
   const shownFees = rows
     .filter((r) => (feeFilter === "attention" ? r.flags.length > 0 : feeFilter === "all" ? true : r.record.status === feeFilter))
-    .filter((r) => matches(`${r.family} ${r.record.school?.name || ""}`));
+    .filter((r) => matches(`${r.family} ${r.record.school?.name || ""}`))
+    // Oldest waiting first, so the thing most at risk is always at the top.
+    .sort((a, b) => (b.waiting ?? -1) - (a.waiting ?? -1));
   const shownPackages = packages
     .filter((x) => (packageFilter === "all" ? true : x.state.key === packageFilter))
     .filter((x) => matches(`${x.family} ${x.p.label}`));
@@ -259,6 +386,23 @@ export default function AccountingPage() {
   const oldestWaiting = totals.open.reduce((m, r) => Math.max(m, r.waiting || 0), 0);
   const visibleGroups = showAllActions ? groups : groups.slice(0, FAMILIES_SHOWN);
 
+  function goTo(tabKey, filter) {
+    if (tabKey === "fees") setFeeFilter(filter);
+    else setPackageFilter(filter);
+    pickTab(tabKey);
+    detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function markReviewed(id) {
+    setAlertError("");
+    try {
+      await resolveStripeEvent(id);
+      setReviewed((list) => [...list, id]);
+    } catch {
+      setAlertError("Couldn't mark that as reviewed. Check that addendum 117 has been run.");
+    }
+  }
+
   function pickTab(key) {
     const next = new URLSearchParams(params);
     next.set("tab", key);
@@ -277,6 +421,59 @@ export default function AccountingPage() {
           </p>
         </div>
       </header>
+
+      <section className="acct-card acct-actionbar">
+        <div className="acct-card-head">
+          <h2>Needs action today</h2>
+          <span className="acct-card-sub">
+            {actions.length === 0 && stripeAlerts.length === 0
+              ? "All clear"
+              : `${actions.reduce((n, a) => n + a.count, 0) + stripeAlerts.length} item${actions.reduce((n, a) => n + a.count, 0) + stripeAlerts.length === 1 ? "" : "s"}`}
+          </span>
+        </div>
+        {actions.length === 0 && stripeAlerts.length === 0 ? (
+          <p className="acct-empty">Nothing is missing, overdue or waiting on us.</p>
+        ) : (
+          <div className="acct-action-tiles">
+            {actions.map((a) => (
+              <button key={a.key} type="button" className={"acct-action-tile is-" + a.tone} onClick={() => goTo(a.tab, a.filter)}>
+                <strong>{a.count}</strong>
+                <span>{a.label}</span>
+              </button>
+            ))}
+            {stripeAlerts.length > 0 && (
+              <div className="acct-action-tile is-late is-static">
+                <strong>{stripeAlerts.length}</strong>
+                <span>Stripe payment{stripeAlerts.length === 1 ? "" : "s"} need a look</span>
+              </div>
+            )}
+          </div>
+        )}
+        {stripeAlerts.length > 0 && (
+          <ul className="acct-stripe-alerts">
+            {stripeAlerts.map((a) => {
+              const inv = data.invoices.find((i) => i.stripe_invoice_id === a.stripe_invoice_id);
+              return (
+                <li key={a.id}>
+                  <div>
+                    <strong>{a.outcome === "mismatch" ? "Payment did not match the invoice" : a.outcome === "paid_but_void" ? "Money arrived on a voided invoice" : "Stripe payment needs a look"}</strong>
+                    <span>{a.detail || a.type} · {timeAgo(a.received_at)}</span>
+                  </div>
+                  {inv && (
+                    <button type="button" className="acct-open" onClick={() => navigate(familyLink(inv.family_id))}>
+                      Open family
+                    </button>
+                  )}
+                  <button type="button" className="acct-open" onClick={() => markReviewed(a.id)}>
+                    Mark reviewed
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {alertError && <p className="acct-error">{alertError}</p>}
+      </section>
 
       <div className="acct-stats">
         <div className={"acct-stat acct-stat--amber" + (oldestWaiting >= WAITING_RED_AFTER_DAYS ? " is-risk" : "")}>
@@ -330,7 +527,7 @@ export default function AccountingPage() {
 
         <section className="acct-card acct-today">
           <div className="acct-card-head">
-            <h2>Do this today</h2>
+            <h2>Fix by family</h2>
             <span className="acct-card-sub">
               {totalItems === 0 ? "All clear" : `${groups.length} famil${groups.length === 1 ? "y" : "ies"} · ${totalItems} item${totalItems === 1 ? "" : "s"}`}
             </span>
@@ -391,7 +588,69 @@ export default function AccountingPage() {
         </section>
       </div>
 
-      <section className="acct-detail">
+      <div className="acct-grid">
+        <section className="acct-card">
+          <div className="acct-card-head">
+            <h2>Margin on school fees</h2>
+            <span className="acct-card-sub">
+              {margin.children} child{margin.children === 1 ? "" : "ren"} · before Stripe's fee
+            </span>
+          </div>
+          <div className="acct-margin">
+            <div>
+              <span>We paid schools</span>
+              <strong>{moneyRound(margin.paid)}</strong>
+            </div>
+            <div>
+              <span>We charge families</span>
+              <strong>{moneyRound(margin.charged)}</strong>
+            </div>
+            <div className="is-total">
+              <span>Margin</span>
+              <strong>{moneyRound(margin.total)}</strong>
+            </div>
+          </div>
+          <div className="acct-margin-bar" aria-hidden="true">
+            <i style={{ width: margin.total > 0 ? `${Math.max(0, Math.min(100, (margin.earned / margin.total) * 100))}%` : "0%" }} />
+          </div>
+          <p className="acct-margin-foot">
+            <strong>{moneyRound(margin.earned)}</strong> earned (family has paid) · <strong>{moneyRound(margin.pending)}</strong> still to come ·
+            average <strong>{moneyRound(margin.perChild)}</strong> per child
+          </p>
+          {margin.missing > 0 && (
+            <p className="acct-warn">
+              {margin.missing} child{margin.missing === 1 ? "" : "ren"} {margin.missing === 1 ? "has" : "have"} no school amount yet, so this margin
+              is not counting them.
+            </p>
+          )}
+        </section>
+
+        <section className="acct-card">
+          <div className="acct-card-head">
+            <h2>How old is the money we are waiting on</h2>
+            <span className="acct-card-sub">
+              {aging.oldest
+                ? `Oldest: ${aging.oldest.family}, ${aging.oldest.what}, ${aging.oldest.days} day${aging.oldest.days === 1 ? "" : "s"}`
+                : "Nothing is late"}
+            </span>
+          </div>
+          <AgingTable
+            title="Owed by families (days past due)"
+            heads={["Not due yet", "1–7 days", "8–14 days", "15+ days"]}
+            lines={[
+              ["School fees invoiced", aging.owed.fees],
+              ["Package payments", aging.owed.packages],
+            ]}
+          />
+          <AgingTable
+            title="Paid to schools, not invoiced (days since we paid)"
+            heads={["0–3 days", "4–7 days", "8–14 days", "15+ days"]}
+            lines={[["School fees", aging.notInvoiced]]}
+          />
+        </section>
+      </div>
+
+      <section className="acct-detail" ref={detailRef}>
         <div className="acct-toolbar">
           <div className="acct-pills" role="tablist">
             {TABS.map(([key, label]) => (

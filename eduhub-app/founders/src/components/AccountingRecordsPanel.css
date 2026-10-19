@@ -26,3 +26,7 @@
 .ar-notice { margin: 10px 0 0; font-size: 0.85rem; padding: 8px 12px; border-radius: 8px; }
 .ar-notice.is-ok { background: #e8f4ea; color: #2c6a37; }
 .ar-notice.is-bad { background: #fbe9e9; color: #a3262a; }
+
+.ar-blockers { display: flex; flex-direction: column; gap: 6px; }
+.ar-blockers-title { margin: 6px 0 0; font-size: 0.84rem; font-weight: 600; color: #7a5410; }
+.ar-blockers ul { margin: 0; padding-left: 18px; font-size: 0.85rem; color: #7a5410; display: flex; flex-direction: column; gap: 2px; }

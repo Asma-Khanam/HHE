@@ -54,6 +54,19 @@ export function recordFlags(record) {
   return flags;
 }
 
+// What stops a record being invoiced yet. Mirrors prepare_record_invoice in the
+// database (addendum 117), which is the rule that cannot be bypassed.
+export function invoiceBlockers(record) {
+  const items = liveItems(record);
+  const out = [];
+  const noAmount = items.filter((i) => i.amount_paid === null || i.amount_paid === undefined);
+  if (noAmount.length) out.push(`Add what we paid the school for ${noAmount.map((i) => childName(i.child)).join(", ")}`);
+  if (!record.school_payment_method || !record.school_paid_at) out.push("Add how and when we paid the school");
+  const noProof = items.filter((i) => !i.fee?.payment_proof_path);
+  if (noProof.length) out.push(`Attach proof of payment (${items.length - noProof.length}/${items.length} done)`);
+  return out;
+}
+
 // The accounting log, in plain words. Who did what, from an accounting_events row.
 const EVENT_FIELD_LABEL = {
   name: "the record name",
