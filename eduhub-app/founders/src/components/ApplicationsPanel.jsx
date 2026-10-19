@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   createApplication,
   updateApplication,
+  deleteApplication,
+  createCaseNote,
   createSchool,
   listApplicationEvents,
   createApplicationEvent,
@@ -298,8 +300,9 @@ function OpenApplySynced({ application, items, fees, isOpenApply }) {
 }
 
 // Where each child has applied and how far along each application is.
-// Applications are never deleted from here -- a school that falls away is
-// set to Withdrawn (with a reason) or Declined instead, so the record stays.
+// A school that falls away is set to Withdrawn (with a reason) or Declined, so
+// the record stays. Delete is only for a school added by mistake, e.g. to the
+// wrong child, and is refused once money or an accepted offer is attached.
 export default function ApplicationsPanel({
   familyId,
   familyChildren,
@@ -452,6 +455,37 @@ export default function ApplicationsPanel({
   const [newSchoolName, setNewSchoolName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Deleting an application (as opposed to withdrawing it) removes it entirely:
+  // used when a school was added to the wrong child. The database refuses it
+  // once money or an accepted offer is attached (addendum 113).
+  const [confirmDelete, setConfirmDelete] = useState(null); // { child, application, name }
+  const [deleting, setDeleting] = useState(false);
+
+  async function removeApplication() {
+    if (!confirmDelete) return;
+    const { child, application, name } = confirmDelete;
+    setDeleting(true);
+    setError("");
+    try {
+      await deleteApplication(application.id);
+      setApps((map) => ({ ...map, [child.id]: (map[child.id] || []).filter((a) => a.id !== application.id) }));
+      setConfirmDelete(null);
+      onProgressChange?.();
+      // The application's own timeline goes with it, so leave one line on the family's case notes.
+      createCaseNote({
+        familyId,
+        childId: child.id,
+        schoolId: application.school_id,
+        kind: "school",
+        body: `Deleted the ${application.schoolName} application for ${name}. It was removed completely, not withdrawn.`,
+      }).catch(() => {});
+    } catch (err) {
+      setConfirmDelete(null);
+      setError(err?.message || "Couldn't delete that application.");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   // A card is expanded if the consultant explicitly opened/closed it, or
   // -- with no explicit choice yet -- if it's the one just linked in from
@@ -885,6 +919,13 @@ export default function ApplicationsPanel({
                               >
                                 {isDeclined ? "Reopen: the school changed its mind" : "Reopen this application"}
                               </button>
+                              <button
+                                type="button"
+                                className="ap-withdraw-link"
+                                onClick={() => setConfirmDelete({ child, application, name })}
+                              >
+                                Delete this application
+                              </button>
                             </div>
                           ) : (
                             <>
@@ -979,6 +1020,13 @@ export default function ApplicationsPanel({
                                 >
                                   Withdraw
                                 </button>
+                                <button
+                                  type="button"
+                                  className="ap-withdraw-link"
+                                  onClick={() => setConfirmDelete({ child, application, name })}
+                                >
+                                  Delete
+                                </button>
                               </div>
                             </div>
                           )}
@@ -1008,6 +1056,30 @@ export default function ApplicationsPanel({
           </div>
         );
       })}
+
+      {confirmDelete && (
+        <div className="ap-confirm" role="dialog" aria-modal="true" onClick={() => !deleting && setConfirmDelete(null)}>
+          <div className="ap-confirm-box" onClick={(e) => e.stopPropagation()}>
+            <h3>Delete this application?</h3>
+            <p>
+              {confirmDelete.application.schoolName} for {confirmDelete.name}. This removes the application completely,
+              with its timeline, checklist and fees, as if it was never added. It can&rsquo;t be undone.
+            </p>
+            <p className="ap-confirm-note">
+              If the family simply isn&rsquo;t going ahead, use Withdraw instead so the history is kept. A school with an
+              accepted offer, a paid fee, or a fee on an invoice can&rsquo;t be deleted.
+            </p>
+            <div className="ap-confirm-actions">
+              <button type="button" className="panel-btn panel-btn-quiet" disabled={deleting} onClick={() => setConfirmDelete(null)}>
+                Cancel
+              </button>
+              <button type="button" className="ap-confirm-danger" disabled={deleting} onClick={removeApplication}>
+                {deleting ? "Deleting…" : "Delete application"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
