@@ -1192,6 +1192,12 @@ export async function generateParentApplicationAlias(parentId, parentFullName, _
   return saveAliasWithRetry("parents", parentId, shortPersonAlias(parentFullName, "parent"));
 }
 
+// Addendum 115 — swap in an address someone already made by hand. The old
+// one keeps working for incoming mail (kept in previous_aliases).
+export async function setParentCustomApplicationAlias(parentId, alias) {
+  return unwrap(await supabase.rpc("set_parent_custom_alias", { p_parent_id: parentId, p_alias: alias }));
+}
+
 export async function setParentApplicationAliasStatus(parentId, status) {
   return unwrap(
     await supabase

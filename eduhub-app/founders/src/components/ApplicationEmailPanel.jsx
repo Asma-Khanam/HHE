@@ -3,6 +3,7 @@ import {
   generateParentApplicationAlias,
   setParentApplicationAliasStatus,
   regenerateParentApplicationPassword,
+  setParentCustomApplicationAlias,
 } from "../lib/staffData";
 import "./panels.css";
 import "./ApplicationEmailPanel.css";
@@ -32,6 +33,8 @@ function ParentAliasCard({ parent, onParentChange }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [revealed, setRevealed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
 
   const alias = parent.application_alias;
   const status = parent.application_alias_status;
@@ -111,6 +114,58 @@ function ParentAliasCard({ parent, onParentChange }) {
               </div>
             )}
           </div>
+
+          {editing ? (
+            <div className="ae-field">
+              <span className="ae-label">New address</span>
+              <div className="ae-value">
+                <input
+                  className="ae-input"
+                  value={draft}
+                  autoFocus
+                  placeholder="sarahbentley3734"
+                  onChange={(e) => setDraft(e.target.value)}
+                />
+                <code className="ae-code">@{DOMAIN}</code>
+              </div>
+              <div className="ae-value">
+                <button
+                  type="button"
+                  className="panel-btn panel-btn-primary"
+                  disabled={busy || !draft.trim()}
+                  onClick={() =>
+                    run(async () => {
+                      const row = await setParentCustomApplicationAlias(parent.id, draft);
+                      setEditing(false);
+                      return row;
+                    }, "Couldn't change the address.")
+                  }
+                >
+                  {busy ? "Saving…" : "Use this address"}
+                </button>
+                <button type="button" className="ae-btn" disabled={busy} onClick={() => setEditing(false)}>
+                  Cancel
+                </button>
+              </div>
+              <span className="ae-muted">
+                The current address keeps working: mail sent to it is still logged on the Emails tab.
+              </span>
+            </div>
+          ) : (
+            <div className="ae-card-foot">
+              <button
+                type="button"
+                className="ae-link"
+                disabled={busy}
+                onClick={() => {
+                  setDraft("");
+                  setEditing(true);
+                }}
+              >
+                Use a different address
+              </button>
+            </div>
+          )}
 
           <div className="ae-card-foot">
             <button

@@ -161,3 +161,12 @@
   color: var(--hh-ink);
   opacity: 0.55;
 }
+
+.ae-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--hh-border, #d8d4cc);
+  border-radius: 8px;
+  font: inherit;
+}
