@@ -421,15 +421,23 @@ export default function ApplicationsPanel({
   // A founder pressing through from a school's own page lands on that
   // school's application (?tab=applications&school=<id>).
   const [highlightActive, setHighlightActive] = useState(!!highlightSchoolId);
+  // Read the current applications without making the effect below re-run on
+  // every edit. It used to depend on `apps`, so any change to any school
+  // re-opened and scrolled back to the school the page was linked in from.
+  const appsRef = useRef(apps);
+  appsRef.current = apps;
   useEffect(() => {
     if (!highlightSchoolId) return;
     // Arriving from a school visit: open that school's application(s) and keep them open.
     setExpandedByApp((m) => {
       const next = { ...m };
-      Object.values(apps)
+      Object.values(appsRef.current)
         .flat()
         .filter((a) => String(a.school_id) === String(highlightSchoolId))
-        .forEach((a) => (next[a.id] = true));
+        .forEach((a) => {
+          // Only the first time: never override a card the consultant has closed since.
+          if (next[a.id] === undefined) next[a.id] = true;
+        });
       return next;
     });
     const el = document.getElementById(`app-row-school-${highlightSchoolId}`);
@@ -437,7 +445,7 @@ export default function ApplicationsPanel({
     setHighlightActive(true);
     const timer = setTimeout(() => setHighlightActive(false), 2500);
     return () => clearTimeout(timer);
-  }, [highlightSchoolId, apps]);
+  }, [highlightSchoolId]);
 
   const [addingFor, setAddingFor] = useState(null); // child id
   const [schoolId, setSchoolId] = useState("");
