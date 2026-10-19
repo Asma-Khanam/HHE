@@ -1889,8 +1889,6 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                           yearGroupCutoff.month,
                           yearGroupCutoff.day
                         );
-                        const mismatch =
-                          suggestion && child.year_group_applying_for && child.year_group_applying_for !== suggestion;
                         return (
                           <>
                             <div className="hh-field hh-field-full">
@@ -1909,16 +1907,6 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
                                 }
                               />
                             </div>
-                            {mismatch && (
-                              <div className="hh-field hh-field-full">
-                                <label>Please tell us why you are applying for this year group</label>
-                                <textarea
-                                  rows={2}
-                                  value={child.year_group_reason}
-                                  onChange={(e) => updateChildAt(i, "year_group_reason", e.target.value)}
-                                />
-                              </div>
-                            )}
                           </>
                         );
                       })()}
