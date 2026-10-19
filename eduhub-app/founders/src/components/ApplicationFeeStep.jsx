@@ -121,6 +121,8 @@ export default function ApplicationFeeStep({ application, fees, familyId, onFees
       onLog?.(`Application fee removed (${moneyText(fee)})`, "fee_invoiced");
       setConfirmDelete(null);
     } catch (err) {
+      // Close the dialog so the reason is visible, e.g. "already invoiced".
+      setConfirmDelete(null);
       setError(err?.message || "Couldn't delete that fee.");
     }
   }
