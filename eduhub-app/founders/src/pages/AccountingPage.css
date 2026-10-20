@@ -286,3 +286,14 @@
 .acct2-mix li { display: grid; grid-template-columns: 1fr auto 48px; gap: 10px; font-size: 14px; align-items: center; }
 .acct2-mix em { font-style: normal; text-align: right; color: #6b5a62; }
 .acct2-test-toggle { margin: 0 0 10px; }
+
+/* "We paid" click-to-edit cell */
+.acct2-paid-btn { font: inherit; background: none; border: 1px dashed transparent; border-radius: 6px; padding: 3px 6px; cursor: pointer; color: #3a1a26; text-align: left; }
+.acct2-paid-btn:hover { border-color: #cbb8c0; background: #fbf5f7; }
+.acct2-paid-enter { color: #a3261c; font-weight: 600; }
+.acct2-paid-edit { display: flex; flex-direction: column; gap: 6px; min-width: 230px; }
+.acct2-paid-line { display: grid; grid-template-columns: 1fr 92px auto; gap: 8px; align-items: center; }
+.acct2-paid-name { font-size: 12px; color: #4a3a42; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct2-paid-edit input { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid #d9d2d6; border-radius: 6px; width: 100%; }
+.acct2-paid-actions { display: flex; gap: 6px; margin-top: 2px; }
+.acct2-btn-sm { padding: 3px 10px; font-size: 12px; }

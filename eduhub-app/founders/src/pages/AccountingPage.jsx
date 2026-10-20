@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { getAccountingOverview, resolveStripeEvent, markDepositRefunded, friendlyError } from "../lib/staffData";
+import { getAccountingOverview, resolveStripeEvent, markDepositRefunded, updateApplicationFee, markFeePaidDirect, friendlyError } from "../lib/staffData";
 import { buildLedger, aed, TYPE_LABEL, TYPE_COLOR } from "../lib/accountingRows";
 import { shortDate, timeAgo } from "../lib/accounting";
 import AddDepositForm from "../components/AddDepositForm";
@@ -57,6 +57,107 @@ function byUrgency(a, b) {
   return rank(a) - rank(b) || (b.lateDays || 0) - (a.lateDays || 0) || (b.waiting || 0) - (a.waiting || 0) || b.amount - a.amount;
 }
 
+// The "We paid" cell on the Application fees tab: click to type what HHE paid
+// the school, per child. It writes the amount onto the application fee itself,
+// so the Caseload shows the same number, and the accounting record keeps step.
+// "they paid" marks that the family paid the school directly, which drops that
+// child off the record. Only an open (not yet invoiced) record can be edited.
+function PaidCell({ row, onSaved, onError }) {
+  const [editing, setEditing] = useState(false);
+  const [vals, setVals] = useState({});
+  const [busy, setBusy] = useState(false);
+
+  if (row.status !== "open") return <span>{aed(row.paidOut)}</span>;
+
+  function start(e) {
+    e.stopPropagation();
+    const v = {};
+    (row.lines || []).forEach((l) => (v[l.feeId] = l.amountPaid == null ? "" : String(l.amountPaid)));
+    setVals(v);
+    setEditing(true);
+  }
+
+  async function save(e) {
+    e.stopPropagation();
+    onError("");
+    setBusy(true);
+    try {
+      await Promise.all(
+        (row.lines || [])
+          .filter((l) => l.feeId && vals[l.feeId] !== "" && Number(vals[l.feeId]) !== (l.amountPaid ?? NaN))
+          .map((l) => updateApplicationFee(l.feeId, { amount: Number(vals[l.feeId]) }))
+      );
+      setEditing(false);
+      await onSaved();
+    } catch (err) {
+      onError(friendlyError(err, "Couldn't save the amount."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function paidDirect(e, feeId) {
+    e.stopPropagation();
+    onError("");
+    setBusy(true);
+    try {
+      await markFeePaidDirect(feeId);
+      setEditing(false);
+      await onSaved();
+    } catch (err) {
+      onError(friendlyError(err, "Couldn't update that."));
+      setBusy(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <button type="button" className="acct2-paid-btn" onClick={start} title="Click to enter what we paid the school">
+        {row.missing ? <span className="acct2-paid-enter">Enter amount</span> : aed(row.paidOut)}
+      </button>
+    );
+  }
+
+  return (
+    <div className="acct2-paid-edit" onClick={(e) => e.stopPropagation()}>
+      {(row.lines || []).map((l, i) => (
+        <div key={l.feeId || i} className="acct2-paid-line">
+          <span className="acct2-paid-name">{l.name}</span>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="AED"
+            autoFocus={i === 0}
+            value={vals[l.feeId] ?? ""}
+            onChange={(e) => setVals((v) => ({ ...v, [l.feeId]: e.target.value }))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save(e);
+            }}
+          />
+          <button
+            type="button"
+            className="acct2-link"
+            disabled={busy}
+            onClick={(e) => paidDirect(e, l.feeId)}
+            title="The family paid the school themselves, so we are not recovering this one."
+          >
+            they paid
+          </button>
+        </div>
+      ))}
+      <div className="acct2-paid-actions">
+        <button type="button" className="acct2-btn is-primary acct2-btn-sm" disabled={busy} onClick={save}>
+          {busy ? "Saving…" : "Save"}
+        </button>
+        <button type="button" className="acct2-btn acct2-btn-sm" disabled={busy} onClick={(e) => { e.stopPropagation(); setEditing(false); }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function StatusBadge({ state }) {
   return <span className={"acct-pill-badge is-" + state.tone}>{state.label}</span>;
 }
@@ -76,7 +177,6 @@ export default function AccountingPage() {
   const [refunding, setRefunding] = useState(null); // record id waiting for a second click
   const [actionError, setActionError] = useState("");
   const [reviewed, setReviewed] = useState([]);
-  const [includeTest, setIncludeTest] = useState(false);
   const topRef = useRef(null);
 
   const load = useCallback(() => {
@@ -95,12 +195,7 @@ export default function AccountingPage() {
     setActionError("");
   }, [page]);
 
-  const ledger = useMemo(() => buildLedger(data, { includeTest }), [data, includeTest]);
-  const testCount = useMemo(() => {
-    if (!data?.testFamilyIds?.length) return 0;
-    const all = buildLedger(data, { includeTest: true }).length;
-    return all - buildLedger(data).length;
-  }, [data]);
+  const ledger = useMemo(() => buildLedger(data), [data]);
   const q = search.trim().toLowerCase();
   const matches = (r) => !q || `${r.family} ${r.desc} ${r.sub}`.toLowerCase().includes(q);
 
@@ -142,19 +237,6 @@ export default function AccountingPage() {
   }, [owing]);
 
   const stripeAlerts = (data?.stripeAlerts || []).filter((a) => !reviewed.includes(a.id));
-
-  // Small to-do chips on the Overview.
-  const chips = useMemo(() => {
-    const n = (list, fn) => list.filter(fn).length;
-    const list = [
-      { count: n(byType.fees, (r) => r.status === "open"), label: "application fees paid, not invoiced", view: "fees", tone: "amber" },
-      { count: n(byType.deposits, (r) => r.status === "open"), label: "deposits paid, not invoiced", view: "deposits", tone: "amber" },
-      { count: n(ledger, (r) => r.lateDays > 0), label: "payments overdue", view: "total", tone: "late" },
-      { count: n(byType.packages, (r) => r.status === "submitted"), label: "package receipts to confirm", view: "packages", tone: "blue" },
-      { count: n(byType.fees, (r) => r.missing && r.status !== "refunded"), label: "school amounts missing", view: "fees", tone: "late" },
-    ];
-    return list.filter((c) => c.count > 0);
-  }, [ledger, byType]);
 
   const familiesForForm = useMemo(
     () =>
@@ -290,7 +372,7 @@ export default function AccountingPage() {
   const feeColumns = [
     familyCol,
     schoolCol,
-    { head: "We paid", num: true, cell: (r) => (r.missing ? <span className="acct-cell-sub">Not entered</span> : aed(r.paidOut)) },
+    { head: "We paid", cell: (r) => <PaidCell row={r} onSaved={load} onError={setActionError} /> },
     { head: "Family owes", num: true, cell: (r) => aed(r.amount) },
     statusCol,
   ];
@@ -334,7 +416,6 @@ export default function AccountingPage() {
     familyCol,
     { head: "Payment", cell: (r) => r.desc },
     { head: "Amount", num: true, cell: (r) => aed(r.amount) },
-    { head: "Due", cell: (r) => (r.date && r.state.key !== "paid" ? shortDate(r.date) : "—") },
     statusCol,
   ];
 
@@ -376,12 +457,6 @@ export default function AccountingPage() {
         )}
       </header>
 
-      {testCount > 0 && (
-        <label className="acct2-check acct2-test-toggle">
-          <input type="checkbox" checked={includeTest} onChange={(e) => setIncludeTest(e.target.checked)} /> Include test families ({testCount} item{testCount === 1 ? "" : "s"})
-        </label>
-      )}
-
       <div className="acct-pills" role="tablist" ref={topRef}>
         {visiblePages.map(([key, label]) => {
           const count = pageCounts[key];
@@ -403,21 +478,6 @@ export default function AccountingPage() {
 
       {page === "overview" && (
         <div className="acct-overview">
-          {chips.length > 0 && (
-            <div className="acct2-chips">
-              {chips.map((c) => (
-                <button key={c.label} type="button" className={"acct-action-tile is-" + c.tone} onClick={() => pickPage(c.view)}>
-                  <strong>{c.count}</strong> {c.label}
-                </button>
-              ))}
-              {stripeAlerts.length > 0 && (
-                <button type="button" className="acct-action-tile is-late" onClick={() => pickPage("review")}>
-                  <strong>{stripeAlerts.length}</strong> Stripe payments to look at
-                </button>
-              )}
-            </div>
-          )}
-
           <section className="acct-card">
             <div className="acct-card-head">
               <h2>Who owes us what</h2>

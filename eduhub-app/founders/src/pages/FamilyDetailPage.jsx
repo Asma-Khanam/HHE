@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { getFamilyDetail, getCurrentStaff, shortId, friendlyError, touchFamilyActivity, getFamilyStages, updateFamily } from "../lib/staffData";
+import { getFamilyDetail, getCurrentStaff, shortId, friendlyError, touchFamilyActivity, getFamilyStages } from "../lib/staffData";
 import { getMissingItems, getOutstandingDocuments, displayNameForChild } from "../lib/completeness";
 import { householdAddress } from "../lib/address";
 import CaseSettingsPanel from "../components/CaseSettingsPanel";
@@ -707,14 +707,6 @@ export default function FamilyDetailPage() {
             {wantsCostGuidanceFollowup(family) && (
               <span className="family-detail-card-flag is-warn">Wants cost guidance — follow up</span>
             )}
-            <button
-              type="button"
-              onClick={async () => { try { await updateFamily(family.id, { is_test: !family.is_test }); refreshFamily(); } catch { /* non-blocking */ } }}
-              title="Test records are hidden from the Caseload by default and are safe to delete later."
-              style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, cursor: "pointer", border: "1px solid " + (family.is_test ? "#c0392b" : "#cbd2dc"), background: family.is_test ? "#fdecea" : "#fff", color: family.is_test ? "#c0392b" : "#6b7686" }}
-            >
-              {family.is_test ? "✓ Test record" : "Mark as test"}
-            </button>
           </div>
         </div>
       </div>

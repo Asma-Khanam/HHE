@@ -34,7 +34,6 @@ export default function FamiliesListPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("live");
-  const [showTest, setShowTest] = useState(false);
 
   useEffect(() => {
     listFamilies()
@@ -43,7 +42,7 @@ export default function FamiliesListPage() {
   }, []);
 
   const counts = useMemo(() => {
-    const list = (families || []).filter((f) => !f.is_test);
+    const list = families || [];
     const c = { all: list.filter((f) => f.client_stage !== "placed").length };
     CLIENT_STAGES.forEach((s) => {
       c[s.key] = list.filter((f) => f.client_stage === s.key).length;
@@ -54,7 +53,6 @@ export default function FamiliesListPage() {
   const filtered = useMemo(() => {
     if (!families) return [];
     let list = families;
-    if (!showTest) list = list.filter((f) => !f.is_test);
     const q = search.trim().toLowerCase();
     // Searching looks through every family, whatever tab is open -- a name
     // search that silently skips Placed or enquiry families looks broken.
@@ -70,7 +68,7 @@ export default function FamiliesListPage() {
         f.childLabels.join(" ").toLowerCase().includes(q) ||
         (f.destination || "").toLowerCase().includes(q)
     );
-  }, [families, search, tab, showTest]);
+  }, [families, search, tab]);
 
   const TABS = [
     ...["live", "paid_consult", "free_sanity_check", "consultant", "placed"].map((k) => ({
@@ -116,11 +114,6 @@ export default function FamiliesListPage() {
         <div className="families-stage-legend">
           Progress: {PIPELINE_STAGES.map((s) => s.label).join(" → ")}
         </div>
-        {(families || []).some((f) => f.is_test) && (
-          <button type="button" onClick={() => setShowTest((v) => !v)} style={{ fontSize: 12, fontWeight: 600, padding: "4px 10px", borderRadius: 8, cursor: "pointer", border: "1px solid #cbd2dc", background: showTest ? "#eef2fa" : "#fff", color: "#1f3864" }}>
-            {showTest ? "Hiding test ✓" : "Show test"} ({(families || []).filter((f) => f.is_test).length})
-          </button>
-        )}
       </div>
 
 
@@ -160,7 +153,7 @@ export default function FamiliesListPage() {
                     <div className="families-cell-family">
                       <PersonAvatar doc={family.photoDoc} name={null} fallback={family.displayName.charAt(0).toUpperCase()} className="families-avatar" />
                       <span className="families-cell-family-text">
-                        <span className="families-table-name">{family.displayName}{family.is_test && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: "#fdecea", color: "#c0392b", letterSpacing: 0.5 }}>TEST</span>}</span>
+                        <span className="families-table-name">{family.displayName}</span>
                         <span className="families-cell-sub">
                           <code>{shortId(family.id)}</code>
                           {family.membership_type ? ` · ${packageLabel(family.membership_type)}` : ""}

@@ -352,7 +352,7 @@ export async function getFamilyDetail(familyId) {
 // Only the staff-managed columns are ever sent — the family's own data
 // (home_address, intake_status) is theirs to change, not ours, and
 // account_user_id is refused outright by a database trigger anyway.
-const FAMILY_STAFF_COLUMNS = ["pipeline_stage", "client_stage", "destination", "origin", "membership_type", "owner_staff_id", "home_address", "dubai_available_from", "dubai_available_until", "planned_move_date", "is_test"];
+const FAMILY_STAFF_COLUMNS = ["pipeline_stage", "client_stage", "destination", "origin", "membership_type", "owner_staff_id", "home_address", "dubai_available_from", "dubai_available_until", "planned_move_date"];
 
 export async function updateFamily(familyId, patch) {
   const payload = {};
@@ -558,6 +558,27 @@ export async function createApplicationFee({ applicationId, label, amount, curre
 
 export async function updateApplicationFee(feeId, patch) {
   return unwrap(await supabase.from("application_fees").update(patch).eq("id", feeId).select().single());
+}
+
+// The family paid the school directly, so there is nothing for HHE to recover.
+// Mirrors the Caseload's "family paid" choice (ApplicationFeeStep patchForMode
+// "direct"); the accounting trigger then drops this child from the record.
+export async function markFeePaidDirect(feeId) {
+  return unwrap(
+    await supabase
+      .from("application_fees")
+      .update({
+        paid_direct_by_family: true,
+        hhe_paid_school_on_behalf: false,
+        status: "unpaid",
+        paid_at: null,
+        payment_proof_path: null,
+        payment_proof_name: null,
+      })
+      .eq("id", feeId)
+      .select()
+      .single()
+  );
 }
 
 export async function deleteApplicationFee(feeId) {
@@ -2384,7 +2405,7 @@ export async function updateAccountingRecord(recordId, field, value, previous) {
 // record (with its children and evidence), the parents' names to label each
 // family, and every package payment (owed, waiting to be confirmed, or paid).
 export async function getAccountingOverview() {
-  const [records, parents, payments, events, staff, invoices, stripeAlerts, testFamilies] = await Promise.all([
+  const [records, parents, payments, events, staff, invoices, stripeAlerts] = await Promise.all([
     supabase
       .from("accounting_records")
       .select(
@@ -2422,14 +2443,6 @@ export async function getAccountingOverview() {
       .limit(20)
       .then(unwrap)
       .catch(() => []),
-    // Families marked as test (addendum 118), so their money can be left out.
-    // Quietly empty if that SQL isn't run yet.
-    supabase
-      .from("families")
-      .select("id")
-      .eq("is_test", true)
-      .then(unwrap)
-      .catch(() => []),
   ]);
   const invoiceByRecord = Object.fromEntries((invoices || []).map((i) => [i.record_id, i]));
   const byFamily = {};
@@ -2449,14 +2462,7 @@ export async function getAccountingOverview() {
     return { ...r, invoice: invoiceByRecord[r.id] || null, lastChange: e ? { by: nameOf(e.actor), at: e.created_at } : null };
   });
 
-  return {
-    records: withChange,
-    payments: payments || [],
-    familyNames,
-    invoices: invoices || [],
-    stripeAlerts: stripeAlerts || [],
-    testFamilyIds: (testFamilies || []).map((f) => f.id),
-  };
+  return { records: withChange, payments: payments || [], familyNames, invoices: invoices || [], stripeAlerts: stripeAlerts || [] };
 }
 
 // Mark a flagged Stripe event as looked at (addendum 117). Stays in the table.

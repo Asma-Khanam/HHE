@@ -76,6 +76,7 @@ function feeRow(record, data) {
     lateDays,
     waiting,
     missing,
+    lines: items.map((i) => ({ feeId: i.application_fee_id, name: childName(i.child), amountPaid: i.amount_paid })),
     canRefund: type === "registration_deposit" && record.status === "open",
   };
 }
@@ -116,13 +117,10 @@ function packageRow(p, data) {
   };
 }
 
-// Families marked as test are left out unless asked for, so test money never
-// mixes into the real totals.
-export function buildLedger(data, { includeTest = false } = {}) {
+export function buildLedger(data) {
   if (!data) return [];
-  const test = new Set(includeTest ? [] : data.testFamilyIds || []);
-  const fees = (data.records || []).filter((r) => !test.has(r.family_id)).map((r) => feeRow(r, data));
-  const packs = (data.payments || []).filter((p) => !test.has(p.family_id)).map((p) => packageRow(p, data));
+  const fees = (data.records || []).map((r) => feeRow(r, data));
+  const packs = (data.payments || []).map((p) => packageRow(p, data));
   return [...fees, ...packs];
 }
 
