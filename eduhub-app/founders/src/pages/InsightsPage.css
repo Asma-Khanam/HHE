@@ -299,3 +299,10 @@
 .in-owed-list a:hover { text-decoration: underline; }
 .in-owed-school { flex: 1; opacity: 0.65; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .in-owed-amount { font-weight: 600; white-space: nowrap; }
+
+/* ---- Tabbed dashboard ---- */
+.vz-section { margin: 4px 0 10px; font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; color: rgba(42, 17, 25, 0.55); }
+.vz-ringrow { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.vz-ringrow p { margin: 0; flex: 1; min-width: 160px; font-size: 0.84rem; line-height: 1.5; color: rgba(42, 17, 25, 0.7); }
+.vz-ringstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 16px 24px; flex: 1; }
+.in-page .in-card { border-radius: 16px; }

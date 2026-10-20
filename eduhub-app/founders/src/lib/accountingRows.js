@@ -21,9 +21,9 @@ export const TYPE_LABEL = {
   package: "Package",
 };
 export const TYPE_COLOR = {
-  application_fee: "#7a1f3d",
-  registration_deposit: "#265bad",
-  package: "#1e7f6e",
+  application_fee: "#b23a6a",
+  registration_deposit: "#3a7bd5",
+  package: "#1fa37f",
 };
 
 export const NOT_INVOICED_RED_AFTER_DAYS = 3;

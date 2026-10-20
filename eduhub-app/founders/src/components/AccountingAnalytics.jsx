@@ -1,11 +1,13 @@
 import { useMemo } from "react";
-import { TYPE_LABEL, TYPE_COLOR, aed } from "../lib/accountingRows";
-import { moneyRound } from "../lib/accounting";
+import { TYPE_LABEL, aed } from "../lib/accountingRows";
+import { TrendChart, Donut, Ring, Lollipop, SegBar, Stat, CAT, compact } from "./Viz";
 
-// The Analytics tab: the same ledger as every other tab, drawn as simple charts.
-// Plain SVG/CSS, no chart library. Money in AED, whole numbers.
+// The Analytics tab: the same ledger as every other tab, drawn so a person can
+// read it at a glance. Plain SVG/HTML, no chart library. Money in AED.
 
 const TYPES = ["application_fee", "registration_deposit", "package"];
+// One validated colour per money type (rose, blue, green).
+const COLOR = { application_fee: CAT.rose, registration_deposit: CAT.blue, package: CAT.green };
 
 function monthKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -21,20 +23,19 @@ function lastMonths(n) {
   return out;
 }
 
-function Legend() {
+function Card({ title, sub, children }) {
   return (
-    <div className="acct2-legend">
-      {TYPES.map((t) => (
-        <span key={t}>
-          <i style={{ background: TYPE_COLOR[t] }} />
-          {TYPE_LABEL[t]}
-        </span>
-      ))}
-    </div>
+    <section className="vz-card">
+      <header className="vz-card-head">
+        <h2>{title}</h2>
+        {sub && <p>{sub}</p>}
+      </header>
+      {children}
+    </section>
   );
 }
 
-// Money collected each month, stacked by kind.
+// Money collected each month, one line per kind.
 function CollectedByMonth({ ledger }) {
   const months = useMemo(() => {
     const list = lastMonths(6).map((m) => ({ ...m, parts: { application_fee: 0, registration_deposit: 0, package: 0 } }));
@@ -49,134 +50,58 @@ function CollectedByMonth({ ledger }) {
     return list;
   }, [ledger]);
 
-  const max = Math.max(1, ...months.map((m) => TYPES.reduce((n, t) => n + m.parts[t], 0)));
-  const W = 520;
-  const H = 210;
-  const base = 180;
-  const slot = W / months.length;
-  const bar = Math.min(48, slot - 16);
-
   return (
-    <div className="acct-card">
-      <div className="acct-card-head">
-        <h2>Money collected each month</h2>
-        <span className="acct-card-sub">Last 6 months · by kind</span>
-      </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="acct2-chart" role="img" aria-label="Money collected each month">
-        <line x1="0" y1={base} x2={W} y2={base} stroke="#d9d2d6" />
-        {months.map((m, i) => {
-          let y = base;
-          const x = i * slot + (slot - bar) / 2;
-          const total = TYPES.reduce((n, t) => n + m.parts[t], 0);
-          return (
-            <g key={m.key}>
-              {TYPES.map((t) => {
-                const h = (m.parts[t] / max) * 150;
-                y -= h;
-                return h > 0 ? <rect key={t} x={x} y={y} width={bar} height={h} fill={TYPE_COLOR[t]} rx="2" /> : null;
-              })}
-              {total > 0 && (
-                <text x={x + bar / 2} y={y - 6} textAnchor="middle" className="acct2-chart-val">
-                  {moneyRound(total, "").trim()}
-                </text>
-              )}
-              <text x={x + bar / 2} y={base + 18} textAnchor="middle" className="acct2-chart-lab">
-                {m.label}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      <Legend />
-    </div>
-  );
-}
-
-// What is still owed, by how late it is.
-function OwedByAge({ ledger }) {
-  const rows = useMemo(() => {
-    const b = [
-      { label: "We have not invoiced yet", amount: 0, tone: "amber" },
-      { label: "Not due yet", amount: 0, tone: "blue" },
-      { label: "1 to 7 days late", amount: 0, tone: "late" },
-      { label: "8 to 14 days late", amount: 0, tone: "late" },
-      { label: "15 or more days late", amount: 0, tone: "late" },
-    ];
-    ledger.forEach((r) => {
-      if (!r.owed) return;
-      if (r.status === "open") b[0].amount += r.owed;
-      else if (r.lateDays <= 0) b[1].amount += r.owed;
-      else if (r.lateDays <= 7) b[2].amount += r.owed;
-      else if (r.lateDays <= 14) b[3].amount += r.owed;
-      else b[4].amount += r.owed;
-    });
-    return b;
-  }, [ledger]);
-  const max = Math.max(1, ...rows.map((r) => r.amount));
-  const total = rows.reduce((n, r) => n + r.amount, 0);
-
-  return (
-    <div className="acct-card">
-      <div className="acct-card-head">
-        <h2>How old the money we are owed is</h2>
-        <span className="acct-card-sub">{aed(total)} in total</span>
-      </div>
-      <div className="acct2-hbars">
-        {rows.map((r) => (
-          <div key={r.label} className="acct2-hbar">
-            <span className="acct2-hbar-label">{r.label}</span>
-            <span className="acct2-hbar-track">
-              <i className={"is-" + r.tone} style={{ width: `${(r.amount / max) * 100}%` }} />
-            </span>
-            <span className="acct2-hbar-val">{r.amount ? aed(r.amount) : "–"}</span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <Card title="Money collected each month" sub="Last 6 months, one line per kind of money">
+      <TrendChart
+        labels={months.map((m) => m.label)}
+        format={(v) => compact(v)}
+        series={TYPES.map((t) => ({ label: TYPE_LABEL[t], color: COLOR[t], values: months.map((m) => m.parts[t]), area: t === "application_fee" }))}
+      />
+    </Card>
   );
 }
 
 // How the billed money splits between the three kinds.
 function Mix({ ledger }) {
-  const parts = useMemo(() => {
+  const data = useMemo(() => {
     const totals = { application_fee: 0, registration_deposit: 0, package: 0 };
     ledger.forEach((r) => (totals[r.type] += r.billed));
-    const sum = TYPES.reduce((n, t) => n + totals[t], 0);
-    return { totals, sum };
+    return TYPES.filter((t) => totals[t] > 0).map((t) => ({ label: TYPE_LABEL[t], value: totals[t], color: COLOR[t] }));
+  }, [ledger]);
+  const sum = data.reduce((n, x) => n + x.value, 0);
+
+  return (
+    <Card title="Where our income comes from" sub="Everything billed so far">
+      {sum === 0 ? <p className="vz-empty">Nothing billed yet.</p> : <Donut data={data} size={164} center={{ big: `AED ${compact(sum)}`, small: "billed" }} format={(v) => aed(v).replace("AED ", "")} />}
+    </Card>
+  );
+}
+
+// What is still owed, by how late it is.
+function OwedByAge({ ledger }) {
+  const { rows, total } = useMemo(() => {
+    const b = [
+      { label: "Not invoiced yet", value: 0, color: "#b89a5a" },
+      { label: "Not due yet", value: 0, color: "#cdbfc6" },
+      { label: "1 to 7 days late", value: 0, color: "#e9a23b" },
+      { label: "8 to 14 days late", value: 0, color: "#e0662f" },
+      { label: "15 or more days late", value: 0, color: "#b3261e" },
+    ];
+    ledger.forEach((r) => {
+      if (!r.owed) return;
+      if (r.status === "open") b[0].value += r.owed;
+      else if (r.lateDays <= 0) b[1].value += r.owed;
+      else if (r.lateDays <= 7) b[2].value += r.owed;
+      else if (r.lateDays <= 14) b[3].value += r.owed;
+      else b[4].value += r.owed;
+    });
+    return { rows: b, total: b.reduce((n, x) => n + x.value, 0) };
   }, [ledger]);
 
   return (
-    <div className="acct-card">
-      <div className="acct-card-head">
-        <h2>Where our income comes from</h2>
-        <span className="acct-card-sub">Everything billed so far</span>
-      </div>
-      {parts.sum === 0 ? (
-        <p className="acct-empty">Nothing billed yet.</p>
-      ) : (
-        <>
-          <div className="acct2-stack">
-            {TYPES.map((t) =>
-              parts.totals[t] > 0 ? (
-                <i key={t} style={{ width: `${(parts.totals[t] / parts.sum) * 100}%`, background: TYPE_COLOR[t] }} />
-              ) : null
-            )}
-          </div>
-          <ul className="acct2-mix">
-            {TYPES.map((t) => (
-              <li key={t}>
-                <span>
-                  <i style={{ background: TYPE_COLOR[t] }} />
-                  {TYPE_LABEL[t]}
-                </span>
-                <strong>{aed(parts.totals[t])}</strong>
-                <em>{Math.round((parts.totals[t] / parts.sum) * 100)}%</em>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </div>
+    <Card title="How old the money we are owed is" sub={`${aed(total)} in total`}>
+      {total === 0 ? <p className="vz-empty">Nobody owes us anything right now.</p> : <SegBar segments={rows} format={(v) => (v ? aed(v) : "–")} />}
+    </Card>
   );
 }
 
@@ -198,39 +123,27 @@ function Margin({ ledger }) {
     });
     return { paid, charged, total: charged - paid, earned, pending: charged - paid - earned, missing };
   }, [ledger]);
+  const pct = m.total > 0 ? Math.round(Math.max(0, Math.min(100, (m.earned / m.total) * 100))) : 0;
 
   return (
-    <div className="acct-card">
-      <div className="acct-card-head">
-        <h2>Margin on application fees</h2>
-        <span className="acct-card-sub">Before Stripe&apos;s fee</span>
-      </div>
-      <div className="acct-margin">
-        <div>
-          <span>We paid schools</span>
-          <strong>{aed(m.paid)}</strong>
-        </div>
-        <div>
-          <span>We charge families</span>
-          <strong>{aed(m.charged)}</strong>
-        </div>
-        <div className="is-total">
-          <span>Margin</span>
-          <strong>{aed(m.total)}</strong>
+    <Card title="Margin on application fees" sub="Before Stripe's fee">
+      <div className="vz-ringrow">
+        <Ring pct={pct} size={124}>
+          <b>{pct}%</b>
+          <small>earned</small>
+        </Ring>
+        <div className="vz-ringstats">
+          <Stat label="We paid schools" value={aed(m.paid)} />
+          <Stat label="We charge families" value={aed(m.charged)} />
+          <Stat label="Margin" value={aed(m.total)} sub={`${aed(m.earned)} earned · ${aed(m.pending)} to come`} />
         </div>
       </div>
-      <div className="acct-margin-bar" aria-hidden="true">
-        <i style={{ width: m.total > 0 ? `${Math.max(0, Math.min(100, (m.earned / m.total) * 100))}%` : "0%" }} />
-      </div>
-      <p className="acct-margin-foot">
-        <strong>{aed(m.earned)}</strong> earned (family has paid) · <strong>{aed(m.pending)}</strong> still to come
-      </p>
       {m.missing > 0 && (
-        <p className="acct-warn">
+        <p className="vz-card-foot">
           {m.missing} record{m.missing === 1 ? " has" : "s have"} no school amount yet, so they are not counted here.
         </p>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -240,34 +153,15 @@ function TopOwing({ ledger }) {
     const map = new Map();
     ledger.forEach((r) => {
       if (!r.owed) return;
-      map.set(r.familyId, { name: r.family, amount: (map.get(r.familyId)?.amount || 0) + r.owed });
+      map.set(r.familyId, { label: r.family, value: (map.get(r.familyId)?.value || 0) + r.owed });
     });
-    return [...map.values()].sort((a, b) => b.amount - a.amount).slice(0, 6);
+    return [...map.values()].sort((a, b) => b.value - a.value).slice(0, 6);
   }, [ledger]);
-  const max = Math.max(1, ...top.map((t) => t.amount));
 
   return (
-    <div className="acct-card">
-      <div className="acct-card-head">
-        <h2>Who owes us the most</h2>
-        <span className="acct-card-sub">Top {top.length || 0}</span>
-      </div>
-      {top.length === 0 ? (
-        <p className="acct-empty">No family owes us anything right now.</p>
-      ) : (
-        <div className="acct2-hbars">
-          {top.map((t) => (
-            <div key={t.name} className="acct2-hbar">
-              <span className="acct2-hbar-label">{t.name}</span>
-              <span className="acct2-hbar-track">
-                <i className="is-blue" style={{ width: `${(t.amount / max) * 100}%` }} />
-              </span>
-              <span className="acct2-hbar-val">{aed(t.amount)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <Card title="Who owes us the most" sub={`Top ${top.length || 0}`}>
+      {top.length === 0 ? <p className="vz-empty">No family owes us anything right now.</p> : <Lollipop data={top} format={(v) => aed(v)} />}
+    </Card>
   );
 }
 
@@ -280,26 +174,32 @@ export default function AccountingAnalytics({ ledger }) {
     }),
     [ledger]
   );
+  const pct = sums.billed > 0 ? Math.round((sums.collected / sums.billed) * 100) : 0;
+
   return (
     <div className="acct2-analytics">
-      <div className="acct2-summary">
+      <section className="vz-hero">
         <div>
-          <span>Billed</span>
-          <strong>{aed(sums.billed)}</strong>
+          <span className="vz-hero-label">Collected so far</span>
+          <strong className="vz-hero-num">{aed(sums.collected)}</strong>
+          <span className="vz-hero-sub">of {aed(sums.billed)} billed</span>
         </div>
-        <div>
-          <span>Collected</span>
-          <strong>{aed(sums.collected)}</strong>
+        <Ring pct={pct} size={150} thickness={13} light>
+          <b>{pct}%</b>
+          <small>collected</small>
+        </Ring>
+        <div className="vz-hero-stats">
+          <Stat light label="Billed" value={aed(sums.billed)} sub="all three kinds of money" />
+          <Stat light label="Still owed" value={aed(sums.owed)} sub="waiting on families" />
         </div>
-        <div>
-          <span>Still owed</span>
-          <strong>{aed(sums.owed)}</strong>
-        </div>
-      </div>
-      <div className="acct2-analytics-grid">
+      </section>
+
+      <div className="vz-split">
         <CollectedByMonth ledger={ledger} />
-        <OwedByAge ledger={ledger} />
         <Mix ledger={ledger} />
+      </div>
+      <OwedByAge ledger={ledger} />
+      <div className="vz-split is-even">
         <Margin ledger={ledger} />
         <TopOwing ledger={ledger} />
       </div>
