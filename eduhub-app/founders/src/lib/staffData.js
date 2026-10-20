@@ -2405,7 +2405,7 @@ export async function updateAccountingRecord(recordId, field, value, previous) {
 // record (with its children and evidence), the parents' names to label each
 // family, and every package payment (owed, waiting to be confirmed, or paid).
 export async function getAccountingOverview() {
-  const [records, parents, payments, events, staff, invoices, stripeAlerts] = await Promise.all([
+  const [records, parents, payments, events, staff, invoices, stripeAlerts, directFees] = await Promise.all([
     supabase
       .from("accounting_records")
       .select(
@@ -2443,6 +2443,14 @@ export async function getAccountingOverview() {
       .limit(20)
       .then(unwrap)
       .catch(() => []),
+    // Fees the family paid the school themselves: not on any accounting record,
+    // but shown (greyed) on the Application fees tab so nobody wonders about them.
+    supabase
+      .from("application_fees")
+      .select("id, application:applications(school:schools(name), child:children(full_name, preferred_name, first_name, family_id))")
+      .eq("paid_direct_by_family", true)
+      .then(unwrap)
+      .catch(() => []),
   ]);
   const invoiceByRecord = Object.fromEntries((invoices || []).map((i) => [i.record_id, i]));
   const byFamily = {};
@@ -2462,7 +2470,7 @@ export async function getAccountingOverview() {
     return { ...r, invoice: invoiceByRecord[r.id] || null, lastChange: e ? { by: nameOf(e.actor), at: e.created_at } : null };
   });
 
-  return { records: withChange, payments: payments || [], familyNames, invoices: invoices || [], stripeAlerts: stripeAlerts || [] };
+  return { records: withChange, payments: payments || [], familyNames, invoices: invoices || [], stripeAlerts: stripeAlerts || [], directFees: directFees || [] };
 }
 
 // Mark a flagged Stripe event as looked at (addendum 117). Stays in the table.

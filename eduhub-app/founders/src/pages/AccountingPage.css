@@ -297,3 +297,14 @@
 .acct2-paid-edit input { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid #d9d2d6; border-radius: 6px; width: 100%; }
 .acct2-paid-actions { display: flex; gap: 6px; margin-top: 2px; }
 .acct2-btn-sm { padding: 3px 10px; font-size: 12px; }
+
+/* Fees the family paid the school themselves: greyed, still visible at a glance */
+.acct-ctable tr.acct2-row-direct td,
+.acct-ctable tr.acct2-row-direct .acct-cell-main,
+.acct-ctable tr.acct2-row-direct .acct-cell-sub,
+.acct-ctable tr.acct2-row-direct .acct-ctable-name {
+  color: #8a8f98;
+}
+.acct2-muted {
+  color: #8a8f98;
+}

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { CLIENT_STAGES } from "../lib/workflow";
 import {
+  listFamilies,
   listStaff,
   listPendingSignups,
   addStaffMember,
@@ -82,6 +84,7 @@ export default function TeamPage() {
   const [meId, setMeId] = useState(null);
   const [rows, setRows] = useState(null);
   const [pending, setPending] = useState([]);
+  const [families, setFamilies] = useState(null);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState(null);
   const [editingPositionId, setEditingPositionId] = useState(null);
@@ -89,11 +92,13 @@ export default function TeamPage() {
 
   async function load() {
     try {
-      const [staff, pendingSignups, { data }] = await Promise.all([
+      const [staff, pendingSignups, { data }, familyList] = await Promise.all([
         listStaff(),
         listPendingSignups(),
         supabase.auth.getUser(),
+        listFamilies().catch(() => null), // the workload table is a nice-to-have; never block the page on it
       ]);
+      setFamilies(familyList);
       setMeId(data?.user?.id || null);
       setRows(staff);
       setPending(pendingSignups);
@@ -167,6 +172,24 @@ export default function TeamPage() {
     }
   }
 
+  // Families per consultant (owner), split by where the family is.
+  const workload = (() => {
+    if (!families || !rows) return null;
+    const make = (id, name) => ({ id, name, active: 0, byStage: {} });
+    const map = new Map(rows.map((r) => [r.user_id, make(r.user_id, r.full_name || r.email)]));
+    families.forEach((f) => {
+      let key = f.owner_staff_id || "none";
+      if (!map.has(key)) map.set(key, make(key, key === "none" ? "Unassigned" : "Former staff"));
+      const w = map.get(key);
+      if (f.client_stage) w.byStage[f.client_stage] = (w.byStage[f.client_stage] || 0) + 1;
+      if (f.client_stage !== "placed") w.active += 1;
+    });
+    if (!map.has("none")) map.set("none", make("none", "Unassigned"));
+    const list = [...map.values()];
+    const unassigned = list.filter((w) => w.id === "none");
+    return [...list.filter((w) => w.id !== "none").sort((a, b) => b.active - a.active || a.name.localeCompare(b.name)), ...unassigned];
+  })();
+
   if (rows === null && !error) return <div className="team-page">Loading…</div>;
 
   return (
@@ -200,6 +223,46 @@ export default function TeamPage() {
           </ul>
         )}
       </section>
+
+      {workload && (
+        <section className="panel">
+          <div className="panel-head">
+            <h2>Workload</h2>
+          </div>
+          <p className="panel-hint">
+            How many families each consultant owns, by where the family is. Active means every family that is not
+            placed yet.
+          </p>
+          <div className="team-load-wrap">
+            <table className="team-load">
+              <thead>
+                <tr>
+                  <th>Consultant</th>
+                  <th className="num">Active</th>
+                  {CLIENT_STAGES.map((s) => (
+                    <th key={s.key} className="num">
+                      {s.key === "paid_consult" ? "Paid consult" : s.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {workload.map((w) => (
+                  <tr key={w.id} className={w.id === "none" ? "is-unassigned" : undefined}>
+                    <td>{w.name}</td>
+                    <td className="num team-load-active">{w.active}</td>
+                    {CLIENT_STAGES.map((s) => (
+                      <td key={s.key} className="num">
+                        {w.byStage[s.key] || "–"}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section className="panel">
         <div className="panel-head">

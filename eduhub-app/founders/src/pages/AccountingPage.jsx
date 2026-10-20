@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getAccountingOverview, resolveStripeEvent, markDepositRefunded, updateApplicationFee, markFeePaidDirect, friendlyError } from "../lib/staffData";
-import { buildLedger, aed, TYPE_LABEL, TYPE_COLOR } from "../lib/accountingRows";
+import { buildLedger, buildDirectFeeRows, aed, TYPE_LABEL, TYPE_COLOR } from "../lib/accountingRows";
 import { shortDate, timeAgo } from "../lib/accounting";
 import AddDepositForm from "../components/AddDepositForm";
 import AccountingAnalytics from "../components/AccountingAnalytics";
@@ -27,7 +27,7 @@ const PAGES = [
 const SEARCH_PAGES = new Set(["overview", "fees", "deposits", "packages", "total"]);
 
 const FILTERS = {
-  fees: [["owed", "Still owed"], ["paid", "Paid"], ["all", "All"]],
+  fees: [["owed", "Still owed"], ["paid", "Paid"], ["direct", "Family paid the school"], ["all", "All"]],
   deposits: [["owed", "Still owed"], ["paid", "Paid"], ["refunded", "Refunded"], ["all", "All"]],
   packages: [["owed", "Still owed"], ["paid", "Paid"], ["all", "All"]],
 };
@@ -48,6 +48,7 @@ function applyFilter(rows, key) {
   if (key === "owed") return rows.filter((r) => r.owed > 0);
   if (key === "paid") return rows.filter((r) => r.state.key === "paid");
   if (key === "refunded") return rows.filter((r) => r.state.key === "refunded");
+  if (key === "direct") return rows.filter((r) => r.direct);
   return rows;
 }
 
@@ -67,6 +68,7 @@ function PaidCell({ row, onSaved, onError }) {
   const [vals, setVals] = useState({});
   const [busy, setBusy] = useState(false);
 
+  if (row.direct) return <span className="acct2-muted">Paid by the family</span>;
   if (row.status !== "open") return <span>{aed(row.paidOut)}</span>;
 
   function start(e) {
@@ -169,7 +171,7 @@ export default function AccountingPage() {
   const navigate = useNavigate();
   const requested = params.get("view") || "overview";
   const page = PAGES.some(([k]) => k === requested) ? requested : "overview";
-  const [filters, setFilters] = useState({ fees: "owed", deposits: "all", packages: "owed" });
+  const [filters, setFilters] = useState({ fees: "all", deposits: "all", packages: "owed" });
   const [totalType, setTotalType] = useState("all");
   const [totalOwedOnly, setTotalOwedOnly] = useState(false);
   const [search, setSearch] = useState("");
@@ -196,16 +198,17 @@ export default function AccountingPage() {
   }, [page]);
 
   const ledger = useMemo(() => buildLedger(data), [data]);
+  const directFees = useMemo(() => (data ? buildDirectFeeRows(data) : []), [data]);
   const q = search.trim().toLowerCase();
   const matches = (r) => !q || `${r.family} ${r.desc} ${r.sub}`.toLowerCase().includes(q);
 
   const byType = useMemo(
     () => ({
-      fees: ledger.filter((r) => r.type === "application_fee"),
+      fees: [...ledger.filter((r) => r.type === "application_fee"), ...directFees],
       deposits: ledger.filter((r) => r.type === "registration_deposit"),
       packages: ledger.filter((r) => r.type === "package"),
     }),
-    [ledger]
+    [ledger, directFees]
   );
 
   // Overview: one line per family that still owes us anything.
@@ -340,7 +343,7 @@ export default function AccountingPage() {
               </thead>
               <tbody>
                 {shown.map((r) => (
-                  <tr key={r.key} onClick={() => navigate(familyLink(r.familyId))}>
+                  <tr key={r.key} className={r.direct ? "acct2-row-direct" : undefined} onClick={() => navigate(familyLink(r.familyId))}>
                     {columns.map((c) => (
                       <td key={c.head} className={c.num ? "num" : ""}>
                         {c.cell(r)}
@@ -373,7 +376,7 @@ export default function AccountingPage() {
     familyCol,
     schoolCol,
     { head: "We paid", cell: (r) => <PaidCell row={r} onSaved={load} onError={setActionError} /> },
-    { head: "Family owes", num: true, cell: (r) => aed(r.amount) },
+    { head: "Family owes", num: true, cell: (r) => (r.direct ? "—" : aed(r.amount)) },
     statusCol,
   ];
 

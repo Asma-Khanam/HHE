@@ -140,3 +140,37 @@
 .team-row-position-edit .panel-input {
   width: 130px;
 }
+
+/* Workload: families per consultant, by stage */
+.team-load-wrap {
+  overflow-x: auto;
+}
+.team-load {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.team-load th,
+.team-load td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #ece7e1;
+}
+.team-load th {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7686;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.team-load .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.team-load-active {
+  font-weight: 700;
+}
+.team-load tr.is-unassigned td {
+  color: #8a8f98;
+  font-style: italic;
+}

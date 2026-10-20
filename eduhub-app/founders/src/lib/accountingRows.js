@@ -124,6 +124,44 @@ export function buildLedger(data) {
   return [...fees, ...packs];
 }
 
+// Fees the family paid the school themselves. They carry no money for us, so
+// they never enter the totals; they only show (greyed) on the Application fees
+// tab so a consultant can see at a glance who has already handled it.
+export function buildDirectFeeRows(data) {
+  const groups = new Map();
+  (data?.directFees || []).forEach((f) => {
+    const child = f.application?.child;
+    if (!child?.family_id) return;
+    const school = f.application?.school?.name || "School";
+    const k = `${child.family_id}|${school}`;
+    if (!groups.has(k)) groups.set(k, { familyId: child.family_id, school, kids: [], id: f.id });
+    groups.get(k).kids.push(childName(child));
+  });
+  return [...groups.values()].map((g) => ({
+    key: `d-${g.id}`,
+    type: "application_fee",
+    direct: true,
+    recordId: null,
+    familyId: g.familyId,
+    family: data.familyNames[g.familyId] || "Family",
+    desc: g.school,
+    sub: g.kids.join(", "),
+    paidOut: 0,
+    amount: 0,
+    state: { key: "direct", label: "Family paid the school themselves", tone: "muted" },
+    status: "direct",
+    date: null,
+    billed: 0,
+    collected: 0,
+    owed: 0,
+    lateDays: 0,
+    waiting: null,
+    missing: false,
+    lines: [],
+    canRefund: false,
+  }));
+}
+
 // Whole-number AED for tables.
 export function aed(n) {
   return `AED ${Math.round(Number(n) || 0).toLocaleString()}`;
