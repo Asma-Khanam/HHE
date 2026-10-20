@@ -1,134 +1,64 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { getAccountingOverview, resolveStripeEvent, friendlyError } from "../lib/staffData";
-import {
-  STATUS_LABEL,
-  money,
-  moneyRound,
-  childName,
-  sum,
-  liveItems,
-  recordFlags,
-  daysSince,
-  timeAgo,
-} from "../lib/accounting";
-import { daysUntil } from "../lib/workflow";
+import { getAccountingOverview, resolveStripeEvent, markDepositRefunded, friendlyError } from "../lib/staffData";
+import { buildLedger, aed, TYPE_LABEL, TYPE_COLOR } from "../lib/accountingRows";
+import { shortDate, timeAgo } from "../lib/accounting";
+import AddDepositForm from "../components/AddDepositForm";
+import AccountingAnalytics from "../components/AccountingAnalytics";
 import "./AccountingPage.css";
 
-// Accounting, across every family. The page is one Overview with the money
-// the consultant should see first (headline numbers, what needs a person
-// today, how old the money is, margin), then one top-level tab per list:
-// School fees, Packages, Families, and Needs review when a Stripe event has
-// come back wrong. Every table row opens that family's own Accounting tab,
-// where the actual money work (invoice, void, mark paid) happens -- this page
-// never changes a record itself.
-//
-// The design mirrors the Caseload page: title + search up top, pill tabs
-// below, a single clean table per tab. The old middle grid of charts was
-// repeating what the KPI tiles already said and has been removed.
-
-const WAITING_RED_AFTER_DAYS = 3;
-const FAMILIES_SHOWN = 5;
-const SCHOOLS_PER_FAMILY = 2;
+// Accounting, across every family, in plain tables. Three kinds of money
+// (application fees, deposits, packages), one tab for each, a Total tab with
+// all of it together, an Analytics tab, and an Overview of who owes what.
+// Every row opens that family's own Accounting tab, where the real work
+// (invoice, void) happens; this page only reads, apart from adding a deposit
+// and marking one refunded by the school.
 
 const PAGES = [
   ["overview", "Overview"],
-  ["records", "School fees"],
+  ["fees", "Application fees"],
+  ["deposits", "Deposits"],
   ["packages", "Packages"],
-  ["families", "By family"],
+  ["total", "Total"],
+  ["analytics", "Analytics"],
   ["review", "Needs review"],
 ];
 
-const LIST_PAGES = new Set(["records", "packages", "families"]);
+const SEARCH_PAGES = new Set(["overview", "fees", "deposits", "packages", "total"]);
 
-const FEE_FILTERS = [
-  ["attention", "Needs attention"],
-  ["open", "Not invoiced"],
-  ["invoiced", "Invoiced"],
-  ["paid", "Family paid"],
-  ["all", "All"],
-];
+const FILTERS = {
+  fees: [["owed", "Still owed"], ["paid", "Paid"], ["all", "All"]],
+  deposits: [["owed", "Still owed"], ["paid", "Paid"], ["refunded", "Refunded"], ["all", "All"]],
+  packages: [["owed", "Still owed"], ["paid", "Paid"], ["all", "All"]],
+};
 
-const PACKAGE_FILTERS = [
-  ["attention", "Needs attention"],
-  ["upcoming", "Not due yet"],
-  ["paid", "Paid"],
+const TOTAL_FILTERS = [
   ["all", "All"],
+  ["application_fee", "Application fees"],
+  ["registration_deposit", "Deposits"],
+  ["package", "Packages"],
 ];
 
 function familyLink(familyId) {
   return `/staff/families/${familyId}?tab=accounting`;
 }
 
-function dueText(dueDate) {
-  const d = daysUntil(dueDate);
-  if (d === null) return "No due date";
-  if (d === 0) return "Due today";
-  if (d < 0) return `${Math.abs(d)} day${Math.abs(d) === 1 ? "" : "s"} overdue`;
-  return `Due in ${d} day${d === 1 ? "" : "s"}`;
+function applyFilter(rows, key) {
+  if (key === "all") return rows;
+  if (key === "owed") return rows.filter((r) => r.owed > 0);
+  if (key === "paid") return rows.filter((r) => r.state.key === "paid");
+  if (key === "refunded") return rows.filter((r) => r.state.key === "refunded");
+  return rows;
 }
 
-function shortDate(dateStr) {
-  if (!dateStr) return "";
-  return new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+// Still-owed rows first, the oldest-waiting at the top; paid and refunded sink.
+function byUrgency(a, b) {
+  const rank = (r) => (r.owed > 0 ? 0 : 1);
+  return rank(a) - rank(b) || (b.lateDays || 0) - (a.lateDays || 0) || (b.waiting || 0) - (a.waiting || 0) || b.amount - a.amount;
 }
 
-// The state of one package payment in the words a consultant would use.
-function packageState(p) {
-  if (p.status === "paid") return { key: "paid", label: p.paid_at ? `Paid ${shortDate(p.paid_at)}` : "Paid", tone: "good" };
-  if (p.status === "waived") return { key: "paid", label: "Waived", tone: "muted" };
-  if (p.status === "submitted") return { key: "attention", label: "Receipt uploaded · confirm it", tone: "blue" };
-  const d = daysUntil(p.due_date);
-  if (d !== null && d < 0) return { key: "attention", label: dueText(p.due_date), tone: "late" };
-  return { key: "upcoming", label: dueText(p.due_date), tone: "amber" };
-}
-
-function lastChangeText(record) {
-  if (!record.lastChange) return null;
-  return `Updated by ${record.lastChange.by} · ${timeAgo(record.lastChange.at)}`;
-}
-
-// One small ageing table: rows of money, columns of how old it is. Late columns
-// turn red so a quick glance shows where the risk is.
-function AgingTable({ title, heads, lines }) {
-  return (
-    <div className="acct-aging">
-      <h3>{title}</h3>
-      <table>
-        <thead>
-          <tr>
-            <th />
-            {heads.map((h, i) => (
-              <th key={h} className={i >= 2 ? "is-late" : ""}>
-                {h}
-              </th>
-            ))}
-            <th>Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lines.map(([label, buckets]) => (
-            <tr key={label}>
-              <td>{label}</td>
-              {buckets.map((b, i) => (
-                <td key={i} className={b.count && i >= 2 ? "is-late" : b.count ? "" : "is-zero"}>
-                  {b.count ? (
-                    <>
-                      {moneyRound(b.amount)}
-                      <em>{b.count}</em>
-                    </>
-                  ) : (
-                    "–"
-                  )}
-                </td>
-              ))}
-              <td className="is-total">{moneyRound(buckets.reduce((n, b) => n + b.amount, 0))}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+function StatusBadge({ state }) {
+  return <span className={"acct-pill-badge is-" + state.tone}>{state.label}</span>;
 }
 
 export default function AccountingPage() {
@@ -138,235 +68,108 @@ export default function AccountingPage() {
   const navigate = useNavigate();
   const requested = params.get("view") || "overview";
   const page = PAGES.some(([k]) => k === requested) ? requested : "overview";
-  const [feeFilter, setFeeFilter] = useState("attention");
-  const [packageFilter, setPackageFilter] = useState("attention");
+  const [filters, setFilters] = useState({ fees: "owed", deposits: "all", packages: "owed" });
+  const [totalType, setTotalType] = useState("all");
+  const [totalOwedOnly, setTotalOwedOnly] = useState(false);
   const [search, setSearch] = useState("");
-  const [showAllActions, setShowAllActions] = useState(false);
+  const [addingDeposit, setAddingDeposit] = useState(false);
+  const [refunding, setRefunding] = useState(null); // record id waiting for a second click
+  const [actionError, setActionError] = useState("");
   const [reviewed, setReviewed] = useState([]);
-  const [alertError, setAlertError] = useState("");
-  const detailRef = useRef(null);
+  const [includeTest, setIncludeTest] = useState(false);
+  const topRef = useRef(null);
 
-  useEffect(() => {
-    let alive = true;
-    getAccountingOverview()
-      .then((d) => alive && setData(d))
-      .catch((err) => alive && setError(friendlyError(err, "Couldn't load accounting.")));
-    return () => {
-      alive = false;
-    };
+  const load = useCallback(() => {
+    return getAccountingOverview()
+      .then(setData)
+      .catch((err) => setError(friendlyError(err, "Couldn't load accounting.")));
   }, []);
 
-  // Clear the search when the tab changes, so a filter from one tab doesn't
-  // silently hide rows on another.
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // A search typed on one tab should not silently hide rows on the next.
   useEffect(() => {
     setSearch("");
+    setActionError("");
   }, [page]);
 
-  const rows = useMemo(() => {
-    if (!data) return [];
-    return data.records.map((record) => {
-      const items = liveItems(record);
-      return {
-        record,
-        items,
-        flags: recordFlags(record),
-        waiting: record.status === "open" ? daysSince(record.school_paid_at || record.created_at) : null,
-        family: data.familyNames[record.family_id] || "Family",
-        paid: sum(items, "amount_paid"),
-        charged: sum(items, "amount_charged"),
-        difference: sum(items, "difference"),
-      };
-    });
+  const ledger = useMemo(() => buildLedger(data, { includeTest }), [data, includeTest]);
+  const testCount = useMemo(() => {
+    if (!data?.testFamilyIds?.length) return 0;
+    const all = buildLedger(data, { includeTest: true }).length;
+    return all - buildLedger(data).length;
   }, [data]);
+  const q = search.trim().toLowerCase();
+  const matches = (r) => !q || `${r.family} ${r.desc} ${r.sub}`.toLowerCase().includes(q);
 
-  const packages = useMemo(() => {
-    if (!data) return [];
-    return data.payments.map((p) => ({ p, state: packageState(p), family: data.familyNames[p.family_id] || "Family" }));
-  }, [data]);
+  const byType = useMemo(
+    () => ({
+      fees: ledger.filter((r) => r.type === "application_fee"),
+      deposits: ledger.filter((r) => r.type === "registration_deposit"),
+      packages: ledger.filter((r) => r.type === "package"),
+    }),
+    [ledger]
+  );
+
+  // Overview: one line per family that still owes us anything.
+  const owing = useMemo(() => {
+    const map = new Map();
+    ledger.forEach((r) => {
+      if (!r.owed) return;
+      if (!map.has(r.familyId)) {
+        map.set(r.familyId, { id: r.familyId, name: r.family, application_fee: 0, registration_deposit: 0, package: 0, total: 0, worst: 0, uninvoiced: 0 });
+      }
+      const f = map.get(r.familyId);
+      f[r.type] += r.owed;
+      f.total += r.owed;
+      f.worst = Math.max(f.worst, r.lateDays || 0);
+      if (r.status === "open") f.uninvoiced += 1;
+    });
+    return [...map.values()].sort((a, b) => b.worst - a.worst || b.total - a.total);
+  }, [ledger]);
 
   const totals = useMemo(() => {
-    const byStatus = (s) => rows.filter((r) => r.record.status === s);
-    const open = byStatus("open");
-    const invoiced = byStatus("invoiced");
-    const paid = byStatus("paid");
-    const packOwed = packages.filter((x) => x.p.status === "unpaid" || x.p.status === "submitted");
-    const packPaid = packages.filter((x) => x.p.status === "paid");
-    const amt = (list, key) => sum(list.map((r) => ({ v: r[key] })), "v");
-    return {
-      open,
-      invoiced,
-      paid,
-      outOfPocket: amt(open, "paid") + amt(invoiced, "paid"),
-      schoolToCollect: amt(open, "charged") + amt(invoiced, "charged"),
-      packageToCollect: sum(packOwed.map((x) => x.p), "amount"),
-      collected: amt(paid, "charged") + sum(packPaid.map((x) => x.p), "amount"),
-    };
-  }, [rows, packages]);
-
-  const groups = useMemo(() => {
-    const m = new Map();
-    const ensure = (familyId, family) => {
-      if (!m.has(familyId)) m.set(familyId, { familyId, family, schools: [], packages: [], late: false });
-      return m.get(familyId);
-    };
-    rows.forEach((r) => {
-      const chips = r.flags.map((f) => ({ text: f, tone: "amber" }));
-      if (r.waiting !== null && r.waiting >= WAITING_RED_AFTER_DAYS) {
-        chips.push({ text: `Not invoiced · ${r.waiting}d`, tone: "late" });
-      }
-      if (!chips.length) return;
-      const g = ensure(r.record.family_id, r.family);
-      g.schools.push({ name: r.record.school?.name || "School", chips });
-      if (chips.some((c) => c.tone === "late")) g.late = true;
+    const t = { owed: 0, application_fee: 0, registration_deposit: 0, package: 0 };
+    owing.forEach((f) => {
+      t.owed += f.total;
+      t.application_fee += f.application_fee;
+      t.registration_deposit += f.registration_deposit;
+      t.package += f.package;
     });
-    packages.forEach((x) => {
-      if (x.state.tone === "late") {
-        const g = ensure(x.p.family_id, x.family);
-        g.packages.push({ text: `${x.p.label} · overdue`, tone: "late" });
-        g.late = true;
-      } else if (x.p.status === "submitted") {
-        ensure(x.p.family_id, x.family).packages.push({ text: `${x.p.label} · confirm receipt`, tone: "blue" });
-      }
-    });
-    const arr = [...m.values()];
-    arr.forEach((g) => {
-      g.count = g.schools.reduce((n, s) => n + s.chips.length, 0) + g.packages.length;
-    });
-    return arr.sort((a, b) => (b.late ? 1 : 0) - (a.late ? 1 : 0) || b.count - a.count);
-  }, [rows, packages]);
-
-  const totalItems = groups.reduce((n, g) => n + g.count, 0);
-
-  const families = useMemo(() => {
-    const map = new Map();
-    const get = (id, name) => {
-      if (!map.has(id)) map.set(id, { id, name, school: 0, pack: 0, items: 0, worst: null });
-      return map.get(id);
-    };
-    rows.forEach((r) => {
-      if (r.record.status === "paid") return;
-      const f = get(r.record.family_id, r.family);
-      f.school += r.charged;
-      f.items += 1;
-    });
-    packages.forEach((x) => {
-      if (x.p.status !== "unpaid" && x.p.status !== "submitted") return;
-      const f = get(x.p.family_id, x.family);
-      f.pack += Number(x.p.amount) || 0;
-      f.items += 1;
-      const d = daysUntil(x.p.due_date);
-      if (d !== null && d < 0) f.worst = Math.max(f.worst || 0, Math.abs(d));
-    });
-    return [...map.values()].sort((a, b) => b.school + b.pack - (a.school + a.pack));
-  }, [rows, packages]);
-
-  const aging = useMemo(() => {
-    const empty = () => [0, 1, 2, 3].map(() => ({ amount: 0, count: 0 }));
-    const owed = { fees: empty(), packages: empty() };
-    const notInvoiced = empty();
-    let oldest = null;
-    const lateBucket = (days) => (days <= 0 ? 0 : days <= 7 ? 1 : days <= 14 ? 2 : 3);
-    const waitBucket = (days) => (days <= 3 ? 0 : days <= 7 ? 1 : days <= 14 ? 2 : 3);
-    const add = (list, i, amount) => {
-      list[i].amount += Number(amount) || 0;
-      list[i].count += 1;
-    };
-    const note = (days, familyId, family, what) => {
-      if (days > 0 && (!oldest || days > oldest.days)) oldest = { days, familyId, family, what };
-    };
-    rows.forEach((r) => {
-      if (r.record.status === "open") {
-        const w = r.waiting ?? 0;
-        add(notInvoiced, waitBucket(w), r.charged);
-        note(w, r.record.family_id, r.family, "paid to school, not invoiced");
-      } else if (r.record.status === "invoiced") {
-        const d = daysUntil(r.record.invoice?.due_date);
-        const late = d === null ? 0 : -d;
-        add(owed.fees, lateBucket(late), r.record.invoice?.amount ?? r.charged);
-        note(late, r.record.family_id, r.family, "invoice overdue");
-      }
-    });
-    packages.forEach((x) => {
-      if (x.p.status !== "unpaid" && x.p.status !== "submitted") return;
-      const d = daysUntil(x.p.due_date);
-      const late = d === null ? 0 : -d;
-      add(owed.packages, lateBucket(late), x.p.amount);
-      note(late, x.p.family_id, x.family, `${x.p.label} overdue`);
-    });
-    return { owed, notInvoiced, oldest };
-  }, [rows, packages]);
-
-  const margin = useMemo(() => {
-    let paid = 0;
-    let charged = 0;
-    let children = 0;
-    let missing = 0;
-    let earned = 0;
-    rows.forEach((r) =>
-      r.items.forEach((i) => {
-        if (i.amount_paid === null || i.amount_paid === undefined) {
-          missing += 1;
-          return;
-        }
-        paid += Number(i.amount_paid);
-        charged += Number(i.amount_charged);
-        children += 1;
-        if (r.record.status === "paid") earned += Number(i.amount_charged) - Number(i.amount_paid);
-      })
-    );
-    const total = charged - paid;
-    return { paid, charged, total, children, missing, earned, pending: total - earned, perChild: children ? total / children : 0 };
-  }, [rows]);
+    return t;
+  }, [owing]);
 
   const stripeAlerts = (data?.stripeAlerts || []).filter((a) => !reviewed.includes(a.id));
 
-  const actions = useMemo(() => {
-    const countFrom = (list) => list.slice(1).reduce((n, b) => n + b.count, 0);
-    const oldest = totals.open.reduce((m, r) => Math.max(m, r.waiting || 0), 0);
+  // Small to-do chips on the Overview.
+  const chips = useMemo(() => {
+    const n = (list, fn) => list.filter(fn).length;
     const list = [
-      { key: "open", count: totals.open.length, label: "paid to school, not invoiced", tone: oldest >= WAITING_RED_AFTER_DAYS ? "late" : "amber", page: "records", filter: "open" },
-      { key: "missing", count: margin.missing, label: "school amounts missing", tone: "late", page: "records", filter: "attention" },
-      { key: "inv", count: countFrom(aging.owed.fees), label: "invoices overdue", tone: "late", page: "records", filter: "invoiced" },
-      { key: "pack", count: countFrom(aging.owed.packages), label: "package payments overdue", tone: "late", page: "packages", filter: "attention" },
-      { key: "conf", count: packages.filter((x) => x.p.status === "submitted").length, label: "receipts to confirm", tone: "blue", page: "packages", filter: "attention" },
+      { count: n(byType.fees, (r) => r.status === "open"), label: "application fees paid, not invoiced", view: "fees", tone: "amber" },
+      { count: n(byType.deposits, (r) => r.status === "open"), label: "deposits paid, not invoiced", view: "deposits", tone: "amber" },
+      { count: n(ledger, (r) => r.lateDays > 0), label: "payments overdue", view: "total", tone: "late" },
+      { count: n(byType.packages, (r) => r.status === "submitted"), label: "package receipts to confirm", view: "packages", tone: "blue" },
+      { count: n(byType.fees, (r) => r.missing && r.status !== "refunded"), label: "school amounts missing", view: "fees", tone: "late" },
     ];
-    return list.filter((a) => a.count > 0);
-  }, [totals, margin.missing, aging, packages]);
+    return list.filter((c) => c.count > 0);
+  }, [ledger, byType]);
 
-  const q = search.trim().toLowerCase();
-  const matches = (text) => !q || text.toLowerCase().includes(q);
-
-  const feeCounts = {
-    attention: rows.filter((r) => r.flags.length > 0).length,
-    open: totals.open.length,
-    invoiced: totals.invoiced.length,
-    paid: totals.paid.length,
-    all: rows.length,
-  };
-  const packageCounts = {
-    attention: packages.filter((x) => x.state.key === "attention").length,
-    upcoming: packages.filter((x) => x.state.key === "upcoming").length,
-    paid: packages.filter((x) => x.state.key === "paid").length,
-    all: packages.length,
-  };
-
-  const shownFees = rows
-    .filter((r) => (feeFilter === "attention" ? r.flags.length > 0 : feeFilter === "all" ? true : r.record.status === feeFilter))
-    .filter((r) => matches(`${r.family} ${r.record.school?.name || ""}`))
-    .sort((a, b) => (b.waiting ?? -1) - (a.waiting ?? -1));
-  const shownPackages = packages
-    .filter((x) => (packageFilter === "all" ? true : x.state.key === packageFilter))
-    .filter((x) => matches(`${x.family} ${x.p.label}`));
-  const shownFamilies = families.filter((f) => matches(f.name));
+  const familiesForForm = useMemo(
+    () =>
+      Object.entries(data?.familyNames || {})
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [data]
+  );
 
   const pageCounts = {
-    overview: 0,
-    records: rows.length,
-    packages: packages.length,
-    families: families.length,
+    fees: byType.fees.filter((r) => r.owed > 0).length,
+    deposits: byType.deposits.filter((r) => r.owed > 0).length,
+    packages: byType.packages.filter((r) => r.owed > 0).length,
     review: stripeAlerts.length,
   };
-
   const visiblePages = PAGES.filter(([k]) => k !== "review" || stripeAlerts.length > 0);
 
   function pickPage(key) {
@@ -374,22 +177,28 @@ export default function AccountingPage() {
     if (key === "overview") next.delete("view");
     else next.set("view", key);
     setParams(next, { replace: true });
-    detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  function goTo(view, filter) {
-    if (view === "records") setFeeFilter(filter);
-    else if (view === "packages") setPackageFilter(filter);
-    pickPage(view);
+    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function markReviewed(id) {
-    setAlertError("");
+    setActionError("");
     try {
       await resolveStripeEvent(id);
       setReviewed((list) => [...list, id]);
     } catch {
-      setAlertError("Couldn't mark that as reviewed. Check that addendum 117 has been run.");
+      setActionError("Couldn't mark that as reviewed. Check that addendum 117 has been run.");
+    }
+  }
+
+  async function refund(recordId) {
+    setActionError("");
+    try {
+      await markDepositRefunded(recordId);
+      setRefunding(null);
+      await load();
+    } catch (err) {
+      setRefunding(null);
+      setActionError(friendlyError(err, "Couldn't mark that as refunded."));
     }
   }
 
@@ -410,9 +219,142 @@ export default function AccountingPage() {
     );
   }
 
-  const oldestWaiting = totals.open.reduce((m, r) => Math.max(m, r.waiting || 0), 0);
-  const visibleGroups = showAllActions ? groups : groups.slice(0, FAMILIES_SHOWN);
-  const actionCount = actions.reduce((n, a) => n + a.count, 0) + stripeAlerts.length;
+  // One table for the three list tabs (fees, deposits, packages).
+  function renderList({ tabKey, rows, columns, emptyText, addButton }) {
+    const filter = filters[tabKey];
+    const shown = applyFilter(rows, filter).filter(matches).sort(byUrgency);
+    const countFor = (k) => applyFilter(rows, k).length;
+    return (
+      <div className="acct-list">
+        <div className="acct2-toolbar">
+          <div className="acct-filters">
+            {FILTERS[tabKey].map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className={"acct-filter" + (filter === key ? " is-active" : "")}
+                onClick={() => setFilters((f) => ({ ...f, [tabKey]: key }))}
+              >
+                {label} <span>{countFor(key)}</span>
+              </button>
+            ))}
+          </div>
+          {addButton}
+        </div>
+        {actionError && <p className="acct-error">{actionError}</p>}
+        {shown.length === 0 ? (
+          <p className="acct-empty">{emptyText}</p>
+        ) : (
+          <div className="acct-table-card">
+            <table className="acct-ctable">
+              <thead>
+                <tr>
+                  {columns.map((c) => (
+                    <th key={c.head} className={c.num ? "num" : ""}>
+                      {c.head}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((r) => (
+                  <tr key={r.key} onClick={() => navigate(familyLink(r.familyId))}>
+                    {columns.map((c) => (
+                      <td key={c.head} className={c.num ? "num" : ""}>
+                        {c.cell(r)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="acct-table-foot">Click a row to open that family&apos;s Accounting tab.</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const familyCol = { head: "Family", cell: (r) => <span className="acct-ctable-name">{r.family}</span> };
+  const schoolCol = {
+    head: "School and children",
+    cell: (r) => (
+      <>
+        <div className="acct-cell-main">{r.desc}</div>
+        <div className="acct-cell-sub">{r.sub}</div>
+      </>
+    ),
+  };
+  const statusCol = { head: "Status", cell: (r) => <StatusBadge state={r.state} /> };
+
+  const feeColumns = [
+    familyCol,
+    schoolCol,
+    { head: "We paid", num: true, cell: (r) => (r.missing ? <span className="acct-cell-sub">Not entered</span> : aed(r.paidOut)) },
+    { head: "Family owes", num: true, cell: (r) => aed(r.amount) },
+    statusCol,
+  ];
+
+  const depositColumns = [
+    familyCol,
+    schoolCol,
+    { head: "Amount", num: true, cell: (r) => aed(r.amount) },
+    statusCol,
+    {
+      head: "",
+      cell: (r) =>
+        r.canRefund ? (
+          refunding === r.recordId ? (
+            <span className="acct2-confirm" onClick={(e) => e.stopPropagation()}>
+              Sure?{" "}
+              <button type="button" className="acct2-link is-danger" onClick={() => refund(r.recordId)}>
+                Yes, school refunded
+              </button>{" "}
+              <button type="button" className="acct2-link" onClick={() => setRefunding(null)}>
+                No
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="acct2-link"
+              onClick={(e) => {
+                e.stopPropagation();
+                setRefunding(r.recordId);
+              }}
+            >
+              School refunded
+            </button>
+          )
+        ) : null,
+    },
+  ];
+
+  const packageColumns = [
+    familyCol,
+    { head: "Payment", cell: (r) => r.desc },
+    { head: "Amount", num: true, cell: (r) => aed(r.amount) },
+    { head: "Due", cell: (r) => (r.date && r.state.key !== "paid" ? shortDate(r.date) : "—") },
+    statusCol,
+  ];
+
+  const totalRows = ledger
+    .filter((r) => (totalType === "all" ? true : r.type === totalType))
+    .filter((r) => (totalOwedOnly ? r.owed > 0 : true))
+    .filter(matches)
+    .sort((a, b) => (b.date ? new Date(b.date).getTime() : 0) - (a.date ? new Date(a.date).getTime() : 0));
+
+  const typeSummary = ["application_fee", "registration_deposit", "package"].map((t) => {
+    const rows = ledger.filter((r) => r.type === t);
+    return {
+      t,
+      billed: rows.reduce((n, r) => n + r.billed, 0),
+      collected: rows.reduce((n, r) => n + r.collected, 0),
+      owed: rows.reduce((n, r) => n + r.owed, 0),
+    };
+  });
+
+  const owingShown = owing.filter((f) => !q || f.name.toLowerCase().includes(q));
 
   return (
     <div className="acct-page">
@@ -420,11 +362,10 @@ export default function AccountingPage() {
         <div>
           <h1 className="acct-title">Accounting</h1>
           <p className="acct-subtitle">
-            Where our money is, who needs chasing, and what each family owes. Open any row to work on it in that family&apos;s
-            Accounting tab.
+            Application fees, deposits and packages in one place. Open any row to work on it in that family&apos;s Accounting tab.
           </p>
         </div>
-        {LIST_PAGES.has(page) && (
+        {SEARCH_PAGES.has(page) && (
           <input
             className="acct-search"
             type="search"
@@ -435,17 +376,22 @@ export default function AccountingPage() {
         )}
       </header>
 
-      <div className="acct-pills" role="tablist" ref={detailRef}>
+      {testCount > 0 && (
+        <label className="acct2-check acct2-test-toggle">
+          <input type="checkbox" checked={includeTest} onChange={(e) => setIncludeTest(e.target.checked)} /> Include test families ({testCount} item{testCount === 1 ? "" : "s"})
+        </label>
+      )}
+
+      <div className="acct-pills" role="tablist" ref={topRef}>
         {visiblePages.map(([key, label]) => {
           const count = pageCounts[key];
-          const isReview = key === "review";
           return (
             <button
               key={key}
               type="button"
               role="tab"
               aria-selected={page === key}
-              className={"acct-pill" + (page === key ? " is-active" : "") + (isReview ? " is-review" : "")}
+              className={"acct-pill" + (page === key ? " is-active" : "") + (key === "review" ? " is-review" : "")}
               onClick={() => pickPage(key)}
             >
               {label}
@@ -457,349 +403,232 @@ export default function AccountingPage() {
 
       {page === "overview" && (
         <div className="acct-overview">
-          {oldestWaiting >= WAITING_RED_AFTER_DAYS && (
-            <div className="acct-risk-banner">
-              <strong>Attention:</strong> the oldest payment waiting to be invoiced is {oldestWaiting} day{oldestWaiting === 1 ? "" : "s"} old. Open School fees to see which.
+          {chips.length > 0 && (
+            <div className="acct2-chips">
+              {chips.map((c) => (
+                <button key={c.label} type="button" className={"acct-action-tile is-" + c.tone} onClick={() => pickPage(c.view)}>
+                  <strong>{c.count}</strong> {c.label}
+                </button>
+              ))}
+              {stripeAlerts.length > 0 && (
+                <button type="button" className="acct-action-tile is-late" onClick={() => pickPage("review")}>
+                  <strong>{stripeAlerts.length}</strong> Stripe payments to look at
+                </button>
+              )}
             </div>
           )}
 
-          <div className="acct-stats">
-            <div className={"acct-stat acct-stat--amber" + (oldestWaiting >= WAITING_RED_AFTER_DAYS ? " is-risk" : "")}>
-              <span className="acct-stat-label">Out of pocket</span>
-              <strong>{moneyRound(totals.outOfPocket)}</strong>
-              <em>Paid to schools, not yet recovered</em>
-            </div>
-            <div className="acct-stat acct-stat--blue">
-              <span className="acct-stat-label">To collect</span>
-              <strong>{moneyRound(totals.schoolToCollect + totals.packageToCollect)}</strong>
-              <em>
-                {moneyRound(totals.schoolToCollect)} school fees · {moneyRound(totals.packageToCollect)} packages
-              </em>
-            </div>
-            <div className="acct-stat acct-stat--green is-good">
-              <span className="acct-stat-label">Collected</span>
-              <strong>{moneyRound(totals.collected)}</strong>
-              <em>School fees and packages paid</em>
-            </div>
-            <div className="acct-stat acct-stat--gold">
-              <span className="acct-stat-label">Margin earned</span>
-              <strong>{moneyRound(margin.earned)}</strong>
-              <em>
-                {moneyRound(margin.pending)} still to come · before Stripe&apos;s fee
-              </em>
-            </div>
-          </div>
-
-          <section className={"acct-card" + (actionCount === 0 ? " is-empty" : "")}>
+          <section className="acct-card">
             <div className="acct-card-head">
-              <h2>Needs action today</h2>
+              <h2>Who owes us what</h2>
               <span className="acct-card-sub">
-                {actionCount === 0 ? "All clear" : `${actionCount} item${actionCount === 1 ? "" : "s"}`}
+                {aed(totals.owed)} from {owing.length} {owing.length === 1 ? "family" : "families"}
               </span>
             </div>
-            {actionCount === 0 ? (
-              <p className="acct-empty">Nothing missing, overdue or waiting on us.</p>
+            {owingShown.length === 0 ? (
+              <p className="acct-empty">{owing.length === 0 ? "Nobody owes us anything right now." : "Nothing matches that."}</p>
             ) : (
-              <div className="acct-action-tiles">
-                {actions.map((a) => (
-                  <button key={a.key} type="button" className={"acct-action-tile is-" + a.tone} onClick={() => goTo(a.page, a.filter)}>
-                    <strong>{a.count}</strong>
-                    <span>{a.label}</span>
-                  </button>
-                ))}
-                {stripeAlerts.length > 0 && (
-                  <button type="button" className="acct-action-tile is-late" onClick={() => pickPage("review")}>
-                    <strong>{stripeAlerts.length}</strong>
-                    <span>Stripe payment{stripeAlerts.length === 1 ? "" : "s"} to review</span>
-                  </button>
-                )}
+              <div className="acct-table-card is-flat">
+                <table className="acct-ctable">
+                  <thead>
+                    <tr>
+                      <th>Family</th>
+                      <th className="num">Application fees</th>
+                      <th className="num">Deposits</th>
+                      <th className="num">Packages</th>
+                      <th className="num">Total owed</th>
+                      <th>Note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {owingShown.map((f) => (
+                      <tr key={f.id} onClick={() => navigate(familyLink(f.id))}>
+                        <td>
+                          <span className="acct-ctable-name">{f.name}</span>
+                        </td>
+                        <td className="num">{f.application_fee ? aed(f.application_fee) : "–"}</td>
+                        <td className="num">{f.registration_deposit ? aed(f.registration_deposit) : "–"}</td>
+                        <td className="num">{f.package ? aed(f.package) : "–"}</td>
+                        <td className="num acct-strong">{aed(f.total)}</td>
+                        <td>
+                          {f.worst > 0 ? (
+                            <span className="acct-pill-badge is-late">
+                              Overdue {f.worst} day{f.worst === 1 ? "" : "s"}
+                            </span>
+                          ) : f.uninvoiced > 0 ? (
+                            <span className="acct-pill-badge is-amber">We still need to invoice</span>
+                          ) : (
+                            <span className="acct-cell-sub">Waiting on the family</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="acct2-total-row">
+                      <td>Total</td>
+                      <td className="num">{aed(totals.application_fee)}</td>
+                      <td className="num">{aed(totals.registration_deposit)}</td>
+                      <td className="num">{aed(totals.package)}</td>
+                      <td className="num acct-strong">{aed(totals.owed)}</td>
+                      <td />
+                    </tr>
+                  </tbody>
+                </table>
+                <p className="acct-table-foot">
+                  Money we have paid out for a family counts as owed even before we invoice it. Click a row to open that family.
+                </p>
               </div>
             )}
           </section>
-
-          <div className="acct-grid">
-            <section className="acct-card">
-              <div className="acct-card-head">
-                <h2>How old is the money we are waiting on</h2>
-                <span className="acct-card-sub">
-                  {aging.oldest
-                    ? `Oldest: ${aging.oldest.family} · ${aging.oldest.what} · ${aging.oldest.days}d`
-                    : "Nothing is late"}
-                </span>
-              </div>
-              <AgingTable
-                title="Owed by families (days past due)"
-                heads={["Not due yet", "1–7 days", "8–14 days", "15+ days"]}
-                lines={[
-                  ["School fees invoiced", aging.owed.fees],
-                  ["Package payments", aging.owed.packages],
-                ]}
-              />
-              <AgingTable
-                title="Paid to schools, not invoiced (days since we paid)"
-                heads={["0–3 days", "4–7 days", "8–14 days", "15+ days"]}
-                lines={[["School fees", aging.notInvoiced]]}
-              />
-            </section>
-
-            <section className="acct-card">
-              <div className="acct-card-head">
-                <h2>Margin on school fees</h2>
-                <span className="acct-card-sub">
-                  {margin.children} child{margin.children === 1 ? "" : "ren"} · before Stripe&apos;s fee
-                </span>
-              </div>
-              <div className="acct-margin">
-                <div>
-                  <span>We paid schools</span>
-                  <strong>{moneyRound(margin.paid)}</strong>
-                </div>
-                <div>
-                  <span>We charge families</span>
-                  <strong>{moneyRound(margin.charged)}</strong>
-                </div>
-                <div className="is-total">
-                  <span>Margin</span>
-                  <strong>{moneyRound(margin.total)}</strong>
-                </div>
-              </div>
-              <div className="acct-margin-bar" aria-hidden="true">
-                <i style={{ width: margin.total > 0 ? `${Math.max(0, Math.min(100, (margin.earned / margin.total) * 100))}%` : "0%" }} />
-              </div>
-              <p className="acct-margin-foot">
-                <strong>{moneyRound(margin.earned)}</strong> earned (family has paid) ·{" "}
-                <strong>{moneyRound(margin.pending)}</strong> still to come · average{" "}
-                <strong>{moneyRound(margin.perChild)}</strong> per child
-              </p>
-              {margin.missing > 0 && (
-                <p className="acct-warn">
-                  {margin.missing} child{margin.missing === 1 ? "" : "ren"} {margin.missing === 1 ? "has" : "have"} no school amount yet, so the margin here is not counting them.
-                </p>
-              )}
-            </section>
-          </div>
-
-          {groups.length > 0 && (
-            <section className="acct-card acct-today">
-              <div className="acct-card-head">
-                <h2>Fix by family</h2>
-                <span className="acct-card-sub">
-                  {groups.length} famil{groups.length === 1 ? "y" : "ies"} · {totalItems} item{totalItems === 1 ? "" : "s"}
-                </span>
-              </div>
-              <ul className="acct-actions">
-                {visibleGroups.map((g) => (
-                  <li key={g.familyId} className={"acct-action" + (g.late ? " is-late" : "")}>
-                    <div className="acct-action-main">
-                      <div className="acct-action-top">
-                        <strong>{g.family}</strong>
-                        <span className="acct-action-count">{g.count}</span>
-                      </div>
-                      {g.schools.slice(0, SCHOOLS_PER_FAMILY).map((sc) => (
-                        <div key={sc.name} className="acct-action-school">
-                          <span className="acct-action-schoolname">{sc.name}</span>
-                          <span className="acct-chips">
-                            {sc.chips.map((c, i) => (
-                              <span key={i} className={"acct-chip is-" + c.tone}>
-                                {c.text}
-                              </span>
-                            ))}
-                          </span>
-                        </div>
-                      ))}
-                      {g.packages.length > 0 && (
-                        <div className="acct-action-school">
-                          <span className="acct-action-schoolname">Packages</span>
-                          <span className="acct-chips">
-                            {g.packages.map((c, i) => (
-                              <span key={i} className={"acct-chip is-" + c.tone}>
-                                {c.text}
-                              </span>
-                            ))}
-                          </span>
-                        </div>
-                      )}
-                      {g.schools.length > SCHOOLS_PER_FAMILY && (
-                        <span className="acct-action-more">
-                          + {g.schools.length - SCHOOLS_PER_FAMILY} more school{g.schools.length - SCHOOLS_PER_FAMILY === 1 ? "" : "s"} on their tab
-                        </span>
-                      )}
-                    </div>
-                    <button type="button" className="acct-open" onClick={() => navigate(familyLink(g.familyId))}>
-                      Open
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {groups.length > FAMILIES_SHOWN && (
-                <button type="button" className="acct-more" onClick={() => setShowAllActions((v) => !v)}>
-                  {showAllActions ? "Show fewer" : `Show all ${groups.length} families`}
-                </button>
-              )}
-            </section>
-          )}
         </div>
       )}
 
-      {page === "records" && (
-        <div className="acct-list">
-          <div className="acct-filters">
-            {FEE_FILTERS.map(([key, label]) => (
-              <button key={key} type="button" className={"acct-filter" + (feeFilter === key ? " is-active" : "")} onClick={() => setFeeFilter(key)}>
-                {label} <span>{feeCounts[key]}</span>
+      {page === "fees" &&
+        renderList({
+          tabKey: "fees",
+          rows: byType.fees,
+          columns: feeColumns,
+          emptyText: filters.fees === "owed" ? "No application fee is waiting to be paid." : "Nothing here.",
+        })}
+
+      {page === "deposits" && (
+        <>
+          {addingDeposit && (
+            <AddDepositForm
+              families={familiesForForm}
+              onCancel={() => setAddingDeposit(false)}
+              onSaved={() => {
+                setAddingDeposit(false);
+                setFilters((f) => ({ ...f, deposits: "all" }));
+                load();
+              }}
+            />
+          )}
+          {renderList({
+            tabKey: "deposits",
+            rows: byType.deposits,
+            columns: depositColumns,
+            emptyText:
+              byType.deposits.length === 0
+                ? "No registration deposits yet. Add one when we pay a school's deposit for a family."
+                : "Nothing here.",
+            addButton: !addingDeposit && (
+              <button type="button" className="acct2-btn is-primary" onClick={() => setAddingDeposit(true)}>
+                + Add a deposit
               </button>
-            ))}
-          </div>
-          {shownFees.length === 0 ? (
-            <p className="acct-empty">{feeFilter === "attention" ? "Nothing is missing. Every record is complete." : "Nothing here."}</p>
-          ) : (
-            <div className="acct-table-card">
-              <table className="acct-ctable">
-                <thead>
-                  <tr>
-                    <th>Family</th>
-                    <th>School and children</th>
-                    <th className="num">We paid</th>
-                    <th className="num">We charge</th>
-                    <th className="num">Difference</th>
-                    <th>Status</th>
+            ),
+          })}
+        </>
+      )}
+
+      {page === "packages" &&
+        renderList({
+          tabKey: "packages",
+          rows: byType.packages,
+          columns: packageColumns,
+          emptyText: filters.packages === "owed" ? "No package payment is waiting." : "Nothing here.",
+        })}
+
+      {page === "total" && (
+        <div className="acct-list">
+          <div className="acct-table-card is-flat acct2-summary-table">
+            <table className="acct-ctable">
+              <thead>
+                <tr>
+                  <th>Kind of money</th>
+                  <th className="num">Billed</th>
+                  <th className="num">Collected</th>
+                  <th className="num">Still owed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {typeSummary.map((s) => (
+                  <tr key={s.t} className="is-static">
+                    <td>
+                      <span className="acct2-dot" style={{ background: TYPE_COLOR[s.t] }} />
+                      {TYPE_LABEL[s.t]}
+                    </td>
+                    <td className="num">{aed(s.billed)}</td>
+                    <td className="num">{aed(s.collected)}</td>
+                    <td className="num">{aed(s.owed)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {shownFees.map((r) => (
-                    <tr key={r.record.id} onClick={() => navigate(familyLink(r.record.family_id))}>
-                      <td>
-                        <span className="acct-ctable-name">{r.family}</span>
-                        {lastChangeText(r.record) && <span className="acct-ctable-sub">{lastChangeText(r.record)}</span>}
-                      </td>
-                      <td>
-                        <div className="acct-cell-main">{r.record.school?.name || "School"}</div>
-                        <div className="acct-cell-sub">{r.items.map((i) => childName(i.child)).join(", ") || "No children"}</div>
-                        {r.flags.length > 0 && (
-                          <span className="acct-chips acct-chips-tight">
-                            {r.flags.map((f) => (
-                              <span key={f} className="acct-chip is-amber">
-                                {f}
-                              </span>
-                            ))}
-                          </span>
-                        )}
-                      </td>
-                      <td className="num">{money(r.paid)}</td>
-                      <td className="num">{money(r.charged)}</td>
-                      <td className="num">{money(r.difference)}</td>
-                      <td>
-                        <span className={"acct-pill-badge is-" + r.record.status}>{STATUS_LABEL[r.record.status] || r.record.status}</span>
-                        {r.waiting !== null && (
-                          <div className={"acct-cell-sub" + (r.waiting >= WAITING_RED_AFTER_DAYS ? " is-risk" : "")}>
-                            {r.waiting === 0 ? "Paid today" : `Waiting ${r.waiting} day${r.waiting === 1 ? "" : "s"}`}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="acct-table-foot">Click a row to open that family&apos;s Accounting tab.</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {page === "packages" && (
-        <div className="acct-list">
-          <div className="acct-filters">
-            {PACKAGE_FILTERS.map(([key, label]) => (
-              <button key={key} type="button" className={"acct-filter" + (packageFilter === key ? " is-active" : "")} onClick={() => setPackageFilter(key)}>
-                {label} <span>{packageCounts[key]}</span>
-              </button>
-            ))}
+                ))}
+                <tr className="acct2-total-row is-static">
+                  <td>Total</td>
+                  <td className="num">{aed(typeSummary.reduce((n, s) => n + s.billed, 0))}</td>
+                  <td className="num">{aed(typeSummary.reduce((n, s) => n + s.collected, 0))}</td>
+                  <td className="num acct-strong">{aed(typeSummary.reduce((n, s) => n + s.owed, 0))}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          {shownPackages.length === 0 ? (
-            <p className="acct-empty">{packageFilter === "attention" ? "Nothing overdue and no receipts waiting." : "Nothing here."}</p>
+
+          <div className="acct2-toolbar">
+            <div className="acct-filters">
+              {TOTAL_FILTERS.map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={"acct-filter" + (totalType === key ? " is-active" : "")}
+                  onClick={() => setTotalType(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <label className="acct2-check">
+              <input type="checkbox" checked={totalOwedOnly} onChange={(e) => setTotalOwedOnly(e.target.checked)} /> Only what is still owed
+            </label>
+          </div>
+
+          {totalRows.length === 0 ? (
+            <p className="acct-empty">Nothing matches that.</p>
           ) : (
             <div className="acct-table-card">
               <table className="acct-ctable">
                 <thead>
                   <tr>
+                    <th>Date</th>
                     <th>Family</th>
+                    <th>Kind</th>
                     <th>Item</th>
                     <th className="num">Amount</th>
-                    <th>Due</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {shownPackages.map((x) => (
-                    <tr key={x.p.id} onClick={() => navigate(familyLink(x.p.family_id))}>
+                  {totalRows.map((r) => (
+                    <tr key={r.key} onClick={() => navigate(familyLink(r.familyId))}>
+                      <td>{r.date ? shortDate(r.date) : "—"}</td>
                       <td>
-                        <span className="acct-ctable-name">{x.family}</span>
+                        <span className="acct-ctable-name">{r.family}</span>
                       </td>
-                      <td>{x.p.label}</td>
-                      <td className="num">{money(x.p.amount, x.p.currency || "AED")}</td>
-                      <td>{x.p.due_date ? shortDate(x.p.due_date) : "—"}</td>
                       <td>
-                        <span className={"acct-pill-badge is-" + x.state.tone}>{x.state.label}</span>
+                        <span className="acct2-dot" style={{ background: TYPE_COLOR[r.type] }} />
+                        {TYPE_LABEL[r.type]}
+                      </td>
+                      <td>
+                        <div className="acct-cell-main">{r.desc}</div>
+                        {r.sub && <div className="acct-cell-sub">{r.sub}</div>}
+                      </td>
+                      <td className="num">{aed(r.amount)}</td>
+                      <td>
+                        <StatusBadge state={r.state} />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <p className="acct-table-foot">Click a row to open that family&apos;s Accounting tab.</p>
+              <p className="acct-table-foot">Newest first. Click a row to open that family&apos;s Accounting tab.</p>
             </div>
           )}
         </div>
       )}
 
-      {page === "families" && (
-        <div className="acct-list">
-          {shownFamilies.length === 0 ? (
-            <p className="acct-empty">No family owes us anything right now.</p>
-          ) : (
-            <div className="acct-table-card">
-              <table className="acct-ctable">
-                <thead>
-                  <tr>
-                    <th>Family</th>
-                    <th className="num">School fees owed</th>
-                    <th className="num">Packages owed</th>
-                    <th className="num">Total owed</th>
-                    <th>Note</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {shownFamilies.map((f) => (
-                    <tr key={f.id} onClick={() => navigate(familyLink(f.id))}>
-                      <td>
-                        <span className="acct-ctable-name">{f.name}</span>
-                      </td>
-                      <td className="num">{money(f.school)}</td>
-                      <td className="num">{money(f.pack)}</td>
-                      <td className="num acct-strong">{money(f.school + f.pack)}</td>
-                      <td>
-                        {f.worst ? (
-                          <span className="acct-pill-badge is-late">
-                            Overdue {f.worst} day{f.worst === 1 ? "" : "s"}
-                          </span>
-                        ) : (
-                          <span className="acct-cell-sub">
-                            {f.items} open item{f.items === 1 ? "" : "s"}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="acct-table-foot">What each family still owes us, largest first. Click a row to open their tab.</p>
-            </div>
-          )}
-        </div>
-      )}
+      {page === "analytics" && <AccountingAnalytics ledger={ledger} />}
 
       {page === "review" && (
         <div className="acct-list">
-          {alertError && <p className="acct-error">{alertError}</p>}
+          {actionError && <p className="acct-error">{actionError}</p>}
           {stripeAlerts.length === 0 ? (
             <p className="acct-empty">No Stripe payments need a look. The payment webhook will drop anything here if it does not match the invoice.</p>
           ) : (
@@ -818,7 +647,9 @@ export default function AccountingPage() {
                   <li key={a.id}>
                     <div>
                       <strong>{title}</strong>
-                      <span>{a.detail || a.type} · {timeAgo(a.received_at)}</span>
+                      <span>
+                        {a.detail || a.type} · {timeAgo(a.received_at)}
+                      </span>
                     </div>
                     {inv && (
                       <button type="button" className="acct-open" onClick={() => navigate(familyLink(inv.family_id))}>

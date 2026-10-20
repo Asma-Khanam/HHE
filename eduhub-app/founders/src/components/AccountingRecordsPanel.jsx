@@ -125,7 +125,7 @@ export default function AccountingRecordsPanel({ familyId, onGoToApplications })
             <div key={record.id} className="ar-card">
               <div className="ar-card-head">
                 <div className="ar-card-title">
-                  <strong>{record.school?.name || "School"}</strong>
+                  <strong>{record.kind === "registration_deposit" ? "Registration deposit · " : ""}{record.school?.name || "School"}</strong>
                   {record.lastChange && (
                     <span className="ar-lastchange">
                       Updated by {record.lastChange.by} · {timeAgo(record.lastChange.at)}

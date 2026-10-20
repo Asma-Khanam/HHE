@@ -5,7 +5,19 @@ export const STATUS_LABEL = {
   open: "School paid · not invoiced yet",
   invoiced: "Invoiced · waiting for the family",
   paid: "Family paid",
+  refunded: "Refunded by the school",
 };
+
+// Which of the three kinds of money a record is (addendum 119). Records made
+// before that SQL was run have no kind and are application fees.
+export function kindOf(record) {
+  return record?.kind || "application_fee";
+}
+
+export function shortDate(dateStr) {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
 
 export function money(n, currency = "AED") {
   if (n === null || n === undefined || n === "") return "—";
@@ -45,7 +57,9 @@ export function recordFlags(record) {
   if (missing.length === 1) flags.push(`Amount missing · ${childName(missing[0].child)}`);
   else if (missing.length > 1) flags.push(`Amount missing · ${missing.length} children`);
   if (open && (!record.school_payment_method || !record.school_paid_at)) flags.push("Method & date");
-  if (open) {
+  // A registration deposit has no application fee behind it, so there is no proof
+  // or receipt to chase (the method and date still are).
+  if (open && kindOf(record) !== "registration_deposit") {
     const withProof = items.filter((i) => i.fee?.payment_proof_path).length;
     const withReceipt = items.filter((i) => i.fee?.school_receipt_path).length;
     if (withProof < items.length) flags.push(`Proof ${withProof}/${items.length}`);
@@ -62,7 +76,7 @@ export function invoiceBlockers(record) {
   const noAmount = items.filter((i) => i.amount_paid === null || i.amount_paid === undefined);
   if (noAmount.length) out.push(`Add what we paid the school for ${noAmount.map((i) => childName(i.child)).join(", ")}`);
   if (!record.school_payment_method || !record.school_paid_at) out.push("Add how and when we paid the school");
-  const noProof = items.filter((i) => !i.fee?.payment_proof_path);
+  const noProof = kindOf(record) === "registration_deposit" ? [] : items.filter((i) => !i.fee?.payment_proof_path);
   if (noProof.length) out.push(`Attach proof of payment (${items.length - noProof.length}/${items.length} done)`);
   return out;
 }

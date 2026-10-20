@@ -2384,7 +2384,7 @@ export async function updateAccountingRecord(recordId, field, value, previous) {
 // record (with its children and evidence), the parents' names to label each
 // family, and every package payment (owed, waiting to be confirmed, or paid).
 export async function getAccountingOverview() {
-  const [records, parents, payments, events, staff, invoices, stripeAlerts] = await Promise.all([
+  const [records, parents, payments, events, staff, invoices, stripeAlerts, testFamilies] = await Promise.all([
     supabase
       .from("accounting_records")
       .select(
@@ -2422,6 +2422,14 @@ export async function getAccountingOverview() {
       .limit(20)
       .then(unwrap)
       .catch(() => []),
+    // Families marked as test (addendum 118), so their money can be left out.
+    // Quietly empty if that SQL isn't run yet.
+    supabase
+      .from("families")
+      .select("id")
+      .eq("is_test", true)
+      .then(unwrap)
+      .catch(() => []),
   ]);
   const invoiceByRecord = Object.fromEntries((invoices || []).map((i) => [i.record_id, i]));
   const byFamily = {};
@@ -2441,11 +2449,47 @@ export async function getAccountingOverview() {
     return { ...r, invoice: invoiceByRecord[r.id] || null, lastChange: e ? { by: nameOf(e.actor), at: e.created_at } : null };
   });
 
-  return { records: withChange, payments: payments || [], familyNames, invoices: invoices || [], stripeAlerts: stripeAlerts || [] };
+  return {
+    records: withChange,
+    payments: payments || [],
+    familyNames,
+    invoices: invoices || [],
+    stripeAlerts: stripeAlerts || [],
+    testFamilyIds: (testFamilies || []).map((f) => f.id),
+  };
 }
 
 // Mark a flagged Stripe event as looked at (addendum 117). Stays in the table.
 export async function resolveStripeEvent(eventId) {
   const { error } = await supabase.rpc("resolve_stripe_event", { p_event_id: eventId });
   if (error) throw error;
+}
+
+
+// Registration deposits (addendum 119). HHE paid a school's first-term
+// registration deposit for a family and will invoice them for exactly that
+// amount. The database function checks the user is staff and the amounts.
+export async function createRegistrationDeposit({ familyId, schoolId, items }) {
+  const { data, error } = await supabase.rpc("add_registration_deposit", {
+    p_family: familyId,
+    p_school: schoolId || null,
+    p_items: (items || []).map((i) => ({ child_id: i.childId || null, amount: Number(i.amount) })),
+  });
+  if (error) throw error;
+  return data;
+}
+
+// The school gave the deposit back to HHE, so the family is not charged for it.
+export async function markDepositRefunded(recordId, reason) {
+  const { error } = await supabase.rpc("mark_deposit_refunded", { p_record: recordId, p_reason: reason || null });
+  if (error) throw error;
+}
+
+// What the Add a deposit form needs to fill its dropdowns.
+export async function listDepositFormData() {
+  const [schools, children] = await Promise.all([
+    supabase.from("schools").select("id, name").order("name").then(unwrap),
+    supabase.from("children").select("id, family_id, full_name, preferred_name, first_name").order("created_at").then(unwrap),
+  ]);
+  return { schools: schools || [], children: children || [] };
 }
