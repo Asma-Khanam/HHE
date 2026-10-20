@@ -99,6 +99,8 @@ export function describeEvent(e) {
     case "invoice_sent": return "sent the invoice";
     case "invoice_voided": return "voided the invoice";
     case "family_paid": return "family paid (Stripe)";
+    case "family_paid_manual": return "marked as paid by the family";
+    case "record_reopened": return "re-opened the record";
     case "stripe_payment_mismatch": return "Stripe payment did not match the invoice";
     case "stripe_paid_on_void_invoice": return "money arrived on a voided invoice";
     case "record_updated": return `updated ${EVENT_FIELD_LABEL[d.field] || d.field || "a detail"}`;
