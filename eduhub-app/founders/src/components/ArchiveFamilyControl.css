@@ -1,4 +1,31 @@
-.afc-row { margin: 0 0 8px; }
+.family-detail-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.afc-banner,
+.afc-panel {
+  flex: 1 0 100%;
+}
+.afc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1.5px solid var(--hh-burgundy);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--hh-burgundy);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.afc-btn:hover {
+  background: var(--hh-burgundy);
+  color: #fff;
+}
 .afc-banner {
   display: flex;
   align-items: center;

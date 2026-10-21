@@ -675,9 +675,12 @@ export default function FamilyDetailPage() {
 
   return (
     <div className="family-detail-page">
-      <Link to="/staff/families" className="hh-link-btn">
-        ‹ Back to caseload
-      </Link>
+      <div className="family-detail-topbar">
+        <Link to="/staff/families" className="hh-link-btn">
+          ‹ Back to caseload
+        </Link>
+        <ArchiveFamilyControl family={family} onChanged={refreshFamily} />
+      </div>
 
       <div className="family-detail-header">
         <PersonAvatar
@@ -711,8 +714,6 @@ export default function FamilyDetailPage() {
           </div>
         </div>
       </div>
-
-      <ArchiveFamilyControl family={family} onChanged={refreshFamily} />
 
       <CaseSettingsPanel
         family={family}

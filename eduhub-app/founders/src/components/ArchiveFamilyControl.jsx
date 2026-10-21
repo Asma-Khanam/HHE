@@ -48,8 +48,12 @@ export default function ArchiveFamilyControl({ family, onChanged }) {
   if (!open) {
     return (
       <div className="afc-row">
-        <button type="button" className="panel-btn panel-btn-quiet" onClick={() => setOpen(true)}>
-          Archive family…
+        <button type="button" className="afc-btn" onClick={() => setOpen(true)} title="Hide this family from the working lists. Nothing is deleted.">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="4" rx="1" />
+            <path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8M10 12h4" />
+          </svg>
+          Archive family
         </button>
       </div>
     );
