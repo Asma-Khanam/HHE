@@ -68,7 +68,7 @@ const addrOf = (s) => (String(s || "").match(/<([^>]+)>/)?.[1] || String(s || ""
 export const splitAddrs = (s) => String(s || "").split(/,(?![^<]*>)/).map(addrOf).filter((x) => /@/.test(x));
 
 // Reply / Reply all / Forward, prefilled like Outlook.
-function replyDraft(note, mode, familyAddress) {
+export function replyDraft(note, mode, familyAddress) {
   const outbound = note.direction === "outbound";
   const from = outbound ? "" : addrOf(note.email_from || splitInboundBody(note.body).from);
   const mine = (e) => /@applications\.heatherharries\.com$/i.test(e) || e === familyAddress;

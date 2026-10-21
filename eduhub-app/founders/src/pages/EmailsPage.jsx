@@ -4,6 +4,8 @@ import {
   dismissUnmatchedEmail,
   fileUnmatchedEmail,
   friendlyError,
+  getCurrentStaff,
+  getEmailContext,
   getEmailNote,
   getUnmatchedEmail,
   listAllEmails,
@@ -23,7 +25,9 @@ import {
   previewLine,
   senderOf,
   splitAddrs,
+  replyDraft,
 } from "../components/EmailsPanel";
+import EmailComposer from "../components/EmailComposer";
 import "../components/panels.css";
 import "../components/EmailsPanel.css";
 import "./EmailsPage.css";
@@ -42,6 +46,19 @@ const TABS = [
   { key: "sent", label: "Sent" },
 ];
 
+// "Layla, Year 6 (DOB 3/4/2016)" lines the composer offers for the school intro.
+function childLinesOf(children) {
+  return (children || []).map((c) => {
+    const name = c.preferred_name || c.first_name || (c.full_name || "").split(" ")[0];
+    const year = c.year_group_applying_for?.split(" /")[0];
+    const base = [name, year].filter(Boolean).join(", ");
+    if (!c.date_of_birth) return base;
+    const d = new Date(c.date_of_birth);
+    if (Number.isNaN(d.getTime())) return base;
+    return `${base}${base ? " " : ""}(DOB ${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()})`;
+  });
+}
+
 const haystack = (n) =>
   [n.subject, n.email_from, n.email_from_name, n.email_to, n.familyName, previewLine(n)].join(" ").toLowerCase();
 
@@ -57,6 +74,38 @@ export default function EmailsPage() {
   const [mobileReading, setMobileReading] = useState(false);
   const [full, setFull] = useState(null);
   const listRef = useRef(null);
+  // Writing: null, or { ctx, initial } -- the composer takes over the right-hand pane.
+  const [writing, setWriting] = useState(null);
+  const [staffName, setStaffName] = useState("");
+  const [starting, setStarting] = useState(false);
+  const [newFor, setNewFor] = useState(null); // the "New email" family picker
+  useEffect(() => {
+    getCurrentStaff()
+      .then((st) => setStaffName(st?.full_name || st?.email || ""))
+      .catch(() => {});
+  }, []);
+
+  async function startWriting(familyId, makeInitial) {
+    setStarting(true);
+    setError("");
+    try {
+      const ctx = await getEmailContext(familyId);
+      setWriting({ ctx, initial: makeInitial(ctx) });
+      setMobileReading(true);
+      setNewFor(null);
+    } catch (e) {
+      setError(friendlyError(e, "Couldn't open the email composer."));
+    } finally {
+      setStarting(false);
+    }
+  }
+  function onSent(note) {
+    setWriting(null);
+    setNotice("Sent. It is on the family's Emails tab too.");
+    load().then(() => {
+      if (note?.id) setSelectedKey(`n:${note.id}`);
+    });
+  }
 
   const load = useCallback(async () => {
     try {
@@ -154,6 +203,7 @@ export default function EmailsPage() {
   }, [selectedKeyNow]);
 
   function select(key) {
+    setWriting(null);
     setSelectedKey(key);
     setMobileReading(true);
   }
@@ -193,14 +243,29 @@ export default function EmailsPage() {
         <div>
           <h1>Emails</h1>
           <p className="ep-sub">
-            Every email in one place. <strong>Untracked</strong> emails reached us at an address that matches no family
-            yet, so someone needs to file them. To reply, open the family&apos;s Emails tab.
+            Every email in one place. Reply or write a new one from here; it goes out from the family&apos;s own
+            address. <strong>Untracked</strong> emails reached us at an address that matches no family yet, so someone
+            needs to file them.
           </p>
         </div>
-        <button type="button" className="panel-btn" onClick={load}>
-          Refresh
-        </button>
+        <div className="ep-head-actions">
+          <button type="button" className="panel-btn panel-btn-primary" onClick={() => setNewFor((v) => (v === null ? "" : null))}>
+            ✎ New email
+          </button>
+          <button type="button" className="panel-btn" onClick={load}>
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {newFor !== null && (
+        <FamilyPicker
+          families={families}
+          busy={starting}
+          onPick={(id) => startWriting(id, () => ({ mode: "new" }))}
+          onCancel={() => setNewFor(null)}
+        />
+      )}
 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
       {notice && (
@@ -315,12 +380,32 @@ export default function EmailsPage() {
                 <span>
                   On <strong>{selected.familyName || "this family"}</strong>&apos;s record
                 </span>
-                <Link className="panel-btn" to={`/staff/families/${selected.family_id}?tab=emails`}>
-                  Open their Emails tab to reply
+                <Link className="panel-btn panel-btn-quiet" to={`/staff/families/${selected.family_id}?tab=emails`}>
+                  Open their record
                 </Link>
               </div>
             )}
-            {readingNote ? (
+            {writing ? (
+              <div className="mx-reading mx-writing">
+                <EmailComposer
+                  key={JSON.stringify(writing.initial).slice(0, 200) + writing.ctx.familyId}
+                  familyId={writing.ctx.familyId}
+                  familyName={writing.ctx.familyName}
+                  childLines={childLinesOf(writing.ctx.children)}
+                  documents={writing.ctx.documents}
+                  staffName={staffName}
+                  familyAddress={writing.ctx.familyAddress}
+                  moveDate={writing.ctx.moveDate}
+                  entryPhrase={writing.ctx.entryPhrase}
+                  initial={writing.initial}
+                  onSent={onSent}
+                  onClose={() => {
+                    setWriting(null);
+                    setMobileReading(false);
+                  }}
+                />
+              </div>
+            ) : readingNote ? (
               <ReadingPane
                 note={readingNote}
                 familyId={selected?.family_id}
@@ -328,6 +413,20 @@ export default function EmailsPage() {
                 onBack={() => setMobileReading(false)}
                 onUpdate={(updated) =>
                   setTracked((prev) => prev.map((n) => (n.id === updated.id ? { ...n, ...updated } : n)))
+                }
+                onReply={
+                  selected?.isTracked && selected.family_id
+                    ? (n, mode) => startWriting(selected.family_id, (ctx) => replyDraft(n, mode, ctx.familyAddress))
+                    : undefined
+                }
+                onToggleRead={
+                  selected?.isTracked
+                    ? (n) => {
+                        setTracked((prev) => prev.map((x) => (x.id === n.id ? { ...x, read_at: null } : x)));
+                        updateCaseNote(n.id, { readAt: null }).catch(() => {});
+                        setMobileReading(false);
+                      }
+                    : undefined
                 }
               />
             ) : (
@@ -417,6 +516,53 @@ function FileBar({ email, families, onFiled, onDismissed }) {
             Not a family email
           </button>
         )}
+      </div>
+      {err && <p className="mx-error">{err}</p>}
+    </div>
+  );
+}
+
+// "New email": choose which family it is for (the reply address and the school's
+// replies are per family), then the composer opens.
+function FamilyPicker({ families, busy, onPick, onCancel }) {
+  const [choice, setChoice] = useState("");
+  const [err, setErr] = useState("");
+  const labelFor = (f) => `${f.name} · ${f.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+  const byLabel = useMemo(() => new Map(families.map((f) => [labelFor(f), f])), [families]);
+  function go() {
+    const fam = byLabel.get(choice.trim());
+    if (!fam) {
+      setErr("Pick a family from the list.");
+      return;
+    }
+    onPick(fam.id);
+  }
+  return (
+    <div className="ep-bar ep-picker">
+      <div className="ep-bar-text">
+        <strong>Which family is this email for?</strong>
+      </div>
+      <div className="ep-bar-actions">
+        <input
+          className="panel-input ep-family-input"
+          list="ep-new-family-list"
+          placeholder="Type a family name…"
+          value={choice}
+          onChange={(e) => setChoice(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && go()}
+          disabled={busy}
+        />
+        <datalist id="ep-new-family-list">
+          {families.map((f) => (
+            <option key={f.id} value={labelFor(f)} />
+          ))}
+        </datalist>
+        <button type="button" className="panel-btn panel-btn-primary" onClick={go} disabled={busy || !choice.trim()}>
+          {busy ? "Opening…" : "Write email"}
+        </button>
+        <button type="button" className="panel-btn panel-btn-quiet" onClick={onCancel} disabled={busy}>
+          Cancel
+        </button>
       </div>
       {err && <p className="mx-error">{err}</p>}
     </div>

@@ -148,3 +148,16 @@
     flex-direction: column;
   }
 }
+
+.ep-head-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+.ep-picker {
+  border: 1px solid var(--hh-track);
+  border-radius: var(--hh-radius);
+}
+.ep-right .mx-writing {
+  overflow: auto;
+}

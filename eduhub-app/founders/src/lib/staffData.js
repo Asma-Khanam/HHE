@@ -2582,3 +2582,60 @@ export async function listFamilyChoices() {
     .map((f) => ({ id: f.id, name: familyDisplayName(f, f.parents) }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
+
+// Everything the email composer needs about one family (children, documents they can
+// attach, their application address, start term), for writing from the Emails page.
+export async function getEmailContext(familyId) {
+  const family = unwrap(await supabase.from("families").select("*").eq("id", familyId).single());
+  const [parents, children] = await Promise.all([
+    supabase.from("parents").select("*").eq("family_id", familyId).order("created_at").then(unwrap),
+    supabase.from("children").select("*").eq("family_id", familyId).order("created_at").then(unwrap),
+  ]);
+  const owners = [
+    ...(parents || []).map((p) => ({ type: "parent", id: p.id, name: p.full_name || p.relationship || "Parent" })),
+    ...(children || []).map((c, i) => ({
+      type: "child",
+      id: c.id,
+      name: c.preferred_name || c.first_name || c.full_name || `Child ${i + 1}`,
+    })),
+  ];
+  const docs = owners.length
+    ? await Promise.all(
+        ["parent", "child"].map((type) => {
+          const ids = owners.filter((o) => o.type === type).map((o) => o.id);
+          return ids.length
+            ? supabase.from("documents").select("*").eq("owner_type", type).in("owner_id", ids).then(unwrap)
+            : Promise.resolve([]);
+        })
+      ).then((x) => x.flat())
+    : [];
+  const documents = docs
+    .filter((d) => d.file_url)
+    .map((d) => {
+      const owner = owners.find((o) => o.type === d.owner_type && o.id === d.owner_id);
+      return {
+        id: d.id,
+        label: `${owner?.name || "Document"} · ${String(d.document_type || "Document").replace(/_/g, " ")}${
+          d.original_filename ? ` (${d.original_filename})` : ""
+        }`,
+      };
+    });
+  const alias = (parents || []).find((p) => p.application_alias)?.application_alias || family.application_alias;
+  const uniq = (key) => [...new Set((children || []).flatMap((c) => (Array.isArray(c[key]) ? c[key] : [])).filter(Boolean))];
+  const terms = uniq("terms").filter((x) => !/flexible/i.test(x));
+  const years = uniq("academic_years_of_entry").sort();
+  const entryPhrase = terms.length
+    ? `for ${terms.join(" or ")}${years.length ? `, ${years.join(" or ")}` : ""}`
+    : years.length
+      ? `for the ${years.join(" or ")} academic year`
+      : "";
+  return {
+    familyId,
+    familyName: familyDisplayName(family, parents),
+    children: children || [],
+    documents,
+    familyAddress: alias ? `${alias}@applications.heatherharries.com` : "",
+    moveDate: family.planned_move_date || "",
+    entryPhrase,
+  };
+}
