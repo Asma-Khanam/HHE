@@ -579,3 +579,20 @@
   background: linear-gradient(135deg, rgba(184, 154, 90, 0.3), rgba(83, 1, 38, 0.15));
   box-shadow: 0 1px 3px rgba(83, 1, 38, 0.1);
 }
+
+/* Counts beside a section title, replacing the row of stat cards */
+.today-count {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: #f3e6ea;
+  color: #7b1e3a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.today-count.is-bad {
+  background: #fde7e7;
+  color: #b3261e;
+}

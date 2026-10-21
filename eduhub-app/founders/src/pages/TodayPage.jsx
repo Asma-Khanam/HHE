@@ -38,15 +38,6 @@ function snippet(text, max = 80) {
 // row had. This lays them out so all five always sit evenly on one line
 // (or wrap in full pairs), and swaps the old plain-text note for a small
 // colored pill so tone reads at a glance instead of by reading words.
-function StatTile({ value, label, note, tone }) {
-  return (
-    <div className={"today-stat" + (tone ? ` is-${tone}` : "")}>
-      <div className="today-stat-value">{value}</div>
-      <div className="today-stat-label">{label}</div>
-      {note && <span className={"today-stat-pill" + (tone ? ` is-${tone}` : "")}>{note}</span>}
-    </div>
-  );
-}
 
 export default function TodayPage() {
   const [data, setData] = useState(null);
@@ -90,8 +81,6 @@ export default function TodayPage() {
   if (!data) return <div className="today-page">Loading…</div>;
 
   const open = data.tasks.filter((t) => !t.done_at);
-  const overdue = open.filter((t) => isOverdue(t.due_date));
-  const dueToday = open.filter((t) => isDueToday(t.due_date));
   const thisWeek = open.filter((t) => {
     const d = daysUntil(t.due_date);
     return d !== null && d >= 0 && d <= 7;
@@ -101,8 +90,10 @@ export default function TodayPage() {
   const unassignedOpenTasks = open.filter((t) => !t.assigned_to);
   const myTasks = [...myOpenTasks, ...unassignedOpenTasks]
     .filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i)
-    .sort((a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999"))
-    .slice(0, 6);
+    .sort((a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999"));
+  const myTaskTotal = myTasks.length;
+  const myTaskOverdue = myTasks.filter((t) => isOverdue(t.due_date)).length;
+  const myTasksShown = myTasks.slice(0, 6);
 
   const upcomingPayments = data.payments.slice(0, 4);
   const upcomingDeadlines = thisWeek.slice(0, 4);
@@ -127,8 +118,8 @@ export default function TodayPage() {
       {data.unownedFamilies.length > 0 && (
         <div className="today-owner-banner">
           <span>
-            <strong>{data.unownedFamilies.length}</strong> famil{data.unownedFamilies.length === 1 ? "y needs" : "ies need"} an
-            owner:
+            <strong>{data.unownedFamilies.length}</strong> famil{data.unownedFamilies.length === 1 ? "y needs" : "ies need"} a
+            consultant:
           </span>
           <div className="today-owner-chips">
             {data.unownedFamilies.map((f) => (
@@ -140,44 +131,22 @@ export default function TodayPage() {
         </div>
       )}
 
-      <div className="today-stats">
-        <StatTile
-          value={dueToday.length}
-          label="Due today"
-          note={overdue.length ? `${overdue.length} overdue` : "on track"}
-          tone={overdue.length ? "bad" : "good"}
-        />
-        <StatTile value={thisWeek.length} label="Due this week" note={`${open.length} open`} tone="neutral" />
-        <StatTile
-          value={data.chasingDocs}
-          label="Docs to chase"
-          note={data.expiringDocs ? `${data.expiringDocs} expiring` : "none expiring"}
-          tone={data.expiringDocs ? "bad" : "good"}
-        />
-        <StatTile value={data.offersInPlay} label="Offers in play" note="every child" tone="neutral" />
-        <StatTile
-          value={data.payments.length}
-          label="Payments owed"
-          note={
-            data.overduePayments ? `${data.overduePayments} overdue` : data.paymentsToConfirm ? `${data.paymentsToConfirm} to confirm` : "none overdue"
-          }
-          tone={data.overduePayments ? "bad" : data.paymentsToConfirm ? "progress" : "good"}
-        />
-      </div>
-
       <div className="today-main-grid">
         <section className="today-card">
           <div className="today-card-head">
-            <h2>Your tasks</h2>
+            <h2>
+              Your tasks <span className="today-count">{myTaskTotal}</span>
+              {myTaskOverdue > 0 && <span className="today-count is-bad">{myTaskOverdue} overdue</span>}
+            </h2>
             <Link to="/staff/calendar" className="today-link-btn">
               Calendar ›
             </Link>
           </div>
-          {myTasks.length === 0 ? (
+          {myTasksShown.length === 0 ? (
             <p className="today-hint">All clear — nothing assigned or unclaimed.</p>
           ) : (
             <ul className="today-task-list">
-              {myTasks.map((task) => {
+              {myTasksShown.map((task) => {
                 const overdueTask = isOverdue(task.due_date) && !task.done_at;
                 const todayTask = isDueToday(task.due_date) && !task.done_at;
                 return (
@@ -218,7 +187,10 @@ export default function TodayPage() {
         <div className="today-side-stack">
           <section className="today-card today-card-compact">
             <div className="today-card-head">
-              <h2>Payments owed</h2>
+              <h2>
+                Payments owed <span className="today-count">{data.payments.length}</span>
+                {data.overduePayments > 0 && <span className="today-count is-bad">{data.overduePayments} overdue</span>}
+              </h2>
             </div>
             {upcomingPayments.length === 0 ? (
               <p className="today-hint">Nothing outstanding.</p>
