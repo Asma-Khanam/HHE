@@ -2539,7 +2539,7 @@ export async function listAllEmails(limit = 1000) {
     await supabase
       .from("case_notes")
       .select(
-        "id,family_id,direction,subject,body,email_from,email_from_name,email_to,email_cc,occurred_at,read_at,email_attachments,family:families(id,account_user_id,parents(full_name,relationship))"
+        "id,family_id,direction,subject,body,email_from,email_from_name,email_to,email_cc,occurred_at,read_at,mailbox_folder,email_attachments,family:families(id,account_user_id,parents(full_name,relationship))"
       )
       .eq("kind", "email")
       .order("occurred_at", { ascending: false })
@@ -2559,7 +2559,7 @@ export async function listUnmatchedEmails(limit = 500) {
   return unwrap(
     await supabase
       .from("unmatched_emails")
-      .select("id,received_at,alias,email_from,email_from_name,email_to,email_cc,subject,email_text,email_attachments")
+      .select("id,received_at,alias,email_from,email_from_name,email_to,email_cc,subject,email_text,email_attachments,read_at,mailbox_folder")
       .eq("status", "open")
       .order("received_at", { ascending: false })
       .limit(limit)
@@ -2572,6 +2572,10 @@ export async function getUnmatchedEmail(id) {
 
 export async function fileUnmatchedEmail(id, familyId) {
   return unwrap(await supabase.rpc("file_unmatched_email", { p_id: id, p_family: familyId }));
+}
+
+export async function markUnmatchedRead(id, read = true) {
+  return unwrap(await supabase.rpc("mark_unmatched_read", { p_id: id, p_read: read }));
 }
 
 export async function dismissUnmatchedEmail(id) {
@@ -2594,6 +2598,7 @@ export async function countUnreadEmails() {
     .select("id", { count: "exact", head: true })
     .eq("kind", "email")
     .eq("direction", "inbound")
+    .eq("mailbox_folder", "inbox")
     .is("read_at", null);
   if (error) throw error;
   return count || 0;

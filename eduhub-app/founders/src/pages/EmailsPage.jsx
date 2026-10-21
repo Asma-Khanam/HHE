@@ -10,6 +10,7 @@ import {
   getEmailContext,
   getEmailNote,
   getUnmatchedEmail,
+  markUnmatchedRead,
   listAllEmails,
   listFamilyChoices,
   listUnmatchedEmails,
@@ -49,7 +50,12 @@ const FOLDERS = [
   { key: "waiting", label: "Waiting on school" },
   { key: "tracked", label: "On a family" },
   { key: "untracked", label: "Not filed" },
+  // Mirrors the Titan mailbox folders (kept up to date by the Titan email sync).
+  { key: "spam", label: "Spam", sep: true },
+  { key: "archive", label: "Archive" },
+  { key: "trash", label: "Trash" },
 ];
+const boxOf = (n) => n.mailbox_folder || "inbox";
 
 // Needs reply / Waiting on school only look at conversations that moved in the last 30 days,
 // so months of backfilled history do not flood them.
@@ -112,6 +118,30 @@ function FolderIcon({ k }) {
       <svg {...common}>
         <path d="M22 2 11 13" />
         <path d="M22 2 15 22l-4-9-9-4z" />
+      </svg>
+    );
+  if (k === "spam")
+    return (
+      <svg {...common}>
+        <path d="M12 3 2.5 20h19z" />
+        <path d="M12 10v4" />
+        <path d="M12 17h.01" />
+      </svg>
+    );
+  if (k === "archive")
+    return (
+      <svg {...common}>
+        <rect x="3" y="4" width="18" height="4" rx="1" />
+        <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8" />
+        <path d="M10 12h4" />
+      </svg>
+    );
+  if (k === "trash")
+    return (
+      <svg {...common}>
+        <path d="M4 7h16" />
+        <path d="M9 7V4h6v3" />
+        <path d="M6 7l1 13h10l1-13" />
       </svg>
     );
   if (k === "needs")
@@ -289,7 +319,7 @@ export default function EmailsPage() {
   const latestByThread = useMemo(() => {
     const m = new Map();
     for (const n of all) {
-      if (!n.isTracked) continue;
+      if (!n.isTracked || boxOf(n) !== "inbox") continue;
       const k = threadKey(n);
       if (!m.has(k)) m.set(k, n);
     }
@@ -298,6 +328,8 @@ export default function EmailsPage() {
 
   const inFolder = useCallback(
     (n) => {
+      if (tab === "spam" || tab === "archive" || tab === "trash") return boxOf(n) === tab;
+      if (boxOf(n) !== "inbox") return false;
       if (tab === "needs")
         return n.isTracked && latestByThread.get(threadKey(n)) === n && n.direction !== "outbound" && isRecent(n);
       if (tab === "waiting")
@@ -393,10 +425,15 @@ export default function EmailsPage() {
   }, [selectedKeyNow]);
 
   // Opening a received email marks it read, same as on the family's tab.
-  const wasUnread = selected?.isTracked && isUnread(selected);
+  const wasUnread = selected && boxOf(selected) === "inbox" && isUnread(selected);
   useEffect(() => {
     if (!selected || !wasUnread) return;
     const readAt = new Date().toISOString();
+    if (!selected.isTracked) {
+      setUntracked((prev) => prev.map((n) => (n.id === selected.id ? { ...n, read_at: readAt } : n)));
+      markUnmatchedRead(selected.id).catch(() => {});
+      return;
+    }
     setTracked((prev) => prev.map((n) => (n.id === selected.id ? { ...n, read_at: readAt } : n)));
     updateCaseNote(selected.id, { readAt })
       .then(() => window.dispatchEvent(new Event("emails-read")))
@@ -421,16 +458,20 @@ export default function EmailsPage() {
     }
   }
 
+  const mail = all.filter((n) => boxOf(n) === "inbox");
   const counts = {
-    all: all.length,
-    inbox: all.filter((n) => n.direction !== "outbound").length,
-    sent: all.filter((n) => n.direction === "outbound").length,
-    tracked: tracked.length,
-    untracked: untracked.length,
+    all: mail.length,
+    inbox: mail.filter((n) => n.direction !== "outbound").length,
+    sent: mail.filter((n) => n.direction === "outbound").length,
+    tracked: mail.filter((n) => n.isTracked).length,
+    untracked: mail.filter((n) => !n.isTracked).length,
+    spam: all.filter((n) => boxOf(n) === "spam").length,
+    archive: all.filter((n) => boxOf(n) === "archive").length,
+    trash: all.filter((n) => boxOf(n) === "trash").length,
     needs: all.filter((n) => n.isTracked && latestByThread.get(threadKey(n)) === n && n.direction !== "outbound" && isRecent(n)).length,
     waiting: all.filter((n) => n.isTracked && latestByThread.get(threadKey(n)) === n && n.direction === "outbound" && isRecent(n)).length,
   };
-  const unreadCount = tracked.filter(isUnread).length;
+  const unreadCount = tracked.filter((n) => boxOf(n) === "inbox" && isUnread(n)).length;
 
   async function afterAction(message, undo) {
     setNotice(message);
@@ -449,7 +490,7 @@ export default function EmailsPage() {
     const s = senderOf(n);
     const active = selected?.key === n.key;
     const multi = t.items.length > 1;
-    const unread = n.isTracked && isUnread(n);
+    const unread = boxOf(n) === "inbox" && isUnread(n);
     return (
       <button
         key={n.key}
@@ -579,6 +620,7 @@ export default function EmailsPage() {
                 key={f.key}
                 type="button"
                 aria-current={tab === f.key ? "true" : undefined}
+                data-sep={f.sep ? "1" : undefined}
                 className={"ep-folder" + (tab === f.key ? " is-active" : "") + (f.key === "untracked" && counts.untracked ? " is-alert" : "")}
                 onClick={() => {
                   setTab(f.key);

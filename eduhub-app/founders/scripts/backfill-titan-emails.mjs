@@ -32,6 +32,7 @@
 //   3. the family's surname in the subject ("Goodburn Family"), only when one family has it
 //      (switch off with --no-name-match). These show as "by family name in subject" so you can check them.
 //   4. otherwise: no match (reported; kept only with --keep-unmatched)
+// Spam, Archive and Trash are read too (after addendum 127) and kept as separate folders on the site.
 // Already-filed emails are skipped (same Message-ID, or same family + sender + subject
 // within 10 minutes), so running this twice never duplicates anything.
 
@@ -130,14 +131,24 @@ for (const p of parents) {
   surnameTo.get(sn).add(p.family_id);
 }
 
+// Titan folders (Spam, Archive, Trash) are mirrored once addendum 127 has been run.
+let FOLDERS_ON = true;
+try {
+  await sbGetAll("case_notes?select=mailbox_folder&limit=1");
+  await sbGetAll("unmatched_emails?select=mailbox_folder&limit=1");
+} catch {
+  FOLDERS_ON = false;
+  console.warn("Note: addendum 127 not run yet, so Spam/Archive/Trash are skipped. Only Inbox and Sent are read.");
+}
+
 const lookback = new Date(SINCE.getTime() - 60 * 86400_000).toISOString();
 const notes = await sbGetAll(
-  `case_notes?select=family_id,direction,subject,email_from,occurred_at,email_message_id&kind=eq.email&occurred_at=gte.${lookback}`
+  `case_notes?select=id,family_id,direction,subject,email_from,occurred_at,email_message_id${FOLDERS_ON ? ",mailbox_folder" : ""}&kind=eq.email&occurred_at=gte.${lookback}`
 );
 let unmatchedRows = [];
 let haveUnmatchedTable = true;
 try {
-  unmatchedRows = await sbGetAll(`unmatched_emails?select=email_message_id,subject,email_from,received_at&received_at=gte.${lookback}`);
+  unmatchedRows = await sbGetAll(`unmatched_emails?select=id,email_message_id,subject,email_from,received_at${FOLDERS_ON ? ",mailbox_folder" : ""}&received_at=gte.${lookback}`);
 } catch (e) {
   haveUnmatchedTable = false;
   console.warn("Note: unmatched_emails table not found (addendum 124 not run). Unmatched emails will only be reported.");
@@ -157,6 +168,18 @@ for (const n of notes) {
   addId(n.email_message_id, n.family_id);
   recent.push({ family: n.family_id, subj: normSubject(n.subject), from: String(n.email_from || "").toLowerCase(), t: new Date(n.occurred_at).getTime() });
 }
+// Existing rows by message id, so a move in Titan (to Spam, Archive, Trash or back) shows on the site.
+const existingByMsg = new Map(); // plain id -> [{ table, id, folder }]
+const trackExisting = (table, rows) => {
+  for (const r of rows) {
+    const k = plain(r.email_message_id);
+    if (!k) continue;
+    if (!existingByMsg.has(k)) existingByMsg.set(k, []);
+    existingByMsg.get(k).push({ table, id: r.id, folder: r.mailbox_folder || "inbox" });
+  }
+};
+trackExisting("case_notes", notes);
+trackExisting("unmatched_emails", unmatchedRows);
 const haveUnmatched = new Set(unmatchedRows.map((u) => plain(u.email_message_id)).filter(Boolean));
 
 // ---------------------------------------------------------------- read Titan
@@ -174,7 +197,13 @@ const chosen = [];
 for (const b of boxes) {
   const isInbox = b.path.toUpperCase() === "INBOX";
   const isSent = b.specialUse === "\\Sent" || /^sent( items| mail)?$/i.test(b.path);
-  if (wanted.length ? wanted.some((w) => w.toLowerCase() === b.path.toLowerCase()) : isInbox || isSent) chosen.push({ path: b.path, sent: isSent });
+  const isSpam = b.specialUse === "\\Junk" || /^(spam|junk)( e-?mail)?$/i.test(b.path);
+  const isArchive = b.specialUse === "\\Archive" || /^archive[sd]?$/i.test(b.path);
+  const isTrash = b.specialUse === "\\Trash" || /^(trash|deleted( items| messages)?|bin)$/i.test(b.path);
+  const mbox = isSpam ? "spam" : isArchive ? "archive" : isTrash ? "trash" : "inbox";
+  const normal = isInbox || isSent;
+  const extra = FOLDERS_ON && (isSpam || isArchive || isTrash);
+  if (wanted.length ? wanted.some((w) => w.toLowerCase() === b.path.toLowerCase()) : normal || extra) chosen.push({ path: b.path, sent: isSent, mbox: isSent ? "inbox" : mbox });
 }
 if (!chosen.length) die(`Couldn't find Inbox/Sent. Folders on Titan: ${boxes.map((b) => b.path).join(", ")}. Use --folders "Name1,Name2".`);
 console.log(`Reading: ${chosen.map((c) => c.path).join(", ")} since ${SINCE.toISOString().slice(0, 10)}`);
@@ -189,7 +218,7 @@ for (const box of chosen) {
     for await (const m of client.fetch(uids.join(","), { source: true, internalDate: true }, { uid: true })) {
       try {
         const parsed = await simpleParser(m.source);
-        items.push({ folder: box.path, sent: box.sent, parsed, date: parsed.date || m.internalDate || new Date() });
+        items.push({ folder: box.path, mbox: box.mbox, sent: box.sent, parsed, date: parsed.date || m.internalDate || new Date() });
       } catch {
         /* unreadable message: skip */
       }
@@ -271,6 +300,26 @@ async function saveAttachments(parsed, folderPrefix, html) {
   return { saved, html: outHtml };
 }
 
+// A move in Titan: update the folder of rows the site already has.
+let nMoved = 0;
+if (FOLDERS_ON) {
+  for (const it of items) {
+    const k = plain(it.parsed.messageId);
+    for (const ex of existingByMsg.get(k) || []) {
+      if (ex.folder === it.mbox) continue;
+      if (COMMIT) {
+        try {
+          await sbPatch(ex.table, ex.id, { mailbox_folder: it.mbox });
+        } catch {
+          continue;
+        }
+      }
+      ex.folder = it.mbox;
+      nMoved++;
+    }
+  }
+}
+
 const report = [];
 let nFiled = 0, nSkipped = 0, nUnmatched = 0, nKept = 0, nErr = 0;
 
@@ -312,6 +361,7 @@ for (const it of items) {
             email_html: p.html || null,
             email_message_id: msgId ? String(msgId).slice(0, 500) : null,
             in_reply_to: p.inReplyTo ? String(p.inReplyTo).slice(0, 1000) : null,
+            ...(FOLDERS_ON ? { mailbox_folder: it.mbox, read_at: it.mbox === "inbox" ? null : new Date().toISOString() } : {}),
           });
           const { saved } = await saveAttachments(p, `unmatched/${u.id}`, null);
           if (saved.length) await sbPatch("unmatched_emails", u.id, { email_attachments: saved, attachment_count: saved.length });
@@ -354,6 +404,9 @@ for (const it of items) {
       email_cc: addrList(p.cc) || null,
       email_text: p.text || "",
       email_message_id: msgId ? String(msgId).slice(0, 500) : null,
+      ...(FOLDERS_ON ? { mailbox_folder: it.mbox } : {}),
+      // Mail pulled in from Spam, Archive or Trash, and our own sent mail, is not "new".
+      ...(FOLDERS_ON && (it.mbox !== "inbox" || outbound) ? { read_at: new Date().toISOString() } : {}),
     };
     if (COMMIT) {
       try {
@@ -395,7 +448,7 @@ for (const r of report) console.log(`${r.date} ${r.direction.padEnd(8)} ${r.from
 console.log(
   `\n${COMMIT ? "DONE" : "DRY RUN (nothing written)"}: ${items.length} Titan emails read. ` +
     `${COMMIT ? "Filed" : "Would file"} ${nFiled}, already on the site ${nSkipped}, no family match ${nUnmatched}` +
-    `${KEEP_UNMATCHED ? ` (${COMMIT ? "kept" : "would keep"} ${COMMIT ? nKept : nUnmatched})` : ""}, errors ${nErr}.`
+    `${KEEP_UNMATCHED ? ` (${COMMIT ? "kept" : "would keep"} ${COMMIT ? nKept : nUnmatched})` : ""}, moved between folders ${nMoved}, errors ${nErr}.`
 );
 console.log(`Report saved: ${file}`);
 if (!COMMIT) console.log("Happy with it? Run again with --commit to file them.");

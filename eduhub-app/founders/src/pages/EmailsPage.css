@@ -541,3 +541,8 @@ body.ep-resizing {
 .ep-layout .mx-row:not(.is-unread) .mx-row-preview {
   opacity: 0.8;
 }
+
+/* Titan folders sit below the working ones */
+.ep-folder[data-sep] {
+  margin-top: 14px;
+}
