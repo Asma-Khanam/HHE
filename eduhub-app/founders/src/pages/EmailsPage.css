@@ -296,3 +296,159 @@
     margin: 0 0 0 auto;
   }
 }
+
+/* ---- Polish pass (22 Oct 2026): one card, fills the screen, calmer colours ---- */
+.ep-layout {
+  grid-template-columns: 228px minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+  border: 1px solid var(--hh-track);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--hh-white);
+  box-shadow: 0 1px 2px rgba(42, 17, 25, 0.04), 0 10px 28px rgba(42, 17, 25, 0.07);
+}
+.ep-layout > * {
+  min-height: 0;
+}
+.ep-folders {
+  gap: 3px;
+  padding: 16px 12px;
+  border: 0;
+  border-right: 1px solid var(--hh-track);
+  border-radius: 0;
+  background: #f9f4f2;
+}
+.ep-folders::before {
+  content: "Mailbox";
+  padding: 0 10px 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(42, 17, 25, 0.45);
+}
+.ep-folder {
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 9px 10px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.ep-folder-icon {
+  flex: none;
+  opacity: 0.85;
+}
+.ep-folder-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ep-folder.is-active {
+  box-shadow: 0 4px 12px rgba(83, 1, 38, 0.25);
+}
+.ep-unread-card {
+  margin-top: auto;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--hh-track);
+  font-size: 0.82rem;
+  color: var(--hh-muted, #6b5a60);
+}
+.ep-unread-card strong {
+  display: block;
+  font-size: 1.4rem;
+  line-height: 1.1;
+  color: var(--hh-burgundy);
+}
+.ep-layout .mx-shell {
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  height: auto;
+}
+.ep-layout .mx-list {
+  scrollbar-width: thin;
+}
+.ep-layout .mx-list-col {
+  background: #fff;
+}
+.ep-focus {
+  padding: 0 12px;
+  gap: 2px;
+  border-bottom: 1px solid var(--hh-track);
+}
+.ep-focus-btn {
+  margin-bottom: -1px;
+}
+.mx-row {
+  transition: background 0.12s;
+}
+.mx-row.is-unread .mx-row-subject {
+  font-weight: 700;
+}
+/* "Not filed" is a quiet label, not an alarm; it is redundant inside the Not filed folder */
+.ep-chip.is-open {
+  background: #f6e3ec;
+  color: #8a2c58;
+  font-weight: 600;
+}
+.ep-layout[data-folder="untracked"] .ep-chip.is-open {
+  display: none;
+}
+/* the filing bar */
+.ep-bar.is-open {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 14px 20px 16px;
+  background: linear-gradient(180deg, #fbf1f5, #fdf7f9);
+  border-bottom: 1px solid #f0dbe4;
+}
+.ep-bar.is-open .ep-bar-actions {
+  gap: 8px;
+}
+.ep-bar.is-open .ep-family-input {
+  flex: 1 1 240px;
+  max-width: 340px;
+}
+.ep-suggest {
+  padding-bottom: 2px;
+}
+@media (min-width: 781px) {
+  .ep-page {
+    height: calc(100dvh - 64px);
+    min-height: 560px;
+  }
+  .ep-layout {
+    flex: 1;
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
+@media (max-width: 1000px) {
+  .ep-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+  .ep-folders {
+    border-right: 0;
+    border-bottom: 1px solid var(--hh-track);
+    padding: 10px;
+  }
+  .ep-folders::before {
+    display: none;
+  }
+  .ep-unread-card {
+    margin: 0 0 0 auto;
+    padding: 6px 12px;
+  }
+  .ep-unread-card strong {
+    display: inline;
+    font-size: 1rem;
+  }
+  .ep-layout .mx-shell {
+    height: min(760px, 74vh);
+  }
+}

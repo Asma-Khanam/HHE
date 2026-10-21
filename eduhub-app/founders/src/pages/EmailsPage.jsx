@@ -89,6 +89,44 @@ function suggestFamilies(email, families) {
   return out.slice(0, 3);
 }
 
+function FolderIcon({ k }) {
+  const common = { width: 17, height: 17, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", className: "ep-folder-icon" };
+  if (k === "inbox")
+    return (
+      <svg {...common}>
+        <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+        <path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z" />
+      </svg>
+    );
+  if (k === "sent")
+    return (
+      <svg {...common}>
+        <path d="M22 2 11 13" />
+        <path d="M22 2 15 22l-4-9-9-4z" />
+      </svg>
+    );
+  if (k === "tracked")
+    return (
+      <svg {...common}>
+        <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      </svg>
+    );
+  if (k === "untracked")
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8v4.5" />
+        <path d="M12 16h.01" />
+      </svg>
+    );
+  return (
+    <svg {...common}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
+
 export default function EmailsPage() {
   const [tracked, setTracked] = useState([]);
   const [untracked, setUntracked] = useState([]);
@@ -421,7 +459,7 @@ export default function EmailsPage() {
           <p>No emails yet.</p>
         </div>
       ) : (
-        <div className="ep-layout">
+        <div className="ep-layout" data-folder={tab}>
           <nav className="ep-folders" aria-label="Mail folders">
             {FOLDERS.map((f) => (
               <button
@@ -435,11 +473,16 @@ export default function EmailsPage() {
                   setMobileReading(false);
                 }}
               >
+                <FolderIcon k={f.key} />
                 <span className="ep-folder-name">{f.label}</span>
                 <span className="ep-folder-count">{counts[f.key]}</span>
               </button>
             ))}
-            {unreadCount > 0 && <span className="ep-unread-note">{unreadCount} unread</span>}
+            {unreadCount > 0 && (
+              <div className="ep-unread-card">
+                <strong>{unreadCount}</strong> unread
+              </div>
+            )}
           </nav>
 
           <div className={"mx-shell ep-shell" + (mobileReading ? " is-reading" : "")}>
