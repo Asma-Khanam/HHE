@@ -585,7 +585,18 @@ export default function SchoolDetailPage() {
       <div className="family-detail-header">
         <div className="family-detail-avatar">{(school.name || "?").charAt(0).toUpperCase()}</div>
         <div className="family-detail-header-text">
-          <h1>{school.name}</h1>
+          <div className="school-title-row">
+            <h1>{school.name}</h1>
+            {school.general_phone && (
+              <a
+                className="school-phone-chip"
+                href={"tel:" + school.general_phone.replace(/\s+/g, "")}
+                title="Call the school's main number"
+              >
+                <span aria-hidden="true">☎</span> {school.general_phone}
+              </a>
+            )}
+          </div>
           <div className="family-detail-meta">
             {school.area && <span>{school.area}</span>}
             {school.curriculum && <span>{school.curriculum}</span>}
