@@ -2516,3 +2516,69 @@ export async function listDepositFormData() {
   ]);
   return { schools: schools || [], children: children || [] };
 }
+
+
+// ---------------------------------------------------------------------------
+// The Emails page (21 Oct 2026): every email in one place, filed or not.
+// "Tracked" = on a family's Emails tab (case_notes). "Untracked" = arrived at an
+// address that matches no family and was kept in unmatched_emails (addendum 124).
+// The list queries leave out the full HTML so the page opens quickly; the full
+// email is fetched when one is opened.
+// ---------------------------------------------------------------------------
+export async function listAllEmails(limit = 400) {
+  const rows = unwrap(
+    await supabase
+      .from("case_notes")
+      .select(
+        "id,family_id,direction,subject,body,email_from,email_from_name,email_to,email_cc,occurred_at,read_at,email_attachments,family:families(id,account_user_id,parents(full_name,relationship))"
+      )
+      .eq("kind", "email")
+      .order("occurred_at", { ascending: false })
+      .limit(limit)
+  );
+  return rows.map((r) => ({
+    ...r,
+    familyName: r.family ? familyDisplayName(r.family, r.family.parents) : "",
+  }));
+}
+
+export async function getEmailNote(noteId) {
+  return unwrap(await supabase.from("case_notes").select("*").eq("id", noteId).single());
+}
+
+export async function listUnmatchedEmails(limit = 200) {
+  return unwrap(
+    await supabase
+      .from("unmatched_emails")
+      .select("id,received_at,alias,email_from,email_from_name,email_to,email_cc,subject,email_text,email_attachments")
+      .eq("status", "open")
+      .order("received_at", { ascending: false })
+      .limit(limit)
+  );
+}
+
+export async function getUnmatchedEmail(id) {
+  return unwrap(await supabase.from("unmatched_emails").select("*").eq("id", id).single());
+}
+
+export async function fileUnmatchedEmail(id, familyId) {
+  return unwrap(await supabase.rpc("file_unmatched_email", { p_id: id, p_family: familyId }));
+}
+
+export async function dismissUnmatchedEmail(id) {
+  return unwrap(await supabase.rpc("dismiss_unmatched_email", { p_id: id }));
+}
+
+// Families to choose from when filing an email: { id, name }.
+export async function listFamilyChoices() {
+  const rows = unwrap(
+    await supabase
+      .from("families")
+      .select("id,account_user_id,parents(full_name,relationship)")
+      .order("created_at", { ascending: false })
+      .limit(1000)
+  );
+  return rows
+    .map((f) => ({ id: f.id, name: familyDisplayName(f, f.parents) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}

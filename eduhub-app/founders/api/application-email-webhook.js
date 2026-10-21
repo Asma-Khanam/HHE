@@ -166,6 +166,10 @@ export default async function handler(req, res) {
   const messageId =
     body["message-id"] || body.messageId || body.message_id || headerValue(body.headers, "message-id") || null;
 
+  const inReplyTo =
+    body.inReplyTo || body["in-reply-to"] || body.in_reply_to || headerValue(body.headers, "in-reply-to") || null;
+  const references = body.references || headerValue(body.headers, "references") || null;
+
   try {
     let result = await callRpc("log_application_email_full", {
       p_alias: alias,
@@ -177,6 +181,9 @@ export default async function handler(req, res) {
       p_text: text,
       p_html: html || null,
       p_message_id: messageId ? String(messageId).slice(0, 500) : null,
+      // Lets the database file a reply under the family when the address matches nobody (addendum 124).
+      p_in_reply_to: inReplyTo ? String(inReplyTo).slice(0, 1000) : null,
+      p_references: references ? String(references).slice(0, 4000) : null,
     });
 
     if (!result.ok && (result.status === 404 || /PGRST202|Could not find the function/i.test(result.text))) {
@@ -198,6 +205,50 @@ export default async function handler(req, res) {
     }
 
     const out = result.json || {};
+
+    // Matched nobody: the email is kept in unmatched_emails. Keep its attachments with it,
+    // under unmatched/<id>/, so they are still there when a person files it (addendum 124).
+    if (out.unmatched && messageId && toSave.length) {
+      try {
+        const [row] =
+          (await (
+            await fetch(
+              `${process.env.SUPABASE_URL}/rest/v1/unmatched_emails?email_message_id=eq.${encodeURIComponent(String(messageId).slice(0, 500))}&select=id,email_attachments`,
+              { headers: sbHeaders() }
+            )
+          ).json()) || [];
+        if (row?.id && !(row.email_attachments || []).length) {
+          const saved = [];
+          for (const { item: a, inline, cid } of toSave) {
+            const name = safeName(a.name || a.filename || (inline ? "image" : "attachment"));
+            const entry = { name, type: a.type || null, size: 0, path: null, inline, cid };
+            try {
+              const buf = toBuffer(a.content);
+              entry.size = buf.length;
+              const path = `unmatched/${row.id}/${saved.length + 1}-${name}`;
+              const up = await fetch(`${process.env.SUPABASE_URL}/storage/v1/object/email-attachments/${encodeURI(path)}`, {
+                method: "POST",
+                headers: sbHeaders({ "Content-Type": a.type || "application/octet-stream", "x-upsert": "true" }),
+                body: buf,
+              });
+              if (up.ok) entry.path = path;
+              else entry.error = `upload failed (${up.status})`;
+            } catch {
+              entry.error = "upload error";
+            }
+            saved.push(entry);
+          }
+          await fetch(`${process.env.SUPABASE_URL}/rest/v1/unmatched_emails?id=eq.${row.id}`, {
+            method: "PATCH",
+            headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+            body: JSON.stringify({ email_attachments: saved, attachment_count: saved.length }),
+          });
+        }
+      } catch (e) {
+        console.error("unmatched attachment save failed", e?.message);
+      }
+    }
+
     if (out.logged && out.note_id && !out.duplicate && toSave.length) {
       // Every file gets a row -- if an upload fails the Emails tab still
       // shows its name with "couldn't be saved", so nothing goes missing
@@ -256,7 +307,7 @@ export default async function handler(req, res) {
       }
     }
 
-    res.status(200).json({ logged: !!out.logged });
+    res.status(200).json({ logged: !!out.logged, ...(out.unmatched ? { unmatched: true } : {}) });
   } catch (err) {
     console.error("application-email-webhook error", err?.message);
     // Still 200: this only logs a case note. It never affects whether the

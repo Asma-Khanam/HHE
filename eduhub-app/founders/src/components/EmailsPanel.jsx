@@ -48,7 +48,7 @@ function cleanText(text) {
     .trim();
 }
 
-function previewLine(note) {
+export function previewLine(note) {
   const raw = note.email_text || splitInboundBody(note.body).snippet;
   return cleanText(raw)
     .replace(/\(?https?:\/\/[^\s)]+\)?/g, "")
@@ -57,7 +57,7 @@ function previewLine(note) {
     .slice(0, 160);
 }
 
-function senderOf(note) {
+export function senderOf(note) {
   if (note.direction === "outbound") return { name: note.email_from_name || "Heather Harries team", email: "" };
   const email = note.email_from || splitInboundBody(note.body).from || "";
   const name = note.email_from_name || (email ? email.split("@")[0] : "Unknown sender");
@@ -65,7 +65,7 @@ function senderOf(note) {
 }
 
 const addrOf = (s) => (String(s || "").match(/<([^>]+)>/)?.[1] || String(s || "")).trim();
-const splitAddrs = (s) => String(s || "").split(/,(?![^<]*>)/).map(addrOf).filter((x) => /@/.test(x));
+export const splitAddrs = (s) => String(s || "").split(/,(?![^<]*>)/).map(addrOf).filter((x) => /@/.test(x));
 
 // Reply / Reply all / Forward, prefilled like Outlook.
 function replyDraft(note, mode, familyAddress) {
@@ -129,7 +129,7 @@ function toneFor(key) {
 
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-function groupLabel(iso) {
+export function groupLabel(iso) {
   const d = new Date(iso);
   const today = startOfDay(new Date());
   const days = Math.round((today - startOfDay(d)) / 86400000);
@@ -142,7 +142,7 @@ function groupLabel(iso) {
   return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 
-function listDate(iso) {
+export function listDate(iso) {
   const d = new Date(iso);
   const today = startOfDay(new Date());
   const days = Math.round((today - startOfDay(d)) / 86400000);
@@ -165,7 +165,7 @@ function fullDate(iso) {
 
 // Real attachments only -- images pasted into the body (inline) are shown
 // in place, not as chips.
-const filesOf = (note) => (note.email_attachments || []).filter((a) => !a.inline);
+export const filesOf = (note) => (note.email_attachments || []).filter((a) => !a.inline);
 
 // "a@b.com <a@b.com>" -> "a@b.com"
 const tidyAddresses = (s) => (s || "").replace(/([^\s,<>]+@[^\s,<>]+)\s*<\1>/gi, "$1");
@@ -428,7 +428,7 @@ function EmailFrame({ html }) {
 
 // ------------------------------------------------------------------ pieces
 
-function Avatar({ name, email, size = 38 }) {
+export function Avatar({ name, email, size = 38 }) {
   return (
     <span
       className="mx-avatar"
@@ -440,7 +440,7 @@ function Avatar({ name, email, size = 38 }) {
   );
 }
 
-function PaperclipIcon() {
+export function PaperclipIcon() {
   return (
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <path d="M21 11.5l-8.6 8.6a5.5 5.5 0 01-7.8-7.8l9.2-9.2a3.7 3.7 0 015.2 5.2l-9.2 9.2a1.8 1.8 0 01-2.6-2.6l8.5-8.5" />
@@ -448,7 +448,7 @@ function PaperclipIcon() {
   );
 }
 
-function SearchIcon() {
+export function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <circle cx="11" cy="11" r="7" />
@@ -496,7 +496,7 @@ function Attachments({ items }) {
   );
 }
 
-function ReadingPane({ note, onBack, familyId, onUpdate, onReply, onToggleRead }) {
+export function ReadingPane({ note, onBack, familyId, onUpdate, onReply, onToggleRead, noInsight = false }) {
   const resolvedHtml = useResolvedHtml(note);
   if (!note) {
     return (
@@ -561,7 +561,7 @@ function ReadingPane({ note, onBack, familyId, onUpdate, onReply, onToggleRead }
         </div>
       </header>
 
-      {!outbound && <InsightBox key={note.id} note={note} familyId={familyId} onUpdate={onUpdate} />}
+      {!outbound && !noInsight && <InsightBox key={note.id} note={note} familyId={familyId} onUpdate={onUpdate} />}
 
       <Attachments items={filesOf(note)} />
 
@@ -632,7 +632,7 @@ function ComposeForm({ familyId, onDone, onCancel }) {
 
 // -------------------------------------------------------------------- main
 
-const isUnread = (n) => n.direction === "inbound" && !n.read_at;
+export const isUnread = (n) => n.direction === "inbound" && !n.read_at;
 
 const FILTERS = [
   { key: "all", label: "All" },
