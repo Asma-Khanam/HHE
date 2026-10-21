@@ -515,3 +515,29 @@ body.ep-resizing {
     display: none;
   }
 }
+
+/* Unread: bold brand-colour sender and subject, a soft tint and a bar on the left,
+   like Outlook's bold green. Read emails stay plain grey-brown. */
+.ep-layout .mx-row.is-unread {
+  background: #fdf1f4;
+  box-shadow: inset 3px 0 0 #7b1e3a;
+}
+.ep-layout .mx-row.is-unread.is-active {
+  background: #fae3ea;
+}
+.ep-layout .mx-row.is-unread .mx-row-sender,
+.ep-layout .mx-row.is-unread .mx-row-subject {
+  color: #7b1e3a;
+  font-weight: 800;
+}
+.ep-layout .mx-row.is-unread .mx-row-date {
+  color: #7b1e3a;
+  font-weight: 700;
+}
+.ep-layout .mx-row:not(.is-unread) .mx-row-sender,
+.ep-layout .mx-row:not(.is-unread) .mx-row-subject {
+  font-weight: 500;
+}
+.ep-layout .mx-row:not(.is-unread) .mx-row-preview {
+  opacity: 0.8;
+}
