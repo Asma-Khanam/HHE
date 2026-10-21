@@ -1254,7 +1254,13 @@ export async function getTodayData() {
     // The "who did what" trail, surfaced somewhere it's actually seen day to
     // day rather than only when opening one specific family. Ten is plenty
     // for a glance — this is a feed, not a report.
-    supabase.from("case_notes").select("*").order("created_at", { ascending: false }).limit(10).then(unwrap),
+    supabase
+      .from("case_notes")
+      .select("id, family_id, kind, body, created_at, author_id")
+      .neq("kind", "email")
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .then(unwrap),
   ]);
 
   const parentsByFamily = groupBy(parents, "family_id");
