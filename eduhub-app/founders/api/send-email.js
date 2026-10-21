@@ -77,6 +77,12 @@ function transport() {
       port: 587,
       secure: false,
       auth: { user: process.env.IMPROVMX_SMTP_USER, pass: process.env.IMPROVMX_SMTP_PASS },
+      // The function is cut off at 30s (vercel.json). Nodemailer's own defaults wait
+      // up to 2 minutes, so a slow mail server used to kill the function and the
+      // browser only saw a blank "Couldn't send that email". Fail sooner, with a reason.
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
     });
   }
   return _transport;
@@ -181,8 +187,11 @@ export default async function handler(req, res) {
       attachments: files,
     });
 
-    // Keep a copy on the family's Emails tab.
-    const [note] = await sb("case_notes", {
+    // Keep a copy on the family's Emails tab. The email is already sent by now, so a
+    // failure here must not look like the send failed (that invites a duplicate).
+    let note;
+    try {
+      [note] = await sb("case_notes", {
       method: "POST",
       body: JSON.stringify({
         family_id: familyId,
@@ -201,6 +210,15 @@ export default async function handler(req, res) {
         email_message_id: info.messageId || null,
       }),
     });
+    } catch (saveErr) {
+      console.error("send-email: sent but could not save the copy:", saveErr.message);
+      return res.status(200).json({
+        ok: true,
+        note: null,
+        warning: "The email was sent, but a copy could not be saved to the Emails tab. Do not send it again.",
+        detail: String(saveErr.message || saveErr).slice(0, 300),
+      });
+    }
 
     // Save the attachments with it, so Sent shows them too.
     if (files.length && note) {
@@ -221,13 +239,19 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, note });
   } catch (err) {
     const msg = String(err?.message || err);
+    const code = err?.code ? `${err.code}: ` : "";
+    const detail = `${code}${err?.response || msg}`.slice(0, 300);
+    console.error("send-email failed:", detail);
+    const timedOut = /ETIMEDOUT|ESOCKET|ECONNECTION|ECONNRESET|timed? ?out|Greeting never received/i.test(`${err?.code} ${msg}`);
     return res.status(500).json({
-      error: /550|5\.1\.9|not correctly configured/i.test(msg)
+      error: timedOut
+        ? "The email server didn't answer in time. Check the Sent folder before trying again, in case it did go out."
+        : /550|5\.1\.9|not correctly configured/i.test(msg)
         ? "The email server refused it (domain not verified for sending). Check the DKIM/SPF records on ImprovMX."
-        : /auth|535/i.test(msg)
+        : /\b535\b|EAUTH|invalid login|authentication/i.test(`${err?.code} ${msg}`)
         ? "The email server login failed. Check IMPROVMX_SMTP_USER / IMPROVMX_SMTP_PASS on Vercel."
-        : "Couldn't send that email. Please try again.",
-      detail: msg.slice(0, 300),
+        : "Couldn't send that email.",
+      detail,
     });
   }
 }

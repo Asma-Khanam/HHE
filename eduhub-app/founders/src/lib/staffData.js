@@ -2064,7 +2064,14 @@ export async function sendFamilyEmail(payload) {
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
     body: JSON.stringify(payload),
   });
-  const data = await res.json().catch(() => ({}));
+  const raw = await res.text().catch(() => "");
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    // Not JSON: Vercel itself answered (function timed out or crashed), not our code.
+    if (!res.ok) throw new Error(`Couldn't send that email: the server did not answer properly (HTTP ${res.status}). It may have timed out, so check the Sent folder before trying again.`);
+  }
   if (!res.ok) {
     // detail is the raw SMTP/server error -- worth showing alongside the
     // friendly message so a login/config problem can be diagnosed without
@@ -2072,6 +2079,8 @@ export async function sendFamilyEmail(payload) {
     const message = data.error || "Couldn't send that email.";
     throw new Error(data.detail && data.detail !== message ? `${message} (${data.detail})` : message);
   }
+  // Sent, but the copy for the Emails tab could not be saved: say so plainly.
+  if (!data.note) throw new Error(data.warning || "The email was sent, but a copy could not be saved. Do not send it again.");
   return data.note;
 }
 
