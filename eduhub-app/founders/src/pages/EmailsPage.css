@@ -161,3 +161,138 @@
 .ep-right .mx-writing {
   overflow: auto;
 }
+
+/* ---- Outlook-style layout (22 Oct 2026): folders | list | reading pane ---- */
+.ep-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.ep-folders {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--hh-track);
+  border-radius: var(--hh-radius);
+  background: #fdfbfa;
+}
+.ep-folder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  color: var(--hh-muted, #6b5a60);
+  cursor: pointer;
+  text-align: left;
+}
+.ep-folder:hover {
+  background: #f7eef1;
+}
+.ep-folder.is-active {
+  background: var(--hh-burgundy);
+  color: #fff;
+}
+.ep-folder-count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.07);
+}
+.ep-folder.is-active .ep-folder-count {
+  background: rgba(255, 255, 255, 0.22);
+}
+.ep-folder.is-alert:not(.is-active) .ep-folder-count {
+  background: #b23a6a;
+  color: #fff;
+}
+.ep-folders .ep-unread-note {
+  margin: 8px 10px 2px;
+}
+.ep-focus {
+  display: flex;
+  gap: 4px;
+  padding: 6px 10px 2px;
+}
+.ep-focus-btn {
+  padding: 5px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  color: var(--hh-muted, #6b5a60);
+  cursor: pointer;
+}
+.ep-focus-btn.is-active {
+  color: var(--hh-burgundy);
+  border-bottom-color: var(--hh-burgundy);
+}
+.ep-focus-count {
+  margin-left: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.07);
+}
+/* conversations */
+.ep-chev,
+.ep-chev-gap {
+  flex: none;
+  width: 14px;
+  align-self: center;
+  text-align: center;
+}
+.ep-chev {
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--hh-muted, #6b5a60);
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+.ep-chev.is-open {
+  transform: rotate(90deg);
+}
+.mx-row.ep-child {
+  padding-left: 26px;
+  background: #fdfbfa;
+}
+.ep-thread-count {
+  flex: none;
+  margin-left: 6px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #f0e6ea;
+  color: var(--hh-burgundy);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.ep-suggest {
+  width: 100%;
+}
+.ep-suggest-label {
+  font-size: 0.85rem;
+  color: var(--hh-muted, #6b5a60);
+}
+@media (max-width: 1000px) {
+  .ep-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ep-folders {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .ep-folders .ep-unread-note {
+    margin: 0 0 0 auto;
+  }
+}

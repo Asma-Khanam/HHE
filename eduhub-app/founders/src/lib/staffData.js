@@ -2528,7 +2528,7 @@ export async function listDepositFormData() {
 // The list queries leave out the full HTML so the page opens quickly; the full
 // email is fetched when one is opened.
 // ---------------------------------------------------------------------------
-export async function listAllEmails(limit = 400) {
+export async function listAllEmails(limit = 1000) {
   const rows = unwrap(
     await supabase
       .from("case_notes")
@@ -2549,7 +2549,7 @@ export async function getEmailNote(noteId) {
   return unwrap(await supabase.from("case_notes").select("*").eq("id", noteId).single());
 }
 
-export async function listUnmatchedEmails(limit = 200) {
+export async function listUnmatchedEmails(limit = 500) {
   return unwrap(
     await supabase
       .from("unmatched_emails")
