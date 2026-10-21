@@ -1,0 +1,51 @@
+name: Titan email sync
+
+# Keeps the Emails tab complete. Reads the last few days of the relocate@ Titan
+# mailbox (Inbox and Sent) and files anything the website does not already have:
+# by application address, by reply thread, or by family name in the subject.
+# Anything that matches no family is kept in "Not filed" for someone to file.
+# Safe to run as often as you like: already-filed emails are skipped.
+# Can also be run on demand from the Actions tab (optionally further back).
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "How many days back to read"
+        type: string
+        default: "3"
+
+concurrency:
+  group: titan-email-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: eduhub-app/founders
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: eduhub-app/founders/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync Titan into the Emails tab
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TITAN_EMAIL: ${{ secrets.TITAN_EMAIL }}
+          TITAN_PASSWORD: ${{ secrets.TITAN_PASSWORD }}
+          DAYS: ${{ inputs.days || '3' }}
+        run: |
+          SINCE=$(date -u -d "${DAYS} days ago" +%F)
+          node scripts/backfill-titan-emails.mjs --since "$SINCE" --commit --keep-unmatched
