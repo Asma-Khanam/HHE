@@ -45,9 +45,16 @@ const FOLDERS = [
   { key: "all", label: "All mail" },
   { key: "inbox", label: "Inbox" },
   { key: "sent", label: "Sent" },
+  { key: "needs", label: "Needs reply" },
+  { key: "waiting", label: "Waiting on school" },
   { key: "tracked", label: "On a family" },
   { key: "untracked", label: "Not filed" },
 ];
+
+// Needs reply / Waiting on school only look at conversations that moved in the last 30 days,
+// so months of backfilled history do not flood them.
+const RECENT_MS = 30 * 24 * 3600 * 1000;
+const isRecent = (n) => Date.now() - new Date(n.occurred_at).getTime() < RECENT_MS;
 
 // "Layla, Year 6 (DOB 3/4/2016)" lines the composer offers for the school intro.
 function childLinesOf(children) {
@@ -105,6 +112,20 @@ function FolderIcon({ k }) {
       <svg {...common}>
         <path d="M22 2 11 13" />
         <path d="M22 2 15 22l-4-9-9-4z" />
+      </svg>
+    );
+  if (k === "needs")
+    return (
+      <svg {...common}>
+        <path d="M9 14 4 9l5-5" />
+        <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+      </svg>
+    );
+  if (k === "waiting")
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
       </svg>
     );
   if (k === "tracked")
@@ -215,15 +236,30 @@ export default function EmailsPage() {
     [tracked, untracked]
   );
 
+  // The newest email of each family conversation: who spoke last decides Needs reply / Waiting.
+  const latestByThread = useMemo(() => {
+    const m = new Map();
+    for (const n of all) {
+      if (!n.isTracked) continue;
+      const k = threadKey(n);
+      if (!m.has(k)) m.set(k, n);
+    }
+    return m;
+  }, [all]);
+
   const inFolder = useCallback(
     (n) => {
+      if (tab === "needs")
+        return n.isTracked && latestByThread.get(threadKey(n)) === n && n.direction !== "outbound" && isRecent(n);
+      if (tab === "waiting")
+        return n.isTracked && latestByThread.get(threadKey(n)) === n && n.direction === "outbound" && isRecent(n);
       if (tab === "inbox") return n.direction !== "outbound";
       if (tab === "sent") return n.direction === "outbound";
       if (tab === "tracked") return n.isTracked;
       if (tab === "untracked") return !n.isTracked;
       return true;
     },
-    [tab]
+    [tab, latestByThread]
   );
   const showFocus = tab === "all" || tab === "inbox" || tab === "untracked";
   const inFolderList = useMemo(() => all.filter(inFolder), [all, inFolder]);
@@ -265,8 +301,14 @@ export default function EmailsPage() {
     [threads, expanded]
   );
 
-  const selected = visible.find((n) => n.key === selectedKey) || visible[0] || null;
+  const selected =
+    visible.find((n) => n.key === selectedKey) || (selectedKey && all.find((n) => n.key === selectedKey)) || visible[0] || null;
   const selectedThread = selected ? threadKey(selected) : null;
+  // The whole conversation, oldest first, shown above the email being read.
+  const convo = useMemo(
+    () => (selectedThread ? all.filter((n) => threadKey(n) === selectedThread).reverse() : []),
+    [all, selectedThread]
+  );
   // The not-filed emails in the selected conversation: filing one files them all.
   const threadUnfiled = useMemo(
     () => (selected && !selected.isTracked ? untracked.filter((n) => threadKey(n) === selectedThread) : []),
@@ -341,6 +383,8 @@ export default function EmailsPage() {
     sent: all.filter((n) => n.direction === "outbound").length,
     tracked: tracked.length,
     untracked: untracked.length,
+    needs: all.filter((n) => n.isTracked && latestByThread.get(threadKey(n)) === n && n.direction !== "outbound" && isRecent(n)).length,
+    waiting: all.filter((n) => n.isTracked && latestByThread.get(threadKey(n)) === n && n.direction === "outbound" && isRecent(n)).length,
   };
   const unreadCount = tracked.filter(isUnread).length;
 
@@ -607,6 +651,30 @@ export default function EmailsPage() {
                     />
                   )}
                 </div>
+              )}
+              {!writing && convo.length > 1 && (
+                <details className="ep-convo" open>
+                  <summary>
+                    Conversation <span className="ep-thread-count">{convo.length}</span>
+                  </summary>
+                  <div className="ep-convo-list">
+                    {convo.map((n) => {
+                      const s = senderOf(n);
+                      return (
+                        <button
+                          key={n.key}
+                          type="button"
+                          className={"ep-convo-item" + (n.key === selected?.key ? " is-current" : "")}
+                          onClick={() => select(n.key)}
+                        >
+                          <span className="ep-convo-who">{n.direction === "outbound" ? "You" : s.name}</span>
+                          <span className="ep-convo-snip">{previewLine(n) || n.subject || "(no preview)"}</span>
+                          <span className="ep-convo-date">{listDate(n.occurred_at)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </details>
               )}
               {writing ? (
                 <div className="mx-reading mx-writing">

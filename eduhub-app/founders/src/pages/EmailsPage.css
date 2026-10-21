@@ -452,3 +452,76 @@
     height: min(760px, 74vh);
   }
 }
+
+/* One straight line under the title (wraps again on phones). */
+.ep-head > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+.ep-sub {
+  max-width: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 780px) {
+  .ep-sub {
+    white-space: normal;
+  }
+}
+
+/* Conversation strip above the email being read */
+.ep-convo {
+  border-bottom: 1px solid var(--hh-track);
+  background: #fdfbfa;
+  padding: 6px 16px 8px;
+}
+.ep-convo summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--hh-muted, #6b5a60);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ep-convo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 150px;
+  overflow-y: auto;
+  margin-top: 6px;
+}
+.ep-convo-item {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+  text-align: left;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.ep-convo-item:hover {
+  background: #f6efed;
+}
+.ep-convo-item.is-current {
+  background: #fbe9ee;
+  font-weight: 600;
+}
+.ep-convo-who,
+.ep-convo-snip {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ep-convo-snip,
+.ep-convo-date {
+  color: var(--hh-muted, #6b5a60);
+  font-weight: 400;
+}
