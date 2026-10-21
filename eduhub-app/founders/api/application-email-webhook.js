@@ -132,6 +132,17 @@ export default async function handler(req, res) {
   const recipients = [...(Array.isArray(body.to) ? body.to : []), ...(Array.isArray(body.cc) ? body.cc : [])];
   const ours = recipients.find((r) => /@applications\.heatherharries\.com$/i.test(r?.email || "")) || recipients[0];
   const alias = ours?.email ? ours.email.split("@")[0].toLowerCase() : null;
+  // One email can be addressed to several families at once (a school group writing to
+  // three application addresses). It belongs on every one of them, not only the first.
+  const extraAliases = [
+    ...new Set(
+      recipients
+        .filter((r) => /@applications\.heatherharries\.com$/i.test(r?.email || ""))
+        .map((r) => r.email.split("@")[0].toLowerCase())
+    ),
+  ].filter((a) => a !== alias);
+  let sharedAttachments = null;
+  let sharedInsight = null;
 
   if (!alias) {
     // Nothing we can log against -- still 200 so ImprovMX doesn't retry
@@ -278,6 +289,7 @@ export default async function handler(req, res) {
         saved.push(entry);
       }
       if (saved.length) {
+        sharedAttachments = saved;
         await fetch(`${process.env.SUPABASE_URL}/rest/v1/case_notes?id=eq.${out.note_id}`, {
           method: "PATCH",
           headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
@@ -297,6 +309,7 @@ export default async function handler(req, res) {
           email_text: text,
           email_html: html,
         });
+        sharedInsight = insight;
         await fetch(`${process.env.SUPABASE_URL}/rest/v1/case_notes?id=eq.${out.note_id}`, {
           method: "PATCH",
           headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
@@ -304,6 +317,44 @@ export default async function handler(req, res) {
         });
       } catch (e) {
         console.error("email insight failed", e?.message);
+      }
+    }
+
+    // The same email also addressed to other families: file it on each of them too.
+    // The attachments are already stored once, so those copies point at the same files.
+    for (const other of extraAliases) {
+      try {
+        const r2 = await callRpc("log_application_email_full", {
+          p_alias: other,
+          p_from: fromEmail,
+          p_from_name: body.from?.name || null,
+          p_to: addr(body.to),
+          p_cc: addr(body.cc),
+          p_subject: body.subject || "(no subject)",
+          p_text: text,
+          p_html: html || null,
+          p_message_id: messageId ? String(messageId).slice(0, 500) : null,
+          p_in_reply_to: inReplyTo ? String(inReplyTo).slice(0, 1000) : null,
+          p_references: references ? String(references).slice(0, 4000) : null,
+        });
+        const o2 = r2.json || {};
+        if (r2.ok && o2.logged && o2.note_id && !o2.duplicate) {
+          const patch = {};
+          if (sharedAttachments) patch.email_attachments = sharedAttachments;
+          if (sharedInsight) {
+            patch.ai_insight = sharedInsight;
+            patch.ai_insight_at = new Date().toISOString();
+          }
+          if (Object.keys(patch).length) {
+            await fetch(`${process.env.SUPABASE_URL}/rest/v1/case_notes?id=eq.${o2.note_id}`, {
+              method: "PATCH",
+              headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+              body: JSON.stringify(patch),
+            });
+          }
+        }
+      } catch (e) {
+        console.error("extra alias filing failed", other, e?.message);
       }
     }
 
