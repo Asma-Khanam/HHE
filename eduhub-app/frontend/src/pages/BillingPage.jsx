@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { fetchApplicationFees } from "../lib/applicationFees";
+import { fetchFamilyInvoices } from "../lib/invoices";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import PaymentsCard from "../components/PaymentsCard";
 import ApplicationFeesCard from "../components/ApplicationFeesCard";
+import InvoicesCard from "../components/InvoicesCard";
 import "./BillingPage.css";
 import { PageError, PageLoading } from "../components/StatePanels";
 
@@ -20,10 +22,24 @@ export default function BillingPage() {
   const { status, error, user, data, reload } = useApplicationData();
   const [fees, setFees] = useState([]);
   const [feesError, setFeesError] = useState("");
+  const [invoices, setInvoices] = useState([]);
   useEffect(() => {
     fetchApplicationFees()
       .then(setFees)
       .catch(() => setFeesError("Couldn't load application fees."));
+  }, []);
+  // Invoices are paid on Stripe's page. Reload when the family comes back to
+  // this tab so a payment shows as Paid without a manual refresh.
+  useEffect(() => {
+    const load = () => fetchFamilyInvoices().then(setInvoices).catch(() => {});
+    load();
+    const onVisible = () => document.visibilityState === "visible" && load();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", load);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", load);
+    };
   }, []);
   if (status === "loading") return <PageLoading label="Loading your billing…" />;
   if (status === "error") return <PageError title="We couldn’t load your billing" message={error} onRetry={reload} />;
@@ -37,9 +53,9 @@ export default function BillingPage() {
   const feePaid = (f) => f.status === "paid" || !!f.paid_at;
   const feesDue = fees.filter((f) => !feePaid(f) && f.status !== "waived");
   const feesPaid = fees.filter(feePaid);
-  const due = [...payments.filter((p) => p.status === "unpaid"), ...feesDue];
-  const checking = payments.filter((p) => p.status === "submitted");
-  const paid = [...payments.filter((p) => p.status === "paid"), ...feesPaid];
+  const due = [...payments.filter((p) => p.status === "unpaid"), ...feesDue, ...invoices.filter((i) => i.status === "open")];
+  const checking = [...payments.filter((p) => p.status === "submitted"), ...invoices.filter((i) => i.status === "needs_review")];
+  const paid = [...payments.filter((p) => p.status === "paid"), ...feesPaid, ...invoices.filter((i) => i.status === "paid")];
 
   return (
     <div className="billing-page">
@@ -65,6 +81,8 @@ export default function BillingPage() {
           <span className="billing-tile-sub">Confirmed by Heather Harries</span>
         </div>
       </div>
+
+      <InvoicesCard invoices={invoices} />
 
       <ApplicationFeesCard fees={fees} loadError={feesError} billTo={billTo} />
 
