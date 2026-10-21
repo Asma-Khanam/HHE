@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   dismissUnmatchedEmail,
+  moveEmailNote,
+  reopenUnmatchedEmail,
   fileUnmatchedEmail,
   friendlyError,
   getCurrentStaff,
@@ -43,7 +45,7 @@ const FOLDERS = [
   { key: "all", label: "All mail" },
   { key: "inbox", label: "Inbox" },
   { key: "sent", label: "Sent" },
-  { key: "tracked", label: "Filed to families" },
+  { key: "tracked", label: "On a family" },
   { key: "untracked", label: "Not filed" },
 ];
 
@@ -310,7 +312,9 @@ export default function EmailsPage() {
     if (!selected || !wasUnread) return;
     const readAt = new Date().toISOString();
     setTracked((prev) => prev.map((n) => (n.id === selected.id ? { ...n, read_at: readAt } : n)));
-    updateCaseNote(selected.id, { readAt }).catch(() => {});
+    updateCaseNote(selected.id, { readAt })
+      .then(() => window.dispatchEvent(new Event("emails-read")))
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedKeyNow]);
 
@@ -340,13 +344,16 @@ export default function EmailsPage() {
   };
   const unreadCount = tracked.filter(isUnread).length;
 
-  async function afterAction(message) {
+  async function afterAction(message, undo) {
     setNotice(message);
+    setUndoFn(undo ? () => undo : null);
     setSelectedKey(null);
     setFull(null);
     await load();
   }
   const [notice, setNotice] = useState("");
+  const [undoFn, setUndoFn] = useState(null);
+  const [moving, setMoving] = useState(false);
 
   const readingNote = full && selected && full.id === selected.id ? full : null;
 
@@ -354,7 +361,7 @@ export default function EmailsPage() {
     const s = senderOf(n);
     const active = selected?.key === n.key;
     const multi = t.items.length > 1;
-    const unread = first ? t.items.some((x) => x.isTracked && isUnread(x)) : n.isTracked && isUnread(n);
+    const unread = n.isTracked && isUnread(n);
     return (
       <button
         key={n.key}
@@ -446,6 +453,24 @@ export default function EmailsPage() {
       {notice && (
         <div className="ep-notice" role="status">
           {notice}
+          {undoFn && (
+            <button
+              type="button"
+              className="panel-btn panel-btn-quiet"
+              onClick={async () => {
+                const fn = undoFn;
+                setUndoFn(null);
+                try {
+                  await fn();
+                  await afterAction("Undone.");
+                } catch (e) {
+                  setNotice(friendlyError(e, "Couldn't undo that."));
+                }
+              }}
+            >
+              Undo
+            </button>
+          )}
           <button type="button" className="ep-notice-x" onClick={() => setNotice("")} aria-label="Dismiss">
             ×
           </button>
@@ -550,7 +575,9 @@ export default function EmailsPage() {
                       `Filed ${count} email${count === 1 ? "" : "s"} under ${name}. Replies in this conversation will now file themselves.`
                     )
                   }
-                  onDismissed={() => afterAction("Dismissed. It will not show here again.")}
+                  onDismissed={() =>
+                    afterAction("Dismissed. It will not show here again.", () => reopenUnmatchedEmail(selected.id))
+                  }
                 />
               )}
               {selected && selected.isTracked && selected.family_id && (
@@ -561,6 +588,24 @@ export default function EmailsPage() {
                   <Link className="panel-btn panel-btn-quiet" to={`/staff/families/${selected.family_id}?tab=emails`}>
                     Open their record
                   </Link>
+                  <button type="button" className="panel-btn panel-btn-quiet" onClick={() => setMoving((v) => !v)}>
+                    Move to another family
+                  </button>
+                  {moving && (
+                    <MoveBar
+                      key={selected.id}
+                      families={families}
+                      currentId={selected.family_id}
+                      onCancel={() => setMoving(false)}
+                      onMove={async (fam) => {
+                        const from = selected.family_id;
+                        const id = selected.id;
+                        await moveEmailNote(id, fam.id);
+                        setMoving(false);
+                        await afterAction(`Moved to ${fam.name}.`, () => moveEmailNote(id, from));
+                      }}
+                    />
+                  )}
                 </div>
               )}
               {writing ? (
@@ -622,6 +667,53 @@ export default function EmailsPage() {
 
 // Above a not-filed email: file it (and the rest of its conversation) under a family in one click,
 // or pick another family, or say it is not a family email.
+function MoveBar({ families, currentId, onMove, onCancel }) {
+  const [choice, setChoice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const labelFor = (f) => `${f.name} · ${f.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+  const byLabel = useMemo(() => new Map(families.map((f) => [labelFor(f), f])), [families]);
+  async function go() {
+    const fam = byLabel.get(choice.trim());
+    if (!fam || fam.id === currentId) {
+      setErr("Pick a different family from the list.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await onMove(fam);
+    } catch (e) {
+      setErr(friendlyError(e, "Couldn't move that email."));
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="ep-bar-actions">
+      <input
+        className="panel-input ep-family-input"
+        list="ep-move-list"
+        placeholder="Type a family name…"
+        value={choice}
+        onChange={(e) => setChoice(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && go()}
+        disabled={busy}
+      />
+      <datalist id="ep-move-list">
+        {families.map((f) => (
+          <option key={f.id} value={labelFor(f)} />
+        ))}
+      </datalist>
+      <button type="button" className="panel-btn" onClick={go} disabled={busy || !choice.trim()}>
+        {busy ? "Moving…" : "Move"}
+      </button>
+      <button type="button" className="panel-btn panel-btn-quiet" onClick={onCancel} disabled={busy}>
+        Cancel
+      </button>
+      {err && <p className="mx-error">{err}</p>}
+    </div>
+  );
+}
+
 function FileBar({ email, siblings, families, onFiled, onDismissed }) {
   const [choice, setChoice] = useState("");
   const [busy, setBusy] = useState(false);

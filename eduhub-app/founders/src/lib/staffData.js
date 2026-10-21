@@ -2572,6 +2572,27 @@ export async function dismissUnmatchedEmail(id) {
   return unwrap(await supabase.rpc("dismiss_unmatched_email", { p_id: id }));
 }
 
+export async function reopenUnmatchedEmail(id) {
+  return unwrap(await supabase.rpc("reopen_unmatched_email", { p_id: id }));
+}
+
+// Move a filed email to a different family. Nothing is deleted.
+export async function moveEmailNote(noteId, familyId) {
+  return unwrap(await supabase.rpc("move_email_note", { p_note: noteId, p_family: familyId }));
+}
+
+// Unread received emails, for the badge next to "Emails" in the staff menu.
+export async function countUnreadEmails() {
+  const { count, error } = await supabase
+    .from("case_notes")
+    .select("id", { count: "exact", head: true })
+    .eq("kind", "email")
+    .eq("direction", "inbound")
+    .is("read_at", null);
+  if (error) throw error;
+  return count || 0;
+}
+
 // Families to choose from when filing an email: { id, name }.
 export async function listFamilyChoices() {
   const rows = unwrap(

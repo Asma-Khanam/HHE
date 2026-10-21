@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { countUnreadEmails } from "../lib/staffData";
 import logoWhite from "../assets/brand/relocate-logo-white.png";
 import Harri from "./Harri";
 import "./StaffShell.css";
@@ -13,6 +14,22 @@ import "./StaffShell.css";
 // entirely rather than shown as dead links.
 export default function StaffShell() {
   const [me, setMe] = useState(null);
+  const [unreadEmails, setUnreadEmails] = useState(0);
+
+  useEffect(() => {
+    let live = true;
+    const refresh = () => countUnreadEmails().then((n) => live && setUnreadEmails(n)).catch(() => {});
+    refresh();
+    const timer = setInterval(refresh, 60000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("emails-read", refresh);
+    return () => {
+      live = false;
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("emails-read", refresh);
+    };
+  }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -62,6 +79,11 @@ export default function StaffShell() {
           </NavLink>
           <NavLink to="/staff/emails" className={({ isActive }) => "staff-nav-item" + (isActive ? " is-active" : "")}>
             Emails
+            {unreadEmails > 0 && (
+              <span className="staff-nav-badge" aria-label={`${unreadEmails} unread`}>
+                {unreadEmails > 99 ? "99+" : unreadEmails}
+              </span>
+            )}
           </NavLink>
           {me?.role === "admin" && (
             <NavLink to="/staff/team" className={({ isActive }) => "staff-nav-item" + (isActive ? " is-active" : "")}>
