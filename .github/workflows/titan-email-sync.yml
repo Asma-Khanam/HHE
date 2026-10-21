@@ -14,7 +14,14 @@ on:
       days:
         description: "How many days back to read"
         type: string
-        default: "3"
+        default: "45"
+  # Changing the sync itself runs it straight away over the last 45 days, so a
+  # fix or a new folder fills in without anyone clicking Run workflow.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/titan-email-sync.yml"
+      - "eduhub-app/founders/scripts/backfill-titan-emails.mjs"
 
 concurrency:
   group: titan-email-sync
@@ -45,7 +52,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TITAN_EMAIL: ${{ secrets.TITAN_EMAIL }}
           TITAN_PASSWORD: ${{ secrets.TITAN_PASSWORD }}
-          DAYS: ${{ inputs.days || '3' }}
+          DAYS: ${{ inputs.days || (github.event_name == 'push' && '45') || '3' }}
         run: |
           SINCE=$(date -u -d "${DAYS} days ago" +%F)
           node scripts/backfill-titan-emails.mjs --since "$SINCE" --commit --keep-unmatched
