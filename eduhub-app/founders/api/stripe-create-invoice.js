@@ -51,6 +51,17 @@ export default async function handler(req, res) {
     const attempt = earlier.length + 1;
     const key = (step) => `hhe-record-${recordId}-${attempt}-${step}`;
 
+    // What the invoice is for, in the family's words.
+    const isDeposit = plan.kind === "registration_deposit";
+    const school = plan.school_name ? ` (${plan.school_name})` : "";
+    const invoiceDescription = isDeposit
+      ? `Heather Harries Education Hub: registration deposit${plan.school_name ? ` for ${plan.school_name}` : ""}`
+      : "Heather Harries Education Hub: school application support";
+    const lineText = (line) =>
+      isDeposit
+        ? `Registration deposit${line.child ? `: ${line.child}` : ""}${school}`
+        : `Application support: ${line.child || "Child"}`;
+
     const days = Number(process.env.STRIPE_INVOICE_DAYS_DUE) || 7;
     const invoice = await stripe(
       "POST",
@@ -62,7 +73,7 @@ export default async function handler(req, res) {
         currency,
         // Never sweep up anything else waiting on this customer.
         pending_invoice_items_behavior: "exclude",
-        description: "Heather Harries Education Hub: school application support",
+        description: invoiceDescription,
         metadata: { record_id: recordId, family_id: plan.family_id },
       },
       key("invoice")
@@ -70,6 +81,7 @@ export default async function handler(req, res) {
     stripeInvoiceId = invoice.id;
 
     for (const [i, line] of plan.lines.entries()) {
+      if (!(Number(line.amount) > 0)) continue; // a 0 line adds nothing to charge
       await stripe(
         "POST",
         "invoiceitems",
@@ -78,7 +90,7 @@ export default async function handler(req, res) {
           invoice: invoice.id,
           currency,
           amount: toMinor(line.amount),
-          description: `Application support: ${line.child}`,
+          description: lineText(line),
         },
         key(`item-${i}`)
       );
