@@ -318,3 +318,16 @@
 
 .hh-avatar.families-avatar { width: 32px; height: 32px; background: var(--hh-burgundy); color: var(--hh-white); font-family: var(--hh-font-heading); font-size: 0.85rem; }
 .hh-avatar.families-avatar.has-photo { background: transparent; }
+
+/* Archived families (addendum 125) */
+.families-table tr.is-archived td { opacity: 0.6; }
+.families-archived-badge {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #ece3e6;
+  color: #6b5a60;
+  font-size: 0.7rem;
+  font-weight: 700;
+  vertical-align: middle;
+}

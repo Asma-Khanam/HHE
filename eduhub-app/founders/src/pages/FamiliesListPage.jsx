@@ -43,9 +43,10 @@ export default function FamiliesListPage() {
 
   const counts = useMemo(() => {
     const list = families || [];
-    const c = { all: list.filter((f) => f.client_stage !== "placed").length };
+    const active = list.filter((f) => !f.archived_at);
+    const c = { all: active.filter((f) => f.client_stage !== "placed").length, archived: list.length - active.length, active: active.length };
     CLIENT_STAGES.forEach((s) => {
-      c[s.key] = list.filter((f) => f.client_stage === s.key).length;
+      c[s.key] = active.filter((f) => f.client_stage === s.key).length;
     });
     return c;
   }, [families]);
@@ -57,6 +58,8 @@ export default function FamiliesListPage() {
     // Searching looks through every family, whatever tab is open -- a name
     // search that silently skips Placed or enquiry families looks broken.
     if (!q) {
+      if (tab === "archived") return list.filter((f) => f.archived_at);
+      list = list.filter((f) => !f.archived_at);
       if (tab === "all") list = list.filter((f) => f.client_stage !== "placed");
       else list = list.filter((f) => f.client_stage === tab);
       return list;
@@ -76,6 +79,7 @@ export default function FamiliesListPage() {
       label: `${k === "paid_consult" ? "Paid consults" : clientStageLabel(k)} (${counts[k] || 0})`,
     })),
     { key: "all", label: `All families (${counts.all})` },
+    { key: "archived", label: `Archived (${counts.archived || 0})` },
   ];
   return (
     <div className="families-page">
@@ -83,8 +87,8 @@ export default function FamiliesListPage() {
         <div>
           <h1>Caseload</h1>
           <p className="families-page-subtitle">
-            {families ? `${families.length} famil${families.length === 1 ? "y" : "ies"}` : "Loading…"} · one record
-            drives everything
+            {families ? `${counts.active} famil${counts.active === 1 ? "y" : "ies"}` : "Loading…"}
+            {counts.archived ? ` · ${counts.archived} archived` : ""} · one record drives everything
           </p>
         </div>
         <input
@@ -148,12 +152,19 @@ export default function FamiliesListPage() {
             </thead>
             <tbody>
               {filtered.map((family) => (
-                <tr key={family.id} onClick={() => navigate(`/staff/families/${family.id}`)}>
+                <tr
+                  key={family.id}
+                  className={family.archived_at ? "is-archived" : ""}
+                  onClick={() => navigate(`/staff/families/${family.id}`)}
+                >
                   <td>
                     <div className="families-cell-family">
                       <PersonAvatar doc={family.photoDoc} name={null} fallback={family.displayName.charAt(0).toUpperCase()} className="families-avatar" />
                       <span className="families-cell-family-text">
-                        <span className="families-table-name">{family.displayName}</span>
+                        <span className="families-table-name">
+                          {family.displayName}
+                          {family.archived_at && <span className="families-archived-badge">Archived</span>}
+                        </span>
                         <span className="families-cell-sub">
                           <code>{shortId(family.id)}</code>
                           {family.membership_type ? ` · ${packageLabel(family.membership_type)}` : ""}

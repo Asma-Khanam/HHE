@@ -17,6 +17,7 @@ import FamilyBalanceSummary from "../components/FamilyBalanceSummary";
 import AccountingRecordsPanel from "../components/AccountingRecordsPanel";
 import RecordFieldsEditor from "../components/RecordFieldsEditor";
 import OverviewPanel from "../components/OverviewPanel";
+import ArchiveFamilyControl from "../components/ArchiveFamilyControl";
 import EmailsPanel from "../components/EmailsPanel";
 import MeetingsPanel from "../components/MeetingsPanel";
 import { AddressIcon, BudgetIcon, HouseholdIcon } from "../components/icons";
@@ -710,6 +711,8 @@ export default function FamilyDetailPage() {
           </div>
         </div>
       </div>
+
+      <ArchiveFamilyControl family={family} onChanged={refreshFamily} />
 
       <CaseSettingsPanel
         family={family}

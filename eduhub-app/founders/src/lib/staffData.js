@@ -1262,8 +1262,11 @@ export async function getTodayData() {
     (families || []).map((f) => [f.id, familyDisplayName(f, parentsByFamily[f.id] || [])])
   );
   const staffById = Object.fromEntries((staff || []).map((s) => [s.user_id, s]));
+  // An archived family (addendum 125) leaves the working lists: no tasks, payments or
+  // "needs an owner" flags for them on Today.
+  const archivedIds = new Set((families || []).filter((f) => f.archived_at).map((f) => f.id));
 
-  const decorated = (tasks || []).map((t) => ({
+  const decorated = (tasks || []).filter((t) => !archivedIds.has(t.family_id)).map((t) => ({
     ...t,
     familyName: t.family_id ? familyNames[t.family_id] || "Unknown family" : "No family",
     assigneeInitial: t.assigned_to ? staffName(staffById[t.assigned_to]).charAt(0).toUpperCase() : null,
@@ -1280,7 +1283,7 @@ export async function getTodayData() {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const decoratedPayments = (payments || []).map((p) => ({
+  const decoratedPayments = (payments || []).filter((p) => !archivedIds.has(p.family_id)).map((p) => ({
     ...p,
     familyName: p.family_id ? familyNames[p.family_id] || "Unknown family" : "No family",
     isOverdue: !!p.due_date && new Date(p.due_date) < today,
@@ -1293,12 +1296,12 @@ export async function getTodayData() {
   }));
 
   const unownedFamilies = (families || [])
-    .filter((f) => !f.owner_staff_id)
+    .filter((f) => !f.owner_staff_id && !f.archived_at)
     .map((f) => ({ id: f.id, name: familyNames[f.id] || "Unnamed family" }));
 
   return {
     tasks: decorated,
-    families: families || [],
+    families: (families || []).filter((f) => !f.archived_at),
     familyNames,
     offersInPlay: (applications || []).filter((a) => a.status === "offer").length,
     chasingDocs: allDocs.filter((d) => d.status === "chasing").length,
@@ -2638,4 +2641,12 @@ export async function getEmailContext(familyId) {
     moveDate: family.planned_move_date || "",
     entryPhrase,
   };
+}
+
+// Archiving a family (addendum 125): hidden from the working lists, nothing deleted.
+export async function archiveFamily(familyId, reason) {
+  return unwrap(await supabase.rpc("archive_family", { p_family: familyId, p_reason: reason || null }));
+}
+export async function restoreFamily(familyId) {
+  return unwrap(await supabase.rpc("restore_family", { p_family: familyId }));
 }

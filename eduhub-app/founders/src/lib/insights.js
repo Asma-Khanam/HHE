@@ -128,6 +128,7 @@ export function computeInsights(raw, { range = "all", hideTest = true } = {}) {
   const families = raw.families
     .map((f) => ({ ...f, name: familyDisplayName(f, parentsByFamily[f.id] || []) }))
     .filter((f) => !hideTest || !/\btest/i.test(f.name))
+    .filter((f) => !f.archived_at) // archived families are not part of the live picture (addendum 125)
     .filter((f) => !since || new Date(f.created_at).getTime() >= since);
   const famIds = new Set(families.map((f) => f.id));
 

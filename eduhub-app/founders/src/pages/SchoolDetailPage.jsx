@@ -574,7 +574,7 @@ export default function SchoolDetailPage() {
   }
 
   const shortlistedFamilyIds = new Set(shortlist.map((s) => s.family_id));
-  const availableFamilies = (families || []).filter((f) => !shortlistedFamilyIds.has(f.id));
+  const availableFamilies = (families || []).filter((f) => !shortlistedFamilyIds.has(f.id) && !f.archived_at);
 
   return (
     <div className="family-detail-page">

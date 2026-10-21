@@ -178,6 +178,7 @@ export default function TeamPage() {
     const make = (id, name) => ({ id, name, active: 0, byStage: {} });
     const map = new Map(rows.map((r) => [r.user_id, make(r.user_id, r.full_name || r.email)]));
     families.forEach((f) => {
+      if (f.archived_at) return; // archived families are not anyone's workload
       let key = f.owner_staff_id || "none";
       if (!map.has(key)) map.set(key, make(key, key === "none" ? "Unassigned" : "Former staff"));
       const w = map.get(key);
