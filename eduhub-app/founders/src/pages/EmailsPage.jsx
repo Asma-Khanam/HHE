@@ -150,7 +150,56 @@ function FolderIcon({ k }) {
   );
 }
 
+const SIZE_KEY = "ep-pane-sizes";
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+// Drag handle between panes, like Outlook. Double-click puts the width back.
+function ResizeHandle({ value, onChange, min, max, label }) {
+  function down(e) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const start = value;
+    const move = (ev) => onChange(clamp(start + ev.clientX - startX, min, max));
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.classList.remove("ep-resizing");
+    };
+    document.body.classList.add("ep-resizing");
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+  return (
+    <div
+      className="ep-resize"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label}
+      title="Drag to resize. Double-click to reset."
+      onPointerDown={down}
+      onDoubleClick={() => onChange(null)}
+    />
+  );
+}
+
 export default function EmailsPage() {
+  const [sizes, setSizes] = useState(() => {
+    try {
+      return { folders: 228, list: 360, ...JSON.parse(localStorage.getItem(SIZE_KEY) || "{}") };
+    } catch {
+      return { folders: 228, list: 360 };
+    }
+  });
+  const setSize = (key, v) =>
+    setSizes((prev) => {
+      const next = { ...prev, [key]: v ?? (key === "folders" ? 228 : 360) };
+      try {
+        localStorage.setItem(SIZE_KEY, JSON.stringify(next));
+      } catch {
+        /* sizes just will not be remembered */
+      }
+      return next;
+    });
   const [tracked, setTracked] = useState([]);
   const [untracked, setUntracked] = useState([]);
   const [families, setFamilies] = useState([]);
@@ -304,11 +353,6 @@ export default function EmailsPage() {
   const selected =
     visible.find((n) => n.key === selectedKey) || (selectedKey && all.find((n) => n.key === selectedKey)) || visible[0] || null;
   const selectedThread = selected ? threadKey(selected) : null;
-  // The whole conversation, oldest first, shown above the email being read.
-  const convo = useMemo(
-    () => (selectedThread ? all.filter((n) => threadKey(n) === selectedThread).reverse() : []),
-    [all, selectedThread]
-  );
   // The not-filed emails in the selected conversation: filing one files them all.
   const threadUnfiled = useMemo(
     () => (selected && !selected.isTracked ? untracked.filter((n) => threadKey(n) === selectedThread) : []),
@@ -528,7 +572,7 @@ export default function EmailsPage() {
           <p>No emails yet.</p>
         </div>
       ) : (
-        <div className="ep-layout" data-folder={tab}>
+        <div className="ep-layout" data-folder={tab} style={{ "--ep-folders": `${sizes.folders}px`, "--ep-list": `${sizes.list}px` }}>
           <nav className="ep-folders" aria-label="Mail folders">
             {FOLDERS.map((f) => (
               <button
@@ -552,10 +596,12 @@ export default function EmailsPage() {
                 <strong>{unreadCount}</strong> unread
               </div>
             )}
+            <ResizeHandle value={sizes.folders} onChange={(v) => setSize("folders", v)} min={150} max={360} label="Resize folders" />
           </nav>
 
           <div className={"mx-shell ep-shell" + (mobileReading ? " is-reading" : "")}>
             <div className="mx-list-col">
+              <ResizeHandle value={sizes.list} onChange={(v) => setSize("list", v)} min={260} max={680} label="Resize email list" />
               <label className="mx-search">
                 <SearchIcon />
                 <input
@@ -651,30 +697,6 @@ export default function EmailsPage() {
                     />
                   )}
                 </div>
-              )}
-              {!writing && convo.length > 1 && (
-                <details className="ep-convo" open>
-                  <summary>
-                    Conversation <span className="ep-thread-count">{convo.length}</span>
-                  </summary>
-                  <div className="ep-convo-list">
-                    {convo.map((n) => {
-                      const s = senderOf(n);
-                      return (
-                        <button
-                          key={n.key}
-                          type="button"
-                          className={"ep-convo-item" + (n.key === selected?.key ? " is-current" : "")}
-                          onClick={() => select(n.key)}
-                        >
-                          <span className="ep-convo-who">{n.direction === "outbound" ? "You" : s.name}</span>
-                          <span className="ep-convo-snip">{previewLine(n) || n.subject || "(no preview)"}</span>
-                          <span className="ep-convo-date">{listDate(n.occurred_at)}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </details>
               )}
               {writing ? (
                 <div className="mx-reading mx-writing">

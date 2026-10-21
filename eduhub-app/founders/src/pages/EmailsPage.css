@@ -470,58 +470,48 @@
   }
 }
 
-/* Conversation strip above the email being read */
-.ep-convo {
-  border-bottom: 1px solid var(--hh-track);
-  background: #fdfbfa;
-  padding: 6px 16px 8px;
+/* Drag to resize the folders and the email list (desktop) */
+.ep-folders,
+.ep-layout .mx-list-col {
+  position: relative;
 }
-.ep-convo summary {
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--hh-muted, #6b5a60);
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.ep-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+  z-index: 5;
 }
-.ep-convo-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 150px;
-  overflow-y: auto;
-  margin-top: 6px;
-}
-.ep-convo-item {
-  display: grid;
-  grid-template-columns: 110px 1fr auto;
-  gap: 10px;
-  align-items: baseline;
-  text-align: left;
-  padding: 5px 8px;
-  border: 0;
-  border-radius: 8px;
+.ep-resize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
   background: transparent;
-  font: inherit;
-  font-size: 0.82rem;
-  cursor: pointer;
+  transition: background 120ms ease;
 }
-.ep-convo-item:hover {
-  background: #f6efed;
+.ep-resize:hover::after,
+body.ep-resizing .ep-resize::after {
+  background: #d9a3b4;
 }
-.ep-convo-item.is-current {
-  background: #fbe9ee;
-  font-weight: 600;
+body.ep-resizing {
+  cursor: col-resize;
+  user-select: none;
 }
-.ep-convo-who,
-.ep-convo-snip {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+@media (min-width: 1001px) {
+  .ep-layout {
+    grid-template-columns: var(--ep-folders, 228px) minmax(0, 1fr);
+  }
+  .ep-layout .mx-shell.ep-shell {
+    grid-template-columns: var(--ep-list, 360px) minmax(0, 1fr);
+  }
 }
-.ep-convo-snip,
-.ep-convo-date {
-  color: var(--hh-muted, #6b5a60);
-  font-weight: 400;
+@media (max-width: 1000px) {
+  .ep-resize {
+    display: none;
+  }
 }
