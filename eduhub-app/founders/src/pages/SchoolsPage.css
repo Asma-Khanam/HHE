@@ -45,5 +45,3 @@
   min-width: 160px;
 }
 
-.schools-tab-count { margin-left:7px; font-size:.74rem; font-weight:600; opacity:.55; }
-.families-tab.is-active .schools-tab-count { opacity:.9; }

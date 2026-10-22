@@ -20,6 +20,7 @@ import { relativeDay } from "../lib/workflow";
 import { displayNameForChild } from "../lib/completeness";
 import GenericDocumentsPanel from "../components/GenericDocumentsPanel";
 import AutosaveField from "../components/Autosave";
+import { EMIRATE_CHOICES } from "../data/emirates";
 import SchoolContactsPanel from "../components/SchoolContactsPanel";
 import SchoolFeedbackPanel from "../components/SchoolFeedbackPanel";
 import "../components/panels.css";
@@ -232,7 +233,7 @@ function SvRow({ label, children }) {
   );
 }
 
-function SchoolRecordView({ school }) {
+function SchoolRecordView({ school, onEmirate }) {
   const links = [
     ["Website", school.website_url],
     ["Fees", school.fees_url],
@@ -270,6 +271,20 @@ function SchoolRecordView({ school }) {
       <div className="sv-cols">
         <div className="sv-card">
           <h3>Basics</h3>
+          <div className="sv-row">
+            <span className="sv-label">Emirate</span>
+            <span className="sv-value">
+              <select
+                className="panel-select sv-emirate"
+                value={school.emirate || ""}
+                onChange={(e) => onEmirate(e.target.value)}
+                aria-label="Emirate"
+              >
+                <option value="">Not set yet</option>
+                {EMIRATE_CHOICES.map((e) => <option key={e} value={e}>{e}</option>)}
+              </select>
+            </span>
+          </div>
           <SvRow label="Area">{school.area}</SvRow>
           <SvRow label="Curriculum">{school.curriculum}</SvRow>
           <SvRow label="Address">{school.address}</SvRow>
@@ -598,6 +613,7 @@ export default function SchoolDetailPage() {
             )}
           </div>
           <div className="family-detail-meta">
+            {school.emirate && <span>{school.emirate}</span>}
             {school.area && <span>{school.area}</span>}
             {school.curriculum && <span>{school.curriculum}</span>}
             <span>
@@ -672,7 +688,7 @@ export default function SchoolDetailPage() {
         </div>
 
         {!editing ? (
-          <SchoolRecordView school={school} />
+          <SchoolRecordView school={school} onEmirate={(emirate) => saveSchoolField({ emirate: emirate || null })} />
         ) : (
           <form className="school-edit-form" onSubmit={saveRecord}>
             <div className="rec-grid">

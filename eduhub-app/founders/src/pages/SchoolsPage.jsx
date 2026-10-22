@@ -4,7 +4,9 @@ import { listSchoolsWithStats, createSchool, friendlyError } from "../lib/staffD
 import SchoolAnalytics from "../components/SchoolAnalytics";
 import "../components/panels.css";
 import "./FamiliesListPage.css";
+import "./AccountingPage.css";
 import "./SchoolsPage.css";
+import { EMIRATES, OUTSIDE_UAE, EMIRATE_CHOICES } from "../data/emirates";
 
 // The School visits tracker's catalog — Phase 1 of Heather's own build
 // order (see eduhub_schema_addendum_36_school_visits_tracker.sql): the
@@ -13,8 +15,7 @@ import "./SchoolsPage.css";
 // family to a school's shortlist happens from that family's own page
 // (SchoolVisitsPanel), not from here, since staff think "which schools is
 // this family considering" far more often than the reverse.
-export const EMIRATES = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain"];
-const OUTSIDE = "Outside UAE";
+const OUTSIDE = OUTSIDE_UAE;
 const NONE = "none";
 
 export default function SchoolsPage() {
@@ -25,6 +26,7 @@ export default function SchoolsPage() {
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newArea, setNewArea] = useState("");
+  const [newEmirate, setNewEmirate] = useState("");
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState(() => {
     try { return sessionStorage.getItem("schools-emirate-tab") || "all"; } catch { return "all"; }
@@ -55,11 +57,9 @@ export default function SchoolsPage() {
     const count = (fn) => schools.filter(fn).length;
     const list = [{ key: "all", label: "All", count: schools.length }];
     for (const e of EMIRATES) {
-      const n = count((x) => x.emirate === e);
-      if (n) list.push({ key: e, label: e, count: n });
+      list.push({ key: e, label: e, count: count((x) => x.emirate === e) });
     }
-    const out = count((x) => x.emirate === OUTSIDE);
-    if (out) list.push({ key: OUTSIDE, label: OUTSIDE, count: out });
+    list.push({ key: OUTSIDE, label: OUTSIDE, count: count((x) => x.emirate === OUTSIDE) });
     const none = count((x) => !x.emirate);
     if (none) list.push({ key: NONE, label: "No emirate yet", count: none });
     return list;
@@ -91,9 +91,10 @@ export default function SchoolsPage() {
     setSaving(true);
     setError("");
     try {
-      const created = await createSchool({ name: newName.trim(), area: newArea.trim() || null });
+      const created = await createSchool({ name: newName.trim(), area: newArea.trim() || null, emirate: newEmirate || (activeTab !== "all" && activeTab !== NONE ? activeTab : null) });
       setNewName("");
       setNewArea("");
+      setNewEmirate("");
       setAdding(false);
       load();
       navigate(`/staff/schools/${created.id}`);
@@ -149,22 +150,20 @@ export default function SchoolsPage() {
       {view === "analytics" && <SchoolAnalytics />}
 
       {view === "list" && schools && schools.length > 0 && (
-        <div className="families-toolbar">
-          <div className="families-tabs" role="tablist" aria-label="Emirate">
-            {tabs.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === t.key}
-                className={"families-tab" + (activeTab === t.key ? " is-active" : "")}
-                onClick={() => pickTab(t.key)}
-              >
-                {t.label}
-                <span className="schools-tab-count">{t.count}</span>
-              </button>
-            ))}
-          </div>
+        <div className="acct-pills" role="tablist" aria-label="Emirate">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === t.key}
+              className={"acct-pill" + (activeTab === t.key ? " is-active" : "")}
+              onClick={() => pickTab(t.key)}
+            >
+              {t.label}
+              {t.count > 0 && <span className="acct-pill-count">{t.count}</span>}
+            </button>
+          ))}
         </div>
       )}
 
@@ -187,6 +186,10 @@ export default function SchoolsPage() {
             value={newArea}
             onChange={(e) => setNewArea(e.target.value)}
           />
+          <select className="panel-select" value={newEmirate} onChange={(e) => setNewEmirate(e.target.value)} aria-label="Emirate">
+            <option value="">{activeTab !== "all" && activeTab !== NONE ? `Emirate (${activeTab})` : "Emirate"}</option>
+            {EMIRATE_CHOICES.map((e) => <option key={e} value={e}>{e}</option>)}
+          </select>
           <button type="submit" className="panel-btn panel-btn-primary" disabled={saving || !newName.trim()}>
             {saving ? "Adding…" : "Add"}
           </button>
