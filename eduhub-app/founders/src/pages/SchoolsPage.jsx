@@ -13,6 +13,10 @@ import "./SchoolsPage.css";
 // family to a school's shortlist happens from that family's own page
 // (SchoolVisitsPanel), not from here, since staff think "which schools is
 // this family considering" far more often than the reverse.
+export const EMIRATES = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain"];
+const OUTSIDE = "Outside UAE";
+const NONE = "none";
+
 export default function SchoolsPage() {
   const navigate = useNavigate();
   const [schools, setSchools] = useState(null);
@@ -22,6 +26,13 @@ export default function SchoolsPage() {
   const [newName, setNewName] = useState("");
   const [newArea, setNewArea] = useState("");
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState(() => {
+    try { return sessionStorage.getItem("schools-emirate-tab") || "all"; } catch { return "all"; }
+  });
+  function pickTab(key) {
+    setTab(key);
+    try { sessionStorage.setItem("schools-emirate-tab", key); } catch { /* ignore */ }
+  }
   const [view, setView] = useState(() => (window.location.hash === "#analytics" ? "analytics" : "list"));
   function switchView(next) {
     setView(next);
@@ -38,17 +49,41 @@ export default function SchoolsPage() {
     load();
   }, []);
 
+  // One tab per emirate that has schools, in a fixed order, plus Outside UAE and "No emirate yet".
+  const tabs = useMemo(() => {
+    if (!schools) return [{ key: "all", label: "All", count: 0 }];
+    const count = (fn) => schools.filter(fn).length;
+    const list = [{ key: "all", label: "All", count: schools.length }];
+    for (const e of EMIRATES) {
+      const n = count((x) => x.emirate === e);
+      if (n) list.push({ key: e, label: e, count: n });
+    }
+    const out = count((x) => x.emirate === OUTSIDE);
+    if (out) list.push({ key: OUTSIDE, label: OUTSIDE, count: out });
+    const none = count((x) => !x.emirate);
+    if (none) list.push({ key: NONE, label: "No emirate yet", count: none });
+    return list;
+  }, [schools]);
+
+  const activeTab = tabs.some((t) => t.key === tab) ? tab : "all";
+
   const filtered = useMemo(() => {
     if (!schools) return [];
     const q = search.trim().toLowerCase();
-    if (!q) return schools;
-    return schools.filter(
-      (s) =>
-        (s.name || "").toLowerCase().includes(q) ||
-        (s.area || "").toLowerCase().includes(q) ||
-        (s.curriculum || "").toLowerCase().includes(q)
-    );
-  }, [schools, search]);
+    // Searching looks through every school, not just the open tab (same as Caseload).
+    if (q) {
+      return schools.filter(
+        (s) =>
+          (s.name || "").toLowerCase().includes(q) ||
+          (s.area || "").toLowerCase().includes(q) ||
+          (s.emirate || "").toLowerCase().includes(q) ||
+          (s.curriculum || "").toLowerCase().includes(q)
+      );
+    }
+    if (activeTab === "all") return schools;
+    if (activeTab === NONE) return schools.filter((s) => !s.emirate);
+    return schools.filter((s) => s.emirate === activeTab);
+  }, [schools, search, activeTab]);
 
   async function handleAdd(e) {
     e.preventDefault();
@@ -113,6 +148,26 @@ export default function SchoolsPage() {
 
       {view === "analytics" && <SchoolAnalytics />}
 
+      {view === "list" && schools && schools.length > 0 && (
+        <div className="families-toolbar">
+          <div className="families-tabs" role="tablist" aria-label="Emirate">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === t.key}
+                className={"families-tab" + (activeTab === t.key ? " is-active" : "")}
+                onClick={() => pickTab(t.key)}
+              >
+                {t.label}
+                <span className="schools-tab-count">{t.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {view === "list" && error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
       {view === "list" && adding && (
@@ -162,7 +217,13 @@ export default function SchoolsPage() {
                   <td>
                     <div className="families-cell-family-text">
                       <span className="families-table-name">{s.name}</span>
-                      {s.area && <span className="families-cell-sub">{s.area}</span>}
+                      {(s.area || (activeTab === "all" && s.emirate)) && (
+                        <span className="families-cell-sub">
+                          {s.area}
+                          {activeTab === "all" && s.emirate && s.area ? " · " : ""}
+                          {activeTab === "all" && s.emirate}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td>{s.curriculum || <span className="is-muted">—</span>}</td>
