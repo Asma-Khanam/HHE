@@ -76,23 +76,47 @@ function textToHtml(text) {
 
 const safeName = (n) => String(n || "file").replace(/[^\w.\- ]+/g, "_").slice(0, 120);
 
-let _transport;
-function transport() {
-  if (!_transport) {
-    _transport = nodemailer.createTransport({
-      host: "smtp.improvmx.com",
-      port: 587,
-      secure: false,
-      auth: { user: process.env.IMPROVMX_SMTP_USER, pass: process.env.IMPROVMX_SMTP_PASS },
-      // The function is cut off at 30s (vercel.json). Nodemailer's own defaults wait
-      // up to 2 minutes, so a slow mail server used to kill the function and the
-      // browser only saw a blank "Couldn't send that email". Fail sooner, with a reason.
-      connectionTimeout: 10_000,
-      greetingTimeout: 10_000,
-      socketTimeout: 20_000,
-    });
+// Two ways in to ImprovMX: STARTTLS on 587 first, then straight TLS on 465 if 587 never
+// answers. Short timeouts so both fit inside the 24s budget. We only move on to the
+// second when nothing has been sent yet (the stall was before the message itself).
+function makeTransport(port, state) {
+  return nodemailer.createTransport({
+    host: "smtp.improvmx.com",
+    port,
+    secure: port === 465,
+    requireTLS: port !== 465,
+    auth: { user: process.env.IMPROVMX_SMTP_USER, pass: process.env.IMPROVMX_SMTP_PASS },
+    connectionTimeout: 6_000,
+    greetingTimeout: 6_000,
+    socketTimeout: 11_000,
+    // Remember the last SMTP step, so a stall says exactly where it stopped.
+    logger: {
+      level: () => {},
+      trace: () => {},
+      debug: (_e, m, ...a) => { state.smtp = `${port}: ${String(m).replace(/\{\w+\}/g, () => String(a.shift() ?? "")).slice(0, 80)}`; },
+      info: () => {},
+      warn: () => {},
+      error: () => {},
+      fatal: () => {},
+    },
+    debug: true,
+  });
+}
+
+async function sendViaImprovmx(message, state) {
+  let lastErr;
+  for (const port of [587, 465]) {
+    state.port = port;
+    try {
+      return await makeTransport(port, state).sendMail(message);
+    } catch (err) {
+      lastErr = err;
+      const before = /ETIMEDOUT|ECONNECTION|ECONNREFUSED|ENOTFOUND|Greeting never received|Connection timeout/i.test(`${err?.code} ${err?.message}`);
+      console.error("send-email: port", port, "failed:", err?.code, err?.message, "last:", state.smtp);
+      if (!before) throw err;
+    }
   }
-  return _transport;
+  throw lastErr;
 }
 
 async function sendHandler(req, res, state) {
@@ -185,7 +209,7 @@ async function sendHandler(req, res, state) {
     const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#222">${textToHtml(bodyText)}</div>`;
 
     state.stage = "handing the email to the mail server (ImprovMX)";
-    const info = await transport().sendMail({
+    const info = await sendViaImprovmx({
       from: { name: fromName, address: fromAddress },
       replyTo: familyAddress || undefined,
       to: toList,
@@ -196,7 +220,7 @@ async function sendHandler(req, res, state) {
       inReplyTo: inReplyTo || undefined,
       references: references || inReplyTo || undefined,
       attachments: files,
-    });
+    }, state);
 
     // Keep a copy on the family's Emails tab. The email is already sent by now, so a
     // failure here must not look like the send failed (that invites a duplicate).
@@ -276,12 +300,12 @@ export default async function handler(req, res) {
   const state = { stage: "starting", sent: false };
   const timer = setTimeout(() => {
     if (res.headersSent) return;
-    console.error("send-email watchdog: still working at 24s, stage:", state.stage);
+    console.error("send-email watchdog: still working at 24s, stage:", state.stage, "last SMTP:", state.smtp);
     res.status(504).json({
       error: state.sent
         ? "The email was sent, but saving its copy took too long. Do not send it again; check the family's Sent list."
         : `Sending took too long (stuck while ${state.stage}). It may still have gone out, so check the Sent list before trying again.`,
-      detail: `stage: ${state.stage}`,
+      detail: `stage: ${state.stage}; last SMTP step: ${state.smtp || "none"}`,
     });
   }, 24_000);
   try {
