@@ -131,40 +131,60 @@ function whoLine(ev) {
   return [ev.familyName, ev.childName].filter(Boolean).join(" · ");
 }
 
-// Events that overlap are stacked on top of each other (full width, one under the other,
-// in time order) so every family and consultant stays readable. A stack starts at its
-// first event's time; later events that would land inside the stack join it.
+// Tours at the same time are stacked one under the other. The hour they start in grows
+// tall enough to hold the whole stack, so every card still sits in the right hour and
+// the hour labels stay true. Quiet hours keep their normal height.
 const STACK_PX = 52;
-function layoutDay(events) {
+function hourScale(byDay, days) {
+  const rowH = Array(24).fill(HOUR_PX);
+  days.forEach((d) => {
+    const count = Array(24).fill(0);
+    (byDay[toDateKey(d)] || []).forEach((ev) => {
+      if (ev.start) count[Math.min(23, Math.floor(toMin(ev.start) / 60))]++;
+    });
+    count.forEach((c, h) => {
+      if (c > 1) rowH[h] = Math.max(rowH[h], c * STACK_PX + 4);
+    });
+  });
+  const top = [0];
+  rowH.forEach((h, i) => top.push(top[i] + h));
+  const yOf = (m) => {
+    const h = Math.min(23, Math.max(0, Math.floor(m / 60)));
+    return top[h] + (Math.min(m, 24 * 60) - h * 60) / 60 * rowH[h];
+  };
+  const minOf = (y) => {
+    let h = 23;
+    for (let i = 0; i < 24; i++) if (y < top[i + 1]) { h = i; break; }
+    return h * 60 + ((y - top[h]) / rowH[h]) * 60;
+  };
+  return { rowH, top, yOf, minOf, total: top[24] };
+}
+
+function layoutDay(events, scale) {
   const items = events
     .map((ev) => {
       const s = toMin(ev.start);
       const e = Math.max(toMin(ev.end) ?? s + 60, s + 30);
-      return { ev, s, e };
+      return { ev, s, e, h: Math.min(23, Math.floor(s / 60)) };
     })
     .sort((a, b) => a.s - b.s || b.e - a.e);
-  const out = [];
-  let group = [];
-  let groupEnd = -1; // minute where the group ends, real or stretched to fit the stack
-  const flush = () => {
-    if (group.length === 1) {
-      const it = group[0];
-      out.push({ ...it, top: (it.s / 60) * HOUR_PX + 1, height: ((it.e - it.s) / 60) * HOUR_PX - 2, stacked: false });
-    } else {
-      group.forEach((it, i) =>
-        out.push({ ...it, top: (group[0].s / 60) * HOUR_PX + 1 + i * STACK_PX, height: STACK_PX - 3, stacked: true })
-      );
+  const perHour = {};
+  items.forEach((it) => (perHour[it.h] = (perHour[it.h] || 0) + 1));
+  const seen = {};
+  const out = items.map((it, i) => {
+    if (perHour[it.h] > 1) {
+      const n = (seen[it.h] = (seen[it.h] || 0) + 1) - 1;
+      return { ...it, top: scale.top[it.h] + 2 + n * STACK_PX, height: STACK_PX - 3, stacked: true };
     }
-    group = [];
-  };
-  items.forEach((it) => {
-    if (group.length && it.s >= groupEnd) flush();
-    group.push(it);
-    const real = Math.max(...group.map((g) => g.e));
-    const stretched = group.length > 1 ? group[0].s + ((group.length * STACK_PX) / HOUR_PX) * 60 : 0;
-    groupEnd = Math.max(real, stretched);
+    const top = scale.yOf(it.s) + 1;
+    let height = scale.yOf(it.e) - scale.yOf(it.s) - 2;
+    const next = items[i + 1];
+    if (next) {
+      const nextTop = perHour[next.h] > 1 ? scale.top[next.h] + 2 : scale.yOf(next.s) + 1;
+      height = Math.min(height, nextTop - top - 2);
+    }
+    return { ...it, top, height: Math.max(height, 26), stacked: false };
   });
-  if (group.length) flush();
   return out;
 }
 
@@ -610,9 +630,10 @@ function WeekView({ days, today, byDay, onOpen, onCreate }) {
     );
     return min;
   }, [days, byDay]);
+  const scale = useMemo(() => hourScale(byDay, days), [byDay, days]);
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = Math.max(0, (firstStart / 60) * HOUR_PX - 8);
-  }, [firstStart]);
+    if (scrollRef.current) scrollRef.current.scrollTop = Math.max(0, scale.yOf(firstStart) - 8);
+  }, [firstStart, scale]);
 
   const hours = Array.from({ length: 24 }, (_, h) => h);
   const nowMin = now.getHours() * 60 + now.getMinutes();
@@ -620,7 +641,7 @@ function WeekView({ days, today, byDay, onOpen, onCreate }) {
   function slotFromClick(e, day) {
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const mins = Math.min(23 * 60 + 30, Math.max(0, Math.floor(((y / HOUR_PX) * 60) / 30) * 30));
+    const mins = Math.min(23 * 60 + 30, Math.max(0, Math.floor(scale.minOf(y) / 30) * 30));
     onCreate(day, fromMin(mins));
   }
 
@@ -654,10 +675,10 @@ function WeekView({ days, today, byDay, onOpen, onCreate }) {
       </div>
 
       <div className="cw-scroll" ref={scrollRef}>
-        <div className="cw-body" style={{ height: 24 * HOUR_PX }}>
+        <div className="cw-body" style={{ height: scale.total }}>
           <div className="cw-gutter cw-hours">
             {hours.map((h) => (
-              <span key={h} className="cw-hour" style={{ top: h * HOUR_PX }}>
+              <span key={h} className="cw-hour" style={{ top: scale.top[h] }}>
                 {h === 0 ? "" : time12(`${pad(h)}:00`)}
               </span>
             ))}
@@ -670,10 +691,13 @@ function WeekView({ days, today, byDay, onOpen, onCreate }) {
               <div
                 key={key}
                 className={"cw-col" + (isToday ? " is-today" : "")}
-                style={{ backgroundSize: `100% ${HOUR_PX}px` }}
+                style={{ backgroundImage: "none" }}
                 onClick={(e) => slotFromClick(e, d)}
               >
-                {layoutDay(timed).map(({ ev, top, height, stacked }) => {
+                {hours.map((h) => (
+                  <span key={h} className="cw-hline" style={{ top: scale.top[h] }} />
+                ))}
+                {layoutDay(timed, scale).map(({ ev, top, height, stacked }) => {
                   return (
                     <button
                       key={ev.key}
@@ -701,7 +725,7 @@ function WeekView({ days, today, byDay, onOpen, onCreate }) {
                   );
                 })}
                 {isToday && (
-                  <div className="cw-now" style={{ top: (nowMin / 60) * HOUR_PX }}>
+                  <div className="cw-now" style={{ top: scale.yOf(nowMin) }}>
                     <span />
                   </div>
                 )}

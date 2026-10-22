@@ -784,3 +784,5 @@
 .cw-event.is-stacked .cw-event-time,
 .cw-event.is-stacked .cw-event-who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .cw-event.is-stacked .cw-event-time { display: inline; }
+
+.cw-hline { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--cal-line); pointer-events: none; }
