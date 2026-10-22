@@ -300,15 +300,27 @@ export default function EmailsPage() {
   }, []);
 
   const [syncState, setSyncState] = useState("");
+  const [syncSecs, setSyncSecs] = useState(0);
   async function runSync() {
     setError("");
+    setSyncSecs(0);
+    const started = Date.now();
+    // While it runs, show the clock and pull in whatever it has filed so far.
+    const tick = setInterval(() => setSyncSecs(Math.floor((Date.now() - started) / 1000)), 1000);
+    const refresher = setInterval(() => load(), 20000);
     try {
       const result = await syncEmailsNow(setSyncState);
       await load();
-      setNotice(result === "done" ? "Synced with Titan. Anything new is in the list." : "Still syncing. It will finish on its own; press Refresh in a minute.");
+      setNotice(
+        result === "done"
+          ? "Synced with Titan. Anything new is in the list."
+          : "The sync is still running in the background. New mail appears here as it finishes; the list also refreshes itself."
+      );
     } catch (e) {
       setError(friendlyError(e, "Couldn't sync."));
     } finally {
+      clearInterval(tick);
+      clearInterval(refresher);
       setSyncState("");
     }
   }
@@ -582,7 +594,11 @@ export default function EmailsPage() {
             Refresh
           </button>
           <button type="button" className="panel-btn" onClick={runSync} disabled={!!syncState}>
-            {syncState === "starting" ? "Starting…" : syncState === "running" ? "Syncing with Titan…" : "⟳ Sync"}
+            {syncState === "starting"
+              ? "Starting…"
+              : syncState === "running"
+              ? `Syncing… ${Math.floor(syncSecs / 60)}:${String(syncSecs % 60).padStart(2, "0")}`
+              : "⟳ Sync"}
           </button>
         </div>
       </div>

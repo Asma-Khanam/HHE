@@ -78,7 +78,7 @@ export default async function handler(req, res) {
     const since = new Date().toISOString();
     const d = await gh(`/actions/workflows/${WORKFLOW}/dispatches`, {
       method: "POST",
-      body: JSON.stringify({ ref: "main", inputs: { days: "3" } }),
+      body: JSON.stringify({ ref: "main", inputs: { days: "1" } }),
     });
     if (!d.ok) {
       const t = await d.text().catch(() => "");

@@ -2699,7 +2699,7 @@ export async function syncEmailsNow(onState = () => {}) {
   if (!res.ok) throw new Error(first.error || "Couldn't start the sync.");
   const since = first.since || new Date().toISOString();
   onState("running");
-  const deadline = Date.now() + 4 * 60 * 1000;
+  const deadline = Date.now() + 3 * 60 * 1000;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 5000));
     const r = await fetch(`/api/sync-emails?since=${encodeURIComponent(since)}`, { headers });
