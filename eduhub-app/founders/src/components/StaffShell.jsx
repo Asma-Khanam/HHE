@@ -1,3 +1,4 @@
+import StaffAvatar from "./StaffAvatar";
 import { useEffect, useState } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
@@ -101,7 +102,7 @@ export default function StaffShell() {
         </nav>
 
         <div className="staff-sidebar-footer">
-          <div className="staff-sidebar-avatar">{(me?.full_name || me?.email || "?").charAt(0).toUpperCase()}</div>
+          <StaffAvatar person={me} size={36} className="staff-sidebar-avatar-photo" />
           <div className="staff-sidebar-footer-text">
             <div className="staff-sidebar-name">{me?.full_name || me?.email || "..."}</div>
             <button type="button" className="staff-sidebar-signout" onClick={handleSignOut}>

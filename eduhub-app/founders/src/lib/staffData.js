@@ -2768,3 +2768,33 @@ export async function listFamilyEmailsLight(familyId) {
     .limit(100);
   return r.error ? [] : (r.data || []).map((x) => ({ ...x, kind: "email" }));
 }
+
+// ---------------------------------------------------------------------------
+// Team photos (addendum 130)
+// ---------------------------------------------------------------------------
+async function squareJpeg(file, size = 320) {
+  const bmp = await createImageBitmap(file);
+  const side = Math.min(bmp.width, bmp.height);
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  canvas.getContext("2d").drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, size, size);
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Couldn't read that image."))), "image/jpeg", 0.86));
+}
+
+export async function uploadStaffAvatar(userId, file) {
+  if (!file || !file.type.startsWith("image/")) throw new Error("Please choose a picture (JPG or PNG).");
+  const blob = await squareJpeg(file);
+  const path = `${userId}/${Date.now()}.jpg`;
+  const up = await supabase.storage.from("staff-avatars").upload(path, blob, { contentType: "image/jpeg", upsert: true, cacheControl: "31536000" });
+  if (up.error) throw up.error;
+  const { data } = supabase.storage.from("staff-avatars").getPublicUrl(path);
+  const { error } = await supabase.rpc("set_staff_avatar", { p_user_id: userId, p_url: data.publicUrl });
+  if (error) throw error;
+  return data.publicUrl;
+}
+
+export async function removeStaffAvatar(userId) {
+  const { error } = await supabase.rpc("set_staff_avatar", { p_user_id: userId, p_url: "" });
+  if (error) throw error;
+}

@@ -9,8 +9,11 @@ import {
   setStaffRole,
   setStaffPosition,
   removeStaffMember,
+  uploadStaffAvatar,
+  removeStaffAvatar,
   friendlyError,
 } from "../lib/staffData";
+import StaffAvatar from "../components/StaffAvatar";
 import "../components/panels.css";
 import "./TeamPage.css";
 
@@ -89,6 +92,7 @@ export default function TeamPage() {
   const [busyId, setBusyId] = useState(null);
   const [editingPositionId, setEditingPositionId] = useState(null);
   const [positionDraft, setPositionDraft] = useState("");
+  const [confirmRemoveId, setConfirmRemoveId] = useState(null);
 
   async function load() {
     try {
@@ -157,9 +161,7 @@ export default function TeamPage() {
   }
 
   async function handleRemove(row) {
-    if (!window.confirm(`Remove ${row.full_name || row.email} from the team? They'll keep their login but lose all access.`)) {
-      return;
-    }
+    setConfirmRemoveId(null);
     setBusyId(row.user_id);
     setError("");
     try {
@@ -167,6 +169,33 @@ export default function TeamPage() {
       await load();
     } catch (err) {
       setError(friendlyError(err, "Couldn't remove that person."));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleAvatar(row, file) {
+    if (!file) return;
+    setBusyId(row.user_id);
+    setError("");
+    try {
+      await uploadStaffAvatar(row.user_id, file);
+      await load();
+    } catch (err) {
+      setError(friendlyError(err, "Couldn't save that photo."));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleAvatarRemove(row) {
+    setBusyId(row.user_id);
+    setError("");
+    try {
+      await removeStaffAvatar(row.user_id);
+      await load();
+    } catch (err) {
+      setError(friendlyError(err, "Couldn't remove that photo."));
     } finally {
       setBusyId(null);
     }
@@ -193,150 +222,213 @@ export default function TeamPage() {
 
   if (rows === null && !error) return <div className="team-page">Loading…</div>;
 
+  const staffById = new Map((rows || []).map((r) => [r.user_id, r]));
+  const adminCount = (rows || []).filter((r) => r.role === "admin").length;
+  const maxActive = Math.max(1, ...(workload || []).map((w) => w.active));
+
   return (
     <div className="team-page">
-      <h1 className="team-page-title">Team</h1>
-      <p className="team-page-subtitle">
-        Everyone here can see and work on every family. Admins can also grant access, remove people, and promote or
-        demote them — so this never has to go through Supabase again.
-      </p>
+      <header className="team-hero">
+        <div>
+          <h1 className="team-page-title">Team</h1>
+          <p className="team-page-subtitle">
+            Everyone here can see and work on every family. Admins can also grant access, remove people and change roles.
+          </p>
+        </div>
+        {rows?.length > 0 && (
+          <div className="team-hero-people" aria-label="Team members">
+            <div className="team-stack">
+              {rows.map((r) => (
+                <StaffAvatar key={r.user_id} person={r} size={44} ring />
+              ))}
+            </div>
+            <span className="team-hero-count">
+              {rows.length} {rows.length === 1 ? "person" : "people"} · {adminCount} admin{adminCount === 1 ? "" : "s"}
+            </span>
+          </div>
+        )}
+      </header>
 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
-      <section className="panel">
-        <div className="panel-head">
-          <h2>
-            Pending signups
-            {pending.length > 0 && <span className="panel-count">{pending.length}</span>}
-          </h2>
-        </div>
-        <p className="panel-hint">
-          These people have created a login on the Sign Up page but don't have access yet. Give each one a name,
-          position, and role, then grant access.
-        </p>
-        {pending.length === 0 ? (
-          <p className="panel-hint">Nobody waiting right now.</p>
-        ) : (
-          <ul className="panel-list">
-            {pending.map((signup) => (
-              <PendingRow key={signup.user_id} signup={signup} onGrant={handleGrant} busy={busyId === signup.user_id} />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {workload && (
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Workload</h2>
+      <div className="team-layout">
+        <section className="team-main">
+          <div className="team-section-head">
+            <h2>
+              Current team
+              {rows?.length > 0 && <span className="panel-count">{rows.length}</span>}
+            </h2>
           </div>
-          <p className="panel-hint">
-            How many families each consultant owns, by where the family is. Active means every family that is not
-            placed yet.
-          </p>
-          <div className="team-load-wrap">
-            <table className="team-load">
-              <thead>
-                <tr>
-                  <th>Consultant</th>
-                  <th className="num">Active</th>
-                  {CLIENT_STAGES.map((s) => (
-                    <th key={s.key} className="num">
-                      {s.key === "paid_consult" ? "Paid consult" : s.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {workload.map((w) => (
-                  <tr key={w.id} className={w.id === "none" ? "is-unassigned" : undefined}>
-                    <td>{w.name}</td>
-                    <td className="num team-load-active">{w.active}</td>
-                    {CLIENT_STAGES.map((s) => (
-                      <td key={s.key} className="num">
-                        {w.byStage[s.key] || "–"}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="team-cards">
+            {(rows || []).map((row) => {
+              const busy = busyId === row.user_id;
+              return (
+                <article key={row.user_id} className={"team-card" + (row.user_id === meId ? " is-me" : "")}>
+                  <div className="team-card-photo">
+                    <StaffAvatar person={row} size={84} />
+                    <label className={"team-card-camera" + (busy ? " is-busy" : "")} title="Change photo">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        disabled={busy}
+                        onChange={(e) => {
+                          handleAvatar(row, e.target.files?.[0]);
+                          e.target.value = "";
+                        }}
+                      />
+                      <span aria-hidden="true">📷</span>
+                    </label>
+                  </div>
+                  <div className="team-card-name">
+                    {row.full_name || row.email}
+                    {row.user_id === meId && <span className="team-row-you"> · You</span>}
+                  </div>
+                  <span className={"team-role-pill" + (row.role === "admin" ? " is-admin" : "")}>
+                    {row.role === "admin" ? "Admin" : "Member"}
+                  </span>
+
+                  {editingPositionId === row.user_id ? (
+                    <div className="team-row-position-edit">
+                      <input
+                        className="panel-input"
+                        type="text"
+                        placeholder="Position"
+                        value={positionDraft}
+                        onChange={(e) => setPositionDraft(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && savePosition(row)}
+                        autoFocus
+                      />
+                      <button type="button" className="panel-btn panel-btn-primary" disabled={busy} onClick={() => savePosition(row)}>
+                        Save
+                      </button>
+                      <button type="button" className="panel-btn" onClick={() => setEditingPositionId(null)}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" className="team-card-position" onClick={() => startEditingPosition(row)}>
+                      {row.position || "+ Add position"}
+                    </button>
+                  )}
+
+                  <div className="team-card-meta">
+                    {row.email}
+                    <br />
+                    Joined {formatDate(row.created_at)}
+                  </div>
+
+                  <div className="team-card-footer">
+                    <select
+                      className="panel-select"
+                      value={row.role}
+                      disabled={busy}
+                      onChange={(e) => handleRoleChange(row, e.target.value)}
+                      aria-label="Role"
+                    >
+                      <option value="member">Member</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                    {row.avatar_url && (
+                      <button type="button" className="panel-btn" disabled={busy} onClick={() => handleAvatarRemove(row)}>
+                        Remove photo
+                      </button>
+                    )}
+                    {confirmRemoveId === row.user_id ? (
+                      <>
+                        <button type="button" className="panel-btn team-row-remove" disabled={busy} onClick={() => handleRemove(row)}>
+                          Yes, remove
+                        </button>
+                        <button type="button" className="panel-btn" onClick={() => setConfirmRemoveId(null)}>
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button type="button" className="panel-btn team-row-remove" disabled={busy} onClick={() => setConfirmRemoveId(row.user_id)}>
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  {confirmRemoveId === row.user_id && (
+                    <p className="team-card-warn">They keep their login but lose all access.</p>
+                  )}
+                </article>
+              );
+            })}
           </div>
         </section>
-      )}
 
-      <section className="panel">
-        <div className="panel-head">
-          <h2>
-            Current team
-            {rows?.length > 0 && <span className="panel-count">{rows.length}</span>}
-          </h2>
-        </div>
-        <ul className="panel-list">
-          {(rows || []).map((row) => (
-            <li key={row.user_id} className="team-row">
-              <div className="team-row-avatar">{(row.full_name || row.email || "?").charAt(0).toUpperCase()}</div>
-              <div className="team-row-info">
-                <div className="team-row-name">
-                  {row.full_name || row.email}
-                  {row.user_id === meId && <span className="team-row-you"> · You</span>}
-                </div>
-                <div className="team-row-meta">
-                  {row.email} · joined {formatDate(row.created_at)}
-                </div>
+        <aside className="team-aside">
+          <section className={"team-panel" + (pending.length ? " has-pending" : "")}>
+            <div className="team-section-head">
+              <h2>
+                Pending signups
+                {pending.length > 0 && <span className="panel-count">{pending.length}</span>}
+              </h2>
+            </div>
+            {pending.length === 0 ? (
+              <p className="team-empty">Nobody is waiting for access.</p>
+            ) : (
+              <>
+                <p className="panel-hint">
+                  These people created a login on the Sign Up page but have no access yet. Give each a name, position and role, then
+                  grant access.
+                </p>
+                <ul className="panel-list">
+                  {pending.map((signup) => (
+                    <PendingRow key={signup.user_id} signup={signup} onGrant={handleGrant} busy={busyId === signup.user_id} />
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+
+          {workload && (
+            <section className="team-panel">
+              <div className="team-section-head">
+                <h2>Workload</h2>
               </div>
-
-              {editingPositionId === row.user_id ? (
-                <div className="team-row-position-edit">
-                  <input
-                    className="panel-input"
-                    type="text"
-                    placeholder="Position"
-                    value={positionDraft}
-                    onChange={(e) => setPositionDraft(e.target.value)}
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    className="panel-btn panel-btn-primary"
-                    disabled={busyId === row.user_id}
-                    onClick={() => savePosition(row)}
-                  >
-                    Save
-                  </button>
-                  <button type="button" className="panel-btn" onClick={() => setEditingPositionId(null)}>
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <button type="button" className="team-row-position" onClick={() => startEditingPosition(row)}>
-                  {row.position || "+ Add position"}
-                </button>
-              )}
-
-              <div className="team-row-controls">
-                <select
-                  className="panel-select"
-                  value={row.role}
-                  disabled={busyId === row.user_id}
-                  onChange={(e) => handleRoleChange(row, e.target.value)}
-                >
-                  <option value="member">Member</option>
-                  <option value="admin">Admin</option>
-                </select>
-                <button
-                  type="button"
-                  className="panel-btn team-row-remove"
-                  disabled={busyId === row.user_id}
-                  onClick={() => handleRemove(row)}
-                >
-                  Remove
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+              <p className="panel-hint">Families each consultant owns, by where the family is. Active means not placed yet.</p>
+              <ul className="team-legend">
+                {CLIENT_STAGES.map((s) => (
+                  <li key={s.key}>
+                    <span className={`team-dot stage-${s.key}`} /> {s.key === "paid_consult" ? "Paid consult" : s.label}
+                  </li>
+                ))}
+              </ul>
+              <ul className="team-load-list">
+                {workload.map((w) => {
+                  const person = staffById.get(w.id);
+                  return (
+                    <li key={w.id} className={w.id === "none" ? "is-unassigned" : undefined}>
+                      <div className="team-load-top">
+                        {person ? <StaffAvatar person={person} size={28} /> : <span className="staff-avatar team-load-ghost" style={{ width: 28, height: 28 }}>?</span>}
+                        <span className="team-load-name">{w.name}</span>
+                        <span className="team-load-total" title="Active families">
+                          {w.active}
+                        </span>
+                      </div>
+                      <div className="team-load-bar" style={{ width: `${Math.max(4, (w.active / maxActive) * 100)}%` }}>
+                        {CLIENT_STAGES.filter((s) => s.key !== "placed").map((s) =>
+                          w.byStage[s.key] ? (
+                            <span
+                              key={s.key}
+                              className={`team-seg stage-${s.key}`}
+                              style={{ flexGrow: w.byStage[s.key] }}
+                              title={`${s.label}: ${w.byStage[s.key]}`}
+                            />
+                          ) : null
+                        )}
+                      </div>
+                      {w.byStage.placed ? <div className="team-load-placed">{w.byStage.placed} placed</div> : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

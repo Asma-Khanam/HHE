@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 780px;
+  max-width: 1280px;
 }
 
 .team-page-title {
@@ -174,3 +174,77 @@
   color: #8a8f98;
   font-style: italic;
 }
+
+/* ---- shared circle ---- */
+.staff-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--hh-gold);
+  color: var(--hh-burgundy);
+  font-weight: 700;
+  line-height: 1;
+}
+.staff-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.staff-avatar.has-ring { box-shadow: 0 0 0 2px #fff; }
+
+/* ---- page header ---- */
+.team-hero { display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+.team-hero .team-page-subtitle { margin:6px 0 0; max-width:520px; }
+.team-hero-people { display:flex; align-items:center; gap:12px; }
+.team-stack { display:flex; }
+.team-stack .staff-avatar { margin-left:-10px; }
+.team-stack .staff-avatar:first-child { margin-left:0; }
+.team-hero-count { font-size:0.82rem; color:var(--hh-ink); opacity:0.6; white-space:nowrap; }
+
+/* ---- two columns: the team on the left, signups and workload on the right ---- */
+.team-layout { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(320px,1fr); gap:24px; align-items:start; }
+@media (max-width: 1000px) { .team-layout { grid-template-columns:1fr; } }
+.team-section-head h2 { margin:0 0 12px; font-size:1.05rem; color:var(--hh-burgundy); display:flex; align-items:center; gap:8px; }
+.team-aside { display:flex; flex-direction:column; gap:20px; }
+.team-panel { background:#fff; border-radius:14px; padding:18px 20px; box-shadow:0 1px 0 rgba(83,1,38,.05), 0 8px 24px rgba(83,1,38,.05); }
+.team-panel.has-pending { border:1.5px solid var(--hh-gold); }
+.team-empty { margin:0; color:var(--hh-ink); opacity:.6; font-size:.88rem; }
+
+/* ---- team cards ---- */
+.team-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:16px; }
+.team-card { background:#fff; border-radius:14px; padding:20px 18px 16px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; box-shadow:0 1px 0 rgba(83,1,38,.05), 0 8px 24px rgba(83,1,38,.05); }
+.team-card.is-me { box-shadow:0 0 0 2px var(--hh-gold), 0 8px 24px rgba(83,1,38,.06); }
+.team-card-photo { position:relative; margin-bottom:6px; }
+.team-card-camera { position:absolute; right:-4px; bottom:-2px; width:30px; height:30px; border-radius:50%; background:#fff; border:1px solid rgba(83,1,38,.18); display:grid; place-items:center; cursor:pointer; font-size:14px; box-shadow:0 2px 6px rgba(0,0,0,.12); }
+.team-card-camera:hover { background:#fbf4f6; }
+.team-card-camera.is-busy { opacity:.5; cursor:progress; }
+.team-card-name { font-weight:600; font-size:1rem; color:var(--hh-ink); }
+.team-role-pill { font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:2px 10px; border-radius:999px; background:#f1e8ec; color:var(--hh-burgundy); }
+.team-role-pill.is-admin { background:var(--hh-burgundy); color:#fff; }
+.team-card-position { border:none; background:transparent; font:inherit; font-size:.88rem; color:var(--hh-ink); opacity:.75; cursor:pointer; padding:2px 6px; border-radius:6px; }
+.team-card-position:hover { background:rgba(83,1,38,.06); opacity:1; }
+.team-card-meta { font-size:.78rem; color:var(--hh-ink); opacity:.55; line-height:1.5; word-break:break-all; }
+.team-card-footer { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:10px; padding-top:12px; border-top:1px solid rgba(83,1,38,.08); width:100%; }
+.team-card-warn { margin:4px 0 0; font-size:.76rem; color:var(--hh-error); }
+
+/* ---- workload bars ---- */
+.team-legend { list-style:none; display:flex; flex-wrap:wrap; gap:6px 14px; padding:0; margin:0 0 14px; font-size:.74rem; color:var(--hh-ink); opacity:.75; }
+.team-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; }
+.stage-free_sanity_check { background:#e3d19a; }
+.stage-paid_consult { background:#b8902e; }
+.stage-live { background:#a3335a; }
+.stage-consultant { background:#530126; }
+.stage-placed { background:#6b8f71; }
+.team-load-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:14px; }
+.team-load-top { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.team-load-name { flex:1; font-size:.9rem; color:var(--hh-ink); }
+.team-load-total { font-weight:700; color:var(--hh-burgundy); font-size:1rem; }
+.team-load-bar { display:flex; height:10px; border-radius:999px; overflow:hidden; background:#f1e8ec; min-width:24px; }
+.team-seg { display:block; height:100%; }
+.team-load-placed { margin-top:4px; font-size:.74rem; color:#4f7355; }
+.team-load-ghost { background:#e8e0e3; color:#8a7580; }
+.team-load-list .is-unassigned .team-load-name { font-style:italic; opacity:.8; }
+
+/* pending signups in the narrow right column: stack the fields */
+.team-aside .team-row-pending { flex-direction:column; align-items:stretch; gap:10px; }
+.team-aside .team-row-controls-pending { flex-wrap:wrap; }
+.team-aside .team-row-controls-pending .panel-input,
+.team-aside .team-row-controls-pending .panel-select { flex:1 1 140px; min-width:0; }
