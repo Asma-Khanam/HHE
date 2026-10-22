@@ -25,7 +25,8 @@ const NAME_POS = {
 };
 
 function Shapes({ values, max, selected, onSelect, only }) {
-  const names = only || EMIRATES;
+  // Draw the selected emirate last so its gold outline is never covered by a neighbour.
+  const names = [...(only || EMIRATES)].sort((a, b) => (a === selected) - (b === selected));
   return names.map((name) => {
     const shape = UAE_EMIRATE_SHAPES[name];
     const v = values[name] || 0;
@@ -65,7 +66,7 @@ function Bubble({ name, value, selected, onSelect, r, showName, big }) {
 export default function UaeMap({ values, selected, onSelect }) {
   const max = Math.max(1, ...EMIRATES.map((e) => values[e] || 0));
   return (
-    <div className="uae-maps">
+    <div className={"uae-maps" + (selected ? " has-selection" : "")}>
       <div className="uae-map-main">
         <svg viewBox={UAE_VIEWBOX} role="img" aria-label="Map of the UAE by emirate">
           <Shapes values={values} max={max} selected={selected} onSelect={onSelect} />

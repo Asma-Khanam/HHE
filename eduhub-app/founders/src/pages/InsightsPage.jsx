@@ -3,6 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { loadInsightsData, computeInsights } from "../lib/insights";
 import { ChartCard, Columns, StackedBars, MonthHeat, Scatter, Empty } from "../components/InsightCharts";
 import { Donut, TrendChart, Ring, Spark, TaperFunnel, Treemap, Lollipop, SegBar, Stat, RAMP, topN, compact } from "../components/Viz";
+import SchoolAnalytics from "../components/SchoolAnalytics";
+import AccountingAnalyticsTab from "../components/AccountingAnalyticsTab";
 import "./InsightsPage.css";
 
 // Dashboard: one tab per question the team asks. Everything is computed live
@@ -15,6 +17,8 @@ const TABS = [
   ["schools", "Schools"],
   ["team", "Team"],
   ["money", "Money"],
+  ["school-analytics", "School analytics"],
+  ["accounting-analytics", "Accounting analytics"],
 ];
 
 const RANGES = [
@@ -331,6 +335,10 @@ export default function InsightsPage() {
       )}
 
       {/* ------------------------------------------------ Money */}
+      {tab === "school-analytics" && <SchoolAnalytics embedded range={range} hideTest={hideTest} />}
+
+      {tab === "accounting-analytics" && <AccountingAnalyticsTab />}
+
       {tab === "money" && (
         <>
           <div className="vz-split is-even">

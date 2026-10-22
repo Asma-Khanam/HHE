@@ -60,12 +60,15 @@ const SORTS = {
   name: (a, b) => a.name.localeCompare(b.name),
 };
 
-export default function SchoolAnalytics() {
+export default function SchoolAnalytics({ embedded = false, range: rangeProp, hideTest: hideProp }) {
   const navigate = useNavigate();
   const [raw, setRaw] = useState(null);
   const [error, setError] = useState("");
-  const [range, setRange] = useState("all");
-  const [hideTest, setHideTest] = useState(true);
+  const [rangeState, setRange] = useState("all");
+  const [hideState, setHideTest] = useState(true);
+  // On the Dashboard the time range and test-family switch come from the Dashboard's own header.
+  const range = embedded ? rangeProp : rangeState;
+  const hideTest = embedded ? hideProp : hideState;
   const [sort, setSort] = useState("placed");
   const [showAllChase, setShowAllChase] = useState(false);
   const [metric, setMetric] = useState("schools");
@@ -112,6 +115,7 @@ export default function SchoolAnalytics() {
 
   return (
     <div className="in-page sa">
+      {!embedded && (
       <header className="in-head">
         <div>
           <h2 className="sa-title">School analytics</h2>
@@ -138,6 +142,7 @@ export default function SchoolAnalytics() {
           </label>
         </div>
       </header>
+      )}
 
       <div className="in-kpis">
         <Kpi label="Children placed through us" value={k.placed} sub={`of ${k.children} children on file`} tone="good" />

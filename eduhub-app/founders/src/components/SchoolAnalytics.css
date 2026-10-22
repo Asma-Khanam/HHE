@@ -181,3 +181,9 @@
 }
 
 .in-table.sa-table td:not(.is-num):not(:first-child), .in-table.sa-table th:not(.is-num):not(:first-child) { text-align: left; }
+
+/* selection: dim everything else so the chosen emirate is obvious */
+.uae-maps.has-selection .uae-shape:not(.is-selected) { opacity: 0.4; }
+.uae-maps.has-selection .uae-bubble:not(.is-selected) { opacity: 0.55; }
+.uae-shape.is-selected.is-empty { fill: #f4e2b0; }
+.uae-shape.is-selected { stroke: #b08a2e; stroke-width: 6; }
