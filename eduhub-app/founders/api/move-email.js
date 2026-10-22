@@ -41,7 +41,8 @@ const KINDS = {
   sent: (b) => b.specialUse === "\\Sent" || /^sent( items| mail)?$/i.test(b.path),
 };
 
-async function moveInTitan(messageId, to) {
+async function moveInTitan(row, to) {
+  const messageId = row.email_message_id;
   const client = new ImapFlow({
     host: "imap.titan.email",
     port: 993,
@@ -58,23 +59,61 @@ async function moveInTitan(messageId, to) {
     const boxes = await client.list();
     const target = boxes.find(KINDS[to]);
     if (!target) throw new Error(`Titan has no ${to} folder to move it to.`);
-    const bare = String(messageId).replace(/^<|>$/g, "");
+    const sources = ["inbox", "sent", "spam", "archive", "trash"]
+      .map((k) => boxes.find(KINDS[k]))
+      .filter((b) => b && b.path !== target.path);
+
+    // 1. By Message-ID.
+    const bare = String(messageId || "").replace(/^<|>$/g, "");
     let moved = 0;
-    for (const kind of ["inbox", "sent", "spam", "archive", "trash"]) {
-      const box = boxes.find(KINDS[kind]);
-      if (!box || box.path === target.path) continue;
+    if (bare) {
+      for (const box of sources) {
+        const lock = await client.getMailboxLock(box.path);
+        try {
+          const uids = await client.search({ header: { "message-id": bare } }, { uid: true });
+          if (uids && uids.length) {
+            await client.messageMove(uids.join(","), target.path, { uid: true });
+            moved += uids.length;
+          }
+        } finally {
+          lock.release();
+        }
+      }
+    }
+    if (moved) return moved;
+
+    // 2. ImprovMX forwards a copy into Titan that can carry a different Message-ID, so
+    // fall back to the same subject arriving within 15 minutes of the website's copy.
+    const when = new Date(row.occurred_at || row.received_at || 0).getTime();
+    const subject = String(row.subject || "").trim();
+    if (!when || !subject) return 0;
+    const norm = (t) => String(t || "").replace(/^\s*((re|fw|fwd)\s*:\s*)+/i, "").trim().toLowerCase();
+    let best = null;
+    for (const box of sources) {
       const lock = await client.getMailboxLock(box.path);
       try {
-        const uids = await client.search({ header: { "message-id": bare } }, { uid: true });
-        if (uids && uids.length) {
-          await client.messageMove(uids.join(","), target.path, { uid: true });
-          moved += uids.length;
+        const uids = await client.search(
+          { subject: subject.slice(0, 80), since: new Date(when - 86_400_000), before: new Date(when + 2 * 86_400_000) },
+          { uid: true }
+        );
+        if (!uids || !uids.length) continue;
+        for await (const m of client.fetch(uids.join(","), { envelope: true, internalDate: true }, { uid: true })) {
+          if (norm(m.envelope?.subject) !== norm(subject)) continue;
+          const diff = Math.abs(new Date(m.internalDate || m.envelope?.date || 0).getTime() - when);
+          if (diff <= 15 * 60_000 && (!best || diff < best.diff)) best = { diff, path: box.path, uid: m.uid };
         }
       } finally {
         lock.release();
       }
     }
-    return moved;
+    if (!best) return 0;
+    const lock = await client.getMailboxLock(best.path);
+    try {
+      await client.messageMove(String(best.uid), target.path, { uid: true });
+    } finally {
+      lock.release();
+    }
+    return 1;
   } finally {
     await client.logout().catch(() => {});
   }
@@ -91,17 +130,18 @@ export default async function handler(req, res) {
     const table = kind === "unmatched" ? "unmatched_emails" : kind === "note" ? "case_notes" : null;
     if (!table || !id || !["trash", "archive", "spam", "inbox"].includes(to)) return res.status(400).json({ error: "Bad request." });
 
-    const [row] = await sb(`${table}?id=eq.${id}&select=id,email_message_id`);
+    const timeCol = table === "unmatched_emails" ? "received_at" : "occurred_at";
+    const [row] = await sb(`${table}?id=eq.${id}&select=id,email_message_id,subject,${timeCol}`);
     if (!row) return res.status(404).json({ error: "That email was not found." });
     const mid = row.email_message_id || "";
 
     let inTitan = null;
-    if (mid) {
+    {
       if (!process.env.TITAN_EMAIL || !process.env.TITAN_PASSWORD) {
         return res.status(503).json({ error: "Moving emails in Titan isn't set up yet (TITAN_EMAIL and TITAN_PASSWORD are missing on Vercel)." });
       }
       try {
-        inTitan = (await moveInTitan(mid, to)) > 0;
+        inTitan = (await moveInTitan(row, to)) > 0;
       } catch (e) {
         return res.status(502).json({ error: `Titan wouldn't move it: ${e?.message || "connection problem"}. Nothing was changed.` });
       }
