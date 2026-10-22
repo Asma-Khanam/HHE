@@ -12,6 +12,7 @@ import {
   getUnmatchedEmail,
   markUnmatchedRead,
   listAllEmails,
+  syncEmailsNow,
   listFamilyChoices,
   listUnmatchedEmails,
   updateCaseNote,
@@ -298,6 +299,20 @@ export default function EmailsPage() {
     }
   }, []);
 
+  const [syncState, setSyncState] = useState("");
+  async function runSync() {
+    setError("");
+    try {
+      const result = await syncEmailsNow(setSyncState);
+      await load();
+      setNotice(result === "done" ? "Synced with Titan. Anything new is in the list." : "Still syncing. It will finish on its own; press Refresh in a minute.");
+    } catch (e) {
+      setError(friendlyError(e, "Couldn't sync."));
+    } finally {
+      setSyncState("");
+    }
+  }
+
   useEffect(() => {
     load();
     listFamilyChoices().then(setFamilies).catch(() => {});
@@ -565,6 +580,9 @@ export default function EmailsPage() {
           </button>
           <button type="button" className="panel-btn" onClick={load}>
             Refresh
+          </button>
+          <button type="button" className="panel-btn" onClick={runSync} disabled={!!syncState}>
+            {syncState === "starting" ? "Starting…" : syncState === "running" ? "Syncing with Titan…" : "⟳ Sync"}
           </button>
         </div>
       </div>

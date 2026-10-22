@@ -2687,3 +2687,26 @@ export async function archiveFamily(familyId, reason) {
 export async function restoreFamily(familyId) {
   return unwrap(await supabase.rpc("restore_family", { p_family: familyId }));
 }
+
+// "Sync" on the Emails tab: start the Titan sync on GitHub and wait for it.
+// onState gets "starting" | "running" | "done" | "failed".
+export async function syncEmailsNow(onState = () => {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers = { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` };
+  onState("starting");
+  const res = await fetch("/api/sync-emails", { method: "POST", headers });
+  const first = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(first.error || "Couldn't start the sync.");
+  const since = first.since || new Date().toISOString();
+  onState("running");
+  const deadline = Date.now() + 4 * 60 * 1000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 5000));
+    const r = await fetch(`/api/sync-emails?since=${encodeURIComponent(since)}`, { headers });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "Lost track of the sync.");
+    if (j.state === "done") return "done";
+    if (j.state === "failed") throw new Error("The sync ran into a problem. It will try again in 30 minutes.");
+  }
+  return "slow";
+}
