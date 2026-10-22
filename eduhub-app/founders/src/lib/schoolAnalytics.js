@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient";
 import { familyDisplayName } from "./staffData";
+import { EMIRATES, OUTSIDE_UAE } from "../data/emirates";
 
 // Schools analytics (founders, 25 Sept 2026): live numbers on how each
 // school performs for our families. One load of every table the page
@@ -14,16 +15,18 @@ async function all(table, columns = "*") {
 }
 
 export async function loadSchoolAnalytics() {
-  const [families, parents, children, applications, schools, shortlist, placements, events] = await Promise.all([
+  let [families, parents, children, applications, schools, shortlist, placements, events] = await Promise.all([
     all("families"),
     all("parents", "id, family_id, relationship, full_name"),
     all("children", "id, family_id, full_name, first_name, preferred_name, year_group_applying_for"),
     all("applications"),
-    all("schools", "id, name, area, curriculum"),
+    all("schools", "id, name, area, curriculum, emirate"),
     all("school_shortlist"),
     all("family_placements"),
     all("application_events", "application_id, event_type, new_status, occurred_at"),
   ]);
+  // If the emirate column is not there yet (addendum 133 not run), fall back so the page still loads.
+  if (!schools.length) schools = await all("schools", "id, name, area, curriculum");
   return { families, parents, children, applications, schools, shortlist, placements, events };
 }
 
@@ -113,6 +116,7 @@ export function computeSchoolAnalytics(raw, { range = "all", hideTest = true } =
       id,
       name: schoolById[id]?.name || "School",
       area: schoolById[id]?.area || "",
+      emirate: schoolById[id]?.emirate || "",
       curriculum: schoolById[id]?.curriculum || "",
       shortlisted: 0,
       toured: 0,
@@ -316,7 +320,72 @@ export function computeSchoolAnalytics(raw, { range = "all", hideTest = true } =
   const stale = chase.filter((c) => c.days !== null && c.days >= 14).length;
   if (stale) findings.push(`${stale} application${stale === 1 ? " has" : "s have"} been waiting on the school for 2 weeks or more. See "Waiting on a school" below.`);
 
+  // --- by emirate: everything the UAE map and its drill-down panel need
+  const emirateNames = [...EMIRATES, OUTSIDE_UAE];
+  const byEmirate = Object.fromEntries(
+    emirateNames.map((name) => [
+      name,
+      { name, schools: 0, shortlisted: 0, toured: 0, applied: 0, offers: 0, declined: 0, placed: 0, topSchools: [], curricula: [] },
+    ])
+  );
+  raw.schools.forEach((sc) => {
+    if (byEmirate[sc.emirate]) byEmirate[sc.emirate].schools += 1;
+  });
+  scorecard.forEach((sc) => {
+    const e = byEmirate[sc.emirate];
+    if (!e) return;
+    e.shortlisted += sc.shortlisted;
+    e.toured += sc.toured;
+    e.applied += sc.applied;
+    e.offers += sc.offers;
+    e.declined += sc.declined;
+  });
+  Object.values(placedSchoolByChild).forEach((id) => {
+    const e = byEmirate[schoolById[id]?.emirate];
+    if (e) e.placed += 1;
+  });
+  emirateNames.forEach((name) => {
+    const e = byEmirate[name];
+    e.offerRate = e.offers + e.declined ? pct(e.offers, e.offers + e.declined) : null;
+    e.topSchools = scorecard.filter((sc) => sc.emirate === name).slice(0, 5);
+    e.curricula = tally(raw.schools.filter((sc) => sc.emirate === name).map((sc) => sc.curriculum), 5);
+  });
+  const noEmirate = raw.schools.filter((sc) => !sc.emirate).length;
+
+  const curriculumShortlisted = tally(
+    shortlist.map((r) => schoolById[r.school_id]?.curriculum || null),
+    6
+  );
+
+  // Schools with a decision back: shortlisted (demand) vs offer rate (success)
+  const scatter = scorecard
+    .filter((sc) => sc.shortlisted > 0 && sc.offers + sc.declined > 0)
+    .map((sc) => ({ label: sc.name, x: sc.shortlisted, y: sc.offerRate, r: Math.max(1, sc.applied) }));
+
+  // Leaderboards for the Top schools card
+  const board = (list, key, unit = "") =>
+    list.slice(0, 8).map((sc) => ({ id: sc.id, name: sc.name, area: sc.area, emirate: sc.emirate, value: sc[key], unit }));
+  const leaderboards = {
+    placed: board(scorecard.filter((sc) => sc.placed > 0).sort((a, b) => b.placed - a.placed || b.applied - a.applied), "placed"),
+    shortlisted: board([...scorecard].filter((sc) => sc.shortlisted > 0).sort((a, b) => b.shortlisted - a.shortlisted), "shortlisted"),
+    offerRate: board(
+      scorecard.filter((sc) => sc.offers + sc.declined >= 2).sort((a, b) => b.offerRate - a.offerRate || b.offers - a.offers),
+      "offerRate",
+      "%"
+    ),
+    speed: board(
+      scorecard.filter((sc) => sc.medianDecision !== null).sort((a, b) => a.medianDecision - b.medianDecision),
+      "medianDecision",
+      " days"
+    ),
+  };
+
   return {
+    byEmirate,
+    noEmirate,
+    curriculumShortlisted,
+    scatter,
+    leaderboards,
     kpis,
     findings,
     funnel,
