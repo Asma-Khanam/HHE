@@ -338,9 +338,14 @@ export default function EmailsPage() {
     };
   }, [load]);
 
+  // Family names come from the family list, so the email list itself can stay light.
+  const nameById = useMemo(() => new Map(families.map((f) => [f.id, f.name])), [families]);
   const all = useMemo(
-    () => [...tracked, ...untracked].sort((a, b) => new Date(b.occurred_at) - new Date(a.occurred_at)),
-    [tracked, untracked]
+    () =>
+      [...tracked.map((r) => (r.familyName ? r : { ...r, familyName: nameById.get(r.family_id) || "" })), ...untracked].sort(
+        (a, b) => new Date(b.occurred_at) - new Date(a.occurred_at)
+      ),
+    [tracked, untracked, nameById]
   );
 
   // The newest email of each family conversation: who spoke last decides Needs reply / Waiting.
@@ -509,12 +514,25 @@ export default function EmailsPage() {
     const from = boxOf(n);
     const label = { trash: "Trash", archive: "Archive", spam: "Spam", inbox: "the Inbox" }[to];
     setMailBusy(true);
+    const patch = (folder) => {
+      const fix = (rows) => rows.map((x) => (x.id === n.id ? { ...x, mailbox_folder: folder, read_at: x.read_at || (folder === "inbox" ? x.read_at : new Date().toISOString()) } : x));
+      if (n.isTracked) setTracked(fix);
+      else setUntracked(fix);
+    };
     try {
       const r = await moveEmailTo(kind, n.id, to);
-      await afterAction(
-        `Moved to ${label}${r.inTitan === false ? ". It was not in Titan, so only the website copy moved." : " here and in Titan."}`,
-        () => moveEmailTo(kind, n.id, from)
-      );
+      // Update the list on the spot and open the next email, like any mail app; refresh quietly behind.
+      const idx = displayed.findIndex((x) => x.key === n.key);
+      const next = displayed[idx + 1] || displayed[idx - 1] || null;
+      patch(to);
+      setSelectedKey(next && next.key !== n.key ? next.key : null);
+      setFull(null);
+      setNotice(`Moved to ${label}${r.inTitan === false ? ". It was not in Titan, so only the website copy moved." : " here and in Titan."}`);
+      setUndoFn(() => async () => {
+        await moveEmailTo(kind, n.id, from);
+        patch(from);
+      });
+      load();
     } catch (e) {
       setError(friendlyError(e, "Couldn't move that email."));
     } finally {
@@ -532,7 +550,8 @@ export default function EmailsPage() {
   const [undoFn, setUndoFn] = useState(null);
   const [moving, setMoving] = useState(false);
 
-  const readingNote = full && selected && full.id === selected.id ? full : null;
+  // Show the list's copy straight away; the full email (with its formatting) replaces it a moment later.
+  const readingNote = full && selected && full.id === selected.id ? full : selected || null;
 
   function renderRow(n, t, open, first) {
     const s = senderOf(n);
@@ -772,10 +791,10 @@ export default function EmailsPage() {
                   <span>
                     On <strong>{selected.familyName || "this family"}</strong>&apos;s record
                   </span>
-                  <Link className="panel-btn panel-btn-quiet" to={`/staff/families/${selected.family_id}?tab=emails`}>
+                  <Link className="panel-btn" to={`/staff/families/${selected.family_id}?tab=emails`}>
                     Open their record
                   </Link>
-                  <button type="button" className="panel-btn panel-btn-quiet" onClick={() => setMoving((v) => !v)}>
+                  <button type="button" className="panel-btn" onClick={() => setMoving((v) => !v)}>
                     Move to another family
                   </button>
                   {moving && (
@@ -799,18 +818,18 @@ export default function EmailsPage() {
                 <div className="ep-mailbar">
                   {boxOf(selected) === "inbox" ? (
                     <>
-                      <button type="button" className="panel-btn panel-btn-quiet" onClick={() => moveMail("trash")} disabled={mailBusy}>
+                      <button type="button" className="panel-btn" onClick={() => moveMail("trash")} disabled={mailBusy}>
                         🗑 Delete
                       </button>
-                      <button type="button" className="panel-btn panel-btn-quiet" onClick={() => moveMail("archive")} disabled={mailBusy}>
+                      <button type="button" className="panel-btn" onClick={() => moveMail("archive")} disabled={mailBusy}>
                         Archive
                       </button>
-                      <button type="button" className="panel-btn panel-btn-quiet" onClick={() => moveMail("spam")} disabled={mailBusy}>
+                      <button type="button" className="panel-btn" onClick={() => moveMail("spam")} disabled={mailBusy}>
                         Report spam
                       </button>
                     </>
                   ) : (
-                    <button type="button" className="panel-btn panel-btn-quiet" onClick={() => moveMail("inbox")} disabled={mailBusy}>
+                    <button type="button" className="panel-btn" onClick={() => moveMail("inbox")} disabled={mailBusy}>
                       Move back to Inbox
                     </button>
                   )}

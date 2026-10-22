@@ -2540,6 +2540,14 @@ export async function listDepositFormData() {
 // email is fetched when one is opened.
 // ---------------------------------------------------------------------------
 export async function listAllEmails(limit = 1000) {
+  // Light list (addendum 128): same emails, first 400 characters only. Falls back to the
+  // full table until that SQL has been run.
+  const light = await supabase
+    .from("email_list")
+    .select("id,family_id,direction,subject,body,email_from,email_from_name,email_to,email_cc,occurred_at,read_at,mailbox_folder,email_attachments")
+    .order("occurred_at", { ascending: false })
+    .limit(limit);
+  if (!light.error) return (light.data || []).map((r) => ({ ...r, familyName: "" }));
   const rows = unwrap(
     await supabase
       .from("case_notes")
@@ -2561,6 +2569,13 @@ export async function getEmailNote(noteId) {
 }
 
 export async function listUnmatchedEmails(limit = 500) {
+  const light = await supabase
+    .from("unmatched_email_list")
+    .select("id,received_at,alias,email_from,email_from_name,email_to,email_cc,subject,email_text,email_attachments,read_at,mailbox_folder")
+    .eq("status", "open")
+    .order("received_at", { ascending: false })
+    .limit(limit);
+  if (!light.error) return light.data || [];
   return unwrap(
     await supabase
       .from("unmatched_emails")
