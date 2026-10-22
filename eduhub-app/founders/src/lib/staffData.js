@@ -2710,3 +2710,16 @@ export async function syncEmailsNow(onState = () => {}) {
   }
   return "slow";
 }
+
+// Delete / Archive / Spam / Restore on the Emails tab: moves the email in Titan and here.
+export async function moveEmailTo(kind, id, to) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const res = await fetch("/api/move-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
+    body: JSON.stringify({ kind, id, to }),
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || "Couldn't move that email.");
+  return j;
+}

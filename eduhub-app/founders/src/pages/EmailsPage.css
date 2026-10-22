@@ -546,3 +546,12 @@ body.ep-resizing {
 .ep-folder[data-sep] {
   margin-top: 14px;
 }
+
+/* Delete / Archive / Report spam row above the open email */
+.ep-mailbar { display:flex; align-items:center; gap:6px; padding:8px 16px; border-bottom:1px solid var(--hh-track, #eadde2); }
+.ep-mailbar-busy { font-size:12px; color:var(--text-muted,#888); margin-left:6px; }
+
+/* One marker for unread, in the same place on every row. The open row is shown by its
+   background only, so the two no longer sit at different offsets. */
+.ep-layout .mx-row.is-unread { box-shadow: none; border-left-color: #7b1e3a; }
+.ep-layout .mx-row.is-active:not(.is-unread) { border-left-color: transparent; background: #f1e8ec; }

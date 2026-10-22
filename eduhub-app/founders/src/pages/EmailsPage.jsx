@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   dismissUnmatchedEmail,
   moveEmailNote,
+  moveEmailTo,
   reopenUnmatchedEmail,
   fileUnmatchedEmail,
   friendlyError,
@@ -500,6 +501,26 @@ export default function EmailsPage() {
   };
   const unreadCount = tracked.filter((n) => boxOf(n) === "inbox" && isUnread(n)).length;
 
+  const [mailBusy, setMailBusy] = useState(false);
+  async function moveMail(to) {
+    const n = selected;
+    if (!n || mailBusy) return;
+    const kind = n.isTracked ? "note" : "unmatched";
+    const from = boxOf(n);
+    const label = { trash: "Trash", archive: "Archive", spam: "Spam", inbox: "the Inbox" }[to];
+    setMailBusy(true);
+    try {
+      const r = await moveEmailTo(kind, n.id, to);
+      await afterAction(
+        `Moved to ${label}${r.inTitan === false ? ". It was not in Titan, so only the website copy moved." : " here and in Titan."}`,
+        () => moveEmailTo(kind, n.id, from)
+      );
+    } catch (e) {
+      setError(friendlyError(e, "Couldn't move that email."));
+    } finally {
+      setMailBusy(false);
+    }
+  }
   async function afterAction(message, undo) {
     setNotice(message);
     setUndoFn(undo ? () => undo : null);
@@ -772,6 +793,28 @@ export default function EmailsPage() {
                       }}
                     />
                   )}
+                </div>
+              )}
+              {selected && !writing && (
+                <div className="ep-mailbar">
+                  {boxOf(selected) === "inbox" ? (
+                    <>
+                      <button type="button" className="panel-btn panel-btn-quiet" onClick={() => moveMail("trash")} disabled={mailBusy}>
+                        🗑 Delete
+                      </button>
+                      <button type="button" className="panel-btn panel-btn-quiet" onClick={() => moveMail("archive")} disabled={mailBusy}>
+                        Archive
+                      </button>
+                      <button type="button" className="panel-btn panel-btn-quiet" onClick={() => moveMail("spam")} disabled={mailBusy}>
+                        Report spam
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" className="panel-btn panel-btn-quiet" onClick={() => moveMail("inbox")} disabled={mailBusy}>
+                      Move back to Inbox
+                    </button>
+                  )}
+                  {mailBusy && <span className="ep-mailbar-busy">Moving in Titan…</span>}
                 </div>
               )}
               {writing ? (
