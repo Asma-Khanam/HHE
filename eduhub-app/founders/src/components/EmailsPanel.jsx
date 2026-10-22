@@ -5,6 +5,7 @@ import {
   friendlyError,
   getEmailAttachmentUrl,
   getEmailNote,
+  listFamilyEmailsLight,
   requestEmailInsight,
   saveEmailInsight,
   getCurrentStaff,
@@ -663,6 +664,27 @@ export default function EmailsPanel({
       .filter((n) => n.kind === "email")
       .sort((a, b) => new Date(b.occurred_at) - new Date(a.occurred_at))
   );
+  // New mail shows up by itself: a quiet check once a minute while this tab is open.
+  useEffect(() => {
+    if (!familyId) return undefined;
+    const t = setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      const fresh = await listFamilyEmailsLight(familyId).catch(() => []);
+      if (!fresh.length) return;
+      setNotes((prev) => {
+        const have = new Map(prev.map((n) => [n.id, n]));
+        const added = fresh.filter((f) => !have.has(f.id));
+        const moved = (n) => {
+          const f = fresh.find((x) => x.id === n.id);
+          return f && f.mailbox_folder !== n.mailbox_folder ? { ...n, mailbox_folder: f.mailbox_folder } : n;
+        };
+        if (!added.length && !prev.some((n) => moved(n) !== n)) return prev;
+        return [...added, ...prev.map(moved)].sort((a, b) => new Date(b.occurred_at) - new Date(a.occurred_at));
+      });
+    }, 60000);
+    return () => clearInterval(t);
+  }, [familyId]);
+
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [selectedId, setSelectedId] = useState(null);

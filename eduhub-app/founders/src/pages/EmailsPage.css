@@ -555,3 +555,8 @@ body.ep-resizing {
    background only, so the two no longer sit at different offsets. */
 .ep-layout .mx-row.is-unread { box-shadow: none; border-left-color: #7b1e3a; }
 .ep-layout .mx-row.is-active:not(.is-unread) { border-left-color: transparent; background: #f1e8ec; }
+
+.ep-failures { margin:0 0 12px; padding:10px 14px; border:1px solid #e3b3bd; background:#fbf1f3; border-radius:10px; font-size:13px; }
+.ep-failures-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.ep-failures-list { margin:8px 0 0; padding-left:18px; font-size:12px; color:#5a2a38; }
+.ep-flag-mark { color:#b8902e; margin-right:4px; }

@@ -98,6 +98,28 @@ function toBuffer(content) {
 
 const safeName = (n) => String(n || "attachment").replace(/[^\w.\- ]+/g, "_").slice(0, 120);
 
+// Keep a note of any email the handler could not file (addendum 129), so it shows on the
+// Emails tab instead of disappearing. Never allowed to break the handler itself.
+async function logFailure(req, reason) {
+  try {
+    const b = req?.body || {};
+    await fetch(`${process.env.SUPABASE_URL}/rest/v1/email_intake_failures`, {
+      method: "POST",
+      headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+      body: JSON.stringify({
+        alias: String(b.to?.[0]?.email || b.recipient || "").slice(0, 200) || null,
+        email_from: String(b.from?.email || b.from || "").slice(0, 200) || null,
+        subject: String(b.subject || "").slice(0, 300) || null,
+        message_id: String(b.messageId || b["message-id"] || "").slice(0, 300) || null,
+        reason: String(reason || "").slice(0, 500),
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    /* logging must never fail the request */
+  }
+}
+
 async function callRpc(name, args) {
   const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/${name}`, {
     method: "POST",
@@ -147,6 +169,7 @@ export default async function handler(req, res) {
   if (!alias) {
     // Nothing we can log against -- still 200 so ImprovMX doesn't retry
     // forever over a message it will never be able to route.
+    await logFailure(req, "No application address found in the email.");
     res.status(200).json({ logged: false, reason: "no alias in payload" });
     return;
   }
@@ -211,6 +234,7 @@ export default async function handler(req, res) {
 
     if (!result.ok) {
       console.error("log_application_email_full failed", result.status, result.text.slice(0, 300));
+      await logFailure(req, `Database refused it (${result.status}): ${result.text.slice(0, 200)}`);
       res.status(200).json({ logged: false });
       return;
     }
@@ -361,6 +385,7 @@ export default async function handler(req, res) {
     res.status(200).json({ logged: !!out.logged, ...(out.unmatched ? { unmatched: true } : {}) });
   } catch (err) {
     console.error("application-email-webhook error", err?.message);
+    await logFailure(req, `Handler error: ${err?.message}`);
     // Still 200: this only logs a case note. It never affects whether the
     // school's email itself gets through -- ImprovMX forwards that
     // independently, in parallel, regardless of what happens here.

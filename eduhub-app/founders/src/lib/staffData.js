@@ -2544,7 +2544,7 @@ export async function listAllEmails(limit = 1000) {
   // full table until that SQL has been run.
   const light = await supabase
     .from("email_list")
-    .select("id,family_id,direction,subject,body,email_from,email_from_name,email_to,email_cc,occurred_at,read_at,mailbox_folder,email_attachments")
+    .select("id,family_id,direction,subject,body,email_from,email_from_name,email_to,email_cc,occurred_at,read_at,mailbox_folder,email_attachments,flagged")
     .order("occurred_at", { ascending: false })
     .limit(limit);
   if (!light.error) return (light.data || []).map((r) => ({ ...r, familyName: "" }));
@@ -2571,7 +2571,7 @@ export async function getEmailNote(noteId) {
 export async function listUnmatchedEmails(limit = 500) {
   const light = await supabase
     .from("unmatched_email_list")
-    .select("id,received_at,alias,email_from,email_from_name,email_to,email_cc,subject,email_text,email_attachments,read_at,mailbox_folder")
+    .select("id,received_at,alias,email_from,email_from_name,email_to,email_cc,subject,email_text,email_attachments,read_at,mailbox_folder,flagged")
     .eq("status", "open")
     .order("received_at", { ascending: false })
     .limit(limit);
@@ -2737,4 +2737,34 @@ export async function moveEmailTo(kind, id, to) {
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j.error || "Couldn't move that email.");
   return j;
+}
+
+// Flag / unflag an email here and in Titan.
+export const flagEmail = (kind, id, on) => moveEmailTo(kind, id, on ? "flag" : "unflag");
+
+// Emails the website's inbound handler could not file (addendum 129). Empty until that SQL is run.
+export async function listIntakeFailures() {
+  const r = await supabase
+    .from("email_intake_failures")
+    .select("id,created_at,alias,email_from,subject,reason")
+    .is("resolved_at", null)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  return r.error ? [] : r.data || [];
+}
+export async function resolveIntakeFailures(ids) {
+  if (!ids.length) return;
+  const { error } = await supabase.from("email_intake_failures").update({ resolved_at: new Date().toISOString() }).in("id", ids);
+  if (error) throw error;
+}
+
+// New mail for one family's Emails tab, light (no full bodies). Used to pick up arrivals without a reload.
+export async function listFamilyEmailsLight(familyId) {
+  const r = await supabase
+    .from("email_list")
+    .select("id,family_id,direction,subject,body,email_from,email_from_name,email_to,email_cc,occurred_at,read_at,mailbox_folder,email_attachments")
+    .eq("family_id", familyId)
+    .order("occurred_at", { ascending: false })
+    .limit(100);
+  return r.error ? [] : (r.data || []).map((x) => ({ ...x, kind: "email" }));
 }

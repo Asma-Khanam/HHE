@@ -4,6 +4,9 @@ import {
   dismissUnmatchedEmail,
   moveEmailNote,
   moveEmailTo,
+  flagEmail,
+  listIntakeFailures,
+  resolveIntakeFailures,
   reopenUnmatchedEmail,
   fileUnmatchedEmail,
   friendlyError,
@@ -52,6 +55,7 @@ const FOLDERS = [
   { key: "waiting", label: "Waiting on school" },
   { key: "tracked", label: "On a family" },
   { key: "untracked", label: "Not filed" },
+  { key: "flagged", label: "Flagged" },
   // Mirrors the Titan mailbox folders (kept up to date by the Titan email sync).
   { key: "spam", label: "Spam", sep: true },
   { key: "archive", label: "Archive" },
@@ -280,7 +284,8 @@ export default function EmailsPage() {
 
   const load = useCallback(async () => {
     try {
-      const [t, u] = await Promise.all([listAllEmails(), listUnmatchedEmails()]);
+      const [t, u, fl] = await Promise.all([listAllEmails(), listUnmatchedEmails(), listIntakeFailures()]);
+      setFailures(fl);
       setTracked(t.map((r) => ({ ...r, key: `n:${r.id}`, isTracked: true })));
       setUntracked(
         u.map((r) => ({
@@ -300,6 +305,15 @@ export default function EmailsPage() {
     }
   }, []);
 
+  // New mail appears by itself, like any mail app: a quiet check every minute while the tab is open.
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") load();
+    }, 60000);
+    return () => clearInterval(t);
+  }, [load]);
+  const [failures, setFailures] = useState([]);
+  const [showFailures, setShowFailures] = useState(false);
   const [syncState, setSyncState] = useState("");
   const [syncSecs, setSyncSecs] = useState(0);
   async function runSync() {
@@ -369,6 +383,7 @@ export default function EmailsPage() {
         return n.isTracked && latestByThread.get(threadKey(n)) === n && n.direction === "outbound" && isRecent(n);
       if (tab === "inbox") return n.direction !== "outbound";
       if (tab === "sent") return n.direction === "outbound";
+      if (tab === "flagged") return !!n.flagged;
       if (tab === "tracked") return n.isTracked;
       if (tab === "untracked") return !n.isTracked;
       return true;
@@ -498,6 +513,7 @@ export default function EmailsPage() {
     sent: mail.filter((n) => n.direction === "outbound").length,
     tracked: mail.filter((n) => n.isTracked).length,
     untracked: mail.filter((n) => !n.isTracked).length,
+    flagged: mail.filter((n) => n.flagged).length,
     spam: all.filter((n) => boxOf(n) === "spam").length,
     archive: all.filter((n) => boxOf(n) === "archive").length,
     trash: all.filter((n) => boxOf(n) === "trash").length,
@@ -537,6 +553,24 @@ export default function EmailsPage() {
       setError(friendlyError(e, "Couldn't move that email."));
     } finally {
       setMailBusy(false);
+    }
+  }
+  async function toggleFlag() {
+    const n = selected;
+    if (!n || mailBusy) return;
+    const kind = n.isTracked ? "note" : "unmatched";
+    const on = !n.flagged;
+    const set = (v) => {
+      const fix = (rows) => rows.map((x) => (x.id === n.id ? { ...x, flagged: v } : x));
+      if (n.isTracked) setTracked(fix);
+      else setUntracked(fix);
+    };
+    set(on);
+    try {
+      await flagEmail(kind, n.id, on);
+    } catch (e) {
+      set(!on);
+      setError(friendlyError(e, "Couldn't flag that email."));
     }
   }
   async function afterAction(message, undo) {
@@ -596,6 +630,11 @@ export default function EmailsPage() {
             <span className="mx-row-date">{listDate(n.occurred_at)}</span>
           </span>
           <span className="mx-row-line2">
+            {n.flagged && (
+              <span className="ep-flag-mark" title="Flagged">
+                ⚑
+              </span>
+            )}
             {n.isTracked ? (
               <span className="ep-chip is-family">{n.familyName || "Family"}</span>
             ) : (
@@ -677,6 +716,44 @@ export default function EmailsPage() {
           <button type="button" className="ep-notice-x" onClick={() => setNotice("")} aria-label="Dismiss">
             ×
           </button>
+        </div>
+      )}
+
+      {failures.length > 0 && (
+        <div className="ep-failures" role="alert">
+          <div className="ep-failures-head">
+            <strong>
+              {failures.length} email{failures.length === 1 ? "" : "s"} could not be filed automatically.
+            </strong>{" "}
+            The Titan sync picks them up from the mailbox within 30 minutes (or press Sync). Check, then dismiss.
+            <button type="button" className="panel-btn" onClick={() => setShowFailures((v) => !v)}>
+              {showFailures ? "Hide" : "Details"}
+            </button>
+            <button
+              type="button"
+              className="panel-btn"
+              onClick={async () => {
+                try {
+                  await resolveIntakeFailures(failures.map((f) => f.id));
+                  setFailures([]);
+                } catch (e) {
+                  setError(friendlyError(e, "Couldn't dismiss those."));
+                }
+              }}
+            >
+              Dismiss all
+            </button>
+          </div>
+          {showFailures && (
+            <ul className="ep-failures-list">
+              {failures.map((f) => (
+                <li key={f.id}>
+                  {new Date(f.created_at).toLocaleString()} · {f.email_from || "unknown sender"} · {f.subject || "(no subject)"} ·{" "}
+                  <span>{f.reason}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -833,6 +910,9 @@ export default function EmailsPage() {
                       Move back to Inbox
                     </button>
                   )}
+                  <button type="button" className="panel-btn" onClick={toggleFlag} disabled={mailBusy}>
+                    {selected.flagged ? "⚑ Remove flag" : "⚐ Flag"}
+                  </button>
                   {mailBusy && <span className="ep-mailbar-busy">Moving in Titan…</span>}
                 </div>
               )}

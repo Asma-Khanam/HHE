@@ -33,7 +33,11 @@ function sbHeaders(extra = {}) {
 }
 
 async function sb(path, init = {}) {
-  const res = await fetch(`${SB()}/rest/v1/${path}`, { ...init, headers: sbHeaders({ Prefer: "return=representation", ...(init.headers || {}) }) });
+  const res = await fetch(`${SB()}/rest/v1/${path}`, {
+    ...init,
+    headers: sbHeaders({ Prefer: "return=representation", ...(init.headers || {}) }),
+    signal: AbortSignal.timeout(10_000),
+  });
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) throw new Error(data?.message || `Supabase ${res.status}`);
@@ -44,7 +48,10 @@ async function sb(path, init = {}) {
 async function staffFor(token) {
   const anon = process.env.VITE_SUPABASE_ANON_KEY;
   if (!token || !anon) return null;
-  const who = await fetch(`${SB()}/auth/v1/user`, { headers: { apikey: anon, Authorization: `Bearer ${token}` } });
+  const who = await fetch(`${SB()}/auth/v1/user`, {
+    headers: { apikey: anon, Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(10_000),
+  });
   if (!who.ok) return null;
   const user = await who.json();
   const rows = await sb(`staff?user_id=eq.${user.id}&select=user_id,full_name,email`);
@@ -88,13 +95,14 @@ function transport() {
   return _transport;
 }
 
-export default async function handler(req, res) {
+async function sendHandler(req, res, state) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   if (!SB() || !KEY()) return res.status(503).json({ error: "Email sending isn't set up yet (Supabase keys missing)." });
   if (!process.env.IMPROVMX_SMTP_USER || !process.env.IMPROVMX_SMTP_PASS)
     return res.status(503).json({ error: "Email sending isn't set up yet (IMPROVMX_SMTP_USER / IMPROVMX_SMTP_PASS missing on Vercel)." });
 
   try {
+    state.stage = "checking who is signed in";
     const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     const staff = await staffFor(token);
     if (!staff) return res.status(401).json({ error: "Please sign in again." });
@@ -107,6 +115,7 @@ export default async function handler(req, res) {
     if (!toList.length) return res.status(400).json({ error: "Add at least one email address in To." });
     if (!String(text || "").trim()) return res.status(400).json({ error: "The email is empty." });
 
+    state.stage = "looking up the family";
     // The family's application address -- school replies come back here.
     const [family] = await sb(`families?id=eq.${familyId}&select=id,application_alias`);
     if (!family) return res.status(404).json({ error: "Family not found." });
@@ -137,6 +146,7 @@ export default async function handler(req, res) {
 
     // Attachments: files picked on the computer (sent as base64) plus the
     // family's own documents (fetched here, straight from storage).
+    state.stage = "preparing attachments";
     const files = [];
     let uploadBytes = 0;
     for (const a of attachments.slice(0, 10)) {
@@ -174,6 +184,7 @@ export default async function handler(req, res) {
       cut > 0 ? raw.slice(0, cut).trim() + signature + raw.slice(cut) : cut === 0 ? signature.trim() + raw : raw.trim() + signature;
     const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#222">${textToHtml(bodyText)}</div>`;
 
+    state.stage = "handing the email to the mail server (ImprovMX)";
     const info = await transport().sendMail({
       from: { name: fromName, address: fromAddress },
       replyTo: familyAddress || undefined,
@@ -189,6 +200,8 @@ export default async function handler(req, res) {
 
     // Keep a copy on the family's Emails tab. The email is already sent by now, so a
     // failure here must not look like the send failed (that invites a duplicate).
+    state.stage = "saving the copy to the Emails tab";
+    state.sent = true;
     let note;
     try {
       [note] = await sb("case_notes", {
@@ -241,7 +254,8 @@ export default async function handler(req, res) {
     const msg = String(err?.message || err);
     const code = err?.code ? `${err.code}: ` : "";
     const detail = `${code}${err?.response || msg}`.slice(0, 300);
-    console.error("send-email failed:", detail);
+    console.error("send-email failed:", detail, "stage:", state.stage);
+    if (res.headersSent) return;
     const timedOut = /ETIMEDOUT|ESOCKET|ECONNECTION|ECONNRESET|timed? ?out|Greeting never received/i.test(`${err?.code} ${msg}`);
     return res.status(500).json({
       error: timedOut
@@ -253,5 +267,28 @@ export default async function handler(req, res) {
         : "Couldn't send that email.",
       detail,
     });
+  }
+}
+
+// The function is killed by Vercel at 30s with a blank 504. This answers first, at 24s,
+// and says which step it was on, and whether the mail had already been handed over.
+export default async function handler(req, res) {
+  const state = { stage: "starting", sent: false };
+  const timer = setTimeout(() => {
+    if (res.headersSent) return;
+    console.error("send-email watchdog: still working at 24s, stage:", state.stage);
+    res.status(504).json({
+      error: state.sent
+        ? "The email was sent, but saving its copy took too long. Do not send it again; check the family's Sent list."
+        : `Sending took too long (stuck while ${state.stage}). It may still have gone out, so check the Sent list before trying again.`,
+      detail: `stage: ${state.stage}`,
+    });
+  }, 24_000);
+  try {
+    await sendHandler(req, res, state);
+  } catch (e) {
+    console.error("send-email handler error:", e?.message);
+  } finally {
+    clearTimeout(timer);
   }
 }

@@ -125,15 +125,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ ignored: "no meeting id" });
     }
 
-    const links = await sb(
-      `zoom_meeting_links?zoom_meeting_id=eq.${meetingId}&select=family_id,join_url,topic&order=created_at.desc&limit=1`
-    );
-    const link = links[0];
-    if (!link) {
-      await record(body.event, meetingId, "not_linked", "Zoom meeting id has no family linked on the Meetings tab");
-      return res.status(200).json({ ignored: "meeting not linked to a family" });
-    }
-
     const text = summaryText(o);
     if (!text) {
       await record(body.event, meetingId, "empty_summary", null);
@@ -141,6 +132,36 @@ export default async function handler(req, res) {
     }
 
     const when = o.meeting_start_time || o.summary_start_time || o.summary_created_time || new Date().toISOString();
+    const ref = `zoom:${o.meeting_uuid || meetingId + ":" + when}`;
+
+    const links = await sb(
+      `zoom_meeting_links?zoom_meeting_id=eq.${meetingId}&select=family_id,join_url,topic&order=created_at.desc&limit=1`
+    );
+    const link = links[0];
+    if (!link) {
+      // No family yet (a new enquirer's consultation, or the link is added after the
+      // call). Keep the summary so it can be shown on the consultation and added to
+      // the family's notes the moment a link is made (addendum 122).
+      try {
+        await sb("zoom_unmatched_summaries?on_conflict=external_ref", {
+          method: "POST",
+          headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+          body: JSON.stringify({
+            zoom_meeting_id: meetingId,
+            topic: o.meeting_topic || null,
+            body: text,
+            occurred_at: new Date(when).toISOString(),
+            external_ref: ref,
+          }),
+        });
+        await record(body.event, meetingId, "kept_unlinked", "Kept until a family is linked");
+        return res.status(200).json({ kept: true });
+      } catch (e) {
+        await record(body.event, meetingId, "not_linked", `Not kept (has addendum 122 been run?) ${e.message}`);
+        return res.status(200).json({ ignored: "meeting not linked to a family" });
+      }
+    }
+
     const url = link.join_url ? `\n\nZoom link: ${link.join_url}` : "";
     await sb("case_notes?on_conflict=external_ref", {
       method: "POST",
@@ -151,7 +172,7 @@ export default async function handler(req, res) {
         subject: o.meeting_topic || link.topic || "Zoom meeting",
         body: `${text}${url}`,
         occurred_at: new Date(when).toISOString(),
-        external_ref: `zoom:${o.meeting_uuid || meetingId + ":" + when}`,
+        external_ref: ref,
       }),
     });
     await record(body.event, meetingId, "saved", null);
