@@ -244,3 +244,7 @@
 .staff-sidebar-me { display:flex; flex-shrink:0; border-radius:50%; }
 a.staff-sidebar-name { text-decoration:none; }
 a.staff-sidebar-name:hover { text-decoration:underline; }
+
+/* Team sits at the bottom of the menu; Settings follows it, both just above the profile. */
+.staff-nav-bottom { margin-top: auto; }
+@media (max-width: 800px) { .staff-nav-bottom { margin-top: 0; } }
