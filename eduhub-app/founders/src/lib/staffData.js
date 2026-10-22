@@ -304,9 +304,14 @@ export async function getFamilyDetail(familyId) {
       : empty.then(unwrap),
     supabase.from("tasks").select("*").eq("family_id", familyId).order("due_date", { nullsFirst: false }).then(unwrap),
     listSchools(),
+    // email_html (the full formatted body) is by far the heaviest column, and
+    // every save on the family page re-reads this list. It is left out here and
+    // fetched for one email only when that email is opened (see EmailsPanel).
     supabase
       .from("case_notes")
-      .select("*")
+      .select(
+        "id,family_id,child_id,school_id,kind,body,occurred_at,author_id,created_at,edited_at,direction,subject,external_ref,email_from,email_from_name,email_to,email_cc,email_text,email_attachments,email_message_id,read_at,mailbox_folder,ai_insight,ai_insight_at,ai_insight_error"
+      )
       .eq("family_id", familyId)
       .order("occurred_at", { ascending: false })
       .then(unwrap),

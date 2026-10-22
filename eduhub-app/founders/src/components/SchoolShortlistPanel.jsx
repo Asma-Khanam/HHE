@@ -1259,42 +1259,6 @@ export default function SchoolShortlistPanel({
                                 Cancel
                               </button>
                             </div>
-
-                            {removingId === row.id ? (
-                              <div className="svt-remove-confirm svt-remove-confirm-nested">
-                                <p className="svt-remove-confirm-text">
-                                  This permanently deletes it from the shortlist instead -- no record, no undo. Only for
-                                  a school that was added by mistake.
-                                </p>
-                                <div className="svt-col-actions">
-                                  <button
-                                    type="button"
-                                    className="panel-btn panel-btn-quiet svt-col-btn"
-                                    onClick={() => handleRemove(row)}
-                                    disabled={busy}
-                                  >
-                                    Yes, delete permanently
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="panel-btn panel-btn-quiet svt-col-btn"
-                                    onClick={() => setRemovingId(null)}
-                                    disabled={busy}
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                className="panel-btn panel-btn-quiet svt-remove-mistake-link"
-                                onClick={() => setRemovingId(row.id)}
-                                disabled={busy}
-                              >
-                                Added by mistake? Delete permanently instead
-                              </button>
-                            )}
                           </div>
                         ) : (
                           <button
@@ -1307,9 +1271,16 @@ export default function SchoolShortlistPanel({
                             }}
                             disabled={busy}
                           >
-                            Not pursuing this school
+                            Withdraw this school
                           </button>
                         ))}
+                      <div className="svt-danger-row">
+                        <button type="button" className="panel-btn svt-delete-btn" onClick={(e) => { e.stopPropagation(); setRemovingId(row.id); }} disabled={busy}>
+                          Delete school
+                        </button>
+                        <span className="svt-danger-hint">Wrong school added? Delete it. Family decided against it? Withdraw it.</span>
+                      </div>
+
                       </div>
                       <ShortlistNotes
                         shortlistId={row.id}
@@ -1364,6 +1335,31 @@ export default function SchoolShortlistPanel({
           </ul>
         </div>
       )}
+
+      {removingId && (() => {
+        const target = rows.find((r) => r.id === removingId);
+        if (!target) return null;
+        return (
+          <div className="svt-modal-back" onClick={() => !busy && setRemovingId(null)}>
+            <div className="svt-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+              <h3>Delete {target.school?.name || "this school"}?</h3>
+              <p>
+                This removes the school from this family's list completely, with its tour dates, feedback and notes.
+                It cannot be undone.
+              </p>
+              <p className="svt-modal-tip">If the family simply decided against it, use Withdraw instead. It greys out and keeps a record.</p>
+              <div className="svt-modal-actions">
+                <button type="button" className="panel-btn" onClick={() => setRemovingId(null)} disabled={busy}>
+                  Cancel
+                </button>
+                <button type="button" className="panel-btn svt-delete-btn is-solid" onClick={() => handleRemove(target)} disabled={busy}>
+                  {busy ? "Deleting…" : "Yes, delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </section>
   );
 }

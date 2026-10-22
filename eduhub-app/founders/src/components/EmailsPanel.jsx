@@ -4,6 +4,7 @@ import {
   createTask,
   friendlyError,
   getEmailAttachmentUrl,
+  getEmailNote,
   requestEmailInsight,
   saveEmailInsight,
   getCurrentStaff,
@@ -718,6 +719,23 @@ export default function EmailsPanel({
   }, [visible]);
 
   const selected = visible.find((n) => n.id === selectedId) || visible[0] || null;
+
+  // The list is loaded without each email's formatted (HTML) body to keep the
+  // family page fast; fetch it for the email being read.
+  const selId = selected?.id;
+  const selNeedsFull = !!selected && !selected._full && selected.kind === "email";
+  useEffect(() => {
+    if (!selId || !selNeedsFull) return undefined;
+    let live = true;
+    getEmailNote(selId)
+      .then((full) => {
+        if (live && full) setNotes((prev) => prev.map((n) => (n.id === selId ? { ...n, ...full, _full: true } : n)));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [selId, selNeedsFull]);
 
   function setRead(id, read) {
     const readAt = read ? new Date().toISOString() : null;
