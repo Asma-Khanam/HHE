@@ -2794,6 +2794,17 @@ export async function uploadStaffAvatar(userId, file) {
   return data.publicUrl;
 }
 
+// Edit your own profile (name, phone, location, bio). Position and role are admin-only.
+export async function updateMyProfile({ fullName, phone, location, bio }) {
+  const { error } = await supabase.rpc("update_my_profile", {
+    p_full_name: fullName || "",
+    p_phone: phone || "",
+    p_location: location || "",
+    p_bio: bio || "",
+  });
+  if (error) throw error;
+}
+
 export async function removeStaffAvatar(userId) {
   const { error } = await supabase.rpc("set_staff_avatar", { p_user_id: userId, p_url: "" });
   if (error) throw error;

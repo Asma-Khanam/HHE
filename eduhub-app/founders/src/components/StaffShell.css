@@ -240,3 +240,7 @@
   line-height: 1.5;
   text-align: center;
 }
+
+.staff-sidebar-me { display:flex; flex-shrink:0; border-radius:50%; }
+a.staff-sidebar-name { text-decoration:none; }
+a.staff-sidebar-name:hover { text-decoration:underline; }

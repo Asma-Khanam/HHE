@@ -33,15 +33,19 @@ export default function StaffShell() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase
-        .from("staff")
-        .select("full_name, email, role")
-        .eq("user_id", user.id)
-        .maybeSingle()
-        .then(({ data }) => setMe(data));
-    });
+    const load = () =>
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return;
+        supabase
+          .from("staff")
+          .select("full_name, email, role, avatar_url, position")
+          .eq("user_id", user.id)
+          .maybeSingle()
+          .then(({ data }) => setMe(data));
+      });
+    load();
+    window.addEventListener("profile-updated", load);
+    return () => window.removeEventListener("profile-updated", load);
   }, []);
 
   async function handleSignOut() {
@@ -102,9 +106,11 @@ export default function StaffShell() {
         </nav>
 
         <div className="staff-sidebar-footer">
-          <StaffAvatar person={me} size={36} className="staff-sidebar-avatar-photo" />
+          <NavLink to="/staff/profile" className="staff-sidebar-me" title="My profile">
+            <StaffAvatar person={me} size={36} className="staff-sidebar-avatar-photo" />
+          </NavLink>
           <div className="staff-sidebar-footer-text">
-            <div className="staff-sidebar-name">{me?.full_name || me?.email || "..."}</div>
+            <NavLink to="/staff/profile" className="staff-sidebar-name">{me?.full_name || me?.email || "..."}</NavLink>
             <button type="button" className="staff-sidebar-signout" onClick={handleSignOut}>
               Sign out
             </button>

@@ -1,3 +1,4 @@
+import ProfilePage from "./pages/ProfilePage";
 import { Routes, Route, Navigate } from "react-router-dom";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
@@ -47,6 +48,7 @@ function App() {
         <Route path="accounting" element={<AccountingPage />} />
         <Route path="emails" element={<EmailsPage />} />
         <Route path="team" element={<TeamPage />} />
+        <Route path="profile" element={<ProfilePage />} />
         <Route path="schools" element={<SchoolsPage />} />
         <Route path="schools/:schoolId" element={<SchoolDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />

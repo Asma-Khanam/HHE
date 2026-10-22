@@ -312,8 +312,10 @@ export default function TeamPage() {
                     </button>
                   )}
 
+                  {row.bio && <p className="team-card-bio">{row.bio}</p>}
                   <div className="team-card-meta">
                     {row.email}
+                    {row.phone && (<><br />{row.phone}</>)}
                     <br />
                     Joined {formatDate(row.created_at)}
                   </div>
