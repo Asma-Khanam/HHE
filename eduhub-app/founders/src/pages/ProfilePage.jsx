@@ -60,6 +60,16 @@ export default function ProfilePage() {
 
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
 
+  const linkedinValid = !form.linkedin || /^https?:\/\/([a-z]+\.)?linkedin\.com\//i.test(form.linkedin.trim());
+
+  // Autosave: about a second after you stop typing.
+  useEffect(() => {
+    if (!dirty || !linkedinValid || !me) return;
+    const t = setTimeout(() => save(), 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line
+  }, [form, dirty, linkedinValid, me]);
+
   useEffect(() => {
     if (!dirty) return;
     const warn = (e) => { e.preventDefault(); e.returnValue = ""; };
@@ -135,15 +145,18 @@ export default function ProfilePage() {
   const pct = Math.round((done / checks.length) * 100);
   const next = checks.find((c) => !c[1]);
   const clock = localTime(form.timezone);
-  const linkedinOk = !form.linkedin || /^https?:\/\/([a-z]+\.)?linkedin\.com\//i.test(form.linkedin.trim());
+  const linkedinOk = linkedinValid;
 
   return (
     <div className="team-page profile-page">
       <header className="team-hero">
         <div>
           <h1 className="team-page-title">My profile</h1>
-          <p className="team-page-subtitle">How you appear to the rest of the team. Only you can change these details.</p>
+          <p className="team-page-subtitle">How you appear to the rest of the team. Only you can change these details. Changes save by themselves.</p>
         </div>
+        <span className={"profile-status" + (dirty || state === "saving" ? " is-saving" : "")} role="status">
+          {state === "saving" ? "Saving…" : dirty ? (linkedinOk ? "Saving soon…" : "Fix the LinkedIn link to save") : "✓ All changes saved"}
+        </span>
       </header>
 
       {error && <div className="panel-error" role="alert">{error}</div>}
@@ -265,15 +278,6 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          <div className={"profile-savebar" + (dirty || state === "saved" ? " is-on" : "")}>
-            <span>{dirty ? "You have unsaved changes" : state === "saved" ? "All changes saved" : ""}</span>
-            <div>
-              {dirty && <button type="button" className="panel-btn" onClick={() => { setForm(saved); setState("idle"); }}>Discard</button>}
-              <button type="submit" className="panel-btn panel-btn-primary" disabled={!dirty || state === "saving" || !linkedinOk}>
-                {state === "saving" ? "Saving…" : state === "saved" && !dirty ? "Saved ✓" : "Save changes"}
-              </button>
-            </div>
-          </div>
         </form>
       </div>
     </div>

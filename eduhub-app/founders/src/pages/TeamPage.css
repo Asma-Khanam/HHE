@@ -329,3 +329,6 @@
 .profile-savebar.is-on { opacity:1; transform:translate(-50%,0); pointer-events:auto; }
 .profile-savebar > div { display:flex; gap:8px; }
 @media (max-width: 900px) { .profile-layout { grid-template-columns:1fr; } .profile-side { position:static; } .profile-row { grid-template-columns:1fr; } }
+
+.profile-status { font-size:.84rem; font-weight:600; color:#2e7d4f; background:#eaf5ee; padding:7px 14px; border-radius:99px; white-space:nowrap; }
+.profile-status.is-saving { color:#8a6a1f; background:#f9f1dc; }
