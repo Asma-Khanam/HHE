@@ -281,20 +281,51 @@
 .set-preview ul { margin:0 0 10px; padding-left:20px; }
 
 /* ---- My profile ---- */
-.profile-layout { display:grid; grid-template-columns:320px minmax(0,1fr); gap:20px; align-items:start; margin-top:18px; max-width:1100px; }
-.profile-card { background:#fff; border-radius:16px; padding:28px 22px 22px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px; box-shadow:0 1px 0 rgba(83,1,38,.05), 0 8px 24px rgba(83,1,38,.05); position:sticky; top:16px; }
+.profile-layout { display:grid; grid-template-columns:340px minmax(0,1fr); gap:20px; align-items:start; margin-top:18px; max-width:1240px; }
+.profile-side { display:flex; flex-direction:column; gap:14px; position:sticky; top:16px; }
+.profile-card { background:#fff; border-radius:16px; padding:26px 22px 22px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px; box-shadow:0 1px 0 rgba(83,1,38,.05), 0 8px 24px rgba(83,1,38,.05); }
 .profile-camera { width:38px; height:38px; font-size:17px; right:2px; bottom:2px; }
 .profile-name { font-size:1.25rem; font-weight:700; color:var(--hh-burgundy,#530126); margin-top:6px; word-break:break-word; }
-.profile-position { cursor:default; }
+.profile-position { font-size:.9rem; opacity:.75; }
 .profile-remove-photo { background:none; border:none; color:#8a5a6a; font-size:.8rem; cursor:pointer; text-decoration:underline; margin-top:4px; }
 .team-card-bio { margin:4px 0 0; font-size:.86rem; line-height:1.45; color:var(--hh-ink); opacity:.8; white-space:pre-wrap; }
-.profile-form { background:#fff; border-radius:16px; padding:24px; display:flex; flex-direction:column; gap:16px; box-shadow:0 1px 0 rgba(83,1,38,.05), 0 8px 24px rgba(83,1,38,.05); }
+.profile-progress { align-items:stretch; text-align:left; gap:10px; padding:18px 20px; }
+.profile-progress-head { display:flex; justify-content:space-between; font-size:.88rem; }
+.profile-progress-head span { opacity:.55; }
+.profile-bar { height:8px; background:#f1e6ea; border-radius:99px; overflow:hidden; }
+.profile-bar i { display:block; height:100%; background:linear-gradient(90deg,var(--hh-gold,#b89a5a),#d9b770); border-radius:99px; transition:width .3s; }
+.profile-progress p { margin:0; font-size:.82rem; opacity:.7; }
+.profile-stats { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.profile-stats div { background:#fff; border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; gap:2px; box-shadow:0 1px 0 rgba(83,1,38,.05), 0 6px 18px rgba(83,1,38,.04); }
+.profile-stats b { font-size:1.35rem; color:var(--hh-burgundy,#530126); }
+.profile-stats span { font-size:.76rem; opacity:.65; }
+.profile-main { display:flex; flex-direction:column; gap:16px; padding-bottom:84px; }
+.profile-form { background:#fff; border-radius:16px; padding:22px 24px; display:flex; flex-direction:column; gap:16px; box-shadow:0 1px 0 rgba(83,1,38,.05), 0 8px 24px rgba(83,1,38,.05); }
+.profile-form h2 { margin:0; font-size:1rem; color:var(--hh-burgundy,#530126); }
 .profile-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-.profile-field { display:flex; flex-direction:column; gap:6px; }
-.profile-field > span { font-size:.8rem; font-weight:600; color:var(--hh-ink); opacity:.75; }
+.profile-field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.profile-field > span { font-size:.8rem; font-weight:600; color:var(--hh-ink); opacity:.8; }
 .profile-field small { align-self:flex-end; font-size:.72rem; opacity:.55; }
 .profile-field textarea { resize:vertical; font:inherit; }
+.profile-hint { font-weight:400; opacity:.6; font-style:normal; }
+.profile-bad { color:#b3261e; opacity:1 !important; align-self:flex-start !important; }
+.panel-input.is-invalid { border-color:#b3261e; }
 .profile-readonly { padding:10px 12px; background:#faf6f7; border-radius:8px; font-size:.9rem; color:var(--hh-ink); }
 .profile-readonly em { opacity:.55; font-style:normal; font-size:.8rem; }
-.profile-actions { display:flex; justify-content:flex-end; }
-@media (max-width: 860px) { .profile-layout { grid-template-columns:1fr; } .profile-card { position:static; } .profile-row { grid-template-columns:1fr; } }
+.profile-pw { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.profile-pw small { align-self:center; }
+.chip-box { display:flex; flex-wrap:wrap; gap:6px; padding:7px 8px; border:1px solid rgba(83,1,38,.18); border-radius:8px; background:#fff; cursor:text; min-height:42px; align-items:center; }
+.chip-box:focus-within { border-color:var(--hh-burgundy,#530126); box-shadow:0 0 0 3px rgba(83,1,38,.08); }
+.chip-box input { border:none; outline:none; flex:1; min-width:140px; font:inherit; font-size:.9rem; background:transparent; }
+.chip { display:inline-flex; align-items:center; gap:4px; background:#f6ecef; color:var(--hh-burgundy,#530126); border-radius:99px; padding:4px 10px; font-size:.8rem; font-weight:500; }
+.chip button { background:none; border:none; cursor:pointer; color:inherit; font-size:1rem; line-height:1; padding:0 0 0 2px; opacity:.6; }
+.chip button:hover { opacity:1; }
+.chip-lang { background:#f4efe1; color:#6b5520; }
+.chip-row { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:6px; }
+.chip-suggest { display:flex; flex-wrap:wrap; gap:6px; }
+.chip-suggest button { background:none; border:1px dashed rgba(83,1,38,.3); color:var(--hh-burgundy,#530126); border-radius:99px; padding:3px 10px; font-size:.76rem; cursor:pointer; }
+.chip-suggest button:hover { background:#fbf4f6; }
+.profile-savebar { position:fixed; left:50%; bottom:22px; transform:translate(-50%,24px); width:min(560px, calc(100vw - 32px)); display:flex; align-items:center; justify-content:space-between; gap:12px; background:#fff; border:1px solid rgba(83,1,38,.15); border-radius:14px; padding:10px 14px; box-shadow:0 12px 40px rgba(83,1,38,.18); opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:30; font-size:.86rem; }
+.profile-savebar.is-on { opacity:1; transform:translate(-50%,0); pointer-events:auto; }
+.profile-savebar > div { display:flex; gap:8px; }
+@media (max-width: 900px) { .profile-layout { grid-template-columns:1fr; } .profile-side { position:static; } .profile-row { grid-template-columns:1fr; } }

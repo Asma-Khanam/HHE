@@ -313,6 +313,12 @@ export default function TeamPage() {
                   )}
 
                   {row.bio && <p className="team-card-bio">{row.bio}</p>}
+                  {((row.specialties || []).length > 0 || (row.languages || []).length > 0) && (
+                    <div className="chip-row">
+                      {(row.specialties || []).map((c) => <span key={"s" + c} className="chip chip-static">{c}</span>)}
+                      {(row.languages || []).map((c) => <span key={"l" + c} className="chip chip-static chip-lang">{c}</span>)}
+                    </div>
+                  )}
                   <div className="team-card-meta">
                     {row.email}
                     {row.phone && (<><br />{row.phone}</>)}

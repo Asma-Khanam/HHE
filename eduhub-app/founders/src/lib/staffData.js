@@ -2794,14 +2794,28 @@ export async function uploadStaffAvatar(userId, file) {
   return data.publicUrl;
 }
 
-// Edit your own profile (name, phone, location, bio). Position and role are admin-only.
-export async function updateMyProfile({ fullName, phone, location, bio }) {
+// Edit your own profile. Position and role are admin-only.
+export async function updateMyProfile({ fullName, phone, location, bio, languages, specialties, timezone, linkedin }) {
   const { error } = await supabase.rpc("update_my_profile", {
     p_full_name: fullName || "",
     p_phone: phone || "",
     p_location: location || "",
     p_bio: bio || "",
+    p_languages: languages || [],
+    p_specialties: specialties || [],
+    p_timezone: timezone || "",
+    p_linkedin: linkedin || "",
   });
+  if (error) throw error;
+}
+
+export async function countMyFamilies(userId) {
+  const { count } = await supabase.from("families").select("id", { count: "exact", head: true }).eq("owner_staff_id", userId);
+  return count || 0;
+}
+
+export async function sendMyPasswordReset(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
   if (error) throw error;
 }
 
