@@ -852,6 +852,19 @@ export default function EmailsPage() {
                   key={selected.id}
                   email={selected}
                   siblings={threadUnfiled}
+                  sameSender={untracked.filter(
+                    (x) => boxOf(x) === "inbox" && addrOnly(x.email_from) && addrOnly(x.email_from) === addrOnly(selected.email_from)
+                  )}
+                  onDismissedAll={async (list) => {
+                    for (let i = 0; i < list.length; i += 8) {
+                      await Promise.all(list.slice(i, i + 8).map((x) => dismissUnmatchedEmail(x.id)));
+                    }
+                    await afterAction(`Dismissed ${list.length} emails from ${addrOnly(selected.email_from)}.`, async () => {
+                      for (let i = 0; i < list.length; i += 8) {
+                        await Promise.all(list.slice(i, i + 8).map((x) => reopenUnmatchedEmail(x.id)));
+                      }
+                    });
+                  }}
                   families={families}
                   onFiled={(name, count) =>
                     afterAction(
@@ -1022,11 +1035,14 @@ function MoveBar({ families, currentId, onMove, onCancel }) {
   );
 }
 
-function FileBar({ email, siblings, families, onFiled, onDismissed }) {
+const addrOnly = (v) => (String(v || "").match(/<([^>]+)>/)?.[1] || String(v || "")).trim().toLowerCase();
+
+function FileBar({ email, siblings, sameSender = [], families, onFiled, onDismissed, onDismissedAll }) {
   const [choice, setChoice] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [confirmDismiss, setConfirmDismiss] = useState(false);
+  const [confirmAll, setConfirmAll] = useState(false);
 
   const targets = siblings.length ? siblings : [email];
   const many = targets.length > 1;
@@ -1058,6 +1074,17 @@ function FileBar({ email, siblings, families, onFiled, onDismissed }) {
       return;
     }
     fileTo(fam);
+  }
+
+  async function dismissAll() {
+    setBusy(true);
+    setErr("");
+    try {
+      await onDismissedAll(sameSender);
+    } catch (e) {
+      setErr(friendlyError(e, "Couldn't dismiss those."));
+      setBusy(false);
+    }
   }
 
   async function dismiss() {
@@ -1120,6 +1147,21 @@ function FileBar({ email, siblings, families, onFiled, onDismissed }) {
             Not a family email
           </button>
         )}
+        {sameSender.length > 1 &&
+          (confirmAll ? (
+            <>
+              <button type="button" className="panel-btn" onClick={dismissAll} disabled={busy}>
+                {busy ? "Dismissing…" : `Yes, dismiss all ${sameSender.length}`}
+              </button>
+              <button type="button" className="panel-btn panel-btn-quiet" onClick={() => setConfirmAll(false)} disabled={busy}>
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button type="button" className="panel-btn panel-btn-quiet" onClick={() => setConfirmAll(true)} disabled={busy}>
+              {`Dismiss all ${sameSender.length} from ${addrOnly(email.email_from)}`}
+            </button>
+          ))}
       </div>
       {err && <p className="mx-error">{err}</p>}
     </div>
