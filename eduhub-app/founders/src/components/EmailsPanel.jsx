@@ -633,7 +633,10 @@ function ComposeForm({ familyId, onDone, onCancel }) {
 
 // -------------------------------------------------------------------- main
 
-export const isUnread = (n) => n.direction === "inbound" && !n.read_at;
+export const isUnread = (n) => n.direction === "inbound" && !n.read_at && (n.mailbox_folder || "inbox") === "inbox";
+// Mail copied from Titan's Spam and Trash folders stays out of the everyday views.
+const boxOf = (n) => n.mailbox_folder || "inbox";
+const isJunk = (n) => boxOf(n) === "spam" || boxOf(n) === "trash";
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -641,6 +644,8 @@ const FILTERS = [
   { key: "inbound", label: "Received" },
   { key: "outbound", label: "Sent" },
   { key: "files", label: "Attachments" },
+  { key: "archive", label: "Archive" },
+  { key: "junk", label: "Spam & trash" },
 ];
 
 export default function EmailsPanel({
@@ -700,6 +705,10 @@ export default function EmailsPanel({
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return notes.filter((n) => {
+      if (filter === "junk") {
+        if (!isJunk(n)) return false;
+      } else if (isJunk(n)) return false;
+      if (filter === "archive" && boxOf(n) !== "archive") return false;
       if (filter === "unread" && !isUnread(n)) return false;
       if (filter === "inbound" && n.direction !== "inbound") return false;
       if (filter === "outbound" && n.direction !== "outbound") return false;
@@ -767,11 +776,13 @@ export default function EmailsPanel({
   }
 
   const counts = {
-    all: notes.length,
+    all: notes.filter((n) => !isJunk(n)).length,
     unread: notes.filter(isUnread).length,
-    inbound: notes.filter((n) => n.direction === "inbound").length,
-    outbound: notes.filter((n) => n.direction === "outbound").length,
-    files: notes.filter((n) => filesOf(n).length).length,
+    inbound: notes.filter((n) => !isJunk(n) && n.direction === "inbound").length,
+    outbound: notes.filter((n) => !isJunk(n) && n.direction === "outbound").length,
+    files: notes.filter((n) => !isJunk(n) && filesOf(n).length).length,
+    archive: notes.filter((n) => boxOf(n) === "archive").length,
+    junk: notes.filter(isJunk).length,
   };
 
   return (
@@ -779,7 +790,7 @@ export default function EmailsPanel({
       <div className="mx-top">
         <h2>
           Emails
-          {notes.length > 0 && <span className="family-detail-card-count">{notes.length}</span>}
+          {counts.all > 0 && <span className="family-detail-card-count">{counts.all}</span>}
         </h2>
         <div className="mx-top-actions">
           <button type="button" className="panel-btn panel-btn-primary mx-new" onClick={() => openComposer({ mode: "new" })}>
