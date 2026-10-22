@@ -131,7 +131,10 @@ function whoLine(ev) {
   return [ev.familyName, ev.childName].filter(Boolean).join(" · ");
 }
 
-// Side-by-side columns for events that overlap in the week view.
+// Events that overlap are stacked on top of each other (full width, one under the other,
+// in time order) so every family and consultant stays readable. A stack starts at its
+// first event's time; later events that would land inside the stack join it.
+const STACK_PX = 52;
 function layoutDay(events) {
   const items = events
     .map((ev) => {
@@ -141,27 +144,27 @@ function layoutDay(events) {
     })
     .sort((a, b) => a.s - b.s || b.e - a.e);
   const out = [];
-  let cluster = [];
-  let clusterEnd = -1;
+  let group = [];
+  let groupEnd = -1; // minute where the group ends, real or stretched to fit the stack
   const flush = () => {
-    const cols = [];
-    cluster.forEach((it) => {
-      let c = cols.findIndex((end) => end <= it.s);
-      if (c === -1) {
-        c = cols.length;
-        cols.push(it.e);
-      } else cols[c] = it.e;
-      it.col = c;
-    });
-    cluster.forEach((it) => out.push({ ...it, cols: cols.length }));
-    cluster = [];
+    if (group.length === 1) {
+      const it = group[0];
+      out.push({ ...it, top: (it.s / 60) * HOUR_PX + 1, height: ((it.e - it.s) / 60) * HOUR_PX - 2, stacked: false });
+    } else {
+      group.forEach((it, i) =>
+        out.push({ ...it, top: (group[0].s / 60) * HOUR_PX + 1 + i * STACK_PX, height: STACK_PX - 3, stacked: true })
+      );
+    }
+    group = [];
   };
   items.forEach((it) => {
-    if (cluster.length && it.s >= clusterEnd) flush();
-    cluster.push(it);
-    clusterEnd = Math.max(clusterEnd, it.e);
+    if (group.length && it.s >= groupEnd) flush();
+    group.push(it);
+    const real = Math.max(...group.map((g) => g.e));
+    const stretched = group.length > 1 ? group[0].s + ((group.length * STACK_PX) / HOUR_PX) * 60 : 0;
+    groupEnd = Math.max(real, stretched);
   });
-  if (cluster.length) flush();
+  if (group.length) flush();
   return out;
 }
 
@@ -670,18 +673,17 @@ function WeekView({ days, today, byDay, onOpen, onCreate }) {
                 style={{ backgroundSize: `100% ${HOUR_PX}px` }}
                 onClick={(e) => slotFromClick(e, d)}
               >
-                {layoutDay(timed).map(({ ev, s, e, col, cols }) => {
-                  const height = ((e - s) / 60) * HOUR_PX - 2;
+                {layoutDay(timed).map(({ ev, top, height, stacked }) => {
                   return (
                     <button
                       key={ev.key}
                       type="button"
-                      className={"cw-event " + tone(ev) + (isStruck(ev) ? " is-struck" : "") + (height < 40 ? " is-short" : "")}
+                      className={"cw-event " + tone(ev) + (isStruck(ev) ? " is-struck" : "") + (stacked ? " is-stacked" : height < 40 ? " is-short" : "")}
                       style={{
-                        top: (s / 60) * HOUR_PX + 1,
+                        top,
                         height,
-                        left: `calc(${(col / cols) * 100}% + 2px)`,
-                        width: `calc(${100 / cols}% - 4px)`,
+                        left: 2,
+                        width: "calc(100% - 4px)",
                       }}
                       onClick={(evt) => {
                         evt.stopPropagation();

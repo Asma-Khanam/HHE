@@ -777,3 +777,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Stacked events: one under the other, title and who/time on two tidy lines */
+.cw-event.is-stacked { justify-content: center; padding: 3px 7px; }
+.cw-event.is-stacked .cw-event-title,
+.cw-event.is-stacked .cw-event-time,
+.cw-event.is-stacked .cw-event-who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cw-event.is-stacked .cw-event-time { display: inline; }
