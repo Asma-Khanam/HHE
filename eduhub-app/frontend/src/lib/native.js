@@ -8,6 +8,11 @@ export const isNativeApp = Capacitor.isNativePlatform();
 const API_BASE = import.meta.env.VITE_API_BASE || "https://hhe.vercel.app";
 export const apiUrl = (path) => (isNativeApp ? `${API_BASE}${path}` : path);
 
+// Full web address for a page on the live site. Used for links that get opened
+// OUTSIDE the app (e.g. the password-reset email), where the app's own address
+// (capacitor://localhost) means nothing.
+export const webUrl = (path) => (isNativeApp ? `${API_BASE}${path}` : `${window.location.origin}${path}`);
+
 // Runs once when the app opens: tidy status bar, hide the splash screen.
 export async function initNativeApp() {
   if (!isNativeApp) return;

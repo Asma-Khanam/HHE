@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import { supabase } from "../lib/supabaseClient";
+import { webUrl } from "../lib/native";
 import "../styles/form.css";
 
 // September 2026 change request — a self-serve way back into an account.
@@ -18,7 +19,9 @@ export default function ForgotPassword() {
     setError("");
     setSubmitting(true);
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
+      // In the app this must be the live website: the reset page opens in the phone's
+      // browser, the family sets a new password there, then logs back in to the app.
+      redirectTo: webUrl("/reset-password"),
     });
     setSubmitting(false);
     if (resetError) {
