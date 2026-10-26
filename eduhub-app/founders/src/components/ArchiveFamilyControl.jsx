@@ -4,7 +4,7 @@ import "./ArchiveFamilyControl.css";
 
 // Archive a family that decides not to move (Miss Lyndsay, 21 Oct 2026). Nothing is
 // deleted: they leave the Caseload, Workload and Dashboard, and can be restored.
-const REASONS = ["Not moving", "Went elsewhere", "Not responding", "Other"];
+const REASONS = ["Not moving", "Went elsewhere", "Not responding", "Duplicate account", "Other"];
 
 export default function ArchiveFamilyControl({ family, onChanged }) {
   const [open, setOpen] = useState(false);
