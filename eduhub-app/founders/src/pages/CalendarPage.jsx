@@ -135,12 +135,34 @@ function whoLine(ev) {
 // tall enough to hold the whole stack, so every card still sits in the right hour and
 // the hour labels stay true. Quiet hours keep their normal height.
 const STACK_PX = 52;
+
+// Which hour row an event is drawn in. Normally the hour it starts in. But an event that
+// starts late in an hour (say 8:45) has hardly any room left in that row, so it used to
+// spill down behind whatever starts at 9. When the NEXT hour also has an event, the late
+// starter joins that hour's stack instead (listed first, with its own time shown).
+const LATE_MIN = 60 * (1 - 28 / HOUR_PX);
+function bucketMap(events) {
+  const startHours = new Set();
+  events.forEach((ev) => {
+    if (ev.start) startHours.add(Math.min(23, Math.floor(toMin(ev.start) / 60)));
+  });
+  const map = new Map();
+  events.forEach((ev) => {
+    if (!ev.start) return;
+    const m = toMin(ev.start);
+    const h = Math.min(23, Math.floor(m / 60));
+    map.set(ev, h < 23 && m - h * 60 > LATE_MIN && startHours.has(h + 1) ? h + 1 : h);
+  });
+  return map;
+}
 function hourScale(byDay, days) {
   const rowH = Array(24).fill(HOUR_PX);
   days.forEach((d) => {
     const count = Array(24).fill(0);
-    (byDay[toDateKey(d)] || []).forEach((ev) => {
-      if (ev.start) count[Math.min(23, Math.floor(toMin(ev.start) / 60))]++;
+    const dayEvents = byDay[toDateKey(d)] || [];
+    const buckets = bucketMap(dayEvents);
+    dayEvents.forEach((ev) => {
+      if (ev.start) count[buckets.get(ev)]++;
     });
     count.forEach((c, h) => {
       if (c > 1) rowH[h] = Math.max(rowH[h], c * STACK_PX + 4);
@@ -161,11 +183,12 @@ function hourScale(byDay, days) {
 }
 
 function layoutDay(events, scale) {
+  const buckets = bucketMap(events);
   const items = events
     .map((ev) => {
       const s = toMin(ev.start);
       const e = Math.max(toMin(ev.end) ?? s + 60, s + 30);
-      return { ev, s, e, h: Math.min(23, Math.floor(s / 60)) };
+      return { ev, s, e, h: buckets.get(ev) ?? Math.min(23, Math.floor(s / 60)) };
     })
     .sort((a, b) => a.s - b.s || b.e - a.e);
   const perHour = {};
