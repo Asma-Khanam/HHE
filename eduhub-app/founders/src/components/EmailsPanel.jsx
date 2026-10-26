@@ -658,6 +658,8 @@ export default function EmailsPanel({
   familyAddress = "",
   moveDate = "",
   entryPhrase = "",
+  dubaiFrom = "",
+  dubaiUntil = "",
 }) {
   const [notes, setNotes] = useState(() =>
     (allNotes || [])
@@ -860,6 +862,9 @@ export default function EmailsPanel({
           familyAddress={familyAddress}
           moveDate={moveDate}
           entryPhrase={entryPhrase}
+          childRows={familyChildren}
+          dubaiFrom={dubaiFrom}
+          dubaiUntil={dubaiUntil}
           initial={writing}
           onSent={onSent}
           onClose={() => {
@@ -982,6 +987,9 @@ export default function EmailsPanel({
           familyAddress={familyAddress}
           moveDate={moveDate}
           entryPhrase={entryPhrase}
+          childRows={familyChildren}
+          dubaiFrom={dubaiFrom}
+          dubaiUntil={dubaiUntil}
           initial={writing}
           onSent={onSent}
           onClose={() => {

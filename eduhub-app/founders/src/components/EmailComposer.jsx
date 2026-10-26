@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { sendFamilyEmail, listSchoolRecipients, friendlyError } from "../lib/staffData";
+import { placesEmailText } from "../lib/placesEmail";
 import "./EmailComposer.css";
 
 // New email / Reply / Forward, Outlook-style (26 Sept 2026). Sends through
@@ -128,6 +129,9 @@ export default function EmailComposer({
   familyAddress,
   moveDate = "",
   entryPhrase = "",
+  childRows = [], // the children's records, for the places email wording
+  dubaiFrom = "",
+  dubaiUntil = "",
   initial = {},
   onSent,
   onClose,
@@ -193,7 +197,7 @@ export default function EmailComposer({
     const T = {
       places: {
         subject: subjectBase,
-        text: `Dear Admissions team,\n\nI'm writing on behalf of ${fam}, who are relocating to Dubai${whenPhrase}. Could you let us know whether you have places available for:\n${kids}\n\nIf there are, we'd love to arrange a tour.\n\nKind regards,`,
+        text: placesEmailText({ familyName, children: childRows, dubaiFrom, dubaiUntil }),
       },
       tour: {
         subject: `${famShort}: tour request`,

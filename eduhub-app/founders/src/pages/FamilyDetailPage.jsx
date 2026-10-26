@@ -1054,6 +1054,8 @@ export default function FamilyDetailPage() {
           familyName={displayName}
           familyChildren={children}
           moveDate={family.planned_move_date || ""}
+          dubaiFrom={family.dubai_available_from || ""}
+          dubaiUntil={family.dubai_available_until || ""}
           entryPhrase={(() => {
             // Miss Lyndsay, 12 Oct 2026: schools should hear the start term the
             // family chose, not the dates they are visiting Dubai.

@@ -2734,6 +2734,8 @@ export async function getEmailContext(familyId) {
     documents,
     familyAddress: alias ? `${alias}@applications.heatherharries.com` : "",
     moveDate: family.planned_move_date || "",
+    dubaiFrom: family.dubai_available_from || "",
+    dubaiUntil: family.dubai_available_until || "",
     entryPhrase,
   };
 }

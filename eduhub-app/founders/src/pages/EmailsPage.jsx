@@ -941,6 +941,9 @@ export default function EmailsPage() {
                     familyAddress={writing.ctx.familyAddress}
                     moveDate={writing.ctx.moveDate}
                     entryPhrase={writing.ctx.entryPhrase}
+                    childRows={writing.ctx.children}
+                    dubaiFrom={writing.ctx.dubaiFrom}
+                    dubaiUntil={writing.ctx.dubaiUntil}
                     initial={writing.initial}
                     onSent={onSent}
                     onClose={() => {
