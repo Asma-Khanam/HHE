@@ -2098,19 +2098,43 @@ export async function sendFamilyEmail(payload) {
   return data.note;
 }
 
-// Everyone at the family's shortlisted schools, for the To box.
+// Everyone for the To / Cc box: the family's shortlisted schools first, then every
+// other school on the Schools list (Miss Lyndsay, 26 Oct 2026: typing "Queen
+// Elizabeth" should bring up that school's admissions email). Archived contacts
+// are left out; a school with no contacts uses its admissions email.
 export async function listSchoolRecipients(familyId) {
-  const shortlist = await listShortlistForFamily(familyId);
-  const schoolIds = [...new Set(shortlist.map((r) => r.school_id))];
-  const contacts = (await listSchoolContacts(schoolIds).catch(() => null)) || [];
+  const [shortlist, schools, contactRes] = await Promise.all([
+    listShortlistForFamily(familyId).catch(() => []),
+    listSchools(),
+    supabase.from("school_contacts").select("*").order("is_main", { ascending: false }).order("created_at"),
+  ]);
+  // Addendum 80 not run yet: contactRes.error is set, so fall back to the school row's own email.
+  const contacts = contactRes.error ? [] : contactRes.data || [];
+  const shortlisted = new Set(shortlist.map((r) => r.school_id));
+  const ordered = [...schools].sort((a, b) => Number(shortlisted.has(b.id)) - Number(shortlisted.has(a.id)));
+
   const out = [];
-  shortlist.forEach((r) => {
-    const school = r.school || {};
-    const own = contacts.filter((c) => c.school_id === r.school_id && !c.archived_at && c.email);
+  const seen = new Set();
+  const push = (r) => {
+    const key = String(r.email || "").trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push({ ...r, email: String(r.email).trim() });
+  };
+  ordered.forEach((school) => {
+    const own = contacts.filter((c) => c.school_id === school.id && !c.archived_at && c.email);
     if (own.length)
-      own.forEach((c) => out.push({ email: c.email, name: c.full_name || "", title: c.job_title || "", school: school.name || "" }));
+      own.forEach((c) =>
+        push({ email: c.email, name: c.full_name || "", title: c.job_title || "", school: school.name || "", onShortlist: shortlisted.has(school.id) })
+      );
     else if (school.admissions_contact_email)
-      out.push({ email: school.admissions_contact_email, name: school.admissions_contact_name || "Admissions", title: "", school: school.name || "" });
+      push({
+        email: school.admissions_contact_email,
+        name: school.admissions_contact_name || "Admissions",
+        title: "",
+        school: school.name || "",
+        onShortlist: shortlisted.has(school.id),
+      });
   });
   return out;
 }

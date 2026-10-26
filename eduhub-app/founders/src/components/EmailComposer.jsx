@@ -37,7 +37,7 @@ function saveDraft(key, value) {
   }
 }
 
-// To / Cc box: chips, with suggestions from the family's schools.
+// To / Cc box: chips, with suggestions from every school on the Schools list (the family's own schools first).
 function RecipientInput({ label, value, onChange, suggestions, autoFocus }) {
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
@@ -47,7 +47,7 @@ function RecipientInput({ label, value, onChange, suggestions, autoFocus }) {
     return suggestions
       .filter((s) => !value.includes(s.email))
       .filter((s) => !q || [s.email, s.name, s.school, s.title].join(" ").toLowerCase().includes(q))
-      .slice(0, 8);
+      .slice(0, 10);
   }, [text, suggestions, value]);
 
   function add(email) {
