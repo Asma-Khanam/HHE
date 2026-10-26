@@ -5,6 +5,8 @@ import {
   linkCalendlyBooking,
   saveCalendlyBookingNote,
   listFamilies,
+  listZoomSummariesByMeeting,
+  zoomIdFromUrl,
   friendlyError,
 } from "../lib/staffData";
 import "../components/panels.css";
@@ -43,7 +45,7 @@ function paymentLabel(b) {
   return b.payment_paid ? `Paid${amount ? ` · ${amount}` : ""}` : `Not paid${amount ? ` · ${amount}` : ""}`;
 }
 
-function BookingCard({ booking, families, onChanged }) {
+function BookingCard({ booking, families, summaries, onChanged }) {
   const [open, setOpen] = useState(false);
   const [pick, setPick] = useState("");
   const [note, setNote] = useState(booking.staff_note || "");
@@ -54,6 +56,7 @@ function BookingCard({ booking, families, onChanged }) {
   const family = families.find((f) => f.id === booking.family_id) || null;
   const pay = paymentLabel(booking);
   const canceled = booking.status === "canceled";
+  const zoomSummaries = summaries[zoomIdFromUrl(booking.join_url)] || [];
 
   async function link() {
     if (!pick) return;
@@ -164,6 +167,15 @@ function BookingCard({ booking, families, onChanged }) {
             </div>
           )}
 
+          {zoomSummaries.length > 0 && (
+            <div className="consult-zoom">
+              <div className="panel-field-label">Zoom summary (added automatically)</div>
+              {zoomSummaries.map((z) => (
+                <pre key={z.id} className="consult-zoom-text">{z.body}</pre>
+              ))}
+            </div>
+          )}
+
           <label className="panel-field-label" htmlFor={`cn-${booking.id}`}>
             Staff note
           </label>
@@ -193,14 +205,16 @@ function BookingCard({ booking, families, onChanged }) {
 export default function ConsultationsPage() {
   const [bookings, setBookings] = useState([]);
   const [families, setFamilies] = useState([]);
+  const [summaries, setSummaries] = useState({});
   const [filter, setFilter] = useState("upcoming");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   async function load() {
     try {
-      const [b, f] = await Promise.all([listCalendlyBookings(), listFamilies()]);
+      const [b, f, z] = await Promise.all([listCalendlyBookings(), listFamilies(), listZoomSummariesByMeeting()]);
       setBookings(b);
+      setSummaries(z);
       setFamilies(f);
       setError("");
     } catch (e) {
@@ -267,7 +281,7 @@ export default function ConsultationsPage() {
       ) : (
         <ul className="consult-list">
           {shown.map((b) => (
-            <BookingCard key={b.id} booking={b} families={families} onChanged={load} />
+            <BookingCard key={b.id} booking={b} families={families} summaries={summaries} onChanged={load} />
           ))}
         </ul>
       )}

@@ -2314,6 +2314,25 @@ export function isPaidConsultEvent(name) {
   return /consult/.test(n) && !/sanity/.test(n);
 }
 
+// Zoom AI summaries kept by the webhook (addendum 122), keyed by Zoom meeting ID.
+// Returns { [meetingId]: [{ id, topic, body, occurred_at }] }, newest first.
+export async function listZoomSummariesByMeeting() {
+  const { data, error } = await supabase
+    .from("zoom_unmatched_summaries")
+    .select("id, zoom_meeting_id, topic, body, occurred_at")
+    .order("occurred_at", { ascending: false });
+  if (error) return {}; // table missing or not readable: the page still works without summaries
+  const out = {};
+  (data || []).forEach((r) => {
+    (out[r.zoom_meeting_id] = out[r.zoom_meeting_id] || []).push(r);
+  });
+  return out;
+}
+
+export function zoomIdFromUrl(url) {
+  return (url && /zoom\.us\/j\/(\d+)/i.exec(url)?.[1]) || "";
+}
+
 export async function saveCalendlyBookingNote(bookingId, note) {
   unwrap(
     await supabase

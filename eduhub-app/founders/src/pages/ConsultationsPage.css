@@ -40,3 +40,15 @@
 .consult-empty { opacity: 0.6; font-size: 0.92rem; }
 .consult-error { color: #a12626; font-size: 0.85rem; margin: 0; }
 @media (max-width: 560px) { .consult-details div { grid-template-columns: 1fr; gap: 2px; } }
+
+.consult-zoom { margin: 12px 0; }
+.consult-zoom-text {
+  white-space: pre-wrap;
+  font: inherit;
+  background: #f7f3f6;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 6px 0 0;
+  max-height: 320px;
+  overflow: auto;
+}

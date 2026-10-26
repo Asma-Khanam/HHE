@@ -134,32 +134,35 @@ export default async function handler(req, res) {
     const when = o.meeting_start_time || o.summary_start_time || o.summary_created_time || new Date().toISOString();
     const ref = `zoom:${o.meeting_uuid || meetingId + ":" + when}`;
 
+    // Always keep a copy by meeting ID (addendum 122), so the Consultations page can show
+    // the summary on the booking whether or not a family is linked.
+    let kept = false;
+    try {
+      await sb("zoom_unmatched_summaries?on_conflict=external_ref", {
+        method: "POST",
+        headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+        body: JSON.stringify({
+          zoom_meeting_id: meetingId,
+          topic: o.meeting_topic || null,
+          body: text,
+          occurred_at: new Date(when).toISOString(),
+          external_ref: ref,
+        }),
+      });
+      kept = true;
+    } catch (e) {
+      await record(body.event, meetingId, "keep_failed", `Copy not kept (has addendum 122 been run?) ${e.message}`);
+    }
+
     const links = await sb(
       `zoom_meeting_links?zoom_meeting_id=eq.${meetingId}&select=family_id,join_url,topic&order=created_at.desc&limit=1`
     );
     const link = links[0];
     if (!link) {
-      // No family yet (a new enquirer's consultation, or the link is added after the
-      // call). Keep the summary so it can be shown on the consultation and added to
-      // the family's notes the moment a link is made (addendum 122).
-      try {
-        await sb("zoom_unmatched_summaries?on_conflict=external_ref", {
-          method: "POST",
-          headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
-          body: JSON.stringify({
-            zoom_meeting_id: meetingId,
-            topic: o.meeting_topic || null,
-            body: text,
-            occurred_at: new Date(when).toISOString(),
-            external_ref: ref,
-          }),
-        });
-        await record(body.event, meetingId, "kept_unlinked", "Kept until a family is linked");
-        return res.status(200).json({ kept: true });
-      } catch (e) {
-        await record(body.event, meetingId, "not_linked", `Not kept (has addendum 122 been run?) ${e.message}`);
-        return res.status(200).json({ ignored: "meeting not linked to a family" });
-      }
+      // No family yet (a new enquirer's consultation, or the link is added after the call).
+      // The kept copy is added to the family's notes the moment a link is made.
+      await record(body.event, meetingId, kept ? "kept_unlinked" : "not_linked", kept ? "Kept until a family is linked" : null);
+      return res.status(200).json(kept ? { kept: true } : { ignored: "meeting not linked to a family" });
     }
 
     const url = link.join_url ? `\n\nZoom link: ${link.join_url}` : "";
