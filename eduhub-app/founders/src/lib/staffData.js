@@ -2104,7 +2104,7 @@ export async function sendFamilyEmail(payload) {
 // are left out; a school with no contacts uses its admissions email.
 export async function listSchoolRecipients(familyId) {
   const [shortlist, schools, contactRes] = await Promise.all([
-    listShortlistForFamily(familyId).catch(() => []),
+    familyId ? listShortlistForFamily(familyId).catch(() => []) : Promise.resolve([]),
     listSchools(),
     supabase.from("school_contacts").select("*").order("is_main", { ascending: false }).order("created_at"),
   ]);

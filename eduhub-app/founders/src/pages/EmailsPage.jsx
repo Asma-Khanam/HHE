@@ -253,7 +253,6 @@ export default function EmailsPage() {
   const [writing, setWriting] = useState(null);
   const [staffName, setStaffName] = useState("");
   const [starting, setStarting] = useState(false);
-  const [newFor, setNewFor] = useState(null); // the "New email" family picker
   useEffect(() => {
     getCurrentStaff()
       .then((st) => setStaffName(st?.full_name || st?.email || ""))
@@ -267,11 +266,27 @@ export default function EmailsPage() {
       const ctx = await getEmailContext(familyId);
       setWriting({ ctx, initial: makeInitial(ctx) });
       setMobileReading(true);
-      setNewFor(null);
     } catch (e) {
       setError(friendlyError(e, "Couldn't open the email composer."));
     } finally {
       setStarting(false);
+    }
+  }
+  // "New email" opens the composer straight away; the family is picked inside it.
+  function startBlankEmail() {
+    setWriting({
+      ctx: { familyId: "", familyName: "", children: [], documents: [], familyAddress: "", moveDate: "", entryPhrase: "", dubaiFrom: "", dubaiUntil: "" },
+      initial: { mode: "new" },
+    });
+    setMobileReading(true);
+  }
+  async function pickFamilyForNew(id, snapshot) {
+    setError("");
+    try {
+      const ctx = await getEmailContext(id);
+      setWriting({ ctx, initial: snapshot });
+    } catch (e) {
+      setError(friendlyError(e, "Couldn't open that family."));
     }
   }
   function onSent(note) {
@@ -666,7 +681,7 @@ export default function EmailsPage() {
           </p>
         </div>
         <div className="ep-head-actions">
-          <button type="button" className="panel-btn panel-btn-primary" onClick={() => setNewFor((v) => (v === null ? "" : null))}>
+          <button type="button" className="panel-btn panel-btn-primary" onClick={startBlankEmail}>
             ✎ New email
           </button>
           <button type="button" className="panel-btn" onClick={load}>
@@ -681,15 +696,6 @@ export default function EmailsPage() {
           </button>
         </div>
       </div>
-
-      {newFor !== null && (
-        <FamilyPicker
-          families={families}
-          busy={starting}
-          onPick={(id) => startWriting(id, () => ({ mode: "new" }))}
-          onCancel={() => setNewFor(null)}
-        />
-      )}
 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
       {notice && (
@@ -945,6 +951,8 @@ export default function EmailsPage() {
                     dubaiFrom={writing.ctx.dubaiFrom}
                     dubaiUntil={writing.ctx.dubaiUntil}
                     initial={writing.initial}
+                    families={writing.initial.mode === "new" ? families : null}
+                    onPickFamily={writing.initial.mode === "new" ? pickFamilyForNew : null}
                     onSent={onSent}
                     onClose={() => {
                       setWriting(null);
@@ -1165,53 +1173,6 @@ function FileBar({ email, siblings, sameSender = [], families, onFiled, onDismis
               {`Dismiss all ${sameSender.length} from ${addrOnly(email.email_from)}`}
             </button>
           ))}
-      </div>
-      {err && <p className="mx-error">{err}</p>}
-    </div>
-  );
-}
-
-// "New email": choose which family it is for (the reply address and the school's
-// replies are per family), then the composer opens.
-function FamilyPicker({ families, busy, onPick, onCancel }) {
-  const [choice, setChoice] = useState("");
-  const [err, setErr] = useState("");
-  const labelFor = (f) => `${f.name} · ${f.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
-  const byLabel = useMemo(() => new Map(families.map((f) => [labelFor(f), f])), [families]);
-  function go() {
-    const fam = byLabel.get(choice.trim());
-    if (!fam) {
-      setErr("Pick a family from the list.");
-      return;
-    }
-    onPick(fam.id);
-  }
-  return (
-    <div className="ep-bar ep-picker">
-      <div className="ep-bar-text">
-        <strong>Which family is this email for?</strong>
-      </div>
-      <div className="ep-bar-actions">
-        <input
-          className="panel-input ep-family-input"
-          list="ep-new-family-list"
-          placeholder="Type a family name…"
-          value={choice}
-          onChange={(e) => setChoice(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && go()}
-          disabled={busy}
-        />
-        <datalist id="ep-new-family-list">
-          {families.map((f) => (
-            <option key={f.id} value={labelFor(f)} />
-          ))}
-        </datalist>
-        <button type="button" className="panel-btn panel-btn-primary" onClick={go} disabled={busy || !choice.trim()}>
-          {busy ? "Opening…" : "Write email"}
-        </button>
-        <button type="button" className="panel-btn panel-btn-quiet" onClick={onCancel} disabled={busy}>
-          Cancel
-        </button>
       </div>
       {err && <p className="mx-error">{err}</p>}
     </div>

@@ -120,6 +120,38 @@ function RecipientInput({ label, value, onChange, suggestions, autoFocus }) {
   );
 }
 
+// "Family" row for a brand-new email written from the Emails page: pick the family the
+// email is about (the reply address and the school's replies are per family).
+function FamilyField({ families, familyId, onPick }) {
+  const labelFor = (f) => `${f.name} · ${f.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+  const byLabel = useMemo(() => new Map(families.map((f) => [labelFor(f), f])), [families]);
+  const current = families.find((f) => f.id === familyId);
+  const [text, setText] = useState(current ? labelFor(current) : "");
+  function change(v) {
+    setText(v);
+    const fam = byLabel.get(v.trim());
+    if (fam && fam.id !== familyId) onPick(fam.id);
+  }
+  return (
+    <div className="ec-row">
+      <span className="ec-label">Family</span>
+      <input
+        className="ec-subject"
+        list="ec-family-list"
+        value={text}
+        placeholder="Type a family name…"
+        onChange={(e) => change(e.target.value)}
+        autoFocus={!familyId}
+      />
+      <datalist id="ec-family-list">
+        {families.map((f) => (
+          <option key={f.id} value={labelFor(f)} />
+        ))}
+      </datalist>
+    </div>
+  );
+}
+
 export default function EmailComposer({
   familyId,
   familyName,
@@ -132,20 +164,22 @@ export default function EmailComposer({
   childRows = [], // the children's records, for the places email wording
   dubaiFrom = "",
   dubaiUntil = "",
+  families = null, // [{ id, name }] -- with onPickFamily, a new email picks its family inside the composer
+  onPickFamily = null,
   initial = {},
   onSent,
   onClose,
 }) {
   const isNew = !initial.mode || initial.mode === "new";
-  const draftKey = `hhe-email-draft-${familyId}`;
+  const draftKey = `hhe-email-draft-${familyId || "new"}`;
   const start = isNew ? loadDraft(draftKey) || {} : {};
   const [to, setTo] = useState(initial.to || start.to || []);
   const [cc, setCc] = useState(initial.cc || start.cc || []);
   const [showCc, setShowCc] = useState(!!(initial.cc?.length || start.cc?.length));
-  const [ccMe, setCcMe] = useState(start.ccMe ?? false);
+  const [ccMe, setCcMe] = useState(initial.ccMe ?? start.ccMe ?? false);
   const [subject, setSubject] = useState(initial.subject ?? start.subject ?? "");
   const [text, setText] = useState(initial.text ?? start.text ?? "");
-  const [files, setFiles] = useState([]); // { name, type, size, content }
+  const [files, setFiles] = useState(initial.files || []); // { name, type, size, content }
   const [docIds, setDocIds] = useState([]);
   const [showDocs, setShowDocs] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
@@ -154,10 +188,10 @@ export default function EmailComposer({
   const bodyRef = useRef(null);
   // The last template text and subject put in by a button, so the next click replaces
   // them instead of stacking another copy (Miss Lyndsay's team, 26 Oct 2026).
-  const lastTpl = useRef({ text: start.tplText || "", subject: start.tplSubject || "" });
+  const lastTpl = useRef({ text: initial.tplText ?? start.tplText ?? "", subject: initial.tplSubject ?? start.tplSubject ?? "", key: initial.tplKey ?? start.tplKey ?? "" });
 
   useEffect(() => {
-    listSchoolRecipients(familyId)
+    listSchoolRecipients(familyId || null)
       .then(setSuggestions)
       .catch(() => {});
   }, [familyId]);
@@ -165,7 +199,7 @@ export default function EmailComposer({
   // New emails keep a draft in this browser while you type.
   useEffect(() => {
     if (!isNew) return;
-    const t = setTimeout(() => saveDraft(draftKey, to.length || cc.length || subject || text ? { to, cc, ccMe, subject, text, tplText: lastTpl.current.text, tplSubject: lastTpl.current.subject } : null), 400);
+    const t = setTimeout(() => saveDraft(draftKey, to.length || cc.length || subject || text ? { to, cc, ccMe, subject, text, tplText: lastTpl.current.text, tplSubject: lastTpl.current.subject, tplKey: lastTpl.current.key } : null), 400);
     return () => clearTimeout(t);
   }, [isNew, draftKey, to, cc, ccMe, subject, text]);
 
@@ -219,10 +253,20 @@ export default function EmailComposer({
     if (!text.trim()) nextText = T.text;
     else if (prev && text.includes(prev)) nextText = text.replace(prev, () => T.text);
     else nextText = T.text + `\n\n${text}`;
-    lastTpl.current = { text: T.text, subject: T.subject };
+    lastTpl.current = { text: T.text, subject: T.subject, key };
     setText(nextText);
     if (key === "docs") setShowDocs(true);
     requestAnimationFrame(() => bodyRef.current?.focus());
+  }
+
+  // The family was just picked inside this composer: redo the template with their details.
+  useEffect(() => {
+    if (initial.tplKey && familyId && initial.tplText && text.includes(initial.tplText)) applyTemplate(initial.tplKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function snapshot() {
+    return { mode: "new", to, cc, ccMe, subject, text, files, tplText: lastTpl.current.text, tplSubject: lastTpl.current.subject, tplKey: lastTpl.current.key };
   }
 
   async function send() {
@@ -254,7 +298,8 @@ export default function EmailComposer({
     onClose();
   }
 
-  const canSend = to.length > 0 && text.trim() && !busy;
+  const needsFamily = !!onPickFamily && !familyId;
+  const canSend = !needsFamily && to.length > 0 && text.trim() && !busy;
 
   return (
     <div className="ec" onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === "Enter" && canSend && send()}>
@@ -269,6 +314,7 @@ export default function EmailComposer({
         <span className="ec-label">From</span>
         <span>
           Heather Harries Relocation
+          {needsFamily && <em> · pick the family below to get the reply address</em>}
           {familyAddress && (
             <em>
               {" "}
@@ -277,6 +323,17 @@ export default function EmailComposer({
           )}
         </span>
       </div>
+      {onPickFamily && isNew && families && (
+        <FamilyField
+          key={familyId || "none"}
+          families={families}
+          familyId={familyId}
+          onPick={(id) => {
+            saveDraft(draftKey, null);
+            onPickFamily(id, snapshot());
+          }}
+        />
+      )}
       <RecipientInput label="To" value={to} onChange={setTo} suggestions={suggestions} autoFocus={isNew && !to.length} />
       {showCc ? (
         <RecipientInput label="Cc" value={cc} onChange={setCc} suggestions={suggestions} />
@@ -386,7 +443,7 @@ export default function EmailComposer({
             }}
           />
         </label>
-        <button type="button" className="panel-btn" onClick={() => setShowDocs((v) => !v)}>
+        <button type="button" className="panel-btn" disabled={needsFamily} onClick={() => setShowDocs((v) => !v)}>
           {showDocs ? "Hide documents" : "From family documents"}
         </button>
         <span className="ec-hint">Ctrl/⌘ + Enter to send</span>
