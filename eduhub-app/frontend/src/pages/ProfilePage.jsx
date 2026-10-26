@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import PageHeader from "../components/PageHeader";
+import DeleteAccountCard from "../components/DeleteAccountCard";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import { displayNameForChild } from "../lib/completeness";
 import "./ProfilePage.css";
@@ -132,6 +133,7 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+      <DeleteAccountCard />
       <p className="profile-privacy"><Link to="/privacy">Privacy policy</Link></p>
     </div>
   );

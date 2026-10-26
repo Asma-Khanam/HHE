@@ -33,7 +33,6 @@ body,
 /* Phone polish (7 Oct 2026) */
 html,
 body {
-  overflow-x: clip;
   -webkit-text-size-adjust: 100%;
 }
 @media (max-width: 820px) {

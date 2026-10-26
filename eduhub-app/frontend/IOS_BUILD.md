@@ -29,7 +29,7 @@ Every time the website code changes, repeat `npm run build` and `npx cap sync io
 - Password-reset email link opens the live website (inside the app the app's own address would not work)
 
 ## Still to do before submitting
-1. **Account deletion inside the app** (Apple guideline 5.1.1(v)) — not built yet. See open question on invoices/accounting records.
+1. ~~Account deletion inside the app~~ — built 26/10/2026: Profile > Delete account, `/api/delete-account`, addendum 126. Erases login, details, children, parents and uploaded files; keeps invoices/payments (family row stays, archived, no login). Needs addendum 126 run in Supabase and the privacy policy to say invoices are kept.
 2. **Push notifications** — plugin is installed, nothing uses it yet. Needs: Push Notifications capability in Xcode (once the paid account exists), an APNs key from the developer account, a table for device tokens and a sender.
 3. **Reviewer demo login** with sample family data (account must work on the day of review).
 4. **Privacy policy** page wording approved by the founders (public link: `/privacy`), same link entered in App Store Connect.

@@ -40,7 +40,20 @@ function FlatFallback() {
   );
 }
 
+// Build with VITE_FLAT_LOGO=1 to use the flat logo instead of the 3D one. The iPhone
+// Simulator on an Intel Mac cannot run WebGL (its graphics process keeps crashing and
+// the screen stays white), so use this only for testing there. Real iPhones and the
+// website do not set it and keep the spinning logo.
+const FLAT_LOGO = import.meta.env.VITE_FLAT_LOGO === "1";
+
 export default function SpinningLogo3D() {
+  if (FLAT_LOGO) {
+    return (
+      <div className="spinning-logo-stage">
+        <FlatFallback />
+      </div>
+    );
+  }
   return (
     <div className="spinning-logo-stage">
       <WebglBoundary fallback={<FlatFallback />}>
@@ -61,4 +74,4 @@ export default function SpinningLogo3D() {
 
 // Preload so the model starts fetching as soon as the module is imported,
 // rather than waiting for first render.
-useGLTF.preload("/brand/heather-harries-logo.glb");
+if (!FLAT_LOGO) useGLTF.preload("/brand/heather-harries-logo.glb");

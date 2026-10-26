@@ -36,7 +36,7 @@
    has. */
 .doc-row {
   display: grid;
-  grid-template-columns: 26px 1fr;
+  grid-template-columns: 26px minmax(0, 1fr);
   column-gap: 12px;
   row-gap: 10px;
   padding: 16px;
@@ -234,4 +234,13 @@
 
 .doc-row-action-stack .doc-row-btn-upload {
   align-self: flex-start;
+}
+
+/* Phone: long file names must never push the row wider than the screen. */
+.doc-row, .doc-row-info, .doc-row-action, .doc-row-file { min-width: 0; box-sizing: border-box; }
+@media (max-width: 820px) {
+  .doc-row { padding: 14px; }
+  .doc-row-filename { flex: 1 1 100%; }
+  .doc-row-file-actions { margin-left: 0; width: 100%; }
+  .doc-row-file-actions .doc-row-btn { flex: 1; min-height: 40px; }
 }

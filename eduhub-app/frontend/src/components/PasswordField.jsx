@@ -16,6 +16,11 @@ export default function PasswordField({ id, label, autoComplete, value, onChange
           id={id}
           type={visible ? "text" : "password"}
           autoComplete={autoComplete}
+          // When shown, the box is a plain text field and iOS capitalises the first letter
+          // (and may autocorrect). A password must be typed exactly as it is.
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           required={required}
           value={value}
           onChange={onChange}

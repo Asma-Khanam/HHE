@@ -1,0 +1,28 @@
+.delete-account-card {
+  margin: 8px 40px 24px;
+  padding: 18px;
+  background: var(--hh-white);
+  border: 1px solid rgba(160, 30, 30, 0.25);
+  border-radius: 12px;
+}
+.delete-account-card h3 { margin: 0 0 6px; color: #8a1c1c; font-size: 1rem; }
+.delete-account-card p { margin: 0 0 12px; font-size: 0.9rem; opacity: 0.8; }
+.delete-account-label { display: block; margin-bottom: 6px; font-size: 0.88rem; }
+.delete-account-card input { width: 100%; box-sizing: border-box; margin-bottom: 12px; }
+.delete-account-error { color: #8a1c1c; opacity: 1 !important; }
+.delete-account-actions { display: flex; gap: 10px; }
+.delete-account-actions button { flex: 1; min-height: 44px; border-radius: 12px; }
+.delete-account-open,
+.delete-account-confirm {
+  font-family: var(--hh-font-body);
+  font-weight: 500;
+  padding: 11px 16px;
+  border-radius: 12px;
+  border: 1px solid #8a1c1c;
+  background: var(--hh-white);
+  color: #8a1c1c;
+  cursor: pointer;
+}
+.delete-account-confirm { background: #8a1c1c; color: #fff; }
+.delete-account-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+@media (max-width: 820px) { .delete-account-card { margin: 8px 16px 24px; } }

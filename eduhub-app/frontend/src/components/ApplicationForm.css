@@ -630,3 +630,35 @@
   background-position: top right;
   background-size: 16px 16px;
 }
+
+/* ===== Phone redesign (26 Oct 2026): compact sticky action bar ===== */
+@media (max-width: 820px) {
+  .application-form-body {
+    padding: 16px 16px 24px;
+  }
+  .application-form-footer {
+    padding: 10px 16px;
+    gap: 10px;
+    flex-wrap: wrap;
+    box-shadow: 0 -4px 12px rgba(83, 1, 38, 0.08);
+  }
+  .application-form-footer-hint {
+    font-size: 0.78rem;
+    white-space: normal;
+    flex: 1 1 100%;
+    line-height: 1.3;
+  }
+  .application-form-footer-actions {
+    flex: 1 1 100%;
+    gap: 8px;
+  }
+  .application-form-footer .hh-btn-primary,
+  .application-form-footer .hh-btn-secondary {
+    flex: 1;
+    width: auto;
+    padding: 11px 14px;
+    font-size: 0.95rem;
+    min-height: 44px;
+    border-radius: 12px;
+  }
+}
