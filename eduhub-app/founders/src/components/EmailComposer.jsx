@@ -152,6 +152,9 @@ export default function EmailComposer({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const bodyRef = useRef(null);
+  // The last template text and subject put in by a button, so the next click replaces
+  // them instead of stacking another copy (Miss Lyndsay's team, 26 Oct 2026).
+  const lastTpl = useRef({ text: start.tplText || "", subject: start.tplSubject || "" });
 
   useEffect(() => {
     listSchoolRecipients(familyId)
@@ -162,7 +165,7 @@ export default function EmailComposer({
   // New emails keep a draft in this browser while you type.
   useEffect(() => {
     if (!isNew) return;
-    const t = setTimeout(() => saveDraft(draftKey, to.length || cc.length || subject || text ? { to, cc, ccMe, subject, text } : null), 400);
+    const t = setTimeout(() => saveDraft(draftKey, to.length || cc.length || subject || text ? { to, cc, ccMe, subject, text, tplText: lastTpl.current.text, tplSubject: lastTpl.current.subject } : null), 400);
     return () => clearTimeout(t);
   }, [isNew, draftKey, to, cc, ccMe, subject, text]);
 
@@ -208,8 +211,16 @@ export default function EmailComposer({
         text: `Dear Admissions team,\n\nPlease find attached the documents for ${names}'s application.\n\nDo let us know if anything else is needed.\n\nKind regards,`,
       },
     }[key];
-    if (!subject.trim()) setSubject(T.subject);
-    setText(T.text + (text.trim() ? `\n\n${text}` : ""));
+    // Subject: replace it when it is empty or still the one a template set; leave one you typed.
+    if (!subject.trim() || subject === lastTpl.current.subject) setSubject(T.subject);
+    // Body: swap out the earlier template text; anything typed around it stays.
+    const prev = lastTpl.current.text;
+    let nextText;
+    if (!text.trim()) nextText = T.text;
+    else if (prev && text.includes(prev)) nextText = text.replace(prev, () => T.text);
+    else nextText = T.text + `\n\n${text}`;
+    lastTpl.current = { text: T.text, subject: T.subject };
+    setText(nextText);
     if (key === "docs") setShowDocs(true);
     requestAnimationFrame(() => bodyRef.current?.focus());
   }
