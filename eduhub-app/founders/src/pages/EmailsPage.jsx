@@ -272,6 +272,8 @@ export default function EmailsPage() {
       setStarting(false);
     }
   }
+  // While a brand-new email is open, the bars about the email selected in the list stay hidden.
+  const composingNew = !!writing && writing.initial?.mode === "new";
   // "New email" opens the composer straight away; the family is picked inside it.
   function startBlankEmail() {
     setWriting({
@@ -853,7 +855,7 @@ export default function EmailsPage() {
             </div>
 
             <div className="ep-right">
-              {selected && !selected.isTracked && (
+              {selected && !composingNew && !selected.isTracked && (
                 <FileBar
                   key={selected.id}
                   email={selected}
@@ -882,7 +884,7 @@ export default function EmailsPage() {
                   }
                 />
               )}
-              {selected && selected.isTracked && selected.family_id && (
+              {selected && !composingNew && selected.isTracked && selected.family_id && (
                 <div className="ep-bar">
                   <span>
                     On <strong>{selected.familyName || "this family"}</strong>&apos;s record
