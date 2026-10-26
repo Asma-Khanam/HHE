@@ -136,49 +136,16 @@ function whoLine(ev) {
 // the hour labels stay true. Quiet hours keep their normal height.
 const STACK_PX = 52;
 
-// An event that starts late in an hour (say 8:45) has hardly any room left in its own row,
-// and used to spill down behind whatever starts at 9. When the NEXT hour also has events,
-// that late starter is drawn as a small card just ABOVE the next hour's line instead, so it
-// still reads as "before 9", and its row grows to make room. Nothing hides behind anything.
-const LATE_MIN = 60 * (1 - 28 / HOUR_PX);
-const LATE_PX = 30;
-function splitLate(events) {
-  const startHours = new Set();
-  events.forEach((ev) => {
-    if (ev.start) startHours.add(Math.min(23, Math.floor(toMin(ev.start) / 60)));
-  });
-  const late = new Set();
-  events.forEach((ev) => {
-    if (!ev.start) return;
-    const m = toMin(ev.start);
-    const h = Math.min(23, Math.floor(m / 60));
-    if (h < 23 && m - h * 60 > LATE_MIN && startHours.has(h + 1)) late.add(ev);
-  });
-  return late;
-}
-// extra height an hour needs on one day: room for its stack plus its late cards
-function hourNeeds(events) {
-  const late = splitLate(events);
-  const reg = Array(24).fill(0);
-  const lat = Array(24).fill(0);
-  events.forEach((ev) => {
-    if (!ev.start) return;
-    const h = Math.min(23, Math.floor(toMin(ev.start) / 60));
-    if (late.has(ev)) lat[h]++;
-    else reg[h]++;
-  });
-  return { late, reg, lat };
-}
-const isStackedHour = (reg, lat) => reg > 1 || (reg >= 1 && lat > 0);
-
 function hourScale(byDay, days) {
   const rowH = Array(24).fill(HOUR_PX);
   days.forEach((d) => {
-    const { reg, lat } = hourNeeds(byDay[toDateKey(d)] || []);
-    for (let h = 0; h < 24; h++) {
-      const stackH = isStackedHour(reg[h], lat[h]) ? reg[h] * STACK_PX + 4 : HOUR_PX;
-      rowH[h] = Math.max(rowH[h], stackH + lat[h] * LATE_PX);
-    }
+    const count = Array(24).fill(0);
+    (byDay[toDateKey(d)] || []).forEach((ev) => {
+      if (ev.start) count[Math.min(23, Math.floor(toMin(ev.start) / 60))]++;
+    });
+    count.forEach((c, h) => {
+      if (c > 1) rowH[h] = Math.max(rowH[h], c * STACK_PX + 4);
+    });
   });
   const top = [0];
   rowH.forEach((h, i) => top.push(top[i] + h));
@@ -195,23 +162,18 @@ function hourScale(byDay, days) {
 }
 
 function layoutDay(events, scale) {
-  const { late, reg, lat } = hourNeeds(events);
   const items = events
     .map((ev) => {
       const s = toMin(ev.start);
       const e = Math.max(toMin(ev.end) ?? s + 60, s + 30);
-      return { ev, s, e, h: Math.min(23, Math.floor(s / 60)), isLate: late.has(ev) };
+      return { ev, s, e, h: Math.min(23, Math.floor(s / 60)) };
     })
     .sort((a, b) => a.s - b.s || b.e - a.e);
+  const perHour = {};
+  items.forEach((it) => (perHour[it.h] = (perHour[it.h] || 0) + 1));
   const seen = {};
-  const seenLate = {};
   const out = items.map((it, i) => {
-    if (it.isLate) {
-      const k = (seenLate[it.h] = (seenLate[it.h] || 0) + 1) - 1;
-      const top = scale.top[it.h + 1] - (lat[it.h] - k) * LATE_PX + 1;
-      return { ...it, top, height: LATE_PX - 3, stacked: true };
-    }
-    if (isStackedHour(reg[it.h], lat[it.h])) {
+    if (perHour[it.h] > 1) {
       const n = (seen[it.h] = (seen[it.h] || 0) + 1) - 1;
       return { ...it, top: scale.top[it.h] + 2 + n * STACK_PX, height: STACK_PX - 3, stacked: true };
     }
@@ -219,11 +181,12 @@ function layoutDay(events, scale) {
     let height = scale.yOf(it.e) - scale.yOf(it.s) - 2;
     const next = items[i + 1];
     if (next) {
-      const nextTop = next.isLate || isStackedHour(reg[next.h], lat[next.h]) ? scale.top[next.h] + 2 : scale.yOf(next.s) + 1;
+      const nextTop = perHour[next.h] > 1 ? scale.top[next.h] + 2 : scale.yOf(next.s) + 1;
       height = Math.min(height, nextTop - top - 2);
     }
     return { ...it, top, height: Math.max(height, 26), stacked: false };
   });
+  // Cards that still overlap (e.g. 8:45 next to a 9:00 stack) sit side by side.
   return spreadOverlaps(out);
 }
 
