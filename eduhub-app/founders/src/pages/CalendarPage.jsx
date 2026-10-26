@@ -208,7 +208,38 @@ function layoutDay(events, scale) {
     }
     return { ...it, top, height: Math.max(height, 26), stacked: false };
   });
-  return out;
+  return spreadOverlaps(out);
+}
+
+// Safety net: if two cards would still sit on top of each other for any reason, put them
+// side by side instead, so nothing is ever hidden behind another card.
+function spreadOverlaps(items) {
+  const order = items.map((it, i) => ({ it, i })).sort((a, b) => a.it.top - b.it.top || a.i - b.i);
+  const res = items.map((it) => ({ ...it, col: 0, cols: 1 }));
+  let group = [];
+  let groupEnd = -Infinity;
+  const flush = () => {
+    if (group.length > 1) {
+      const colEnds = [];
+      group.forEach(({ i }) => {
+        const r = res[i];
+        let c = colEnds.findIndex((end) => end <= r.top + 1);
+        if (c === -1) c = colEnds.length;
+        colEnds[c] = r.top + r.height;
+        r.col = c;
+      });
+      group.forEach(({ i }) => (res[i].cols = colEnds.length));
+    }
+    group = [];
+  };
+  order.forEach((o) => {
+    const r = res[o.i];
+    if (group.length && r.top >= groupEnd - 1) flush();
+    group.push(o);
+    groupEnd = Math.max(groupEnd, r.top + r.height);
+  });
+  flush();
+  return res;
 }
 
 // ============================================================================
@@ -720,7 +751,7 @@ function WeekView({ days, today, byDay, onOpen, onCreate }) {
                 {hours.map((h) => (
                   <span key={h} className="cw-hline" style={{ top: scale.top[h] }} />
                 ))}
-                {layoutDay(timed, scale).map(({ ev, top, height, stacked }) => {
+                {layoutDay(timed, scale).map(({ ev, top, height, stacked, col, cols }) => {
                   return (
                     <button
                       key={ev.key}
@@ -729,8 +760,8 @@ function WeekView({ days, today, byDay, onOpen, onCreate }) {
                       style={{
                         top,
                         height,
-                        left: 2,
-                        width: "calc(100% - 4px)",
+                        left: cols > 1 ? `calc(${(col / cols) * 100}% + 2px)` : 2,
+                        width: cols > 1 ? `calc(${100 / cols}% - 4px)` : "calc(100% - 4px)",
                       }}
                       onClick={(evt) => {
                         evt.stopPropagation();
