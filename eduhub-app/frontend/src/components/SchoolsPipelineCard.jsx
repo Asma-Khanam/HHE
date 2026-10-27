@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
@@ -315,6 +315,16 @@ export default function SchoolsPipelineCard() {
     if (firstWithRows) setActiveTab(firstWithRows);
   }, [tabs.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // On a phone the seven stages scroll sideways; keep the chosen one in view.
+  const pipelineRef = useRef(null);
+  useEffect(() => {
+    const nav = pipelineRef.current;
+    const el = nav?.querySelector(".sp-stage.is-active");
+    if (!nav || !el) return;
+    const left = el.offsetLeft - (nav.clientWidth - el.clientWidth) / 2;
+    nav.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+  }, [activeTab, loading]);
+
   if (failed) return <CardError title="Your schools" onRetry={() => setRetry((n) => n + 1)} />;
   if (loading) return <CardSkeleton title="Your schools" rows={3} />;
 
@@ -340,7 +350,7 @@ export default function SchoolsPipelineCard() {
         <Link to="/app/timetable" className="dash-card-link">Full view →</Link>
       </div>
 
-      <nav className="sp-pipeline" role="tablist" aria-label="Your schools pipeline">
+      <nav className="sp-pipeline" role="tablist" aria-label="Your schools pipeline" ref={pipelineRef}>
         <div className="sp-pipeline-track" aria-hidden="true" />
         {tabs.map((t, i) => {
           const Icon = t.Icon;

@@ -58,7 +58,7 @@ export default function PackageUsageCard() {
     (!(allowance.applications > 0) || usage.applicationsUsed >= allowance.applications);
 
   return (
-    <section className="dash-card pkg-card">
+    <section className={"dash-card pkg-card" + (allowance.applications > 0 ? " pkg-card--two" : "")}>
       <div className="dash-card-head">
         <h2><span className="dash-card-icon dash-card-icon--neutral"><IconWallet size={16} /></span>Your package</h2>
         <span className="pkg-card-chip">{packageLabel(packageKey)}</span>
@@ -67,7 +67,7 @@ export default function PackageUsageCard() {
         <PackageMeter label="School tours" used={usage.toursUsed} done={usage.toursDone} total={allowance.tours} />
       </div>
       {allowance.applications > 0 && (
-        <>
+        <div className="pkg-card-apps">
           <div className="pkg-card-subhead">
             <span>Applications per child</span>
             <small>{allowance.applications} included per child</small>
@@ -85,7 +85,7 @@ export default function PackageUsageCard() {
               <p className="pkg-card-note">Add a child on the Application form to see their count.</p>
             )}
           </div>
-        </>
+        </div>
       )}
       {finished && (
         <p className="pkg-card-note">

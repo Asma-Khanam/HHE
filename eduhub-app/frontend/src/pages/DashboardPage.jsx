@@ -16,6 +16,7 @@ import {
   displayNameForChild,
 } from "../lib/completeness";
 import "./DashboardPage.css";
+import "./DashboardMobile.css";
 
 // The Dashboard — 14 Oct 2026 redesign. Earlier version had five boxes
 // telling the same story (big "Needs your attention", Where you're at
@@ -232,6 +233,7 @@ export default function DashboardPage() {
               {surname ? `The ${surname} family` : "Your application"}
               {children.length > 0 && ` · ${children.length} ${children.length === 1 ? "child" : "children"}`}
             </p>
+            <div className="dash-actions">
             <div className={"dash-status dash-status--" + statusLine.tone}>
               <span className="dash-status-icon">{statusLine.icon}</span>
               <span className="dash-status-text">{statusLine.text}</span>
@@ -240,6 +242,7 @@ export default function DashboardPage() {
                   {statusLine.cta.label} <IconChevronRight size={14} />
                 </button>
               )}
+            </div>
               {dueItems.length > 0 && (
                 <button
                   type="button"
