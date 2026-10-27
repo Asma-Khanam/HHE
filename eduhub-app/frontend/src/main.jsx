@@ -5,7 +5,9 @@ import './index.css'
 import './styles/tokens.css'
 import App from './App.jsx'
 import { initNativeApp } from './lib/native.js'
+import { initTheme } from './lib/theme.js'
 
+initTheme()
 initNativeApp()
 
 createRoot(document.getElementById('root')).render(

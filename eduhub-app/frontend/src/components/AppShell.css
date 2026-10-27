@@ -347,3 +347,98 @@
     padding: 10px;
   }
 }
+
+/* ===== Phone shell v2 (27 Oct 2026): top bar + four-tab bar, light and dark ===== */
+.app-topbar { display: none; }
+.app-shell-nav-label-short { display: none; }
+
+@media (max-width: 820px) {
+  .app-shell { background: var(--hh-bg); }
+
+  /* Top bar: photo + greeting, tap to open Profile. */
+  .app-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    order: 0;
+    padding: 8px 16px 6px;
+    min-height: 56px;
+    text-decoration: none;
+    color: var(--hh-text);
+    background: var(--hh-bg);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .app-topbar-avatar {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px var(--hh-surface), 0 0 0 3px var(--hh-border);
+  }
+  .app-topbar-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+  .app-topbar-hello { font-size: 0.78rem; color: var(--hh-text-muted); }
+  .app-topbar-name {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--hh-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Things that only exist on desktop. */
+  .is-desktop-only,
+  .app-shell-desktop-only,
+  .app-shell-nav li:has(> .is-desktop-only) { display: none !important; }
+
+  /* Bottom bar: exactly four tabs, icon over a short label. */
+  .app-shell-nav {
+    background: var(--hh-bar-bg);
+    border-top: 1px solid var(--hh-border);
+    box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.06);
+    padding: 6px 8px calc(2px + env(safe-area-inset-bottom) * 0.6);
+  }
+  .app-shell-nav-list { width: 100%; justify-content: space-around; }
+  .app-shell-nav-list li { flex: 1; display: flex; justify-content: center; }
+  .app-shell-nav-link {
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 4px;
+    min-width: 64px;
+    min-height: 48px;
+    border-radius: 14px;
+    color: var(--hh-text);
+    opacity: 0.55;
+  }
+  .app-shell-nav-link.is-active { opacity: 1; color: var(--hh-accent); background: var(--hh-accent-soft); }
+  .app-shell-nav-label-full { display: none; }
+  .app-shell-nav-label-short { display: block; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.01em; }
+  .app-shell-nav-icon svg { width: 23px; height: 23px; }
+}
+
+
+/* Notifications bell (phone, top right) + unread badges */
+.app-bell { display: none; }
+.app-shell-nav-badge {
+  margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
+  background: var(--hh-accent-solid, #5a0f2b); color: var(--hh-on-accent, #fff);
+  font-size: 0.72rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+}
+@media (max-width: 820px) {
+  .app-shell { position: relative; }
+  .app-bell {
+    display: flex; align-items: center; justify-content: center;
+    position: absolute; z-index: 5;
+    top: calc(env(safe-area-inset-top) + 10px); right: 16px;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--hh-surface); color: var(--hh-text);
+    border: 1px solid var(--hh-border); box-shadow: var(--hh-card-shadow);
+  }
+  .app-bell-badge {
+    position: absolute; top: -2px; right: -2px; min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 9px; background: var(--hh-accent-solid, #5a0f2b); color: var(--hh-on-accent, #fff);
+    font-size: 0.68rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .app-shell-nav-badge { display: none; }
+}

@@ -343,6 +343,7 @@ export default function SchoolsPipelineCard() {
 
   const current = tabs.find((t) => t.key === activeTab) || tabs[0];
 
+
   return (
     <section className="dash-card sp-card">
       <div className="dash-card-head">
@@ -374,7 +375,6 @@ export default function SchoolsPipelineCard() {
               }}
             >
               <span className="sp-stage-node">
-                <span className="sp-stage-step">{i + 1}</span>
                 <span className="sp-stage-icon"><Icon size={16} /></span>
                 {t.count > 0 && <span className="sp-stage-count" aria-label={`${t.count}`}>{t.count}</span>}
               </span>

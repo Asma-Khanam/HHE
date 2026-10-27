@@ -10,6 +10,7 @@ import TimetablePage from "./pages/TimetablePage";
 import BillingPage from "./pages/BillingPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import PrivacyPage from "./pages/PrivacyPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import RequireAuth from "./components/RequireAuth";
 import AppShell from "./components/AppShell";
 import { ApplicationDataProvider, useApplicationData } from "./context/ApplicationDataContext";
@@ -62,6 +63,7 @@ function App() {
         <Route path="documents" element={<DocumentsPage />} />
         <Route path="billing" element={<BillingPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
         {/* The Dashboard replaced the Overview tab on 2026-09-02. */}
         <Route path="overview" element={<Navigate to="/app/dashboard" replace />} />
       </Route>

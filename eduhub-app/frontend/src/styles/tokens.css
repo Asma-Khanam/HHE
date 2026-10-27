@@ -18,3 +18,69 @@
   --hh-shadow-hover: 0 16px 40px rgba(83, 1, 38, 0.18);
   --hh-transition: 0.18s ease;
 }
+
+/* ============================================================================
+   Theme (27 Oct 2026): Light / Dark / Automatic.
+   Everything new uses the semantic tokens (--hh-bg, --hh-surface, --hh-text...).
+   The older tokens above are ALSO remapped in dark, so pages that still use them
+   stay readable while each screen is moved over. In dark, "burgundy" becomes a soft
+   rose (it is used as text and as button fill), and "white" becomes the card colour.
+   ========================================================================== */
+:root {
+  color-scheme: light;
+  --hh-bg: #fbf6f0;
+  --hh-bg-grad: linear-gradient(180deg, #fbf6f0 0%, #faf3ec 100%);
+  --hh-surface: #ffffff;
+  --hh-surface-2: #fbf7f4;
+  --hh-text: #2a1119;
+  --hh-text-muted: rgba(42, 17, 25, 0.62);
+  --hh-border: #ece3e6;
+  --hh-accent: #530126;          /* accent used AS TEXT / icons */
+  --hh-accent-solid: #530126;    /* accent used as a button / badge FILL */
+  --hh-on-accent: #ffffff;       /* text on an accent fill */
+  --hh-accent-soft: rgba(83, 1, 38, 0.08);
+  --hh-warn-bg: rgba(184, 154, 90, 0.2);
+  --hh-warn-text: #7a5612;
+  --hh-money-bg: #fff2d6;
+  --hh-money-text: #8a4e00;
+  --hh-bar-bg: #ffffff;
+  --hh-card-shadow: 0 6px 20px rgba(83, 1, 38, 0.06);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --hh-bg: #14070d;
+  --hh-bg-grad: linear-gradient(180deg, #2a0c1b 0%, #170810 55%, #12060c 100%);
+  --hh-surface: #26121c;
+  --hh-surface-2: #301a26;
+  --hh-text: #f6ecf0;
+  --hh-text-muted: rgba(246, 236, 240, 0.64);
+  --hh-border: rgba(255, 255, 255, 0.1);
+  --hh-accent: #eeb3cb;
+  --hh-accent-solid: #8c1f55;
+  --hh-on-accent: #ffffff;
+  --hh-accent-soft: rgba(238, 179, 203, 0.12);
+  --hh-warn-bg: rgba(212, 175, 95, 0.18);
+  --hh-warn-text: #e3c27a;
+  --hh-money-bg: rgba(212, 175, 95, 0.16);
+  --hh-money-text: #f0cf8a;
+  --hh-bar-bg: #1d0d15;
+  --hh-card-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+
+  /* older tokens, remapped so unconverted pages still read well */
+  --hh-burgundy: #eeb3cb;
+  --hh-burgundy-light: #f4c6d8;
+  --hh-white: #26121c;
+  --hh-cream: #1a0b12;
+  --hh-ink: #f6ecf0;
+  --hh-track: rgba(255, 255, 255, 0.1);
+  --hh-good: #7fd1a4;
+  --hh-good-bg: rgba(127, 209, 164, 0.14);
+  --hh-error: #ff9a8f;
+}
+
+html,
+body {
+  background: var(--hh-bg);
+  color: var(--hh-text);
+}

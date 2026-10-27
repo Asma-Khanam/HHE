@@ -10,6 +10,16 @@
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <!-- Theme before first paint, so there is no light flash in dark mode. -->
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem("hh-theme") || "auto";
+          var dark = pref === "dark" || (pref === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+        } catch (e) {}
+      })();
+    </script>
     <title>Heather Harries Education Hub</title>
   </head>
   <body>

@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { applyTheme } from "./theme.js";
 
 // True when running inside the iOS / Android app (not the normal website).
 export const isNativeApp = Capacitor.isNativePlatform();
@@ -17,8 +18,8 @@ export const webUrl = (path) => (isNativeApp ? `${API_BASE}${path}` : `${window.
 export async function initNativeApp() {
   if (!isNativeApp) return;
   try {
-    const { StatusBar, Style } = await import("@capacitor/status-bar");
-    await StatusBar.setStyle({ style: Style.Light });
+    // Status bar text colour follows the theme (see lib/theme.js).
+    applyTheme();
   } catch {
     /* not available on this device */
   }

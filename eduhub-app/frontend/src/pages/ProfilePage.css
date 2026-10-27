@@ -184,3 +184,18 @@
   text-decoration: none;
 }
 .profile-privacy a:hover { opacity: 1; text-decoration: underline; }
+
+/* Settings block: appearance, privacy, log out (phone has no other place for these). */
+.profile-settings { margin: 0 40px 16px; display: flex; flex-direction: column; gap: 14px; }
+.profile-settings-link { color: var(--hh-accent); font-weight: 600; text-decoration: none; padding: 6px 0; }
+.profile-logout {
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid var(--hh-border);
+  background: var(--hh-surface-2);
+  color: var(--hh-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+@media (max-width: 820px) { .profile-settings { margin: 0 16px 16px; } }

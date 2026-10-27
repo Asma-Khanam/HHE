@@ -203,3 +203,75 @@
   .dash-row { padding: 12px 0; }
   .dash-row-meta .dash-segments { display: none; }
 }
+
+/* ===== v2 (27 Oct 2026): greeting lives in the top bar now; everything on theme tokens ===== */
+@media (max-width: 820px) {
+  .dash {
+    background: var(--hh-bg-grad);
+    min-height: 0;
+    padding-top: 6px;
+  }
+
+  /* The top bar already says "Good morning, Name" with your photo, so the hero
+     starts with the family line and the ring. */
+  .dash-crest,
+  .dash-banner-text h1 { display: none; }
+  .dash-banner-left { display: block; }
+  .dash-banner-sub {
+    padding: 4px 70px 0 0;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--hh-text);
+    opacity: 1;
+    min-height: 42px;
+  }
+  .dash-banner {
+    background: var(--hh-surface);
+    border-color: var(--hh-border);
+    box-shadow: var(--hh-card-shadow);
+  }
+  :root[data-theme="dark"] .dash-banner,
+  :root[data-theme="dark"] .dash-card {
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+    backdrop-filter: blur(6px);
+  }
+  .dash-card { background: var(--hh-surface); box-shadow: var(--hh-card-shadow); }
+  .dash-card-head { border-bottom-color: var(--hh-border); }
+  .dash-card-head h2 { color: var(--hh-text); }
+
+  .dash-readiness-value strong { color: var(--hh-accent); }
+  .dash-readiness-value span { color: var(--hh-text-muted); }
+  .dash-ring-fill { stroke: var(--hh-accent); }
+
+  /* status + money, on tokens */
+  .dash-status--good { background: var(--hh-good-bg); color: var(--hh-good); }
+  .dash-status--warn { background: var(--hh-warn-bg); color: var(--hh-warn-text); }
+  .dash-status--warn .dash-status-text { color: var(--hh-warn-text); }
+  .dash-status--ready { background: var(--hh-surface-2); border-color: var(--hh-border); color: var(--hh-accent); }
+  .dash-status--ready .dash-status-text { color: var(--hh-accent); }
+  .dash-status-cta { background: var(--hh-accent-solid); color: var(--hh-on-accent); }
+  .dash-status-pay {
+    background: var(--hh-money-bg);
+    color: var(--hh-money-text);
+    border-color: transparent;
+  }
+
+  /* package tiles, on tokens */
+  .pkg-card .pkg-meter { background: var(--hh-surface-2); }
+  .pkg-card .pkg-meter-label,
+  .pkg-card .pkg-meter-sub { color: var(--hh-text-muted); }
+  .pkg-card .pkg-meter-count { color: var(--hh-text); }
+  .pkg-card .pkg-meter-count strong { color: var(--hh-accent); }
+  .pkg-card .pkg-meter-extra { color: var(--hh-warn-text); }
+  .pkg-card .pkg-dot { background: var(--hh-border); }
+  .pkg-card .pkg-dot.is-booked { background: var(--hh-accent); opacity: 0.55; }
+  .pkg-card .pkg-dot.is-done { background: var(--hh-accent-solid); }
+  .pkg-card-chip { background: var(--hh-accent-soft); color: var(--hh-accent); }
+  .pkg-card-note { background: var(--hh-surface-2); color: var(--hh-text-muted); }
+
+  /* family card */
+  .dash-card-icon--neutral,
+  .dash-card-icon--burgundy { background: var(--hh-accent-soft); color: var(--hh-accent); opacity: 1; }
+  .dash-card-link { color: var(--hh-accent); }
+}

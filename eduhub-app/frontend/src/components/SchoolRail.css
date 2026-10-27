@@ -1,0 +1,115 @@
+/* Phone "Your schools": swipeable cards + "Coming up". Theme tokens only, so it works in light and dark. */
+.rail { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rail-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px; }
+.rail-head h2 { margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--hh-text); }
+.rail-head--sub { margin-top: 10px; }
+.rail-link { display: inline-flex; align-items: center; gap: 2px; font-size: 0.85rem; font-weight: 600; color: var(--hh-accent); text-decoration: none; min-height: 32px; }
+
+.rail-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  margin: 0 -12px;
+  padding: 4px 12px 10px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.rail-scroll::-webkit-scrollbar { display: none; }
+
+.rail-card {
+  flex: 0 0 78%;
+  max-width: 320px;
+  min-height: 168px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 22px;
+  background: var(--hh-surface);
+  border: 1px solid var(--hh-border);
+  box-shadow: var(--hh-card-shadow);
+  color: var(--hh-text);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-theme="dark"] .rail-card {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  backdrop-filter: blur(6px);
+}
+.rail-card.is-closed { opacity: 0.6; }
+.rail-card-top { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.rail-initial {
+  flex: 0 0 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--hh-accent-soft);
+  color: var(--hh-accent);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.rail-card-title { display: flex; flex-direction: column; min-width: 0; }
+.rail-card-title strong {
+  font-size: 1rem;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.rail-card-title small { font-size: 0.78rem; color: var(--hh-text-muted); margin-top: 2px; }
+
+.rail-card-bottom { display: flex; flex-direction: column; gap: 8px; }
+.rail-steps { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.rail-step { height: 6px; border-radius: 999px; background: var(--hh-border); }
+.rail-step.is-done { background: var(--hh-accent-solid); }
+.rail-step.is-now { background: var(--hh-accent); box-shadow: 0 0 0 3px var(--hh-accent-soft); }
+.rail-step.is-closed { background: var(--hh-border); box-shadow: none; }
+.rail-card-step { font-size: 0.75rem; color: var(--hh-text-muted); }
+
+.rail-chip {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  background: var(--hh-surface-2);
+  color: var(--hh-text);
+  border: 1px solid var(--hh-border);
+}
+.rail-chip--gold { background: var(--hh-warn-bg); color: var(--hh-warn-text); border-color: transparent; }
+.rail-chip--good { background: var(--hh-good-bg); color: var(--hh-good); border-color: transparent; }
+.rail-chip--muted { color: var(--hh-text-muted); }
+
+.rail-up { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.rail-up-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--hh-surface);
+  border: 1px solid var(--hh-border);
+  box-shadow: var(--hh-card-shadow);
+}
+.rail-date {
+  flex: 0 0 52px;
+  display: grid;
+  place-items: center;
+  padding: 7px 0;
+  border-radius: 14px;
+  background: var(--hh-accent-solid);
+  color: var(--hh-on-accent);
+  line-height: 1;
+}
+.rail-date small { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.85; }
+.rail-date strong { font-size: 1.3rem; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.rail-up-text { display: flex; flex-direction: column; min-width: 0; }
+.rail-up-text strong { font-size: 0.98rem; color: var(--hh-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-up-text span { font-size: 0.82rem; color: var(--hh-text-muted); }

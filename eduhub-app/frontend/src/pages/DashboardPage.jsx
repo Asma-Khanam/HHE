@@ -6,7 +6,6 @@ import SchoolsPipelineCard from "../components/SchoolsPipelineCard";
 import SchoolContactsCard from "../components/SchoolContactsCard";
 import { PageError, PageLoading } from "../components/StatePanels";
 import IntroductionsCard from "../components/IntroductionsCard";
-import PackageUsageCard from "../components/PackageUsageCard";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import { IconCheckCircle, IconChevronDown, IconChevronRight, IconAlertCircle, IconUser } from "../components/icons";
 import {
@@ -260,9 +259,6 @@ export default function DashboardPage() {
 
         <Readiness pct={overallPct} />
       </header>
-
-      {/* ---------- package at the top ---------- */}
-      <PackageUsageCard />
 
       {/* ---------- schools pipeline (the main thing on the page) ---------- */}
       <SchoolsPipelineCard />
