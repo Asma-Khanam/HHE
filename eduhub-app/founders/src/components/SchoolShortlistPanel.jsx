@@ -1263,7 +1263,7 @@ export default function SchoolShortlistPanel({
                         ) : (
                           <button
                             type="button"
-                            className="panel-btn panel-btn-quiet svt-remove"
+                            className="panel-btn svt-remove svt-withdraw-btn"
                             onClick={(e) => {
                               e.stopPropagation();
                               setDecliningId(row.id);

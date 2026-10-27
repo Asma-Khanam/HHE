@@ -1222,3 +1222,7 @@ fieldset.svt-closed-detail {
 .svt-modal p { margin:0 0 10px; font-size:14px; line-height:1.45; }
 .svt-modal-tip { color:var(--text-muted,#777); font-size:12.5px !important; }
 .svt-modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
+
+/* Withdraw: same size as Delete school, gold instead of red. */
+.svt-withdraw-btn { color:#7a5a12; border-color:#d8c48a; background:#fff; }
+.svt-withdraw-btn:hover { background:#fbf8ef; }

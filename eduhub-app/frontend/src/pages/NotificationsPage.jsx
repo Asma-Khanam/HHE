@@ -17,6 +17,19 @@ const KIND = {
   assessment_updated: { chip: "Assessment updated", tone: "info" },
 };
 
+// "School update" notifications (addendum 138) are labelled by their stage.
+const STAGE = {
+  shortlisted: { chip: "Shortlisted", tone: "info" },
+  toured: { chip: "Tour completed", tone: "good" },
+  applied: { chip: "Application sent", tone: "info" },
+  assessment: { chip: "Assessment", tone: "info" },
+  offer: { chip: "Offer received", tone: "good" },
+  placed: { chip: "Place confirmed", tone: "good" },
+  waitlisted: { chip: "Waitlisted", tone: "info" },
+  declined: { chip: "Not successful", tone: "warn" },
+  no_place: { chip: "No place available", tone: "warn" },
+};
+
 const LINK_LABEL = { Location: "Open in Maps", "Join link": "Join assessment" };
 
 function ago(ts) {
@@ -40,7 +53,7 @@ function tileParts(n) {
 const isUrl = (v) => /^https?:\/\//i.test(String(v || ""));
 
 function Item({ n, isNew, open, onToggle }) {
-  const kind = KIND[n.kind] || { chip: "Update", tone: "info" };
+  const kind = (n.kind === "school_update" ? STAGE[n.stage] : KIND[n.kind]) || { chip: "Update", tone: "info" };
   const tile = tileParts(n);
   const details = (Array.isArray(n.details) ? n.details : []).filter((d) => d.label !== "When");
   const school = n.school_name || n.title;
@@ -66,6 +79,7 @@ function Item({ n, isNew, open, onToggle }) {
           </span>
           <span className="notif-school">{school}</span>
           {n.event_time && n.kind !== "tour_cancelled" && <span className="notif-when">{n.event_time}</span>}
+          {n.kind === "school_update" && n.body && <span className="notif-when">{n.body}</span>}
           {n.kind === "tour_cancelled" && <span className="notif-when">Your consultant will arrange a new time</span>}
         </span>
         <span className="notif-chevron" aria-hidden="true"><IconChevronDown size={18} /></span>
@@ -103,7 +117,7 @@ export default function NotificationsPage() {
     let cancelled = false;
     supabase
       .from("family_notifications")
-      .select("id, kind, title, body, details, link, created_at, read_at, school_name, event_date, event_time")
+      .select("id, kind, title, body, details, link, created_at, read_at, school_name, event_date, event_time, stage")
       .eq("family_id", familyId)
       .order("created_at", { ascending: false })
       .limit(100)
