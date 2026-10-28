@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { fetchApplicationFees } from "../lib/applicationFees";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import SchoolsPipelineCard from "../components/SchoolsPipelineCard";
-import SchoolContactsCard from "../components/SchoolContactsCard";
 import { PageError, PageLoading } from "../components/StatePanels";
 import IntroductionsCard from "../components/IntroductionsCard";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
@@ -342,7 +341,6 @@ export default function DashboardPage() {
             )}
           </section>
 
-          <SchoolContactsCard />
           <IntroductionsCard />
         </div>
 

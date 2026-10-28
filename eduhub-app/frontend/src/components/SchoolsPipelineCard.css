@@ -394,3 +394,16 @@
   .sp-stage-node { width: 56px; height: 56px; }
   .sp-stage-caption { font-size: 0.68rem; }
 }
+
+/* The line stops short of every circle: solid nodes with a halo in the card colour */
+.sp-card { --sp-halo: #fcf6ee; }
+:root[data-theme="dark"] .sp-card { --sp-halo: var(--hh-surface); background: var(--hh-surface); border-color: var(--hh-border); }
+.sp-stage-node { z-index: 1; box-shadow: 0 0 0 7px var(--sp-halo), 0 6px 14px rgba(83, 1, 38, 0.1); }
+.sp-stage.is-empty:not(.is-active):not(.is-done) .sp-stage-node { background: var(--sp-halo); }
+.sp-stage.is-active .sp-stage-node {
+  box-shadow: 0 0 0 7px var(--sp-halo), 0 0 0 9px rgba(83, 1, 38, 0.16), 0 8px 22px rgba(83, 1, 38, 0.3);
+}
+.sp-stage.is-active:last-child .sp-stage-node {
+  box-shadow: 0 0 0 7px var(--sp-halo), 0 0 0 9px rgba(47, 107, 79, 0.2), 0 8px 22px rgba(47, 107, 79, 0.3);
+}
+.sp-stage-count { z-index: 2; }

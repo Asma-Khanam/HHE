@@ -6,6 +6,7 @@ import { childPhaseFor, nearestTourInfo } from "../lib/schoolJourney";
 import { IconSchool, IconChevronDown } from "../components/icons";
 import TourDetailsCard from "../components/TourDetailsCard";
 import SchoolsPipelineCard from "../components/SchoolsPipelineCard";
+import SchoolContactsCard from "../components/SchoolContactsCard";
 import { downloadTourIcs } from "../lib/tourDetails";
 import AssessmentCard from "../components/AssessmentCard";
 import { hasAssessment, assessmentOf, assessmentWhen } from "../lib/assessment";
@@ -432,6 +433,9 @@ export default function TimetablePage() {
               ))}
             </ul>
           </section>
+
+          {/* Who to contact at each school moved here from Home. */}
+          <SchoolContactsCard />
         </>
       )}
     </div>
