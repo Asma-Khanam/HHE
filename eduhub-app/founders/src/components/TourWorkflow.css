@@ -1,0 +1,101 @@
+/* School Visits workflow screens: parent unavailable times + tour slot review.
+   Brand tokens only. */
+
+.tw-card { margin-bottom: 18px; }
+.tw-hint { margin: -4px 0 14px; }
+.tw-window,
+.tw-progress {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--hh-burgundy);
+  background: rgba(83, 1, 38, 0.07);
+  padding: 5px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.tw-progress.is-ready { color: var(--hh-good); background: var(--hh-good-bg); }
+
+/* --- blocked times --- */
+.tw-blocks { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.tw-block {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--hh-cream);
+  border: 1px solid rgba(83, 1, 38, 0.12);
+  border-radius: 999px;
+  padding: 6px 6px 6px 14px;
+  font-size: 0.84rem;
+  color: var(--hh-ink);
+}
+.tw-block-day { font-weight: 600; color: var(--hh-burgundy); }
+.tw-block-reason { color: rgba(42, 17, 25, 0.6); }
+.tw-x {
+  width: 24px; height: 24px; border-radius: 50%; border: 0;
+  background: rgba(83, 1, 38, 0.08); color: var(--hh-burgundy);
+  font-size: 1rem; line-height: 1; cursor: pointer;
+}
+.tw-x:hover { background: rgba(83, 1, 38, 0.16); }
+
+.tw-add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.tw-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.74rem; color: rgba(42, 17, 25, 0.65); }
+.tw-field input {
+  font: inherit; font-size: 0.88rem; color: var(--hh-ink);
+  padding: 8px 10px; border: 1px solid rgba(83, 1, 38, 0.2);
+  border-radius: var(--hh-radius); background: var(--hh-white);
+}
+.tw-field input:focus { outline: none; border-color: var(--hh-gold); }
+.tw-field-grow { flex: 1 1 180px; }
+.tw-seg { display: inline-flex; border: 1px solid rgba(83, 1, 38, 0.2); border-radius: var(--hh-radius); overflow: hidden; }
+.tw-seg button {
+  font: inherit; font-size: 0.82rem; padding: 9px 14px; border: 0;
+  background: var(--hh-white); color: var(--hh-burgundy); cursor: pointer;
+}
+.tw-seg button.is-on { background: var(--hh-burgundy); color: var(--hh-white); }
+
+/* --- tour slot review --- */
+.tw-alert {
+  background: #fdf1e3; color: #8a5200; border: 1px solid #f0d4a8;
+  border-radius: var(--hh-radius); padding: 10px 14px; font-size: 0.86rem; margin-bottom: 14px;
+}
+.tw-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.tw-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(200px, 1.3fr) minmax(320px, 2.4fr);
+  gap: 18px; align-items: start;
+  border: 1px solid rgba(83, 1, 38, 0.1);
+  border-radius: var(--hh-radius);
+  padding: 14px 16px;
+  background: var(--hh-white);
+}
+.tw-row.is-closed { opacity: 0.55; background: var(--hh-cream); }
+.tw-school { display: flex; flex-direction: column; gap: 4px; }
+.tw-school strong { color: var(--hh-burgundy); font-size: 0.95rem; }
+.tw-opt { font-size: 0.72rem; color: rgba(42, 17, 25, 0.55); }
+.tw-kids { display: flex; flex-direction: column; gap: 6px; }
+.tw-kid { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.84rem; }
+.tw-kid-name em { font-style: normal; color: rgba(42, 17, 25, 0.55); }
+.tw-chip { font-size: 0.72rem; font-weight: 500; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.tw-chip.is-yes { background: var(--hh-good-bg); color: var(--hh-good); }
+.tw-chip.is-no { background: #f6e3e1; color: var(--hh-error); }
+.tw-chip.is-partial { background: #fdf1e3; color: #8a5200; }
+.tw-chip.is-wait { background: var(--hh-track); color: rgba(42, 17, 25, 0.6); }
+.tw-slots { display: flex; flex-direction: column; gap: 8px; }
+.tw-muted { font-size: 0.84rem; color: rgba(42, 17, 25, 0.55); }
+.tw-slot {
+  display: grid; grid-template-columns: 1fr 1.2fr auto; gap: 12px; align-items: center;
+  background: var(--hh-cream); border-radius: var(--hh-radius); padding: 10px 12px;
+}
+.tw-slot.has-conflict { background: #fdf1e3; }
+.tw-slot-when { display: flex; flex-direction: column; font-size: 0.84rem; }
+.tw-slot-when strong { color: var(--hh-burgundy); }
+.tw-clear { color: var(--hh-good); font-size: 0.82rem; }
+.tw-warn { color: #8a5200; font-size: 0.82rem; font-weight: 500; }
+.tw-slot-act { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+.tw-status { font-size: 0.76rem; color: rgba(42, 17, 25, 0.6); white-space: nowrap; }
+.tw-status.is-done { color: var(--hh-good); font-weight: 600; }
+.tw-foot { margin: 14px 0 0; }
+
+@media (max-width: 1000px) {
+  .tw-row { grid-template-columns: 1fr; gap: 12px; }
+  .tw-slot { grid-template-columns: 1fr; }
+  .tw-slot-act { justify-content: flex-start; }
+}

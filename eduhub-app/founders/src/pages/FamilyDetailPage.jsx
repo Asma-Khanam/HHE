@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { getFamilyDetail, getCurrentStaff, shortId, friendlyError, touchFamilyActivity, getFamilyStages } from "../lib/staffData";
+import { getFamilyDetail, getCurrentStaff, shortId, friendlyError, touchFamilyActivity, getFamilyStages, listBlockedTimes } from "../lib/staffData";
 import { getMissingItems, getOutstandingDocuments, displayNameForChild } from "../lib/completeness";
 import { householdAddress } from "../lib/address";
 import CaseSettingsPanel from "../components/CaseSettingsPanel";
@@ -8,6 +8,8 @@ import ApplicationEmailPanel from "../components/ApplicationEmailPanel";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import ApplicationsPanel from "../components/ApplicationsPanel";
 import SchoolShortlistPanel from "../components/SchoolShortlistPanel";
+import FamilyBlockedTimes from "../components/FamilyBlockedTimes";
+import TourSlotReview from "../components/TourSlotReview";
 import TasksPanel from "../components/TasksPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
 import PaymentsPanel from "../components/PaymentsPanel";
@@ -502,6 +504,10 @@ export default function FamilyDetailPage() {
   const [activeHouseholdKey, setActiveHouseholdKey] = useState(null);
   // Which school to open when jumping between School visits and Applications.
   const [focusSchoolId, setFocusSchoolId] = useState(() => searchParams.get("school"));
+  // School Visits workflow: the parent's unavailable times, and a counter the
+  // tour slot review watches so it reloads when the shortlist below changes.
+  const [blockedTimes, setBlockedTimes] = useState([]);
+  const [reviewKey, setReviewKey] = useState(0);
   function goToApplications(schoolId) {
     setFocusSchoolId(schoolId || null);
     setActiveTab("applications");
@@ -550,6 +556,15 @@ export default function FamilyDetailPage() {
     // caseload" half of "that should go up [the Caseload list]."
     touchFamilyActivity(familyId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [familyId]);
+
+  // The parent's unavailable times (School Visits workflow, addendum 142).
+  // Not having run that addendum yet must not break the page.
+  useEffect(() => {
+    setBlockedTimes([]);
+    listBlockedTimes(familyId)
+      .then(setBlockedTimes)
+      .catch(() => {});
   }, [familyId]);
 
   useEffect(() => {
@@ -997,13 +1012,31 @@ export default function FamilyDetailPage() {
 
       {activeTab === "visits" && (
         <div className="family-detail-stack">
+          <FamilyBlockedTimes
+            familyId={family.id}
+            from={family.dubai_available_from}
+            to={family.dubai_available_until}
+            blocked={blockedTimes}
+            onChange={async () => setBlockedTimes(await listBlockedTimes(family.id))}
+          />
+          <TourSlotReview
+            familyId={family.id}
+            familyChildren={children}
+            blocked={blockedTimes}
+            hasVisitDates={!!(family.dubai_available_from && family.dubai_available_until)}
+            refreshKey={reviewKey}
+            onChanged={refreshStages}
+          />
           <SchoolShortlistPanel
             familyId={family.id}
             familyChildren={children}
             applicationsByChild={applicationsByChild}
             onFamilyRefresh={refreshFamily}
             onGoToApplications={goToApplications}
-            onProgressChange={refreshStages}
+            onProgressChange={() => {
+              refreshStages();
+              setReviewKey((k) => k + 1);
+            }}
             focusSchoolId={focusSchoolId}
           />
         </div>

@@ -2925,3 +2925,42 @@ export async function removeStaffAvatar(userId) {
   const { error } = await supabase.rpc("set_staff_avatar", { p_user_id: userId, p_url: "" });
   if (error) throw error;
 }
+
+// ---------------------------------------------------------------------------
+// School Visits workflow (addendum 142) -- the times a parent can't tour.
+// One row per block; no start/end means the whole day.
+// ---------------------------------------------------------------------------
+
+export async function listBlockedTimes(familyId) {
+  return (
+    unwrap(
+      await supabase
+        .from("family_blocked_times")
+        .select("*")
+        .eq("family_id", familyId)
+        .order("blocks_date", { ascending: true })
+        .order("blocks_start", { ascending: true, nullsFirst: true })
+    ) || []
+  );
+}
+
+export async function addBlockedTime({ familyId, date, start, end, reason }) {
+  return unwrap(
+    await supabase
+      .from("family_blocked_times")
+      .insert({
+        family_id: familyId,
+        blocks_date: date,
+        blocks_start: start || null,
+        blocks_end: end || null,
+        reason: (reason || "").trim() || null,
+      })
+      .select()
+      .single()
+  );
+}
+
+export async function deleteBlockedTime(id) {
+  const { error } = await supabase.from("family_blocked_times").delete().eq("id", id);
+  if (error) throw error;
+}
