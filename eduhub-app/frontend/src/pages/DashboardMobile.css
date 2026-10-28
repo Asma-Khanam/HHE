@@ -275,3 +275,8 @@
   .dash-card-icon--burgundy { background: var(--hh-accent-soft); color: var(--hh-accent); opacity: 1; }
   .dash-card-link { color: var(--hh-accent); }
 }
+
+/* Home card: whose thing is next, and what comes after (app design, board 1) */
+.dash-status-text { display: flex; flex-direction: column; gap: 2px; }
+.dash-status-next { font-size: 1.05em; font-weight: 700; }
+.dash-status-then { font-size: 0.85em; opacity: 0.75; }

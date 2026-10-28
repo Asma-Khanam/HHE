@@ -10,6 +10,7 @@ import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import { IconCheckCircle, IconChevronDown, IconChevronRight, IconAlertCircle, IconUser } from "../components/icons";
 import {
   getMissingItems,
+  getOutstandingDocuments,
   getReadinessPct,
   getStepBreakdown,
   displayNameForChild,
@@ -129,6 +130,16 @@ export default function DashboardPage() {
   const father = rawParents.find((p) => p.relationship === "Father");
 
   const missingFields = getMissingItems({ parents, accountHolderRole, children, currentSchools, ...familyAnswers });
+  // Everything the family still has to do: required fields first, then
+  // documents we still need. Each says whose it is (app design, Home card).
+  const outstandingDocs = getOutstandingDocuments({ parents, accountHolderRole, children, documentsByOwner });
+  const todo = [
+    ...missingFields.map((m) => ({ ...m, text: m.label })),
+    ...outstandingDocs.map((d) => ({
+      ...d,
+      text: `Upload ${d.personName}${/s$/i.test(d.personName) ? "’" : "’s"} ${String(d.docLabel).toLowerCase()}`,
+    })),
+  ];
   const overallPct = getReadinessPct({ parents, accountHolderRole, children, currentSchools, documentsByOwner, ...familyAnswers });
   const breakdown = getStepBreakdown({
     parents,
@@ -167,12 +178,15 @@ export default function DashboardPage() {
         : "Application submitted",
       cta: null,
     };
-  } else if (missingFields.length) {
+  } else if (todo.length) {
+    const rest = todo.slice(1, 3).map((t) => t.text);
     statusLine = {
       tone: "warn",
       icon: <IconAlertCircle size={14} />,
-      text: `${missingFields.length} field${missingFields.length === 1 ? "" : "s"} to finish on your application`,
-      cta: { label: "Continue", onClick: () => openForm(missingFields[0].stepKey, missingFields[0].fieldKey) },
+      text: `${todo.length} thing${todo.length === 1 ? "" : "s"} left on your application`,
+      next: todo[0].text,
+      then: rest.length ? `Then: ${rest.join(", ")}${todo.length > 3 ? ` and ${todo.length - 3} more` : ""}` : "",
+      cta: { label: "Continue", onClick: () => openForm(todo[0].stepKey, todo[0].fieldKey) },
     };
   } else {
     statusLine = {
@@ -235,7 +249,11 @@ export default function DashboardPage() {
             <div className="dash-actions">
             <div className={"dash-status dash-status--" + statusLine.tone}>
               <span className="dash-status-icon">{statusLine.icon}</span>
-              <span className="dash-status-text">{statusLine.text}</span>
+              <span className="dash-status-text">
+                {statusLine.text}
+                {statusLine.next && <strong className="dash-status-next">{statusLine.next}</strong>}
+                {statusLine.then && <span className="dash-status-then">{statusLine.then}</span>}
+              </span>
               {statusLine.cta && (
                 <button type="button" className="dash-status-cta" onClick={statusLine.cta.onClick}>
                   {statusLine.cta.label} <IconChevronRight size={14} />
