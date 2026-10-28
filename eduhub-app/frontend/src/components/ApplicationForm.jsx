@@ -1330,6 +1330,50 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   // also calls onSaved() itself now, taking over the one thing the removed
   // button used to be responsible for (refreshing the parent page's copy
   // of the family record).
+  // Timing (from the app design, "How saving works" board): save 1s after the
+  // last keystroke, and immediately when the person leaves the screen, the
+  // app goes to the background, or the connection comes back. Failed saves
+  // retry on their own after 5, 15 and 45 seconds, then every minute.
+  const SAVE_DELAY_MS = 1000;
+  const RETRY_DELAYS_MS = [5000, 15000, 45000, 60000];
+  const retryTimerRef = useRef(null);
+  const retryCountRef = useRef(0);
+  const flushRef = useRef(() => {});
+
+  async function runAutosave() {
+    clearTimeout(autosaveTimerRef.current);
+    clearTimeout(retryTimerRef.current);
+    if (lastSavedSnapshotRef.current === null) return;
+    if (snapshotOfEditableState() === lastSavedSnapshotRef.current) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setAutosaveStatus("offline");
+      return;
+    }
+    setAutosaveStatus("saving");
+    try {
+      const saved = await persist();
+      if (!saved) {
+        // Another save was already in flight — try again right after it.
+        autosaveTimerRef.current = setTimeout(() => flushRef.current(), 700);
+        return;
+      }
+      retryCountRef.current = 0;
+      setAutosaveStatus("saved");
+      onSaved?.();
+    } catch (err) {
+      // Quiet failure by design: no red banner, the footer pill says it and
+      // the save is retried on its own (and again on the next change).
+      console.error("Autosave failed:", err);
+      setAutosaveStatus("error");
+      const delay = RETRY_DELAYS_MS[Math.min(retryCountRef.current, RETRY_DELAYS_MS.length - 1)];
+      retryCountRef.current += 1;
+      retryTimerRef.current = setTimeout(() => flushRef.current(), delay);
+    }
+  }
+  // Always points at the newest render's closure, so timers, retries and
+  // event listeners never save stale state.
+  flushRef.current = runAutosave;
+
   useEffect(() => {
     if (lastSavedSnapshotRef.current === null) {
       // First run, right after mount — this IS the data that was just
@@ -1341,27 +1385,36 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
     if (snapshotOfEditableState() === lastSavedSnapshotRef.current) return;
 
     clearTimeout(autosaveTimerRef.current);
-    autosaveTimerRef.current = setTimeout(async () => {
-      setAutosaveStatus("saving");
-      try {
-        const saved = await persist();
-        setAutosaveStatus(saved ? "saved" : "idle");
-        if (saved) onSaved?.();
-      } catch (err) {
-        // Quiet failure by design — the user hasn't asked for anything here,
-        // so no red banner; the footer note already says autosave failed,
-        // and it'll simply try again on the next change (or the next
-        // successful autosave). Still logged (not swallowed entirely) so a
-        // real recurring cause shows up in the browser console instead of
-        // just "couldn't autosave" with no way to tell why.
-        console.error("Autosave failed:", err);
-        setAutosaveStatus("error");
-      }
-    }, 1500);
+    autosaveTimerRef.current = setTimeout(() => flushRef.current(), SAVE_DELAY_MS);
 
     return () => clearTimeout(autosaveTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parents, children, currentSchools, accountHolderRole]);
+  }, [
+    parents, children, currentSchools, accountHolderRole, schoolPriorities,
+    comfortableFeeRange, parentWorkLocation, budgetStatus, housingBudget,
+    preferredLivingArea, costGuidance,
+  ]);
+
+  // Save at once when the person leaves: tab switch / screen change (unmount),
+  // app sent to the background, page hidden, or the connection returning.
+  useEffect(() => {
+    const flush = () => flushRef.current();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    const onOffline = () => setAutosaveStatus("offline");
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    window.addEventListener("online", flush);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+      window.removeEventListener("online", flush);
+      window.removeEventListener("offline", onOffline);
+      flush();
+    };
+  }, []);
 
   // NAV-02 — a sibling picked via handleSameSchoolToggle might not have a
   // real database id yet (a freshly added child, not yet autosaved). Once
@@ -2581,12 +2634,18 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
           )}
           {autosaveStatus === "saved" && (
             <span className="save-status is-saved" role="status">
-              <span aria-hidden="true">✓</span> All changes saved
+              <span aria-hidden="true">✓</span> Saved
             </span>
           )}
           {autosaveStatus === "error" && (
             <span className="save-status is-error" role="alert">
-              Couldn't save — check your connection. It will try again when you change something.
+              Couldn't save just now. Your changes are kept and we'll try again.
+              <button type="button" className="save-status-retry" onClick={() => flushRef.current()}>Try again</button>
+            </span>
+          )}
+          {autosaveStatus === "offline" && (
+            <span className="save-status is-error" role="status">
+              You're offline. Keep going — we'll save when you're back online.
             </span>
           )}
         </span>
