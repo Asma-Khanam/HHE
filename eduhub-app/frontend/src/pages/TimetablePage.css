@@ -1,5 +1,5 @@
 /* "Your schools" -- September 2026 rebuild. */
-.ys { padding: clamp(16px, 2.2vw, 32px) clamp(16px, 2.6vw, 40px) 60px; display: flex; flex-direction: column; gap: 18px; min-width: 0; max-width: 1500px; }
+.ys { padding: clamp(16px, 2.2vw, 32px) clamp(16px, 2.6vw, 40px) 60px; display: flex; flex-direction: column; gap: 18px; min-width: 0; max-width: none; }
 .ys-head h1 { font-family: var(--hh-font-heading); font-weight: 600; color: var(--hh-burgundy); font-size: 1.9rem; margin: 0 0 4px; }
 .ys-head p { margin: 0; opacity: 0.7; }
 
