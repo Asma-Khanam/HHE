@@ -177,3 +177,8 @@
    ApplicationFeesCard used on Billing, just toned down so it reads as part
    of this card rather than a floating card-in-a-card. */
 .ys-fees .appfee-card { box-shadow: none; padding: 0; margin-bottom: 0; background: transparent; }
+
+/* Child filter (app design, Schools) */
+.ys-childfilters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.ys-childfilters::-webkit-scrollbar { display: none; }
+.ys-childfilters .ys-filter { flex: none; min-height: 40px; }

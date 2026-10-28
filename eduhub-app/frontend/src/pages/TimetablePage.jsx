@@ -129,6 +129,8 @@ export default function TimetablePage() {
   const [error, setError] = useState("");
   const [openId, setOpenId] = useState(null);
   const [filter, setFilter] = useState("all");
+  // Which child the page is showing: "all" or a child id (app design, Schools).
+  const [childFilter, setChildFilter] = useState("all");
   const [detailsKey, setDetailsKey] = useState(null);
   const [fees, setFees] = useState([]);
   const cardRefs = useRef({});
@@ -223,6 +225,7 @@ export default function TimetablePage() {
     .filter((r) => !isClosed(r))
     .flatMap((r) => assessmentsFor(r).map((a) => ({ ...a, rowId: r.id })))
     .filter((a) => ACTIVE.includes(a.app.status) && (!a.date || a.date >= todayKey))
+    .filter((a) => childFilter === "all" || a.app.child_id === childFilter)
     .sort((x, y) => (x.date || "9999").localeCompare(y.date || "9999"));
 
   const categoryOf = (row) => {
@@ -237,7 +240,11 @@ export default function TimetablePage() {
     const c = categoryOf(r);
     if (counts[c] !== undefined) counts[c] += 1;
   });
-  const visible = sortedRows.filter((r) => filter === "all" || categoryOf(r) === filter);
+  const childView = childFilter === "all" ? childList : childList.filter((c) => c.id === childFilter);
+  const forChild = (r) =>
+    childFilter === "all" ||
+    childPhaseFor(r, appsFor(r).filter((a) => a.child_id === childFilter)).phase !== "—";
+  const visible = sortedRows.filter((r) => (filter === "all" || categoryOf(r) === filter) && forChild(r));
 
   function openSchool(rowId) {
     setFilter("all");
@@ -276,6 +283,23 @@ export default function TimetablePage() {
                   <span className="ys-placed-sub">Your other schools are closed and kept at the bottom for reference.</span>
                 )}
               </span>
+            </div>
+          )}
+
+          {childList.length > 1 && (
+            <div className="ys-filters ys-childfilters" role="tablist" aria-label="Show schools for">
+              {[{ id: "all", name: "Both children" }, ...childList].map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={childFilter === c.id}
+                  className={"ys-filter" + (childFilter === c.id ? " is-on" : "")}
+                  onClick={() => setChildFilter(c.id)}
+                >
+                  {c.id === "all" && childList.length > 2 ? "All children" : c.name}
+                </button>
+              ))}
             </div>
           )}
 
@@ -412,7 +436,7 @@ export default function TimetablePage() {
                   key={row.id}
                   row={row}
                   apps={appsFor(row)}
-                  childList={childList}
+                  childList={childView}
                   childStatus={childStatus.filter((cs) => cs.shortlist_id === row.id)}
                   closed={isClosed(row)}
                   placed={placed}
