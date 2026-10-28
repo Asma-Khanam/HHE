@@ -10,6 +10,7 @@ import ApplicationsPanel from "../components/ApplicationsPanel";
 import SchoolShortlistPanel from "../components/SchoolShortlistPanel";
 import FamilyBlockedTimes from "../components/FamilyBlockedTimes";
 import TourSlotReview from "../components/TourSlotReview";
+import SchoolEnquiryDrafts from "../components/SchoolEnquiryDrafts";
 import TasksPanel from "../components/TasksPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
 import PaymentsPanel from "../components/PaymentsPanel";
@@ -688,6 +689,21 @@ export default function FamilyDetailPage() {
   const activeHouseholdMember =
     householdMembers.find((m) => m.key === activeHouseholdKey) || householdMembers[0] || null;
 
+  // What the School visits workflow emails need to open the composer: who is
+  // sending, the family's reply address, and a line per child.
+  const visitComposerCtx = {
+    staffName: currentStaffName,
+    familyAddress: (() => {
+      const alias = (parents || []).find((p) => p.application_alias)?.application_alias || family.application_alias;
+      return alias ? `${alias}@applications.heatherharries.com` : "";
+    })(),
+    childLines: children.map((c, i) => {
+      const name = c.preferred_name || c.first_name || (c.full_name || "").split(" ")[0] || `Child ${i + 1}`;
+      const year = c.year_group_applying_for?.split(" /")[0];
+      return [name, year].filter(Boolean).join(", ");
+    }),
+  };
+
   return (
     <div className="family-detail-page">
       <div className="family-detail-topbar">
@@ -1014,10 +1030,26 @@ export default function FamilyDetailPage() {
         <div className="family-detail-stack">
           <FamilyBlockedTimes
             familyId={family.id}
+            family={family}
+            familyName={displayName}
+            familyChildren={children}
+            parents={parents || []}
+            composerCtx={visitComposerCtx}
+            onFamilyChanged={refreshFamily}
             from={family.dubai_available_from}
             to={family.dubai_available_until}
             blocked={blockedTimes}
             onChange={async () => setBlockedTimes(await listBlockedTimes(family.id))}
+          />
+          <SchoolEnquiryDrafts
+            familyId={family.id}
+            family={family}
+            familyName={displayName}
+            familyChildren={children}
+            blocked={blockedTimes}
+            composerCtx={visitComposerCtx}
+            refreshKey={reviewKey}
+            onChanged={() => setReviewKey((k) => k + 1)}
           />
           <TourSlotReview
             familyId={family.id}

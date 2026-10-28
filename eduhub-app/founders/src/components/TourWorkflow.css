@@ -99,3 +99,19 @@
   .tw-slot { grid-template-columns: 1fr; }
   .tw-slot-act { justify-content: flex-start; }
 }
+
+/* --- ask the parent + school enquiry drafts --- */
+.tw-ask { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; }
+.tw-enq { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tw-enq-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  border: 1px solid rgba(83, 1, 38, 0.1); border-radius: var(--hh-radius); padding: 11px 16px; background: var(--hh-white);
+}
+.tw-enq-row.is-sent, .tw-enq-row.is-progress, .tw-enq-row.is-skipped { background: var(--hh-cream); }
+.tw-enq-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tw-enq-main strong { color: var(--hh-burgundy); font-size: 0.92rem; }
+.tw-enq-act { display: flex; align-items: center; gap: 10px; }
+.tw-compose { margin-top: 16px; border-top: 1px dashed rgba(83, 1, 38, 0.2); padding-top: 14px; }
+.tw-compose-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; font-size: 0.86rem; color: var(--hh-ink); }
+.tw-skip { font: inherit; font-size: 0.82rem; background: none; border: 0; color: var(--hh-burgundy); text-decoration: underline; cursor: pointer; }
+.tw-skip:disabled { opacity: 0.5; cursor: default; }

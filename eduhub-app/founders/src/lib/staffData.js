@@ -2964,3 +2964,16 @@ export async function deleteBlockedTime(id) {
   const { error } = await supabase.from("family_blocked_times").delete().eq("id", id);
   if (error) throw error;
 }
+
+// School Visits workflow (addendum 143): note that the parent was asked for
+// their unavailable times.
+export async function markParentAvailabilityRequested(familyId) {
+  return unwrap(
+    await supabase
+      .from("families")
+      .update({ parent_availability_requested_at: new Date().toISOString() })
+      .eq("id", familyId)
+      .select()
+      .single()
+  );
+}

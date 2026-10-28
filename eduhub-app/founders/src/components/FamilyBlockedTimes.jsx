@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { addBlockedTime, deleteBlockedTime, friendlyError } from "../lib/staffData";
+import EmailComposer from "./EmailComposer";
+import { addBlockedTime, deleteBlockedTime, markParentAvailabilityRequested, friendlyError } from "../lib/staffData";
+import { parentAvailabilityEmail } from "../lib/visitEmails";
 import { clock12 } from "../lib/tourConflicts";
 import "./panels.css";
 import "./TourWorkflow.css";
@@ -12,7 +14,8 @@ function dayLabel(iso) {
 // Stage 1 of the School Visits workflow: when is the parent NOT free during
 // their visit? Saved on the family, then checked against every tour slot a
 // school offers (see TourSlotReview) and written into the school emails.
-export default function FamilyBlockedTimes({ familyId, from, to, blocked, onChange }) {
+export default function FamilyBlockedTimes({ familyId, family, familyName, familyChildren, parents, composerCtx, from, to, blocked, onChange, onFamilyChanged }) {
+  const [asking, setAsking] = useState(null);
   const [date, setDate] = useState("");
   const [allDay, setAllDay] = useState(true);
   const [start, setStart] = useState("");
@@ -56,6 +59,24 @@ export default function FamilyBlockedTimes({ familyId, from, to, blocked, onChan
     }
   }
 
+  function openAsk() {
+    const p = (parents || []).find((x) => x.email) || (parents || [])[0];
+    const draft = parentAvailabilityEmail({ parentName: p?.full_name, from, to, consultant: composerCtx.staffName });
+    setAsking({ mode: "draft", to: (parents || []).map((x) => x.email).filter(Boolean), subject: draft.subject, text: draft.text });
+  }
+
+  async function asked() {
+    setAsking(null);
+    try {
+      await markParentAvailabilityRequested(familyId);
+      if (onFamilyChanged) onFamilyChanged();
+    } catch (err) {
+      setError(friendlyError(err, "The email was sent, but it couldn't be marked as sent. Do not send it again."));
+    }
+  }
+
+  const askedAt = family?.parent_availability_requested_at;
+
   return (
     <section className="panel tw-card">
       <div className="panel-head">
@@ -69,6 +90,37 @@ export default function FamilyBlockedTimes({ familyId, from, to, blocked, onChan
           </span>
         )}
       </div>
+      {hasWindow && (
+        <div className="tw-ask">
+          <span className="tw-muted">
+            {askedAt
+              ? `Parent asked on ${new Date(askedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
+              : "Not asked yet. Send the parent a short email, then add what they tell you below."}
+          </span>
+          <button type="button" className="panel-btn" onClick={openAsk} disabled={!!asking}>
+            {askedAt ? "Ask again" : "Ask the parent"}
+          </button>
+        </div>
+      )}
+      {asking && (
+        <div className="tw-compose">
+          <EmailComposer
+            key="ask-parent"
+            familyId={familyId}
+            familyName={familyName}
+            childLines={composerCtx.childLines}
+            documents={[]}
+            staffName={composerCtx.staffName}
+            familyAddress={composerCtx.familyAddress}
+            childRows={familyChildren}
+            dubaiFrom={from}
+            dubaiUntil={to}
+            initial={asking}
+            onSent={asked}
+            onClose={() => setAsking(null)}
+          />
+        </div>
+      )}
       <p className="panel-hint tw-hint">
         {hasWindow
           ? "Flights, meetings, school runs. Every tour slot a school offers is checked against these."
