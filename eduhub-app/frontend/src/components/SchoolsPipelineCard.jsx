@@ -490,7 +490,7 @@ function EmptyPanel({ text }) {
 function ShortlistedPanel({ items }) {
   if (!items.length) return <EmptyPanel text="Nothing on the shortlist yet — your consultant will add schools here." />;
   return (
-    <ul className="sp-list">
+    <ul className="sp-list sp-grid">
       {items.map((s) => {
         const toneClass = "sp-row--" + s.status.tone;
         const closed = s.status.kind !== "active";
@@ -560,7 +560,7 @@ function ToursPanel({ groups, openKey, setOpenKey }) {
       {completed.length > 0 && (
         <div className="sp-group">
           <h3 className="sp-group-title">Completed <span>{completed.length}</span></h3>
-          <ul className="sp-list">
+          <ul className="sp-list sp-grid">
             {completed.map((t) => (
               <li key={t.key} className="sp-row">
                 <span className="sp-pill sp-pill--good"><IconCheckCircle size={13} /> Done</span>
@@ -579,7 +579,7 @@ function ToursPanel({ groups, openKey, setOpenKey }) {
       {cancelled.length > 0 && (
         <div className="sp-group">
           <h3 className="sp-group-title">Cancelled <span>{cancelled.length}</span></h3>
-          <ul className="sp-list">
+          <ul className="sp-list sp-grid">
             {cancelled.map((t) => (
               <li key={t.key} className="sp-row sp-row--muted">
                 <span className="sp-pill sp-pill--muted">Cancelled</span>

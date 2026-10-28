@@ -67,12 +67,13 @@ export default function SettingsPage() {
       </Link>
 
       <div className="settings-grid">
-      <section className="settings-group">
+        <div className="settings-col">
+      <section className="settings-group sg-1">
         <h2>Appearance</h2>
         <div className="settings-card settings-card-pad"><ThemePicker /></div>
       </section>
 
-      <section className="settings-group">
+      <section className="settings-group sg-2">
         <h2>Your application</h2>
         <div className="settings-card">
           <Row to="/app/form" Icon={IconClipboard} label="Application form" sub="Edit anytime. Saves automatically." />
@@ -81,9 +82,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <PackageUsageCard />
-
-      <section className="settings-group">
+      <section className="settings-group sg-4">
         <h2>Help</h2>
         <div className="settings-card">
           <button type="button" className="set-row set-row-btn" onClick={() => { navigate("/app/dashboard"); setTimeout(replayTour, 300); }}>
@@ -97,7 +96,10 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="settings-group">
+        </div>
+        <div className="settings-col">
+          <div className="sg-3"><PackageUsageCard /></div>
+      <section className="settings-group sg-5">
         <h2>Account and privacy</h2>
         <div className="settings-card">
           <Row Icon={IconUser} label="Email address" value={user?.email} />
@@ -105,6 +107,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
+        </div>
       </div>
 
       <button type="button" className="settings-logout" onClick={handleLogout}>Log out</button>

@@ -409,3 +409,12 @@
 .sp-stage-count { z-index: 2; }
 
 .sp-cal-btn{margin-top:10px;height:40px;padding:0 18px;border-radius:20px;border:1.5px solid var(--hh-accent);background:transparent;color:var(--hh-accent);font:inherit;font-size:.85rem;font-weight:600;cursor:pointer}
+
+/* Short rows (shortlisted, completed, cancelled) sit side by side as small cards. */
+.sp-list.sp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:821px){.sp-list.sp-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}}
+.sp-grid .sp-row{flex-direction:column;align-items:flex-start;gap:8px;padding:12px 14px;height:100%;box-sizing:border-box}
+.sp-grid .sp-row .sp-pill{align-self:flex-start}
+.sp-grid .sp-row-main{width:100%}
+.sp-grid .sp-row-main strong{line-height:1.25;overflow-wrap:anywhere}
+.sp-grid .sp-tag{align-self:flex-start}
