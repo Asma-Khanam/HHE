@@ -8,3 +8,8 @@
 .scc-title { opacity: 0.65; font-size: 0.8rem; }
 .scc-links { display: flex; flex-wrap: wrap; gap: 4px 14px; flex-basis: 100%; }
 .scc-links a { color: var(--hh-burgundy); text-decoration: underline; word-break: break-all; }
+
+.scc-school-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.scc-stage{font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--hh-accent-soft);color:var(--hh-accent);white-space:nowrap}
+.scc-stage--placed{background:var(--hh-good-bg,#e3f1e7);color:var(--hh-good,#1f6b3a)}
+.scc-empty{margin:8px 0 0;font-size:.88rem;line-height:1.45;color:var(--hh-text-muted)}

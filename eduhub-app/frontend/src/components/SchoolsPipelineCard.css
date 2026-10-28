@@ -407,3 +407,5 @@
   box-shadow: 0 0 0 7px var(--sp-halo), 0 0 0 9px rgba(47, 107, 79, 0.2), 0 8px 22px rgba(47, 107, 79, 0.3);
 }
 .sp-stage-count { z-index: 2; }
+
+.sp-cal-btn{margin-top:10px;height:40px;padding:0 18px;border-radius:20px;border:1.5px solid var(--hh-accent);background:transparent;color:var(--hh-accent);font:inherit;font-size:.85rem;font-weight:600;cursor:pointer}

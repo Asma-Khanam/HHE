@@ -50,13 +50,19 @@ function tileParts(n) {
   };
 }
 
+// Older rows were saved with the stage in the title ("Tour booked: Al Mawakeb
+// School - Al Barsha"); the chip already says that, so drop the prefix.
+const TITLE_PREFIX = /^(tour (booked|updated|cancelled|scheduled)|assessment (booked|updated|scheduled))\s*[:\-–]\s*/i;
+
 const isUrl = (v) => /^https?:\/\//i.test(String(v || ""));
 
 function Item({ n, isNew, open, onToggle }) {
   const kind = (n.kind === "school_update" ? STAGE[n.stage] : KIND[n.kind]) || { chip: "Update", tone: "info" };
   const tile = tileParts(n);
-  const details = (Array.isArray(n.details) ? n.details : []).filter((d) => d.label !== "When");
-  const school = n.school_name || n.title;
+  const allDetails = Array.isArray(n.details) ? n.details : [];
+  const details = allDetails.filter((d) => d.label !== "When");
+  const school = n.school_name || String(n.title || "").replace(TITLE_PREFIX, "") || n.title;
+  const when = n.event_time || (allDetails.find((d) => d.label === "When")?.value ?? "");
   return (
     <li className={`notif-item notif-${kind.tone}` + (isNew ? " is-new" : "") + (open ? " is-open" : "")}>
       <button type="button" className="notif-head" onClick={onToggle} aria-expanded={open}>
@@ -78,7 +84,7 @@ function Item({ n, isNew, open, onToggle }) {
             <span className="notif-ago">{ago(n.created_at)}</span>
           </span>
           <span className="notif-school">{school}</span>
-          {n.event_time && n.kind !== "tour_cancelled" && <span className="notif-when">{n.event_time}</span>}
+          {when && n.kind !== "tour_cancelled" && <span className="notif-when">{when}</span>}
           {n.kind === "school_update" && n.body && <span className="notif-when">{n.body}</span>}
           {n.kind === "tour_cancelled" && <span className="notif-when">Your consultant will arrange a new time</span>}
         </span>
@@ -153,6 +159,7 @@ export default function NotificationsPage() {
   return (
     <div className="notif-page">
       <h1 className="notif-h1">Notifications</h1>
+      <p className="notif-sub">Tours, assessments and school updates from your consultant.</p>
       {rows.length === 0 ? (
         <div className="notif-empty">
           <span className="notif-empty-icon"><IconBell size={26} /></span>

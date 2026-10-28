@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import { fetchFamilyTimetable, fetchFamilyApplications } from "../lib/timetableData";
 import { fetchApplicationFees } from "../lib/applicationFees";
-import { toursOfRow, parseDay, timeRange } from "../lib/tourDetails";
+import { toursOfRow, parseDay, timeRange, downloadTourIcs } from "../lib/tourDetails";
 import { hasAssessment, assessmentOf, assessmentWhen } from "../lib/assessment";
 import { placedByChild, appClosed, currentRoundApps } from "../lib/placement";
 import { displayNameForChild } from "../lib/completeness";
@@ -546,6 +546,9 @@ function ToursPanel({ groups, openKey, setOpenKey }) {
                   {open && (
                     <div className="sp-expand-body">
                       <TourDetailsCard tour={t} />
+                      <button type="button" className="sp-cal-btn" onClick={() => downloadTourIcs(t)}>
+                        Add to calendar
+                      </button>
                     </div>
                   )}
                 </li>

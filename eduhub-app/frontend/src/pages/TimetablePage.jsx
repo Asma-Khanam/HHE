@@ -133,7 +133,6 @@ export default function TimetablePage() {
   const [filter, setFilter] = useState("all");
   // Which child the page is showing: "all" or a child id (app design, Schools).
   const [childFilter, setChildFilter] = useState("all");
-  const [detailsKey, setDetailsKey] = useState(null);
   const [fees, setFees] = useState([]);
   const cardRefs = useRef({});
 
@@ -199,8 +198,7 @@ export default function TimetablePage() {
   const childNameOf = (id) => childList.find((c) => c.id === id)?.name || "";
 
   // Assessments the consultant has saved (date, join link, meeting ID,
-  // passcode), soonest first -- shown as soon as they're saved.
-  const ACTIVE = ["draft", "submitted", "assessment_booked", "under_review", "waitlisted"];
+  // passcode) -- shown on each school's card.
   const assessmentsFor = (row) =>
     appsFor(row)
       .filter((a) => hasAssessment(a) && !appClosed(placed, a))
@@ -216,19 +214,6 @@ export default function TimetablePage() {
     };
     return [...rows].sort((a, b) => rank(a) - rank(b));
   }, [rows, applications, childIds]);
-
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const upcomingTours = rows
-    .filter((r) => !isClosed(r))
-    .flatMap(toursOf)
-    .filter((t) => t.status !== "completed" && t.date >= todayKey)
-    .sort((a, b) => (a.date + (a.start || "")).localeCompare(b.date + (b.start || "")));
-  const upcomingAssessments = rows
-    .filter((r) => !isClosed(r))
-    .flatMap((r) => assessmentsFor(r).map((a) => ({ ...a, rowId: r.id })))
-    .filter((a) => ACTIVE.includes(a.app.status) && (!a.date || a.date >= todayKey))
-    .filter((a) => childFilter === "all" || a.app.child_id === childFilter)
-    .sort((x, y) => (x.date || "9999").localeCompare(y.date || "9999"));
 
   const categoryOf = (row) => {
     const apps = appsFor(row);
@@ -247,12 +232,6 @@ export default function TimetablePage() {
     childFilter === "all" ||
     childPhaseFor(r, appsFor(r).filter((a) => a.child_id === childFilter)).phase !== "—";
   const visible = sortedRows.filter((r) => (filter === "all" || categoryOf(r) === filter) && forChild(r));
-
-  function openSchool(rowId) {
-    setFilter("all");
-    setOpenId(rowId);
-    requestAnimationFrame(() => cardRefs.current[rowId]?.scrollIntoView({ behavior: "smooth", block: "start" }));
-  }
 
   function patchRow(rowId, changes) {
     setRows((list) => list.map((r) => (r.id === rowId ? { ...r, ...changes } : r)));
@@ -293,106 +272,7 @@ export default function TimetablePage() {
 
           <section className="ys-card">
             <div className="ys-card-head">
-              <h2>Coming up</h2>
-              <span className="ys-card-sub">Your booked school tours and assessments</span>
-            </div>
-            {upcomingAssessments.length > 0 && (
-              <ul className="ys-tours ys-assessments">
-                {upcomingAssessments.map((a) => {
-                  const d = a.date ? formatDay(a.date) : null;
-                  return (
-                    <li key={a.key} className="ys-tour is-assessment">
-                      <div className="ys-tour-date">
-                        <span>{d ? d.toLocaleDateString(undefined, { month: "short" }) : "TBC"}</span>
-                        <strong>{d ? d.getDate() : "–"}</strong>
-                        <span>{d ? d.toLocaleDateString(undefined, { weekday: "short" }) : ""}</span>
-                      </div>
-                      <div className="ys-tour-main">
-                        <button type="button" className="ys-tour-school" onClick={() => openSchool(a.rowId)}>
-                          {a.school.name || "School"}
-                        </button>
-                        <span className="ys-tour-when">
-                          Assessment{a.childName ? ` for ${a.childName}` : ""} · {assessmentWhen(a)}
-                          {a.date && relativeDay(a.date) && <span className="ys-tour-rel">{relativeDay(a.date)}</span>}
-                        </span>
-                      </div>
-                      <div className="ys-tour-actions">
-                        {a.link && (
-                          <a className="ys-btn ys-btn-primary" href={a.link} target="_blank" rel="noopener noreferrer">
-                            Join
-                          </a>
-                        )}
-                        <button
-                          type="button"
-                          className="ys-btn"
-                          onClick={() => setDetailsKey(detailsKey === a.key ? null : a.key)}
-                          aria-expanded={detailsKey === a.key}
-                        >
-                          {detailsKey === a.key ? "Hide details" : "Details"}
-                        </button>
-                      </div>
-                      {detailsKey === a.key && (
-                        <div className="ys-tour-details">
-                          <AssessmentCard assessment={a} />
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            {upcomingTours.length === 0 && upcomingAssessments.length > 0 ? null : upcomingTours.length === 0 ? (
-              <p className="ys-muted">No tours booked right now. We'll add them here as soon as a school confirms a date.</p>
-            ) : (
-              <ul className="ys-tours">
-                {upcomingTours.map((t) => {
-                  const d = formatDay(t.date);
-                  const rel = relativeDay(t.date);
-                  return (
-                    <li key={t.key} className="ys-tour">
-                      <div className="ys-tour-date">
-                        <span>{d.toLocaleDateString(undefined, { month: "short" })}</span>
-                        <strong>{d.getDate()}</strong>
-                        <span>{d.toLocaleDateString(undefined, { weekday: "short" })}</span>
-                      </div>
-                      <div className="ys-tour-main">
-                        <button type="button" className="ys-tour-school" onClick={() => openSchool(t.rowId)}>
-                          {t.school?.name || "School"}
-                        </button>
-                        <span className="ys-tour-when">
-                          {timeRange(t.start, t.end) || "Time to be confirmed"}
-                          {rel && <span className="ys-tour-rel">{rel}</span>}
-                          <span className={"ys-chip is-" + t.status}>{TOUR_STATUS_LABEL[t.status] || "Booked"}</span>
-                        </span>
-                      </div>
-                      <div className="ys-tour-actions">
-                        <button
-                          type="button"
-                          className="ys-btn"
-                          onClick={() => setDetailsKey(detailsKey === t.key ? null : t.key)}
-                          aria-expanded={detailsKey === t.key}
-                        >
-                          {detailsKey === t.key ? "Hide details" : "Tour details"}
-                        </button>
-                        <button type="button" className="ys-btn" onClick={() => downloadTourIcs(t)}>
-                          Add to calendar
-                        </button>
-                      </div>
-                      {detailsKey === t.key && (
-                        <div className="ys-tour-details">
-                          <TourDetailsCard tour={t} />
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-
-          <section className="ys-card">
-            <div className="ys-card-head">
-              <h2>Your shortlist</h2>
+              <h2>School by school</h2>
               <div className="ys-filters" role="tablist">
                 {FILTERS.map((f) => (
                   <button

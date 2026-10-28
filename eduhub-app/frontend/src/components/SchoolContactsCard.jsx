@@ -8,9 +8,11 @@ import "./SchoolContactsCard.css";
 
 // Who to contact at each school (Miss Lyndsay, 12 Oct 2026): the consultant
 // adds contacts on the school and ticks "Parents see"; they appear here for
-// every school on the family's shortlist or applications. Database policy
+// every school the family has shortlisted, toured, applied to or been placed at. Database policy
 // (addendum 103) only lets a family read shared, current contacts at their
 // own schools. Case notes are never involved.
+const STAGE_LABEL = { placed: "Place confirmed", applied: "Applied", toured: "Toured", shortlisted: "Shortlisted" };
+
 export default function SchoolContactsCard() {
   const { familyId, data } = useApplicationData();
   const [groups, setGroups] = useState(null);
@@ -31,8 +33,20 @@ export default function SchoolContactsCard() {
           fetchFamilyApplications(childIds),
         ]);
         const names = {};
+        const stages = {};
+        // Where each school is for this family, best stage wins.
+        const RANK = { shortlisted: 0, toured: 1, applied: 2, placed: 3 };
+        const mark = (id, stage) => {
+          if (!id) return;
+          if (stages[id] === undefined || RANK[stage] > RANK[stages[id]]) stages[id] = stage;
+        };
         (shortlist || []).forEach((r) => {
           if (r.school) names[r.school_id] = r.school.name;
+          mark(r.school_id, r.tour_date || r.tour2_date ? "toured" : "shortlisted");
+        });
+        apps.forEach((a) => {
+          if (a.status === "withdrawn") return mark(a.school_id, "shortlisted");
+          mark(a.school_id, a.status === "offer_accepted" ? "placed" : "applied");
         });
         const ids = [...new Set([...(shortlist || []).map((r) => r.school_id), ...apps.map((a) => a.school_id)])].filter(Boolean);
         if (!ids.length) return alive && setGroups([]);
@@ -47,9 +61,10 @@ export default function SchoolContactsCard() {
         if (error) throw error;
         const by = {};
         (rows || []).forEach((c) => {
-          (by[c.school_id] = by[c.school_id] || { id: c.school_id, name: names[c.school_id] || c.school?.name || "School", contacts: [] }).contacts.push(c);
+          (by[c.school_id] = by[c.school_id] || { id: c.school_id, name: names[c.school_id] || c.school?.name || "School", stage: stages[c.school_id] || "shortlisted", contacts: [] }).contacts.push(c);
         });
-        if (alive) setGroups(Object.values(by).sort((a, b) => a.name.localeCompare(b.name)));
+        const ORDER = { placed: 0, applied: 1, toured: 2, shortlisted: 3 };
+        if (alive) setGroups(Object.values(by).sort((a, b) => ORDER[a.stage] - ORDER[b.stage] || a.name.localeCompare(b.name)));
       } catch {
         if (alive) setFailed(true);
       }
@@ -61,22 +76,29 @@ export default function SchoolContactsCard() {
 
   if (failed) return <CardError title="School contacts" onRetry={() => setRetry((n) => n + 1)} />;
   if (!groups) return <CardSkeleton title="School contacts" rows={2} />;
-  if (groups.length === 0) return null;
 
   return (
     <section className={"dash-card sc-card" + (open ? " is-open" : "")}>
       <div className="dash-card-head">
         <button type="button" className="su-toggle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
           <h2><span className="dash-card-icon dash-card-icon--neutral"><IconUser size={16} /></span>School contacts</h2>
-          <span className="dash-count">{groups.length}</span>
+          {groups.length > 0 && <span className="dash-count">{groups.length}</span>}
           <span className="su-caret"><IconChevronDown size={18} /></span>
         </button>
       </div>
-      {open && (
+      {open && groups.length === 0 && (
+        <p className="scc-empty">
+          Your consultant adds the admissions contacts for your schools here: every school you have shortlisted, toured or applied to.
+        </p>
+      )}
+      {open && groups.length > 0 && (
         <ul className="scc-list">
           {groups.map((g) => (
             <li key={g.id} className="scc-school">
-              <strong>{g.name}</strong>
+              <div className="scc-school-head">
+                <strong>{g.name}</strong>
+                <span className={"scc-stage scc-stage--" + g.stage}>{STAGE_LABEL[g.stage]}</span>
+              </div>
               <ul className="scc-people">
                 {g.contacts.map((c) => (
                   <li key={c.id}>

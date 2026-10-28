@@ -63,3 +63,11 @@
 @media (max-width: 820px) {
   .notif-h1 { font-size: 1.45rem; }
 }
+
+.notif-sub { margin: 0 0 4px; font-size: 0.9rem; color: var(--hh-text-muted); }
+@media (min-width: 821px) {
+  .notif-page { max-width: 820px; margin: 0 auto; padding: 28px 32px 56px; }
+  .notif-h1 { font-size: 1.7rem; }
+  .notif-head { padding: 16px 18px; }
+  .notif-details { margin: 0 18px 18px; }
+}

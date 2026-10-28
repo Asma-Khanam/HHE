@@ -6,7 +6,7 @@ import ThemePicker from "../components/ThemePicker";
 import PackageUsageCard from "../components/PackageUsageCard";
 import DeleteAccountCard from "../components/DeleteAccountCard";
 import { IconBell, IconChevronRight, IconClipboard, IconFolder, IconUser } from "../components/icons";
-import { replayTour } from "../components/AppTour";
+import { replayTour, tourNoun } from "../components/AppTour";
 import "./SettingsPage.css";
 
 // Everything behind the gear on the phone top bar (app design, board 9).
@@ -66,6 +66,7 @@ export default function SettingsPage() {
         <IconChevronRight size={18} />
       </Link>
 
+      <div className="settings-grid">
       <section className="settings-group">
         <h2>Appearance</h2>
         <div className="settings-card settings-card-pad"><ThemePicker /></div>
@@ -87,7 +88,10 @@ export default function SettingsPage() {
         <div className="settings-card">
           <button type="button" className="set-row set-row-btn" onClick={() => { navigate("/app/dashboard"); setTimeout(replayTour, 300); }}>
             <span className="set-row-icon" aria-hidden="true"><IconBell size={18} /></span>
-            <span className="set-row-text"><span className="set-row-label">Replay the app tour</span></span>
+            <span className="set-row-text">
+              <span className="set-row-label">Replay the tour</span>
+              <span className="set-row-sub">A quick walk through the {tourNoun}</span>
+            </span>
             <IconChevronRight size={18} />
           </button>
         </div>
@@ -100,6 +104,8 @@ export default function SettingsPage() {
           <Row to="/privacy" Icon={IconClipboard} label="Privacy policy" />
         </div>
       </section>
+
+      </div>
 
       <button type="button" className="settings-logout" onClick={handleLogout}>Log out</button>
       <DeleteAccountCard />

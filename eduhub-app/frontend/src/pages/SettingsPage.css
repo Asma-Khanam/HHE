@@ -21,3 +21,15 @@
 .set-row-value{font-size:.85rem;color:var(--hh-text-muted);max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .settings-logout{height:52px;border-radius:26px;border:1.5px solid var(--hh-accent);background:transparent;color:var(--hh-accent);font:inherit;font-size:.95rem;font-weight:600;cursor:pointer;margin-top:4px}
 .set-row-btn{width:100%;background:none;border:0;border-top:0;font:inherit;text-align:left;cursor:pointer}
+
+.settings-grid{display:flex;flex-direction:column;gap:14px}
+.settings-sub{margin:0;font-size:.85rem;color:var(--hh-text-muted)}
+@media (min-width: 821px){
+  .settings-page{max-width:980px;padding:28px 32px 56px;gap:18px}
+  .settings-back{display:none}
+  .settings-head h1{font-size:1.7rem}
+  .settings-profile-card{max-width:none}
+  .settings-grid{display:block;column-count:2;column-gap:20px}
+  .settings-grid > *{break-inside:avoid;margin-bottom:18px}
+  .settings-logout{align-self:flex-start;padding:0 40px;margin-top:0}
+}
