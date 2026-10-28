@@ -671,3 +671,11 @@
 .save-pill.is-saved{background:var(--hh-good-bg);color:var(--hh-good)}
 .save-pill.is-error,.save-pill.is-offline{background:var(--hh-warn-bg);color:var(--hh-warn-text)}
 .save-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--hh-warn-bg);color:var(--hh-warn-text);border:1px solid transparent}
+
+/* Leave prompt (app design, "How saving works") */
+.leave-sheet-backdrop{position:fixed;inset:0;z-index:1100;background:rgba(20,7,13,.6);display:flex;align-items:flex-end;justify-content:center;padding:16px}
+.leave-sheet{width:100%;max-width:420px;background:var(--hh-surface);color:var(--hh-text);border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:10px;box-shadow:0 16px 40px rgba(0,0,0,.35)}
+.leave-sheet h2{margin:0;font-size:1.1rem;font-weight:700}
+.leave-sheet p{margin:0;font-size:.9rem;line-height:1.45;color:var(--hh-text-muted)}
+.leave-sheet-primary{height:48px;border-radius:24px;border:0;background:var(--hh-accent-solid);color:var(--hh-on-accent);font:inherit;font-weight:600;cursor:pointer}
+.leave-sheet-secondary{height:44px;border-radius:22px;border:1.5px solid var(--hh-accent);background:transparent;color:var(--hh-accent);font:inherit;font-weight:600;cursor:pointer}

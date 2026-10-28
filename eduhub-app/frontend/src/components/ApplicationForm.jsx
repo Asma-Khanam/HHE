@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useBlocker } from "react-router-dom";
 import FormSection from "./FormSection";
 import FormField from "./FormField";
 import FormSelect from "./FormSelect";
@@ -1452,6 +1452,28 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
 
   // Save at once when the person leaves: tab switch / screen change (unmount),
   // app sent to the background, page hidden, or the connection returning.
+  // Leaving while a save has failed (or the phone is offline) asks first. In every
+  // normal case leaving is instant and silent.
+  const unsavedRef = useRef(false);
+  unsavedRef.current =
+    (autosaveStatus === "error" || autosaveStatus === "offline") &&
+    lastSavedSnapshotRef.current !== null &&
+    snapshotOfEditableState() !== lastSavedSnapshotRef.current;
+  const leaveBlocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      unsavedRef.current && currentLocation.pathname !== nextLocation.pathname
+  );
+  useEffect(() => {
+    const warn = (e) => {
+      if (unsavedRef.current) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, []);
+
   useEffect(() => {
     const flush = () => flushRef.current();
     const onVisibility = () => {
@@ -1732,6 +1754,30 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
           ) : null
         }
       />
+      {leaveBlocker.state === "blocked" && (
+        <div className="leave-sheet-backdrop" role="alertdialog" aria-modal="true" aria-labelledby="leave-sheet-title">
+          <div className="leave-sheet">
+            <h2 id="leave-sheet-title">Your last changes have not saved yet</h2>
+            <p>
+              We are keeping them on this phone. Stay a moment to let them save, or leave and we will finish saving next
+              time you open the app.
+            </p>
+            <button
+              type="button"
+              className="leave-sheet-primary"
+              onClick={() => {
+                leaveBlocker.reset();
+                flushRef.current();
+              }}
+            >
+              Stay and save
+            </button>
+            <button type="button" className="leave-sheet-secondary" onClick={() => leaveBlocker.proceed()}>
+              Leave anyway
+            </button>
+          </div>
+        </div>
+      )}
       {(autosaveStatus === "error" || autosaveStatus === "offline") && (
         <div className="hh-form-banner save-banner" role="alert">
           <span>
