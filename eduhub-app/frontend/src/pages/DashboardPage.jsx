@@ -169,7 +169,7 @@ export default function DashboardPage() {
   // was there is in two words plus a chevron CTA now; the big story is on
   // the pipeline card below.
   let statusLine;
-  if (isSubmitted) {
+  if (isSubmitted && !todo.length) {
     statusLine = {
       tone: "good",
       icon: <IconCheckCircle size={14} />,

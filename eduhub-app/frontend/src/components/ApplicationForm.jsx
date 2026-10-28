@@ -1340,11 +1340,61 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
   const retryCountRef = useRef(0);
   const flushRef = useRef(() => {});
 
+  // A copy of every unsaved edit is kept on this phone, so a force-close in the
+  // middle of a failed or slow save loses nothing. It is only restored when the
+  // server data is still exactly what the copy was based on.
+  const draftKey = `hh-app-draft-${familyId}`;
+  function writeDraft(snapshot) {
+    try {
+      localStorage.setItem(
+        draftKey,
+        JSON.stringify({ baseline: lastSavedSnapshotRef.current, snapshot, at: Date.now() })
+      );
+    } catch {
+      /* storage full or blocked: saving to the server still works */
+    }
+  }
+  function clearDraft() {
+    try {
+      localStorage.removeItem(draftKey);
+    } catch {
+      /* ignore */
+    }
+  }
+  function restoreDraftIfAny() {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.baseline !== lastSavedSnapshotRef.current || d.snapshot === d.baseline) {
+        clearDraft();
+        return;
+      }
+      const v = JSON.parse(d.snapshot);
+      if (v.parents) setParents(v.parents);
+      if (v.children) setChildren(v.children);
+      if (v.currentSchools) setCurrentSchools(v.currentSchools);
+      if (v.accountHolderRole) setAccountHolderRole(v.accountHolderRole);
+      if (v.schoolPriorities) setSchoolPriorities(v.schoolPriorities);
+      if (v.comfortableFeeRange !== undefined) setComfortableFeeRange(v.comfortableFeeRange);
+      if (v.parentWorkLocation !== undefined) setParentWorkLocation(v.parentWorkLocation);
+      if (v.budgetStatus !== undefined) setBudgetStatus(v.budgetStatus);
+      if (v.housingBudget !== undefined) setHousingBudget(v.housingBudget);
+      if (v.preferredLivingArea !== undefined) setPreferredLivingArea(v.preferredLivingArea);
+      if (v.costGuidance !== undefined) setCostGuidance(v.costGuidance);
+    } catch {
+      clearDraft();
+    }
+  }
+
   async function runAutosave() {
     clearTimeout(autosaveTimerRef.current);
     clearTimeout(retryTimerRef.current);
     if (lastSavedSnapshotRef.current === null) return;
-    if (snapshotOfEditableState() === lastSavedSnapshotRef.current) return;
+    if (snapshotOfEditableState() === lastSavedSnapshotRef.current) {
+      clearDraft();
+      return;
+    }
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       setAutosaveStatus("offline");
       return;
@@ -1380,10 +1430,15 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
       // loaded, not a change the user made, so it's the baseline, not
       // something to save.
       lastSavedSnapshotRef.current = snapshotOfEditableState();
+      restoreDraftIfAny();
       return;
     }
-    if (snapshotOfEditableState() === lastSavedSnapshotRef.current) return;
+    if (snapshotOfEditableState() === lastSavedSnapshotRef.current) {
+      clearDraft();
+      return;
+    }
 
+    writeDraft(snapshotOfEditableState());
     clearTimeout(autosaveTimerRef.current);
     autosaveTimerRef.current = setTimeout(() => flushRef.current(), SAVE_DELAY_MS);
 
