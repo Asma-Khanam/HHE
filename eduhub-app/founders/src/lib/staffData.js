@@ -2357,6 +2357,63 @@ export function zoomIdFromUrl(url) {
   return (url && /zoom\.us\/j\/(\d+)/i.exec(url)?.[1]) || "";
 }
 
+// Attach a Zoom meeting to a Calendly booking so the AI summary can find it
+// when the call ends. Saves the ID on the booking itself (for the status chip
+// and for later linking), and -- if the booking is already linked to a family
+// -- adds a zoom_meeting_links row so the webhook attaches the summary straight
+// to that family. Any already-received unmatched summary for this meeting is
+// attached straight away.
+export async function attachZoomToBooking(booking, meetingId) {
+  const id = String(meetingId || "").trim();
+  if (!id) throw new Error("No Zoom meeting ID.");
+  // 1) Save on the booking.
+  unwrap(
+    await supabase
+      .from("calendly_bookings")
+      .update({ zoom_meeting_id: id, join_url: booking.join_url || `https://zoom.us/j/${id}`, updated_at: new Date().toISOString() })
+      .eq("id", booking.id)
+      .select("id")
+      .single()
+  );
+  // 2) If a family is linked, make sure zoom_meeting_links has this ID so
+  //    the webhook routes future summaries to that family automatically.
+  if (booking.family_id) {
+    const { data: existing } = await supabase
+      .from("zoom_meeting_links")
+      .select("id")
+      .eq("family_id", booking.family_id)
+      .eq("zoom_meeting_id", id)
+      .limit(1);
+    if (!existing || existing.length === 0) {
+      await supabase
+        .from("zoom_meeting_links")
+        .insert({ family_id: booking.family_id, zoom_meeting_id: id, join_url: booking.join_url || `https://zoom.us/j/${id}`, topic: booking.event_name || null });
+    }
+    // 3) Attach any already-received summaries (addendum 122) to the family's Meetings tab.
+    const { data: kept } = await supabase
+      .from("zoom_unmatched_summaries")
+      .select("id, topic, body, occurred_at")
+      .eq("zoom_meeting_id", id)
+      .is("attached_family_id", null);
+    for (const z of kept || []) {
+      try {
+        await supabase.from("case_notes").insert({
+          family_id: booking.family_id,
+          kind: "meeting",
+          subject: z.topic || "Zoom meeting",
+          body: z.body,
+          occurred_at: z.occurred_at,
+          external_ref: `zoom:${id}:${z.id}`,
+        });
+        await supabase
+          .from("zoom_unmatched_summaries")
+          .update({ attached_family_id: booking.family_id, attached_at: new Date().toISOString() })
+          .eq("id", z.id);
+      } catch { /* a duplicate external_ref is fine */ }
+    }
+  }
+}
+
 export async function saveCalendlyBookingNote(bookingId, note) {
   unwrap(
     await supabase

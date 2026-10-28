@@ -4,6 +4,7 @@ import {
   listCalendlyBookings,
   linkCalendlyBooking,
   saveCalendlyBookingNote,
+  attachZoomToBooking,
   listFamilies,
   listZoomSummariesByMeeting,
   zoomIdFromUrl,
@@ -56,7 +57,34 @@ function BookingCard({ booking, families, summaries, onChanged }) {
   const family = families.find((f) => f.id === booking.family_id) || null;
   const pay = paymentLabel(booking);
   const canceled = booking.status === "canceled";
-  const zoomSummaries = summaries[zoomIdFromUrl(booking.join_url)] || [];
+  const [zoomPaste, setZoomPaste] = useState("");
+  const [zoomBusy, setZoomBusy] = useState(false);
+  const zoomId = zoomIdFromUrl(booking.join_url) || booking.zoom_meeting_id || "";
+  const zoomSummaries = (zoomId && summaries[zoomId]) || [];
+  const callOver = booking.end_time ? new Date(booking.end_time).getTime() < Date.now() : (booking.start_time ? new Date(booking.start_time).getTime() + 90 * 60 * 1000 < Date.now() : false);
+  const zoomStatus = (() => {
+    if (zoomSummaries.length > 0) return { tone: "green", label: "Zoom summary received" };
+    if (!zoomId) return { tone: "grey", label: "No Zoom link" };
+    if (!callOver) return { tone: "blue", label: "Zoom link saved" };
+    return { tone: "amber", label: "Zoom summary pending" };
+  })();
+
+  async function pasteZoom() {
+    const id = zoomIdFromUrl(zoomPaste) || zoomPaste.trim();
+    if (!id) return;
+    setZoomBusy(true);
+    setError("");
+    try {
+      await attachZoomToBooking(booking, id);
+      setZoomPaste("");
+      await onChanged();
+    } catch (e) {
+      setError(friendlyError(e, "Couldn't attach the Zoom link."));
+    } finally {
+      setZoomBusy(false);
+    }
+  }
+
 
   async function link() {
     if (!pick) return;
@@ -107,6 +135,7 @@ function BookingCard({ booking, families, summaries, onChanged }) {
           ) : (
             <span className="consult-tag consult-tag-grey">Not linked</span>
           )}
+          <span className={"consult-tag consult-tag-" + zoomStatus.tone}>{zoomStatus.label}</span>
         </div>
       </button>
 
@@ -167,14 +196,40 @@ function BookingCard({ booking, families, summaries, onChanged }) {
             </div>
           )}
 
-          {zoomSummaries.length > 0 && (
-            <div className="consult-zoom">
-              <div className="panel-field-label">Zoom summary (added automatically)</div>
-              {zoomSummaries.map((z) => (
-                <pre key={z.id} className="consult-zoom-text">{z.body}</pre>
-              ))}
+          <div className="consult-zoom">
+            <div className="consult-zoom-head">
+              <div className="panel-field-label">Zoom summary</div>
+              <span className={"consult-tag consult-tag-" + zoomStatus.tone}>{zoomStatus.label}</span>
             </div>
-          )}
+            {zoomSummaries.length > 0 ? (
+              zoomSummaries.map((z) => (
+                <pre key={z.id} className="consult-zoom-text">{z.body}</pre>
+              ))
+            ) : zoomId ? (
+              <p className="consult-zoom-hint">
+                {callOver
+                  ? "The AI summary usually lands within an hour of the call ending. If it still hasn't arrived, check that the host had AI Companion summary on, and that the host is on HHE's Zoom account."
+                  : "Zoom link saved. The AI summary will appear here automatically within an hour of the call ending."}
+              </p>
+            ) : (
+              <>
+                <p className="consult-zoom-hint">
+                  This booking has no Zoom link. If the call will run on Zoom, paste its link (or just the 10-digit meeting ID) so the AI summary attaches here when the call ends.
+                </p>
+                <div className="panel-form consult-zoom-form">
+                  <input
+                    className="panel-input"
+                    placeholder="https://zoom.us/j/1234567890 or 1234567890"
+                    value={zoomPaste}
+                    onChange={(e) => setZoomPaste(e.target.value)}
+                  />
+                  <button type="button" className="panel-btn" disabled={zoomBusy || !zoomPaste.trim()} onClick={pasteZoom}>
+                    Attach
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
 
           <label className="panel-field-label" htmlFor={`cn-${booking.id}`}>
             Staff note

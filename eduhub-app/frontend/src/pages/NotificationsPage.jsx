@@ -15,6 +15,10 @@ const KIND = {
   tour_cancelled: { chip: "Tour cancelled", tone: "warn" },
   assessment_scheduled: { chip: "Assessment booked", tone: "good" },
   assessment_updated: { chip: "Assessment updated", tone: "info" },
+  tour_reminder_day: { chip: "Tour tomorrow", tone: "info" },
+  tour_reminder_hours: { chip: "Tour in 2 hours", tone: "info" },
+  assessment_reminder_day: { chip: "Assessment tomorrow", tone: "info" },
+  assessment_reminder_hours: { chip: "Assessment in 2 hours", tone: "info" },
 };
 
 // "School update" notifications (addendum 138) are labelled by their stage.

@@ -52,3 +52,8 @@
   max-height: 320px;
   overflow: auto;
 }
+
+.consult-zoom-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.consult-zoom-hint { margin: 6px 0 0; font-size: 0.85rem; color: rgba(42, 17, 25, 0.7); line-height: 1.45; }
+.consult-zoom-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.consult-zoom-form .panel-input { flex: 1; min-width: 220px; }
