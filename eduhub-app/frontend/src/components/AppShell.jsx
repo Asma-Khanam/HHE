@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import PersonAvatar, { findProfilePhoto } from "./PersonAvatar";
 import { IconBell, IconSettings, IconClipboard, IconFolder, IconGrid, IconLogout, IconSchool, IconWallet } from "./icons";
-import logo from "../assets/brand/logo-vertical-burgundy.png";
+import logoWhite from "../assets/brand/relocate-logo-white.png";
 import "./AppShell.css";
 
 // Order asked for by the founders (2026-09-02): the Dashboard first — it's
@@ -26,8 +26,10 @@ const NAV_ITEMS = [
   { to: "/app/documents", label: "Documents", short: "Documents", Icon: IconFolder },
   { to: "/app/billing", label: "Billing", short: "Billing", Icon: IconWallet },
   // Phone reaches this from the bell at the top; desktop gets a nav row.
-  { to: "/app/settings", label: "Settings", short: "Settings", Icon: IconSettings, desktopOnly: true },
-  { to: "/app/notifications", label: "Notifications", short: "Alerts", Icon: IconBell, desktopOnly: true, badge: true },
+  // Notifications and Settings sit at the bottom of the desktop menu, just above
+  // the signed-in person, like the consultant site.
+  { to: "/app/notifications", label: "Notifications", short: "Alerts", Icon: IconBell, desktopOnly: true, badge: true, bottom: true },
+  { to: "/app/settings", label: "Settings", short: "Settings", Icon: IconSettings, desktopOnly: true, bottom: true },
 ];
 
 function greetingForNow() {
@@ -107,11 +109,17 @@ export default function AppShell() {
       </NavLink>
 
       <nav className="app-shell-nav">
-        <img src={logo} alt="Heather Harries" className="app-shell-nav-logo" />
+        <div className="app-shell-brand">
+          <img src={logoWhite} alt="" className="app-shell-brand-logo" />
+          <div>
+            <div className="app-shell-brand-name">Heather Harries</div>
+            <div className="app-shell-brand-sub">Relocate</div>
+          </div>
+        </div>
 
         <ul className="app-shell-nav-list">
           {NAV_ITEMS.map((item) => (
-            <li key={item.to}>
+            <li key={item.to} className={item.bottom && item === NAV_ITEMS.find((i) => i.bottom) ? "is-bottom-start" : undefined}>
               <NavLink
                 to={item.to}
                 className={({ isActive }) =>
@@ -129,31 +137,17 @@ export default function AppShell() {
           ))}
         </ul>
 
-        {/* Whoever is signed in, at the foot of the nav — their photo (or
-            initial), their name, and which parent they are. Doubles as the
-            link to their profile, so the nav doesn't need a separate row for
-            it. Shaped after the founders' own consultant card. */}
-        <NavLink
-          to="/app/profile"
-          className={({ isActive }) => "app-shell-profile app-shell-desktop-only" + (isActive ? " is-active" : "")}
-        >
-          <PersonAvatar
-            doc={holderPhoto}
-            name={holderName}
-            fallback={holderRole}
-            className="app-shell-profile-avatar"
-          />
-          <span className="app-shell-profile-text">
-            <span className="app-shell-profile-name">{holderName || "Your profile"}</span>
-            <span className="app-shell-profile-role">{holderName ? holderRole : "Add your details"}</span>
-          </span>
-        </NavLink>
-
-        <button className="app-shell-nav-logout app-shell-desktop-only" onClick={handleLogout}>
-          <IconLogout size={16} />
-          <span>Log out</span>
-        </button>
-        <NavLink to="/privacy" className="app-shell-privacy-link app-shell-desktop-only">Privacy policy</NavLink>
+        {/* Whoever is signed in, at the foot of the nav: photo, name (opens
+            Your family) and Sign out, shaped like the consultant site. */}
+        <div className="app-shell-me app-shell-desktop-only">
+          <NavLink to="/app/profile" className="app-shell-me-avatar" title="Your family">
+            <PersonAvatar doc={holderPhoto} name={holderName} fallback={holderRole} className="app-shell-profile-avatar" />
+          </NavLink>
+          <div className="app-shell-me-text">
+            <NavLink to="/app/profile" className="app-shell-me-name">{holderName || "Your profile"}</NavLink>
+            <button type="button" className="app-shell-me-signout" onClick={handleLogout}>Sign out</button>
+          </div>
+        </div>
       </nav>
 
       <main className="app-shell-content">

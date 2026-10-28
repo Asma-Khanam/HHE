@@ -199,3 +199,25 @@
   cursor: pointer;
 }
 @media (max-width: 820px) { .profile-settings { margin: 0 16px 16px; } }
+
+/* "My profile" layout, shaped like the consultant site (28 Oct 2026) */
+.myp-body { padding: 8px 40px 60px; display: grid; grid-template-columns: minmax(260px, 380px) 1fr; gap: 20px; align-items: start; }
+.myp-left, .myp-right { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.myp-card { background: var(--hh-surface); border: 1px solid var(--hh-border); border-radius: 20px; padding: 22px 24px; box-shadow: var(--hh-card-shadow); color: var(--hh-text); }
+.myp-card h3 { margin: 0 0 12px; font-family: var(--hh-font-heading); font-size: 1.1rem; font-weight: 600; color: var(--hh-accent); }
+.myp-me { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
+.myp-me .avatar-upload { flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.myp-me .hh-avatar-lg { width: 112px; height: 112px; font-size: 2rem; }
+.myp-me h2 { margin: 6px 0 0; font-family: var(--hh-font-heading); font-size: 1.35rem; color: var(--hh-accent); }
+.myp-badge { background: var(--hh-accent-solid); color: var(--hh-on-accent); font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 5px 14px; border-radius: 999px; }
+.myp-email { margin: 0; color: var(--hh-text-muted); font-size: .9rem; }
+.myp-progress-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.myp-progress-head span { color: var(--hh-text-muted); font-size: .85rem; }
+.myp-bar { height: 8px; border-radius: 4px; background: var(--hh-border); margin: 12px 0 10px; overflow: hidden; }
+.myp-bar span { display: block; height: 100%; border-radius: 4px; background: var(--hh-gold); }
+.myp-next { margin: 0; font-size: .9rem; color: var(--hh-text-muted); }
+.myp-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.myp-tile { background: var(--hh-surface); border: 1px solid var(--hh-border); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+.myp-tile strong { font-family: var(--hh-font-heading); font-size: 1.5rem; color: var(--hh-accent); line-height: 1.1; }
+.myp-tile span { font-size: .8rem; color: var(--hh-text-muted); }
+@media (max-width: 900px) { .myp-body { grid-template-columns: 1fr; padding: 8px 16px 40px; } }

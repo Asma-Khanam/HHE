@@ -2,7 +2,8 @@ import { Link } from "react-router-dom";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import PageHeader from "../components/PageHeader";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
-import { displayNameForChild } from "../lib/completeness";
+import AvatarUpload from "../components/AvatarUpload";
+import { displayNameForChild, getMissingItems, getReadinessPct } from "../lib/completeness";
 import "./ProfilePage.css";
 
 function Row({ label, value }) {
@@ -46,7 +47,7 @@ function HouseholdRow({ name, tag, detail, isChild, photo }) {
 // happens on the Application page; this is just "who is this account and
 // who's in this family."
 export default function ProfilePage() {
-  const { user, data } = useApplicationData();
+  const { user, data, reload } = useApplicationData();
   const parents = data?.parents || [];
   const children = data?.children || [];
   const documentsByOwner = data?.documentsByOwner || {};
@@ -58,11 +59,27 @@ export default function ProfilePage() {
   const otherParent = parents.find((p) => p.relationship === otherRole);
   const hasHousehold = otherParent?.full_name || children.length > 0;
 
+  // Same readiness the Home card uses.
+  const family = data?.family || {};
+  const familyAnswers = {
+    schoolPriorities: family.school_priorities || [],
+    comfortableFeeRange: family.comfortable_fee_range || "",
+    budgetStatus: family.budget_status || "",
+  };
+  const currentSchools = children.map((c) => data?.schoolsByChild?.[c.id] || {});
+  const readyArgs = { parents, accountHolderRole: holderRole, children, currentSchools, documentsByOwner, ...familyAnswers };
+  const pct = Math.max(0, Math.min(100, getReadinessPct(readyArgs)));
+  const missing = getMissingItems(readyArgs);
+  const people = parents.filter((p) => p.full_name).length + children.length;
+  const since = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })
+    : "";
+
   return (
-    <div>
+    <div className="myp">
       <PageHeader
         title="Your family"
-        subtitle={`Who is on the application. You are the account holder (${holderRole}).`}
+        subtitle={`Who is on the application. You are the account holder (${holderRole}). Details are edited in the Application.`}
         action={
           <Link to="/app/form" className="hh-link-btn">
             Edit in Application →
@@ -70,66 +87,89 @@ export default function ProfilePage() {
         }
       />
 
-      <div className="profile-page-body">
-        <div className="profile-card">
-          <PersonAvatar
-            doc={photoFor("parent", holder?.id)}
-            name={holder?.full_name || user?.email}
-            fallback={holderRole}
-            className="hh-avatar-lg"
-          />
-          <div>
+      <div className="myp-body">
+        <div className="myp-left">
+          <section className="myp-card myp-me">
+            <AvatarUpload
+              userId={user?.id}
+              ownerType="parent"
+              ownerId={holder?.id}
+              name={holder?.full_name || user?.email}
+              fallback={holderRole}
+              documents={documentsByOwner[`parent:${holder?.id}`] || []}
+              onDocumentsChange={() => reload()}
+            />
             <h2>{holder?.full_name || "Name not set yet"}</h2>
-            <p>{user?.email}</p>
-          </div>
-        </div>
+            <span className="myp-badge">{holderRole}</span>
+            <p className="myp-email">{user?.email}</p>
+          </section>
 
-        <div className="profile-card">
-          <div className="profile-details-grid">
-            <Row label="Phone" value={holder?.phone} />
-            <Row label="Nationality" value={holder?.nationality} />
-            <Row label="First language" value={holder?.first_language} />
-            <Row label="Second language" value={holder?.second_language} />
-            <Row label="Employer" value={holder?.employer_name} />
-            <Row label="Job title" value={holder?.occupation_designation} />
-          </div>
-          <Row label="Home address" value={data?.family?.home_address} />
-        </div>
-
-        <div className="profile-card profile-card-household">
-          <h3 className="profile-household-title">Household</h3>
-          {hasHousehold ? (
-            <div className="household-list">
-              <HouseholdRow
-                name={holder?.full_name || `${holderRole} (not named yet)`}
-                tag={`${holderRole} · primary contact`}
-                detail={holder?.phone}
-                photo={photoFor("parent", holder?.id)}
-              />
-              {otherParent?.full_name && (
-                <HouseholdRow
-                  name={otherParent.full_name}
-                  tag={otherRole}
-                  detail={otherParent.phone}
-                  photo={photoFor("parent", otherParent.id)}
-                />
-              )}
-              {children.map((child, i) => (
-                <HouseholdRow
-                  key={child.id || i}
-                  isChild
-                  name={displayNameForChild(child, i)}
-                  tag={children.length > 1 ? `Child ${i + 1}` : "Child"}
-                  detail={formatDob(child.date_of_birth) || child.year_group_applying_for}
-                  photo={photoFor("child", child.id)}
-                />
-              ))}
+          <section className="myp-card">
+            <div className="myp-progress-head">
+              <strong>Application {pct}% complete</strong>
+              <span>{missing.length ? `${missing.length} left` : "All filled in"}</span>
             </div>
-          ) : (
-            <p className="household-empty-hint">
-              Add the other parent and your children in Application to see them here.
+            <div className="myp-bar" aria-hidden="true"><span style={{ width: `${pct}%` }} /></div>
+            <p className="myp-next">
+              {missing.length ? `Next: ${missing[0].label}` : "Everything required is filled in."}
             </p>
-          )}
+          </section>
+
+          <div className="myp-tiles">
+            <div className="myp-tile"><strong>{people}</strong><span>People on the application</span></div>
+            <div className="myp-tile"><strong>{since || "—"}</strong><span>With us since</span></div>
+          </div>
+        </div>
+
+        <div className="myp-right">
+          <section className="myp-card">
+            <h3>Your details</h3>
+            <div className="profile-details-grid">
+              <Row label="Phone" value={holder?.phone} />
+              <Row label="Nationality" value={holder?.nationality} />
+              <Row label="First language" value={holder?.first_language} />
+              <Row label="Second language" value={holder?.second_language} />
+              <Row label="Employer" value={holder?.employer_name} />
+              <Row label="Job title" value={holder?.occupation_designation} />
+            </div>
+            <Row label="Home address" value={data?.family?.home_address} />
+          </section>
+
+          <section className="myp-card">
+            <h3>Household</h3>
+            {hasHousehold ? (
+              <div className="household-list">
+                <HouseholdRow
+                  name={holder?.full_name || `${holderRole} (not named yet)`}
+                  tag={`${holderRole} · primary contact`}
+                  detail={holder?.phone}
+                  photo={photoFor("parent", holder?.id)}
+                />
+                {otherParent?.full_name && (
+                  <HouseholdRow
+                    name={otherParent.full_name}
+                    tag={otherRole}
+                    detail={otherParent.phone}
+                    photo={photoFor("parent", otherParent.id)}
+                  />
+                )}
+                {children.map((child, i) => (
+                  <HouseholdRow
+                    key={child.id || i}
+                    isChild
+                    name={displayNameForChild(child, i)}
+                    tag={children.length > 1 ? `Child ${i + 1}` : "Child"}
+                    detail={formatDob(child.date_of_birth) || child.year_group_applying_for}
+                    photo={photoFor("child", child.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="household-empty-hint">
+                Add the other parent and your children in Application to see them here.
+              </p>
+            )}
+          </section>
         </div>
       </div>
     </div>
