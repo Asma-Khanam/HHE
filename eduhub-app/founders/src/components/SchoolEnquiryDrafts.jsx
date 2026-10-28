@@ -25,6 +25,7 @@ export default function SchoolEnquiryDrafts({ familyId, family, familyName, fami
   const [error, setError] = useState("");
   const [drafting, setDrafting] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const children = familyChildren || [];
   const from = family?.dubai_available_from || "";
@@ -124,19 +125,25 @@ export default function SchoolEnquiryDrafts({ familyId, family, familyName, fami
 
   // Nothing left to email -> nothing to show.
   if (loading || (todo.length === 0 && !drafting)) return null;
+  const isOpen = expanded || !!drafting;
 
   return (
-    <section className="panel tw-card">
+    <section className="panel tw-card tw-slim">
       <div className="panel-head">
         <h2>
-          Email the schools
-          {todo.length > 0 && <span className="panel-count">{todo.length}</span>}
+          {todo.length === 1 ? "1 school still to email" : `${todo.length} schools still to email`}
         </h2>
-        <span className="tw-window">{hasDates ? "Asking for spaces and tour slots" : "Asking about spaces only"}</span>
+        <button type="button" className="panel-btn panel-btn-primary" onClick={() => setExpanded((v) => !v)}>
+          {isOpen ? "Hide drafts" : "Review drafts"}
+        </button>
       </div>
-      <p className="panel-hint tw-hint">Nothing sends until you press Send.</p>
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
+      {isOpen && (
+      <>
+      <p className="panel-hint tw-hint">
+        {hasDates ? "Asks for spaces and tour slots inside the visit window." : "Asks about spaces only; tour slots come once the family has dates."} Nothing sends until you press Send.
+      </p>
       <ul className="tw-enq">
         {items.filter((it) => it.state === "todo" || it.state === "skipped" || (drafting && drafting.item.row.id === it.row.id)).map((it) => (
           <li key={it.row.id} className={"tw-enq-row is-" + it.state}>
@@ -166,6 +173,8 @@ export default function SchoolEnquiryDrafts({ familyId, family, familyName, fami
           </li>
         ))}
       </ul>
+      </>
+      )}
 
       {drafting && (
         <div className="tw-compose">

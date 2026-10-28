@@ -1041,16 +1041,6 @@ export default function FamilyDetailPage() {
             blocked={blockedTimes}
             onChange={async () => setBlockedTimes(await listBlockedTimes(family.id))}
           />
-          <SchoolEnquiryDrafts
-            familyId={family.id}
-            family={family}
-            familyName={displayName}
-            familyChildren={children}
-            blocked={blockedTimes}
-            composerCtx={visitComposerCtx}
-            refreshKey={reviewKey}
-            onChanged={() => setReviewKey((k) => k + 1)}
-          />
           <TourSlotReview
             familyId={family.id}
             familyChildren={children}
@@ -1113,6 +1103,16 @@ export default function FamilyDetailPage() {
 
       {activeTab === "emails" && (
         <TabErrorBoundary>
+        <SchoolEnquiryDrafts
+          familyId={family.id}
+          family={family}
+          familyName={displayName}
+          familyChildren={children}
+          blocked={blockedTimes}
+          composerCtx={visitComposerCtx}
+          refreshKey={reviewKey}
+          onChanged={() => setReviewKey((k) => k + 1)}
+        />
         <EmailsPanel
           familyId={family.id}
           notes={caseNotes}
