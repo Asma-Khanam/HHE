@@ -6,7 +6,7 @@ import { fetchApplicationFees } from "./applicationFees";
 import { fetchFamilyInvoices } from "./invoices";
 import { hasAssessment, assessmentOf } from "./assessment";
 import { toursOfRow, timeRange, formatTime } from "./tourDetails";
-import { placedByChild, schoolClosed, appClosed } from "./placement";
+import { placedByChild, appClosed } from "./placement";
 import { displayNameForChild } from "./completeness";
 
 // Everything with a date that a family should see in one place: school tours,
@@ -81,7 +81,6 @@ export function useFamilyCalendar() {
   const events = useMemo(() => {
     if (!remote) return null;
     const { shortlist, apps, fees, invoices, placements, bookings, names } = remote;
-    const childIds = children.map((c) => c.id);
     const childName = (id) => {
       const i = children.findIndex((c) => c.id === id);
       return i >= 0 ? displayNameForChild(children[i], i) : "";
@@ -91,11 +90,9 @@ export function useFamilyCalendar() {
     const out = [];
     const push = (e) => e.date && out.push({ ...e, time: e.time || "", past: e.done || e.date < today });
 
-    // School tours (a school the family has a place elsewhere from stays out once it is in the future).
+    // School tours: every booked tour, the same as the Tours stage on Home.
     shortlist.forEach((row) => {
-      const closed = schoolClosed(placed, childIds, row.school_id, apps);
       toursOfRow(row).forEach((t) => {
-        if (closed && t.date >= today && t.status !== "completed") return;
         push({
           id: `tour-${t.key}`, kind: "tour", title: row.school?.name || "School tour",
           sub: row.school?.area || "", date: t.date, time: String(t.start || "").slice(0, 5),
