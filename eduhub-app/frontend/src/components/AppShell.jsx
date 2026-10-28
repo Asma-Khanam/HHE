@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import PersonAvatar, { findProfilePhoto } from "./PersonAvatar";
-import { IconBell, IconClipboard, IconFolder, IconGrid, IconLogout, IconSchool, IconWallet } from "./icons";
+import { IconBell, IconSettings, IconClipboard, IconFolder, IconGrid, IconLogout, IconSchool, IconWallet } from "./icons";
 import logo from "../assets/brand/logo-vertical-burgundy.png";
 import "./AppShell.css";
 
@@ -26,6 +26,7 @@ const NAV_ITEMS = [
   { to: "/app/documents", label: "Documents", short: "Documents", Icon: IconFolder },
   { to: "/app/billing", label: "Billing", short: "Billing", Icon: IconWallet },
   // Phone reaches this from the bell at the top; desktop gets a nav row.
+  { to: "/app/settings", label: "Settings", short: "Settings", Icon: IconSettings, desktopOnly: true },
   { to: "/app/notifications", label: "Notifications", short: "Alerts", Icon: IconBell, desktopOnly: true, badge: true },
 ];
 
@@ -96,6 +97,9 @@ export default function AppShell() {
           <span className="app-topbar-hello">{greetingForNow()},</span>
           <span className="app-topbar-name">{firstName || "Your profile"}</span>
         </span>
+      </NavLink>
+      <NavLink to="/app/settings" className="app-gear" aria-label="Settings">
+        <IconSettings size={22} />
       </NavLink>
       <NavLink to="/app/notifications" className="app-bell" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}>
         <IconBell size={22} />

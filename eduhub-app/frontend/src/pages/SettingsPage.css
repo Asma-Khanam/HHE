@@ -1,0 +1,22 @@
+.settings-page{max-width:640px;margin:0 auto;padding:12px 16px 40px;display:flex;flex-direction:column;gap:14px;color:var(--hh-text)}
+.settings-head{display:flex;align-items:center;gap:10px}
+.settings-head h1{margin:0;font-size:1.4rem;font-weight:700}
+.settings-back{width:44px;height:44px;border-radius:50%;border:1px solid var(--hh-border);background:var(--hh-surface);color:var(--hh-text);display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+.settings-profile-card{display:flex;align-items:center;gap:14px;background:var(--hh-surface);border:1px solid var(--hh-border);border-radius:22px;padding:14px;box-shadow:var(--hh-card-shadow);text-decoration:none;color:var(--hh-text)}
+.settings-profile-avatar{width:56px;height:56px;border-radius:50%;flex:none}
+.settings-profile-text{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
+.settings-profile-name{font-size:1rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.settings-profile-sub{font-size:.8rem;color:var(--hh-text-muted)}
+.settings-group{display:flex;flex-direction:column;gap:8px}
+.settings-group h2{margin:0 4px;font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--hh-text-muted)}
+.settings-card{background:var(--hh-surface);border:1px solid var(--hh-border);border-radius:20px;overflow:hidden}
+.settings-card-pad{padding:14px}
+.settings-card-pad .theme-picker h3{display:none}
+.set-row{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 14px;box-sizing:border-box;text-decoration:none;color:var(--hh-text);border-top:1px solid var(--hh-border)}
+.set-row:first-child{border-top:0}
+.set-row-icon{width:34px;height:34px;border-radius:11px;background:var(--hh-accent-soft);color:var(--hh-accent);display:flex;align-items:center;justify-content:center;flex:none}
+.set-row-text{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
+.set-row-label{font-size:.92rem;font-weight:500}
+.set-row-sub{font-size:.76rem;color:var(--hh-text-muted)}
+.set-row-value{font-size:.85rem;color:var(--hh-text-muted);max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.settings-logout{height:52px;border-radius:26px;border:1.5px solid var(--hh-accent);background:transparent;color:var(--hh-accent);font:inherit;font-size:.95rem;font-weight:600;cursor:pointer;margin-top:4px}

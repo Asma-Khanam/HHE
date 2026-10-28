@@ -1,10 +1,6 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import PageHeader from "../components/PageHeader";
-import DeleteAccountCard from "../components/DeleteAccountCard";
-import ThemePicker from "../components/ThemePicker";
-import PackageUsageCard from "../components/PackageUsageCard";
-import { supabase } from "../lib/supabaseClient";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import { displayNameForChild } from "../lib/completeness";
 import "./ProfilePage.css";
@@ -50,11 +46,6 @@ function HouseholdRow({ name, tag, detail, isChild, photo }) {
 // happens on the Application page; this is just "who is this account and
 // who's in this family."
 export default function ProfilePage() {
-  const navigate = useNavigate();
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    navigate("/login");
-  }
   const { user, data } = useApplicationData();
   const parents = data?.parents || [];
   const children = data?.children || [];
@@ -70,8 +61,8 @@ export default function ProfilePage() {
   return (
     <div>
       <PageHeader
-        title="Profile"
-        subtitle={`This is you, the account holder (${holderRole}).`}
+        title="Your family"
+        subtitle={`Who is on the application. You are the account holder (${holderRole}).`}
         action={
           <Link to="/app/form" className="hh-link-btn">
             Edit in Application →
@@ -141,14 +132,6 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
-      <PackageUsageCard />
-      <div className="profile-card profile-settings">
-        <ThemePicker />
-        <Link to="/privacy" className="profile-settings-link">Privacy policy</Link>
-        <button type="button" className="profile-logout" onClick={handleLogout}>Log out</button>
-      </div>
-      <DeleteAccountCard />
-      <p className="profile-privacy"><Link to="/privacy">Privacy policy</Link></p>
     </div>
   );
 }

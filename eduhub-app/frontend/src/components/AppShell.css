@@ -419,7 +419,7 @@
 
 
 /* Notifications bell (phone, top right) + unread badges */
-.app-bell { display: none; }
+.app-bell, .app-gear { display: none; }
 .app-shell-nav-badge {
   margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
   background: var(--hh-accent-solid, #5a0f2b); color: var(--hh-on-accent, #fff);
@@ -427,7 +427,7 @@
 }
 @media (max-width: 820px) {
   .app-shell { position: relative; }
-  .app-bell {
+  .app-bell, .app-gear {
     display: flex; align-items: center; justify-content: center;
     position: absolute; z-index: 5;
     top: calc(env(safe-area-inset-top) + 10px); right: 16px;
@@ -441,4 +441,9 @@
     font-size: 0.68rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
   }
   .app-shell-nav-badge { display: none; }
+}
+
+@media (max-width: 820px) {
+  .app-gear { right: 68px; text-decoration: none; }
+  .app-topbar { padding-right: 130px; }
 }
