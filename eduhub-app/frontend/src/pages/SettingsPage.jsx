@@ -5,7 +5,8 @@ import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import ThemePicker from "../components/ThemePicker";
 import PackageUsageCard from "../components/PackageUsageCard";
 import DeleteAccountCard from "../components/DeleteAccountCard";
-import { IconChevronRight, IconClipboard, IconFolder, IconUser } from "../components/icons";
+import { IconBell, IconChevronRight, IconClipboard, IconFolder, IconUser } from "../components/icons";
+import { replayTour } from "../components/AppTour";
 import "./SettingsPage.css";
 
 // Everything behind the gear on the phone top bar (app design, board 9).
@@ -80,6 +81,17 @@ export default function SettingsPage() {
       </section>
 
       <PackageUsageCard />
+
+      <section className="settings-group">
+        <h2>Help</h2>
+        <div className="settings-card">
+          <button type="button" className="set-row set-row-btn" onClick={() => { navigate("/app/dashboard"); setTimeout(replayTour, 300); }}>
+            <span className="set-row-icon" aria-hidden="true"><IconBell size={18} /></span>
+            <span className="set-row-text"><span className="set-row-label">Replay the app tour</span></span>
+            <IconChevronRight size={18} />
+          </button>
+        </div>
+      </section>
 
       <section className="settings-group">
         <h2>Account and privacy</h2>

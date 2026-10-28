@@ -22,3 +22,10 @@
 .docs-optional summary svg { transition: transform 0.18s ease; }
 .docs-optional[open] summary { margin-bottom: 10px; }
 .docs-empty { opacity: 0.7; }
+
+/* Person filter chips + "needed" pill (app design, Documents) */
+.docs-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.docs-chips::-webkit-scrollbar { display: none; }
+.docs-chip { flex: none; min-height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid var(--hh-border); background: var(--hh-surface); color: var(--hh-text); font: inherit; font-size: .85rem; font-weight: 500; cursor: pointer; }
+.docs-chip.is-on { background: var(--hh-accent-solid); color: var(--hh-on-accent); border-color: transparent; font-weight: 600; }
+.docs-person-count.is-needed { background: var(--hh-gold, #c99c3a); color: #2a0a18; font-weight: 700; }

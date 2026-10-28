@@ -5,6 +5,7 @@ import { useApplicationData } from "../context/ApplicationDataContext";
 import PersonAvatar, { findProfilePhoto } from "./PersonAvatar";
 import { IconBell, IconSettings, IconClipboard, IconFolder, IconGrid, IconLogout, IconSchool, IconWallet } from "./icons";
 import logoWhite from "../assets/brand/relocate-logo-white.png";
+import AppTour from "./AppTour";
 import "./AppShell.css";
 
 // Order asked for by the founders (2026-09-02): the Dashboard first — it's
@@ -153,6 +154,7 @@ export default function AppShell() {
       <main className="app-shell-content">
         <Outlet />
       </main>
+      <AppTour />
     </div>
   );
 }

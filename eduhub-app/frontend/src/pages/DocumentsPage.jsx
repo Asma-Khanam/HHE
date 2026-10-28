@@ -17,6 +17,8 @@ export default function DocumentsPage() {
   const { status, error, user, data, reload } = useApplicationData();
   // Instant update after an upload, while the full reload catches up.
   const [overrides, setOverrides] = useState({});
+  // "everyone" or one person's key (app design, Documents).
+  const [who, setWho] = useState("everyone");
 
   if (status === "loading") return <PageLoading label="Loading your documents…" />;
   if (status === "error") return <PageError title="We couldn’t load your documents" message={error} onRetry={reload} />;
@@ -98,7 +100,24 @@ export default function DocumentsPage() {
         <p className="docs-empty">Add your family's details in Application first — their document lists appear here after that.</p>
       )}
 
-      {people.map((p) => {
+      {people.length > 2 && (
+        <div className="docs-chips" role="tablist" aria-label="Show documents for">
+          {[{ key: "everyone", name: "Everyone" }, ...people].map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              role="tab"
+              aria-selected={who === p.key}
+              className={"docs-chip" + (who === p.key ? " is-on" : "")}
+              onClick={() => setWho(p.key)}
+            >
+              {p.key === "everyone" ? p.name : String(p.name).split(/\s+/)[0]}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {people.filter((p) => who === "everyone" || p.key === who).map((p) => {
         const got = p.expected.filter((t) => has(p.key, t.key)).length;
         const complete = got === p.expected.length;
         return (
@@ -108,8 +127,8 @@ export default function DocumentsPage() {
                 <h2>{p.name}</h2>
                 <span className="docs-person-tag">{p.tag}</span>
               </div>
-              <span className={"docs-person-count" + (complete ? " is-done" : "")}>
-                {complete ? "All in ✓" : `${got} of ${p.expected.length}`}
+              <span className={"docs-person-count" + (complete ? " is-done" : " is-needed")}>
+                {complete ? "All in ✓" : `${p.expected.length - got} needed`}
               </span>
             </div>
 

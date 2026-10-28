@@ -20,3 +20,4 @@
 .set-row-sub{font-size:.76rem;color:var(--hh-text-muted)}
 .set-row-value{font-size:.85rem;color:var(--hh-text-muted);max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .settings-logout{height:52px;border-radius:26px;border:1.5px solid var(--hh-accent);background:transparent;color:var(--hh-accent);font:inherit;font-size:.95rem;font-weight:600;cursor:pointer;margin-top:4px}
+.set-row-btn{width:100%;background:none;border:0;border-top:0;font:inherit;text-align:left;cursor:pointer}

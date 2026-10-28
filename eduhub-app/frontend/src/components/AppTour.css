@@ -1,0 +1,10 @@
+.tour { position: fixed; inset: 0; z-index: 1000; }
+.tour-dim { position: absolute; inset: 0; background: rgba(20, 7, 13, 0.72); }
+.tour-spot { position: absolute; border-radius: 18px; box-shadow: 0 0 0 9999px rgba(20, 7, 13, 0.72); outline: 2px solid #e8c26a; pointer-events: none; transition: all 180ms ease; }
+.tour-card { position: absolute; background: var(--hh-surface, #fff); color: var(--hh-text, #2a1119); border-radius: 22px; padding: 18px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35); display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; }
+.tour-count { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--hh-text-muted); }
+.tour-card h2 { margin: 0; font-size: 1.15rem; font-weight: 700; }
+.tour-card p { margin: 0; font-size: 0.92rem; line-height: 1.45; color: var(--hh-text-muted); }
+.tour-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+.tour-skip { background: none; border: 0; font: inherit; font-weight: 600; color: var(--hh-text-muted); min-height: 44px; padding: 0 8px; cursor: pointer; }
+.tour-next { height: 44px; padding: 0 26px; border-radius: 22px; border: 0; background: var(--hh-accent-solid, #5a0f2b); color: var(--hh-on-accent, #fff); font: inherit; font-weight: 600; cursor: pointer; }
