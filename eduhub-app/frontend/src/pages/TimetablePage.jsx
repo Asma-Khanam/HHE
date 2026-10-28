@@ -3,7 +3,8 @@ import { useApplicationData } from "../context/ApplicationDataContext";
 import { fetchFamilyTimetable, fetchFamilyApplications, setSchoolInterest, submitTourFeedback } from "../lib/timetableData";
 import { displayNameForChild } from "../lib/completeness";
 import { childPhaseFor, nearestTourInfo } from "../lib/schoolJourney";
-import { IconSchool, IconChevronDown } from "../components/icons";
+import { Link } from "react-router-dom";
+import { IconSchool, IconChevronDown, IconCalendar } from "../components/icons";
 import TourDetailsCard from "../components/TourDetailsCard";
 import SchoolsPipelineCard from "../components/SchoolsPipelineCard";
 import SchoolContactsCard from "../components/SchoolContactsCard";
@@ -245,6 +246,7 @@ export default function TimetablePage() {
       <header className="ys-head">
         <h1>Your schools</h1>
         <p>Where each school is at, your tours, and what you think of them.</p>
+        <Link to="/app/calendar" className="ys-cal-link"><IconCalendar size={16} /> Open calendar</Link>
       </header>
 
       {rows.length === 0 ? (

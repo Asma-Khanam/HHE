@@ -8,6 +8,7 @@ import ApplicationPage from "./pages/ApplicationPage";
 import DashboardPage from "./pages/DashboardPage";
 import TimetablePage from "./pages/TimetablePage";
 import BillingPage from "./pages/BillingPage";
+import CalendarPage from "./pages/CalendarPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -61,6 +62,7 @@ function App() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="timetable" element={<TimetablePage />} />
         <Route path="form" element={<ApplicationPage />} />
+        <Route path="calendar" element={<CalendarPage />} />
         <Route path="documents" element={<DocumentsPage />} />
         <Route path="billing" element={<BillingPage />} />
         <Route path="profile" element={<ProfilePage />} />

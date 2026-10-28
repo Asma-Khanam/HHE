@@ -146,3 +146,14 @@ export function IconSettings({ size = 20, ...props }) {
     </svg>
   );
 }
+
+export function IconCalendar(props) {
+  return (
+    <Svg {...props}>
+      <path d="M4 6.5h16v13H4z" />
+      <path d="M4 10.5h16" />
+      <path d="M8.5 4v4" />
+      <path d="M15.5 4v4" />
+    </Svg>
+  );
+}

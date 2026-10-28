@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import PersonAvatar, { findProfilePhoto } from "./PersonAvatar";
-import { IconBell, IconSettings, IconClipboard, IconFolder, IconGrid, IconLogout, IconSchool, IconWallet } from "./icons";
+import { IconBell, IconCalendar, IconSettings, IconClipboard, IconFolder, IconGrid, IconLogout, IconSchool, IconWallet } from "./icons";
 import logoWhite from "../assets/brand/relocate-logo-white.png";
 import AppTour from "./AppTour";
 import "./AppShell.css";
@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { to: "/app/timetable", label: "Your schools", short: "Schools", Icon: IconSchool },
   // September 2026: documents and billing got their own pages, off the
   // Dashboard, so each has one clear home.
+  { to: "/app/calendar", label: "Calendar", short: "Calendar", Icon: IconCalendar, desktopOnly: true },
   { to: "/app/documents", label: "Documents", short: "Documents", Icon: IconFolder },
   { to: "/app/billing", label: "Billing", short: "Billing", Icon: IconWallet },
   // Phone reaches this from the bell at the top; desktop gets a nav row.

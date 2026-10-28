@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { fetchApplicationFees } from "../lib/applicationFees";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import SchoolsPipelineCard from "../components/SchoolsPipelineCard";
+import ComingUpCard from "../components/ComingUpCard";
 import { PageError, PageLoading } from "../components/StatePanels";
 import IntroductionsCard from "../components/IntroductionsCard";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
@@ -264,6 +265,8 @@ export default function DashboardPage() {
 
       {/* ---------- schools pipeline (the main thing on the page) ---------- */}
       <SchoolsPipelineCard />
+
+      <ComingUpCard />
 
       {/* ---------- rest of the dashboard ---------- */}
       <div className={"dash-grid" + (missingFields.length ? "" : " is-single")}>

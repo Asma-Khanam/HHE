@@ -191,3 +191,5 @@
   .ys > .sc-card { grid-column: 2; }
   .ys .scc-list { grid-template-columns: 1fr; }
 }
+
+.ys-cal-link{display:inline-flex;align-items:center;gap:6px;margin-top:10px;height:36px;padding:0 16px;border-radius:18px;border:1.5px solid var(--hh-accent);color:var(--hh-accent);font-size:.85rem;font-weight:600;text-decoration:none}

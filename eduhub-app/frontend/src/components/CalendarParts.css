@@ -1,0 +1,23 @@
+.cal-rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.cal-row{display:flex;gap:14px;align-items:flex-start;padding:12px;border:1px solid var(--hh-border);border-radius:16px;background:var(--hh-surface)}
+.cal-row.is-past{opacity:.6}
+.cal-tile{flex:none;width:54px;border-radius:14px;padding:6px 0;display:flex;flex-direction:column;align-items:center;line-height:1.1;background:var(--hh-accent-soft);color:var(--hh-accent)}
+.cal-tile span{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.cal-tile strong{font-size:1.35rem;font-weight:800}
+.cal-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.cal-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cal-chip{font-size:.68rem;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--hh-accent-soft);color:var(--hh-accent);white-space:nowrap}
+.cal-chip-assess{background:rgba(184,154,90,.22);color:#7a5612}
+.cal-chip-meeting{background:rgba(59,110,165,.14);color:#2f5a8a}
+.cal-chip-fee{background:var(--hh-warn-bg,#fdf0e0);color:var(--hh-warn-text,#8a4b00)}
+.cal-chip-start{background:var(--hh-good-bg,#e3f1e7);color:var(--hh-good,#1f6b3a)}
+.cal-chip-event{background:var(--hh-surface-2,rgba(0,0,0,.05));color:var(--hh-text-muted)}
+.cal-time{font-size:.8rem;color:var(--hh-text-muted)}
+.cal-title{font-size:.98rem;line-height:1.25;color:var(--hh-text);overflow-wrap:anywhere}
+.cal-sub{font-size:.82rem;color:var(--hh-text-muted);white-space:pre-line}
+.cal-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.cal-btn{height:34px;padding:0 16px;border-radius:17px;display:inline-flex;align-items:center;font:inherit;font-size:.82rem;font-weight:600;text-decoration:none;border:1.5px solid var(--hh-accent-solid,#5a0f2b);background:var(--hh-accent-solid,#5a0f2b);color:var(--hh-on-accent,#fff);cursor:pointer}
+.cal-btn-ghost{background:transparent;color:var(--hh-accent);border-color:var(--hh-accent)}
+.cal-rows-compact .cal-row{padding:10px;gap:12px}
+.cu-all{display:inline-flex;align-items:center;gap:2px;font-size:.85rem;font-weight:600;color:var(--hh-accent);text-decoration:none}
+.cu-empty{margin:8px 0 0;font-size:.88rem;line-height:1.45;color:var(--hh-text-muted)}
