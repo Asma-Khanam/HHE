@@ -67,8 +67,15 @@ export default function TourSlotReview({ familyId, familyChildren, blocked, hasV
         const slots = allSlots.filter((s) => s.rowId === row.id).map((s) => ({ ...s, conflict: conflictFor(s, blocked, allSlots) }));
         const allNo = perChild.length > 0 && perChild.every((c) => c.value === "no");
         const allAwaiting = perChild.every((c) => c.value === "awaiting");
-        return { row, name: row.school?.name || "School", perChild, slots, allNo, allAwaiting };
+        // Only schools with an open tour question belong on this screen:
+        // not already toured, not decided on, and either a slot is on the
+        // table or the school has been written to / has replied.
+        const toured = row.tour_status === "completed" || row.tour2_status === "completed";
+        const decided = !!row.family_decision;
+        const live = slots.length > 0 || !!row.enquiry_sent_at || !allAwaiting;
+        return { row, name: row.school?.name || "School", perChild, slots, allNo, allAwaiting, show: !toured && !decided && live };
       })
+      .filter((s) => s.show)
       .sort((a, b) => Number(a.allNo) - Number(b.allNo) || a.name.localeCompare(b.name));
   }, [rows, childStatus, children, allSlots, blocked]);
 
@@ -95,13 +102,8 @@ export default function TourSlotReview({ familyId, familyChildren, blocked, hasV
     }
   }
 
-  if (loading) {
-    return (
-      <section className="panel tw-card">
-        <p className="panel-hint">Loading…</p>
-      </section>
-    );
-  }
+  // Nothing open -> nothing to show. The shortlist table below has the history.
+  if (loading || schools.length === 0) return null;
 
   return (
     <section className="panel tw-card">
@@ -115,9 +117,6 @@ export default function TourSlotReview({ familyId, familyChildren, blocked, hasV
             : `${confirmedCount} of ${allSlots.length} confirmed by schools`}
         </span>
       </div>
-      <p className="panel-hint tw-hint">
-        Settle every tour with the schools first. The parent then gets one finished schedule to confirm.
-      </p>
       {conflictCount > 0 && (
         <div className="tw-alert">
           {conflictCount === 1 ? "1 slot needs a look" : `${conflictCount} slots need a look`}: it clashes with a time the parent can't do, or
@@ -126,24 +125,18 @@ export default function TourSlotReview({ familyId, familyChildren, blocked, hasV
       )}
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
-      {schools.length === 0 ? (
-        <p className="panel-hint">Add schools to the shortlist below and they'll appear here.</p>
-      ) : (
+      {(
         <ul className="tw-rows">
           {schools.map((s) => (
             <li key={s.row.id} className={"tw-row" + (s.allNo ? " is-closed" : "")}>
               <div className="tw-school">
                 <strong>{s.name}</strong>
-                <span className="tw-opt">{hasVisitDates ? "Dates known" : "No dates yet"}</span>
               </div>
 
               <div className="tw-kids">
                 {s.perChild.map((c) => (
                   <div key={c.id} className="tw-kid">
-                    <span className="tw-kid-name">
-                      {c.name}
-                      {c.year ? <em> · {c.year}</em> : null}
-                    </span>
+                    <span className="tw-kid-name">{c.name}</span>
                     <span className={"tw-chip " + availTone(c.value)}>{AVAIL_LABEL[c.value]}</span>
                   </div>
                 ))}
@@ -188,9 +181,6 @@ export default function TourSlotReview({ familyId, familyChildren, blocked, hasV
             </li>
           ))}
         </ul>
-      )}
-      {withSlots.length > 0 && !ready && allSlots.length > 0 && (
-        <p className="panel-hint tw-foot">The schedule can go to the parent once every tour above is confirmed and clear.</p>
       )}
     </section>
   );

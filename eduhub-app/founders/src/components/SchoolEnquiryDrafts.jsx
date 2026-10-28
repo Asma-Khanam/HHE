@@ -122,8 +122,8 @@ export default function SchoolEnquiryDrafts({ familyId, family, familyName, fami
     }
   }
 
-  if (loading) return null;
-  if (items.length === 0) return null;
+  // Nothing left to email -> nothing to show.
+  if (loading || (todo.length === 0 && !drafting)) return null;
 
   return (
     <section className="panel tw-card">
@@ -134,16 +134,11 @@ export default function SchoolEnquiryDrafts({ familyId, family, familyName, fami
         </h2>
         <span className="tw-window">{hasDates ? "Asking for spaces and tour slots" : "Asking about spaces only"}</span>
       </div>
-      <p className="panel-hint tw-hint">
-        {hasDates
-          ? "The family's visit dates are set, so each email asks for tour slots inside that window."
-          : "No visit dates yet, so each email only asks about spaces. Tour slots are requested once the family has dates."}{" "}
-        Nothing sends until you press Send.
-      </p>
+      <p className="panel-hint tw-hint">Nothing sends until you press Send.</p>
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
       <ul className="tw-enq">
-        {items.map((it) => (
+        {items.filter((it) => it.state === "todo" || it.state === "skipped" || (drafting && drafting.item.row.id === it.row.id)).map((it) => (
           <li key={it.row.id} className={"tw-enq-row is-" + it.state}>
             <div className="tw-enq-main">
               <strong>{it.name}</strong>

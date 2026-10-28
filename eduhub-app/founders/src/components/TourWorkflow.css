@@ -115,3 +115,18 @@
 .tw-compose-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; font-size: 0.86rem; color: var(--hh-ink); }
 .tw-skip { font: inherit; font-size: 0.82rem; background: none; border: 0; color: var(--hh-burgundy); text-decoration: underline; cursor: pointer; }
 .tw-skip:disabled { opacity: 0.5; cursor: default; }
+
+/* --- slimmer, calmer layout (28 Oct 2026: "make it simpler, not bigger") --- */
+.tw-card { margin-bottom: 14px; padding: 16px 20px 18px; }
+.tw-slim { padding-bottom: 14px; }
+.tw-slim .panel-head { margin-bottom: 0; }
+.tw-slim .tw-blocks { margin: 12px 0 0; }
+.tw-slim .tw-add { margin-top: 14px; }
+.tw-head-actions { display: flex; gap: 8px; }
+.tw-row { grid-template-columns: minmax(150px, 1.1fr) minmax(210px, 1.4fr) minmax(300px, 2.5fr); gap: 14px; padding: 10px 14px; align-items: center; }
+.tw-kids { flex-direction: row; flex-wrap: wrap; gap: 6px 12px; }
+.tw-kid { gap: 6px; }
+.tw-kid-name { font-weight: 500; }
+.tw-slot { padding: 8px 12px; }
+.tw-rows { gap: 8px; }
+.tw-card > .panel-head { margin-bottom: 10px; }

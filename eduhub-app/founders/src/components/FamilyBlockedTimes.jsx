@@ -16,6 +16,7 @@ function dayLabel(iso) {
 // school offers (see TourSlotReview) and written into the school emails.
 export default function FamilyBlockedTimes({ familyId, family, familyName, familyChildren, parents, composerCtx, from, to, blocked, onChange, onFamilyChanged }) {
   const [asking, setAsking] = useState(null);
+  const [adding, setAdding] = useState(false);
   const [date, setDate] = useState("");
   const [allDay, setAllDay] = useState(true);
   const [start, setStart] = useState("");
@@ -77,31 +78,25 @@ export default function FamilyBlockedTimes({ familyId, family, familyName, famil
 
   const askedAt = family?.parent_availability_requested_at;
 
+  // No visit dates yet (Option 2): there is nothing to ask the parent about.
+  if (!hasWindow) return null;
+
   return (
-    <section className="panel tw-card">
+    <section className="panel tw-card tw-slim">
       <div className="panel-head">
         <h2>
           When the parent isn't free
           {blocked.length > 0 && <span className="panel-count">{blocked.length}</span>}
         </h2>
-        {hasWindow && (
-          <span className="tw-window">
-            In Dubai {dayLabel(from)} – {dayLabel(to)}
-          </span>
-        )}
-      </div>
-      {hasWindow && (
-        <div className="tw-ask">
-          <span className="tw-muted">
-            {askedAt
-              ? `Parent asked on ${new Date(askedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
-              : "Not asked yet. Send the parent a short email, then add what they tell you below."}
-          </span>
+        <div className="tw-head-actions">
           <button type="button" className="panel-btn" onClick={openAsk} disabled={!!asking}>
             {askedAt ? "Ask again" : "Ask the parent"}
           </button>
+          <button type="button" className="panel-btn" onClick={() => setAdding((v) => !v)}>
+            {adding ? "Close" : "Add a time"}
+          </button>
         </div>
-      )}
+      </div>
       {asking && (
         <div className="tw-compose">
           <EmailComposer
@@ -121,11 +116,6 @@ export default function FamilyBlockedTimes({ familyId, family, familyName, famil
           />
         </div>
       )}
-      <p className="panel-hint tw-hint">
-        {hasWindow
-          ? "Flights, meetings, school runs. Every tour slot a school offers is checked against these."
-          : "Set the visit dates (In Dubai from / until) above first, so the blocked times can sit inside the window."}
-      </p>
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
       {blocked.length > 0 && (
@@ -145,6 +135,7 @@ export default function FamilyBlockedTimes({ familyId, family, familyName, famil
         </ul>
       )}
 
+      {adding && (
       <form className="tw-add" onSubmit={add}>
         <label className="tw-field">
           <span>Date</span>
@@ -178,6 +169,7 @@ export default function FamilyBlockedTimes({ familyId, family, familyName, famil
           Add
         </button>
       </form>
+      )}
     </section>
   );
 }
