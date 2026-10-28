@@ -270,7 +270,7 @@ export default function TimetablePage() {
           {/* The same stage flow as Home, here in full: every stage, every child. */}
           <SchoolsPipelineCard detailed childId={childFilter} onChildChange={setChildFilter} />
 
-          <section className="ys-card">
+          <section className="ys-card ys-shortlist">
             <div className="ys-card-head">
               <h2>School by school</h2>
               <div className="ys-filters" role="tablist">
