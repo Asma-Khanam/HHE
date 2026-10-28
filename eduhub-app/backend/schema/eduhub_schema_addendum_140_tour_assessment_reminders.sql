@@ -127,7 +127,7 @@ begin
 
       -- Two-hour reminder: tour starts between now and now + 2h30m (we run every 15 min so the window covers one tick).
       if v_start is not null then
-        v_tour_ts := ((v_date::text || ' ' || v_start::text) at time zone 'Asia/Dubai');
+        v_tour_ts := ((v_date::text || ' ' || v_start::text)::timestamp at time zone 'Asia/Dubai');
         if v_tour_ts > v_now_dubai and v_tour_ts <= v_now_dubai + interval '2 hours 30 minutes' then
           if not exists (
             select 1 from public.family_notifications n
@@ -226,7 +226,7 @@ begin
 
     -- Two-hour reminder (only when there is a specific time).
     if a.assessment_time is not null then
-      v_assess_ts := ((a.assessment_date::text || ' ' || a.assessment_time::text) at time zone 'Asia/Dubai');
+      v_assess_ts := ((a.assessment_date::text || ' ' || a.assessment_time::text)::timestamp at time zone 'Asia/Dubai');
       if v_assess_ts > v_now_dubai and v_assess_ts <= v_now_dubai + interval '2 hours 30 minutes' then
         if not exists (
           select 1 from public.family_notifications n
