@@ -1666,7 +1666,29 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
             ? "Four short sections. Everything saves as you type — come back any time."
             : undefined
         }
+        action={
+          autosaveStatus !== "idle" ? (
+            <span className={"save-pill is-" + autosaveStatus} role="status" aria-live="polite">
+              {autosaveStatus === "saving" && (<><span className="save-status-spinner" aria-hidden="true" /> Saving…</>)}
+              {autosaveStatus === "saved" && (<><span aria-hidden="true">✓</span> Saved</>)}
+              {autosaveStatus === "error" && "Not saved"}
+              {autosaveStatus === "offline" && "Offline"}
+            </span>
+          ) : null
+        }
       />
+      {(autosaveStatus === "error" || autosaveStatus === "offline") && (
+        <div className="hh-form-banner save-banner" role="alert">
+          <span>
+            {autosaveStatus === "error"
+              ? "We couldn't save just now. Your changes are kept on this phone and we'll try again."
+              : "You're offline. Keep going — we'll save everything when you're back online."}
+          </span>
+          {autosaveStatus === "error" && (
+            <button type="button" className="save-status-retry" onClick={() => flushRef.current()}>Try again</button>
+          )}
+        </div>
+      )}
 
       <div className="application-form-body">
         {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
@@ -2627,27 +2649,6 @@ export default function ApplicationForm({ familyId, userId, initialData, onSaved
           {missingItems.length
             ? `${missingItems.length} required field${missingItems.length > 1 ? "s" : ""} left`
             : "Everything required is filled in"}
-          {autosaveStatus === "saving" && (
-            <span className="save-status is-saving" role="status">
-              <span className="save-status-spinner" aria-hidden="true" /> Saving…
-            </span>
-          )}
-          {autosaveStatus === "saved" && (
-            <span className="save-status is-saved" role="status">
-              <span aria-hidden="true">✓</span> Saved
-            </span>
-          )}
-          {autosaveStatus === "error" && (
-            <span className="save-status is-error" role="alert">
-              Couldn't save just now. Your changes are kept and we'll try again.
-              <button type="button" className="save-status-retry" onClick={() => flushRef.current()}>Try again</button>
-            </span>
-          )}
-          {autosaveStatus === "offline" && (
-            <span className="save-status is-error" role="status">
-              You're offline. Keep going — we'll save when you're back online.
-            </span>
-          )}
         </span>
         <div className="application-form-footer-actions">
           {!showingList && activeStep.key.startsWith("child-") && onLastSubTab ? (

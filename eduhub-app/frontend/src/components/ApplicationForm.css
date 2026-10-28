@@ -664,3 +664,10 @@
 }
 
 .save-status-retry{margin-left:10px;border:0;background:#5a0f2b;color:#fff;border-radius:999px;padding:4px 12px;font:inherit;font-weight:600;cursor:pointer}
+
+/* Save indicator, top right next to the page title (app design, "How saving works") */
+.save-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;font-size:.8rem;font-weight:600;white-space:nowrap}
+.save-pill.is-saving{background:var(--hh-surface-2,#f6eae6);color:var(--hh-text-muted)}
+.save-pill.is-saved{background:var(--hh-good-bg);color:var(--hh-good)}
+.save-pill.is-error,.save-pill.is-offline{background:var(--hh-warn-bg);color:var(--hh-warn-text)}
+.save-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--hh-warn-bg);color:var(--hh-warn-text);border:1px solid transparent}
