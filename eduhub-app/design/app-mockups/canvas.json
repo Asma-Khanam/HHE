@@ -1,0 +1,25 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-28T06:30:00Z" },
+  "title": "HHE App Design",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 390, "h": 844, "title": "1 Home (light)" },
+    "HomeDark.dc.html": { "x": 470, "y": 0, "w": 390, "h": 844, "title": "1b Home (dark)" },
+    "Notifications.dc.html": { "x": 940, "y": 0, "w": 390, "h": 844, "title": "2 Notifications (bell)" },
+    "Profile.dc.html": { "x": 1410, "y": 0, "w": 390, "h": 844, "title": "3 Your family (avatar)" },
+    "Onboarding.dc.html": { "x": 1880, "y": 0, "w": 390, "h": 844, "title": "4 First-launch tour (press Play)", "is_interactive": true },
+    "Schools.dc.html": { "x": 0, "y": 964, "w": 390, "h": 1100, "title": "5 Schools tab" },
+    "Application.dc.html": { "x": 470, "y": 964, "w": 390, "h": 1120, "title": "6 Application tab" },
+    "Documents.dc.html": { "x": 940, "y": 964, "w": 390, "h": 1180, "title": "7 Documents tab" },
+    "Billing.dc.html": { "x": 1410, "y": 964, "w": 390, "h": 1000, "title": "8 Billing tab" },
+    "Settings.dc.html": { "x": 1880, "y": 964, "w": 390, "h": 1760, "title": "9 Settings (gear)" },
+    "Saving.dc.html": { "x": 470, "y": 2284, "w": 390, "h": 1640, "title": "10 How saving works" }
+  },
+  "order": ["Main.dc.html", "HomeDark.dc.html", "Notifications.dc.html", "Profile.dc.html", "Onboarding.dc.html", "Schools.dc.html", "Application.dc.html", "Documents.dc.html", "Billing.dc.html", "Settings.dc.html", "Saving.dc.html"],
+  "notes": {
+    "t1": { "x": 0, "y": -280, "text": "HHE client app: every screen, one look", "kind": "title1", "maxW": 2270 }
+  },
+  "designSystems": []
+}

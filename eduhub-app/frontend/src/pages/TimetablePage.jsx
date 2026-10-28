@@ -5,6 +5,7 @@ import { displayNameForChild } from "../lib/completeness";
 import { childPhaseFor, nearestTourInfo } from "../lib/schoolJourney";
 import { IconSchool, IconChevronDown } from "../components/icons";
 import TourDetailsCard from "../components/TourDetailsCard";
+import SchoolsPipelineCard from "../components/SchoolsPipelineCard";
 import { downloadTourIcs } from "../lib/tourDetails";
 import AssessmentCard from "../components/AssessmentCard";
 import { hasAssessment, assessmentOf, assessmentWhen } from "../lib/assessment";
@@ -286,29 +287,8 @@ export default function TimetablePage() {
             </div>
           )}
 
-          {childList.length > 1 && (
-            <div className="ys-filters ys-childfilters" role="tablist" aria-label="Show schools for">
-              {[{ id: "all", name: "Both children" }, ...childList].map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={childFilter === c.id}
-                  className={"ys-filter" + (childFilter === c.id ? " is-on" : "")}
-                  onClick={() => setChildFilter(c.id)}
-                >
-                  {c.id === "all" && childList.length > 2 ? "All children" : c.name}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="ys-stats">
-            <Stat label="Shortlisted" value={rows.length} />
-            <Stat label="Tours booked" value={upcomingTours.length} />
-            <Stat label="Applications" value={counts.applied + counts.offers} />
-            <Stat label="Offers" value={counts.offers} good={counts.offers > 0} />
-          </div>
+          {/* The same stage flow as Home, here in full: every stage, every child. */}
+          <SchoolsPipelineCard detailed childId={childFilter} onChildChange={setChildFilter} />
 
           <section className="ys-card">
             <div className="ys-card-head">
@@ -454,15 +434,6 @@ export default function TimetablePage() {
           </section>
         </>
       )}
-    </div>
-  );
-}
-
-function Stat({ label, value, good }) {
-  return (
-    <div className={"ys-stat" + (good ? " is-good" : "")}>
-      <strong>{value}</strong>
-      <span>{label}</span>
     </div>
   );
 }

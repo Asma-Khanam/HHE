@@ -38,7 +38,7 @@ function fmtDayLong(iso) {
   return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
-export default function SchoolsPipelineCard() {
+export default function SchoolsPipelineCard({ detailed = false, childId: childProp, onChildChange } = {}) {
   const { familyId, data } = useApplicationData();
   const children = useMemo(() => data?.children || [], [data]);
   const childKey = children.map((c) => c.id).join(",");
@@ -50,6 +50,12 @@ export default function SchoolsPipelineCard() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
+
+  // Which child the flow is showing: "all" or one child's id. A parent screen
+  // (the Schools tab) can control it; otherwise the card keeps its own choice.
+  const [childSel, setChildSel] = useState("all");
+  const childId = childProp !== undefined ? childProp : childSel;
+  const setChild = onChildChange || setChildSel;
 
   const [activeTab, setActiveTab] = useState("shortlisted");
   const [openKey, setOpenKey] = useState(null);
@@ -211,6 +217,7 @@ export default function SchoolsPipelineCard() {
           fee: f,
           school: (app && schoolById[app.school_id]) || { name: f.application?.school?.name || "School" },
           childName: idx === -1 ? "" : displayNameForChild(children[idx], idx) || "",
+          childId: app?.child_id || null,
           paid: f.status === "paid" || !!f.paid_at,
           due: f.status !== "paid" && f.status !== "waived" && !f.paid_direct_by_family,
           byHhe: !!f.hhe_paid_school_on_behalf,
@@ -296,24 +303,63 @@ export default function SchoolsPipelineCard() {
       })
       .sort((a, b) => (a.childName || "").localeCompare(b.childName || ""));
 
+    // One child's view: only their applications, fees, assessments, outcomes
+    // and placements. Schools and tours belong to the whole family.
+    const mine = (list, get) => (childId === "all" ? list : list.filter((x) => get(x) === childId));
+    const applyMine = mine(applyList, (x) => x.app.child_id);
+    const feeMine = mine(feeList, (x) => x.childId);
+    const assessMine = mine(assessmentList, (x) => x.app.child_id);
+    const outcomeMine = mine(outcomeList, (x) => x.app.child_id);
+    const placedMine = mine(placedList, (x) => x.app.child_id);
+
     return [
-      { key: "shortlisted", label: "Shortlisted", Icon: IconFolder, count: shortlistedList.length, items: shortlistedList },
-      { key: "tours", label: "Tours", Icon: IconSchool, count: tourCount, items: tourGroups },
-      { key: "apply", label: "Apply", Icon: IconDocument, count: applyList.length, items: applyList },
-      { key: "fee", label: "Fee", Icon: IconWallet, count: feeList.length, items: feeList },
-      { key: "assessment", label: "Assessment", Icon: IconClipboard, count: assessmentList.length, items: assessmentList },
-      { key: "outcome", label: "Outcome", Icon: IconAlertCircle, count: outcomeList.length, items: outcomeList },
-      { key: "placed", label: "Placed", Icon: IconCheckCircle, count: placedList.length, items: placedList },
+      { key: "shortlisted", label: "Shortlisted", Icon: IconFolder, count: shortlistedList.length, items: shortlistedList, caption: (n) => `${n} school${n === 1 ? "" : "s"}` },
+      { key: "tours", label: "Tours", Icon: IconSchool, count: tourCount, items: tourGroups, caption: () => (tourGroups.upcoming.length ? `${tourGroups.upcoming.length} upcoming` : `${tourGroups.completed.length} done`) },
+      { key: "apply", label: "Apply", Icon: IconDocument, count: applyMine.length, items: applyMine, caption: (n) => `${n} open` },
+      { key: "fee", label: "Fee", Icon: IconWallet, count: feeMine.length, items: feeMine, caption: () => `${feeMine.filter((r) => r.due && !r.byHhe).length} due` },
+      { key: "assessment", label: "Assessment", Icon: IconClipboard, count: assessMine.length, items: assessMine, caption: (n) => `${n} booked` },
+      { key: "outcome", label: "Outcome", Icon: IconAlertCircle, count: outcomeMine.length, items: outcomeMine, caption: (n) => `${n} decision${n === 1 ? "" : "s"}` },
+      { key: "placed", label: "Placed", Icon: IconCheckCircle, count: placedMine.length, items: placedMine, caption: (n) => `${n} place${n === 1 ? "" : "s"}` },
     ];
-  }, [shortlist, applications, fees, placements, children]);
+  }, [shortlist, applications, fees, placements, children, childId]);
+
+  // Where each child is, in one line (shown when there is more than one child).
+  const childSummaries = useMemo(() => {
+    const schoolName = {};
+    (shortlist || []).forEach((r) => {
+      if (r.school) schoolName[r.school_id] = r.school.name;
+    });
+    const today = new Date().toLocaleDateString("en-CA");
+    const currentApps = currentRoundApps(applications);
+    return children.map((c, idx) => {
+      const name = displayNameForChild(c, idx) || `Child ${idx + 1}`;
+      const apps = currentApps.filter((a) => a.child_id === c.id && a.status !== "withdrawn");
+      const nm = (a) => schoolName[a.school_id] || "a school";
+      const placedApp = apps.find((a) => a.status === "offer_accepted");
+      if (placedApp) return { id: c.id, name, text: `Place at ${nm(placedApp)}`, tone: "good", stage: "placed" };
+      const offer = apps.find((a) => a.status === "offer");
+      if (offer) return { id: c.id, name, text: `Offer from ${nm(offer)}`, tone: "good", stage: "outcome" };
+      const wait = apps.find((a) => a.status === "waitlisted");
+      if (wait) return { id: c.id, name, text: `Waitlisted at ${nm(wait)}`, tone: "gold", stage: "outcome" };
+      const assess = apps.find((a) => hasAssessment(a));
+      if (assess) {
+        const a = assessmentOf(assess, { school: { name: nm(assess) }, childName: name });
+        const when = a.date && a.date >= today ? ` on ${fmtDay(a.date)}` : "";
+        return { id: c.id, name, text: `Assessment at ${nm(assess)}${when}`, tone: "neutral", stage: "assessment" };
+      }
+      if (apps.length) return { id: c.id, name, text: `${apps.length} application${apps.length === 1 ? "" : "s"} in progress`, tone: "neutral", stage: "apply" };
+      return { id: c.id, name, text: "Choosing schools", tone: "muted", stage: "shortlisted" };
+    });
+  }, [shortlist, applications, children]);
 
   // Pick a sensible first tab: the furthest-along one that has rows, so a
   // family who's already placed lands on Placed rather than Shortlisted.
   useEffect(() => {
     const order = ["placed", "outcome", "assessment", "fee", "apply", "tours", "shortlisted"];
+    if (loading) return;
     const firstWithRows = order.find((k) => (tabs.find((t) => t.key === k)?.count || 0) > 0);
     if (firstWithRows) setActiveTab(firstWithRows);
-  }, [tabs.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // On a phone the seven stages scroll sideways; keep the chosen one in view.
   const pipelineRef = useRef(null);
@@ -342,17 +388,54 @@ export default function SchoolsPipelineCard() {
   }
 
   const current = tabs.find((t) => t.key === activeTab) || tabs[0];
+  // Furthest stage that has anything in it: the gold line fills up to here.
+  const reachedIdx = Math.max(0, ...tabs.map((t, i) => (t.count > 0 ? i : 0)));
 
 
   return (
     <section className="dash-card sp-card">
       <div className="dash-card-head">
         <h2><span className="dash-card-icon dash-card-icon--burgundy"><IconSchool size={16} /></span>Your schools</h2>
-        <Link to="/app/timetable" className="dash-card-link">Full view →</Link>
+        {!detailed && <Link to="/app/timetable" className="dash-card-link">Full view →</Link>}
       </div>
+
+      {children.length > 1 && (
+        <div className="sp-kids" role="tablist" aria-label="Show schools for">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={childId === "all"}
+            className={"sp-kid" + (childId === "all" ? " is-on" : "")}
+            onClick={() => setChild("all")}
+          >
+            <span className="sp-kid-name">Everyone</span>
+            <span className="sp-kid-status">{children.length} children</span>
+          </button>
+          {childSummaries.map((k) => (
+            <button
+              key={k.id}
+              type="button"
+              role="tab"
+              aria-selected={childId === k.id}
+              className={"sp-kid" + (childId === k.id ? " is-on" : "")}
+              onClick={() => {
+                setChild(childId === k.id ? "all" : k.id);
+                if (childId !== k.id) {
+                  setActiveTab(k.stage);
+                  setOpenKey(null);
+                }
+              }}
+            >
+              <span className="sp-kid-name">{k.name}</span>
+              <span className={"sp-kid-status is-" + k.tone}>{k.text}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <nav className="sp-pipeline" role="tablist" aria-label="Your schools pipeline" ref={pipelineRef}>
         <div className="sp-pipeline-track" aria-hidden="true" />
+        <div className="sp-pipeline-fill" aria-hidden="true" style={{ "--reach": reachedIdx / (tabs.length - 1) }} />
         {tabs.map((t, i) => {
           const Icon = t.Icon;
           const done = t.count > 0 && i < tabs.findIndex((x) => x.key === activeTab);
@@ -379,6 +462,7 @@ export default function SchoolsPipelineCard() {
                 {t.count > 0 && <span className="sp-stage-count" aria-label={`${t.count}`}>{t.count}</span>}
               </span>
               <span className="sp-stage-label">{t.label}</span>
+              <span className="sp-stage-caption">{t.count > 0 ? t.caption(t.count) : "Not yet"}</span>
             </button>
           );
         })}

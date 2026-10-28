@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>How saving works</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 1640px; position: relative; overflow: hidden; box-sizing: border-box; background: #fbf3ee; color: #2a0a18; font-family: 'Poppins', sans-serif">
+  <div style="padding: 18px 20px 30px; display: flex; flex-direction: column; gap: 14px">
+
+    <h1 style="margin: 0; font-size: 22px; font-weight: 700">How saving works</h1>
+    <div style="font-size: 13.5px; line-height: 1.5; color: #755a64">Applies to the whole Application tab. The indicator sits top right, next to the page title. Nothing is ever lost silently.</div>
+
+    <sc-for list="{{states}}" as="s" hint-placeholder-count="5">
+      <div style="background: #fff; border: 1px solid #ebdcd8; border-radius: 22px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 6px 18px rgba(80,20,40,0.07)">
+        <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #755a64">{{s.when}}</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 2px">
+          <div style="font-size: 17px; font-weight: 700">Application</div>
+          <div style="{{s.pillStyle}}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{s.d}}"/></svg>
+            {{s.label}}
+          </div>
+        </div>
+        <sc-if value="{{s.hasBanner}}" hint-placeholder-val="{{ false }}">
+          <div style="{{s.bannerStyle}}">
+            <div style="flex: 1; font-size: 13px; line-height: 1.45">{{s.banner}}</div>
+            <sc-if value="{{s.hasButton}}" hint-placeholder-val="{{ false }}">
+              <button style="height: 38px; padding: 0 16px; border-radius: 19px; border: 0; background: #5a0f2b; color: #fff; font-size: 13px; font-weight: 600; flex: none">Try again</button>
+            </sc-if>
+          </div>
+        </sc-if>
+        <div style="font-size: 13px; line-height: 1.5; color: #4a3139">{{s.text}}</div>
+      </div>
+    </sc-for>
+
+    <div style="background: #fff; border: 1px solid #ebdcd8; border-radius: 22px; padding: 14px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 6px 18px rgba(80,20,40,0.07)">
+      <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #755a64">Leaving with changes that have not saved</div>
+      <div style="border-radius: 20px; background: #fbf3ee; border: 1px solid #ebdcd8; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+        <div style="font-size: 16px; font-weight: 600">Your last changes have not saved yet</div>
+        <div style="font-size: 13px; line-height: 1.45; color: #755a64">We are keeping them on this phone. Stay a moment to let them save, or leave and we will finish saving next time you open the app.</div>
+        <button style="height: 48px; border-radius: 24px; border: 0; background: #5a0f2b; color: #fff; font-size: 15px; font-weight: 600">Stay and save</button>
+        <button style="height: 44px; border-radius: 22px; border: 1.5px solid #6b1535; background: transparent; color: #6b1535; font-size: 14px; font-weight: 600">Leave anyway</button>
+      </div>
+      <div style="font-size: 13px; line-height: 1.5; color: #4a3139">Only shown when a save has failed or the phone is offline. In every normal case leaving is instant and silent.</div>
+    </div>
+
+    <div style="background: #fff; border: 1px solid #ebdcd8; border-radius: 22px; padding: 14px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 6px 18px rgba(80,20,40,0.07)">
+      <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #755a64; margin-bottom: 6px">Rules for building it</div>
+      <sc-for list="{{rules}}" as="r" hint-placeholder-count="8">
+        <div style="{{r.rowStyle}}">
+          <div style="width: 22px; height: 22px; border-radius: 50%; background: #f3dde5; color: #6b1535; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none">{{r.n}}</div>
+          <div style="font-size: 13px; line-height: 1.5; color: #2a0a18">{{r.text}}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1640}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const pill = (bg, fg) => `display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:999px;background:${bg};color:${fg};`;
+    const banner = (bg, bd, fg) => `display:flex;align-items:center;gap:10px;border-radius:14px;padding:10px 12px;background:${bg};border:1px solid ${bd};color:${fg};`;
+    const states = [
+      { when:'1 · While typing', label:'Saving…', d:'M12 4v3 M12 17v3 M4 12h3 M17 12h3 M6.3 6.3l2.1 2.1 M15.6 15.6l2.1 2.1',
+        pillStyle:pill('#f6eae6','#755a64'),
+        text:'Appears one second after the person pauses typing, and stays until the server confirms. The field they are in is never reset or moved while it saves.' },
+      { when:'2 · Saved', label:'Saved', d:'M5 12.5l4.5 4.5L19 7.5',
+        pillStyle:pill('#e3f1e7','#1f6b3a'),
+        text:'Shown after the server confirms. Fades to a quiet "Saved" and stays that way. Sections update their "left" counts at the same moment.' },
+      { when:'3 · Could not save (server error)', label:'Not saved', d:'M12 8v5 M12 16.5h.01',
+        pillStyle:pill('#f7ecd0','#6b4a0a'),
+        hasBanner:true, hasButton:true, bannerStyle:banner('#fdf3dc','#ecd9a4','#3d2a05'),
+        banner:'We could not save just now. Your changes are kept on this phone.',
+        text:'Retries on its own after 5, 15 and 45 seconds, then every minute. Try again retries immediately. Typed text is never cleared.' },
+      { when:'4 · Offline', label:'Offline', d:'M3 9a14 14 0 0 1 18 0 M6 12.5a9.5 9.5 0 0 1 12 0 M9.5 16a4.5 4.5 0 0 1 5 0 M4 4l16 16',
+        pillStyle:pill('#f7ecd0','#6b4a0a'),
+        hasBanner:true, hasButton:false, bannerStyle:banner('#fdf3dc','#ecd9a4','#3d2a05'),
+        banner:'You are offline. Keep going: we will save everything when you are back online.',
+        text:'Edits are written to phone storage straight away. The moment the connection returns the pill goes to Saving… then Saved, with no action needed.' },
+      { when:'5 · Closing the app quickly', label:'Saved', d:'M5 12.5l4.5 4.5L19 7.5',
+        pillStyle:pill('#e3f1e7','#1f6b3a'),
+        text:'Nothing visible. The save fires at once when the person leaves the screen, switches tab, taps Done on the keyboard, or the app goes to the background, without waiting for the one second pause. If the app is force-closed before it finishes, the copy on the phone is saved the next time the app opens.' }
+    ].map((s) => ({ hasBanner:false, hasButton:false, bannerStyle:'', banner:'', ...s }));
+    const list = [
+      'Save one second after the last keystroke (down from 1.5).',
+      'Save immediately on: leaving the screen, switching tab, keyboard Done, field blur, app to background, and the pagehide event.',
+      'Every edit is written to phone storage first, then to the server. The phone copy is cleared only after the server confirms.',
+      'On next launch, if a phone copy is newer than the server, save it silently and show Saved.',
+      'Only one save runs at a time. Edits made during a save are queued and sent right after, never dropped.',
+      'Failed saves retry after 5, 15 and 45 seconds, then every minute, and on reconnect.',
+      'Leaving is blocked with the sheet above only when the last save failed or the phone is offline.',
+      'Fields are never reset, scrolled or blurred by a save. The Saved pill is the only thing that changes.'
+    ];
+    const rules = list.map((text, i) => ({ n:i + 1, text, rowStyle:`display:flex;gap:10px;align-items:flex-start;padding:8px 0;${i > 0 ? 'border-top:1px solid #f0e4e0;' : ''}` }));
+    return { states, rules };
+  }
+}
+</script>
+</body>
+</html>

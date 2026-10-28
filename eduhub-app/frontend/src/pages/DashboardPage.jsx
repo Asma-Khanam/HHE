@@ -172,18 +172,17 @@ export default function DashboardPage() {
   if (isSubmitted && !todo.length) {
     statusLine = {
       tone: "good",
-      icon: <IconCheckCircle size={14} />,
-      text: submittedAt
-        ? `Application submitted on ${new Date(submittedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`
-        : "Application submitted",
+      title: "Application submitted",
+      sub: submittedAt
+        ? `Sent on ${new Date(submittedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`
+        : "",
       cta: null,
     };
   } else if (todo.length) {
     const rest = todo.slice(1, 3).map((t) => t.text);
     statusLine = {
       tone: "warn",
-      icon: <IconAlertCircle size={14} />,
-      text: `${todo.length} thing${todo.length === 1 ? "" : "s"} left on your application`,
+      title: `${todo.length} thing${todo.length === 1 ? "" : "s"} left on your application`,
       next: todo[0].text,
       then: rest.length ? `Then: ${rest.join(", ")}${todo.length > 3 ? ` and ${todo.length - 3} more` : ""}` : "",
       cta: { label: "Continue", onClick: () => openForm(todo[0].stepKey, todo[0].fieldKey) },
@@ -191,8 +190,8 @@ export default function DashboardPage() {
   } else {
     statusLine = {
       tone: "ready",
-      icon: <IconCheckCircle size={14} />,
-      text: "Everything required is filled in — ready to submit",
+      title: "Everything required is filled in",
+      sub: "You are ready to submit.",
       cta: { label: "Go to the application", onClick: () => openForm() },
     };
   }
@@ -233,48 +232,34 @@ export default function DashboardPage() {
   return (
     <div className="dash">
       {/* ---------- one slim banner: greeting + status + readiness ---------- */}
-      <header className="dash-banner">
-        <div className="dash-banner-left">
-          <div className="dash-crest">{(surname || greetingName || "?").charAt(0).toUpperCase()}</div>
-          <div className="dash-banner-text">
-            <h1>
-              {greetingForNow()}
-              {greetingName ? ", " : ""}
-              <span className="dash-name">{greetingName}</span>
-            </h1>
-            <p className="dash-banner-sub">
-              {surname ? `The ${surname} family` : "Your application"}
-              {children.length > 0 && ` · ${children.length} ${children.length === 1 ? "child" : "children"}`}
-            </p>
-            <div className="dash-actions">
-            <div className={"dash-status dash-status--" + statusLine.tone}>
-              <span className="dash-status-icon">{statusLine.icon}</span>
-              <span className="dash-status-text">
-                {statusLine.text}
-                {statusLine.next && <strong className="dash-status-next">{statusLine.next}</strong>}
-                {statusLine.then && <span className="dash-status-then">{statusLine.then}</span>}
-              </span>
+      <header className={"dash-hero dash-hero--" + statusLine.tone}>
+        <div className="dash-hero-main">
+          <p className="dash-hero-eyebrow">
+            {greetingForNow()}
+            {greetingName ? `, ${greetingName}` : ""}
+            {surname ? ` · The ${surname} family` : ""}
+            {children.length > 0 ? ` · ${children.length} ${children.length === 1 ? "child" : "children"}` : ""}
+          </p>
+          <h1 className="dash-hero-title">{statusLine.title}</h1>
+          {statusLine.next && <p className="dash-hero-next">{statusLine.next}</p>}
+          {statusLine.then && <p className="dash-hero-then">{statusLine.then}</p>}
+          {statusLine.sub && <p className="dash-hero-then">{statusLine.sub}</p>}
+          {(statusLine.cta || dueItems.length > 0) && (
+            <div className="dash-hero-actions">
               {statusLine.cta && (
-                <button type="button" className="dash-status-cta" onClick={statusLine.cta.onClick}>
-                  {statusLine.cta.label} <IconChevronRight size={14} />
+                <button type="button" className="dash-hero-cta" onClick={statusLine.cta.onClick}>
+                  {statusLine.cta.label} <IconChevronRight size={16} />
                 </button>
               )}
-            </div>
               {dueItems.length > 0 && (
-                <button
-                  type="button"
-                  className="dash-status-pay"
-                  onClick={() => navigate("/app/billing")}
-                  title="Open Billing"
-                >
-                  {dueMoney ? `${dueMoney} outstanding` : `${dueItems.length} item${dueItems.length === 1 ? "" : "s"} outstanding`}
-                  <IconChevronRight size={13} />
+                <button type="button" className="dash-hero-pay" onClick={() => navigate("/app/billing")}>
+                  {dueMoney ? `${dueMoney} due` : `${dueItems.length} payment${dueItems.length === 1 ? "" : "s"} due`}
+                  <IconChevronRight size={14} />
                 </button>
               )}
             </div>
-          </div>
+          )}
         </div>
-
         <Readiness pct={overallPct} />
       </header>
 

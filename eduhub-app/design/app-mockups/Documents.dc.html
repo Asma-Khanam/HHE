@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Documents</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 1180px; position: relative; overflow: hidden; box-sizing: border-box; background: #fbf3ee; color: #2a0a18; font-family: 'Poppins', sans-serif">
+  <div style="padding: 18px 20px 0; display: flex; flex-direction: column; gap: 16px">
+
+    <h1 style="margin: 0; font-size: 24px; font-weight: 700">Documents</h1>
+
+    <div style="border-radius: 24px; padding: 18px; background: linear-gradient(135deg, #6b1535, #3a0a1e); color: #fff; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: baseline; justify-content: space-between">
+        <div style="font-size: 17px; font-weight: 600">9 of 12 uploaded</div>
+        <div style="font-size: 13px; opacity: 0.9">3 still needed</div>
+      </div>
+      <div style="display: flex; gap: 4px">
+        <sc-for list="{{bar}}" as="b" hint-placeholder-count="12"><div style="{{b.style}}"></div></sc-for>
+      </div>
+      <div style="font-size: 12.5px; opacity: 0.88; line-height: 1.4">Take a clear photo or choose a file. We check each one and tell you if anything needs redoing.</div>
+    </div>
+
+    <div style="display: flex; gap: 8px; overflow: hidden">
+      <div style="flex: none; height: 36px; padding: 0 16px; border-radius: 18px; background: #5a0f2b; color: #fff; font-size: 13px; font-weight: 600; display: flex; align-items: center">Everyone</div>
+      <div style="flex: none; height: 36px; padding: 0 16px; border-radius: 18px; background: #fff; border: 1px solid #ebdcd8; font-size: 13px; font-weight: 500; display: flex; align-items: center">Father</div>
+      <div style="flex: none; height: 36px; padding: 0 16px; border-radius: 18px; background: #fff; border: 1px solid #ebdcd8; font-size: 13px; font-weight: 500; display: flex; align-items: center">Mother</div>
+      <div style="flex: none; height: 36px; padding: 0 16px; border-radius: 18px; background: #fff; border: 1px solid #ebdcd8; font-size: 13px; font-weight: 500; display: flex; align-items: center">Amina</div>
+      <div style="flex: none; height: 36px; padding: 0 16px; border-radius: 18px; background: #fff; border: 1px solid #ebdcd8; font-size: 13px; font-weight: 500; display: flex; align-items: center">Omar</div>
+    </div>
+
+    <sc-for list="{{people}}" as="p" hint-placeholder-count="4">
+      <div style="background: #fff; border: 1px solid #ebdcd8; border-radius: 22px; overflow: hidden; box-shadow: 0 6px 18px rgba(80,20,40,0.07)">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 14px 14px 10px">
+          <div style="{{p.avatarStyle}}">{{p.initial}}</div>
+          <div style="flex: 1; min-width: 0; line-height: 1.3">
+            <div style="font-size: 15.5px; font-weight: 600">{{p.name}}</div>
+            <div style="font-size: 12.5px; color: #755a64">{{p.role}}</div>
+          </div>
+          <sc-if value="{{p.hasNeeded}}" hint-placeholder-val="{{ true }}">
+            <div style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #c99c3a; color: #2a0a18">{{p.neededText}}</div>
+          </sc-if>
+        </div>
+        <sc-for list="{{p.docs}}" as="d" hint-placeholder-count="3">
+          <div style="{{d.rowStyle}}">
+            <div style="width: 34px; height: 34px; border-radius: 11px; background: #f3dde5; color: #6b1535; display: flex; align-items: center; justify-content: center; flex: none">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h9l4 4V20.5H6z M9 13h6 M9 16.5h6"/></svg>
+            </div>
+            <div style="flex: 1; min-width: 0; line-height: 1.3">
+              <div style="font-size: 14.5px; font-weight: 500">{{d.name}}</div>
+              <div style="{{d.chipStyle}}">{{d.status}}</div>
+            </div>
+            <sc-if value="{{d.needed}}" hint-placeholder-val="{{ false }}">
+              <button style="height: 40px; padding: 0 16px; border-radius: 20px; border: 0; background: #5a0f2b; color: #fff; font-size: 13.5px; font-weight: 600">Upload</button>
+            </sc-if>
+            <sc-if value="{{d.done}}" hint-placeholder-val="{{ true }}">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#755a64" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 84px; background: #fff; border-top: 1px solid #ebdcd8; display: flex; padding: 8px 6px 0; box-sizing: border-box">
+    <sc-for list="{{tabs}}" as="tab" hint-placeholder-count="5">
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px">
+        <div style="{{tab.pillStyle}}">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{tab.d}}"/></svg>
+        </div>
+        <div style="{{tab.labelStyle}}">{{tab.label}}</div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const OK = 'ok', REV = 'rev', NEED = 'need';
+    const chip = (s) => {
+      const c = s === OK ? ['#e3f1e7', '#1f6b3a', 'Approved'] : s === REV ? ['#f3dde5', '#6b1535', 'In review'] : ['#f7ecd0', '#6b4a0a', 'Needed'];
+      return { text: c[2], style: `display:inline-block;margin-top:3px;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;background:${c[0]};color:${c[1]};` };
+    };
+    const mkDocs = (list) => list.map(([name, s], i) => {
+      const c = chip(s);
+      return { name, status: c.text, chipStyle: c.style, needed: s === NEED, done: s !== NEED,
+        rowStyle: `display:flex;align-items:center;gap:12px;min-height:60px;padding:8px 14px;box-sizing:border-box;border-top:1px solid #f0e4e0;${s === NEED ? 'background:#fdf8ec;' : ''}` };
+    });
+    const mkPerson = (name, role, initial, bg, fg, list) => {
+      const needed = list.filter((x) => x[1] === NEED).length;
+      return { name, role, initial, hasNeeded: needed > 0, neededText: `${needed} needed`, docs: mkDocs(list),
+        avatarStyle: `width:42px;height:42px;border-radius:50%;background:${bg};color:${fg};font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;flex:none;` };
+    };
+    const people = [
+      mkPerson('Father', 'Parent', 'F', '#f3dde5', '#6b1535', [['Passport', NEED], ['Emirates ID', OK], ['Residence visa', OK]]),
+      mkPerson('Mother', 'Parent', 'M', '#f3dde5', '#6b1535', [['Passport', OK], ['Emirates ID', OK]]),
+      mkPerson('Amina', 'Child · Year 4', 'A', '#f3dde5', '#6b1535', [['Birth certificate', NEED], ['Passport', REV], ['Last school report', OK]]),
+      mkPerson('Omar', 'Child · Year 1', 'O', '#e8dcc4', '#5a4a1e', [['Passport photo', NEED], ['Passport', OK]])
+    ];
+    const bar = Array.from({ length: 12 }, (_, i) => ({ style: `flex:1;height:6px;border-radius:3px;background:${i < 9 ? '#e8c26a' : 'rgba(255,255,255,0.25)'};` }));
+    const tabDefs = [
+      { label:'Home', d:'M4 4h6.5v6.5H4z M13.5 4H20v6.5h-6.5z M4 13.5h6.5V20H4z M13.5 13.5H20V20h-6.5z' },
+      { label:'Application', d:'M9 4h6v3H9z M7 5.5H6a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-1 M9 12h6 M9 16h6' },
+      { label:'Schools', d:'M2.5 9.5L12 5l9.5 4.5L12 14z M6 11.8V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.2' },
+      { label:'Documents', d:'M3.5 7a1.5 1.5 0 0 1 1.5-1.5h4l2 2.5h8A1.5 1.5 0 0 1 20.5 9.5V18a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18z' },
+      { label:'Billing', d:'M3.5 7.5h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z M3.5 7.5l11-3.5v3.5 M16 14h2' }
+    ];
+    const tabs = tabDefs.map((t, i) => ({
+      label: t.label, d: t.d,
+      pillStyle: `width:56px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:${i === 3 ? '#f3dde5' : 'transparent'};color:${i === 3 ? '#6b1535' : '#755a64'};`,
+      labelStyle: `font-size:11px;font-weight:${i === 3 ? 600 : 500};color:${i === 3 ? '#6b1535' : '#755a64'};`
+    }));
+    return { people, bar, tabs };
+  }
+}
+</script>
+</body>
+</html>

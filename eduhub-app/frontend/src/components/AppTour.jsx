@@ -12,7 +12,7 @@ const STEPS = [
   { title: "This is you", text: "Tap your photo to see your family, add photos and check how complete things are.", target: ".app-topbar-avatar" },
   { title: "Your alerts", text: "Tours, assessments and school updates land here, with every detail you need on the day.", target: ".app-bell" },
   { title: "Settings", text: "Appearance, your package, help and your account all live behind the gear.", target: ".app-gear" },
-  { title: "Your next step", text: "This card always says whose document or detail is next. Tap Continue and you land in the right place.", target: ".dash-banner", home: true },
+  { title: "Your next step", text: "This card always says whose document or detail is next. Tap Continue and you land in the right place.", target: ".dash-hero", home: true },
   { title: "Your schools", text: "Where each school is, from shortlist to place. Tap a stage to see the schools in it.", target: ".sp-card", home: true },
   { title: "Five tabs", text: "Home, Application, Schools, Documents and Billing. Everything you save is kept automatically.", target: ".app-shell-nav" },
 ];
