@@ -1,0 +1,84 @@
+/* Applications tab, rebuilt on the new layout (29 Oct 2026).
+   Shares the look of SchoolVisits.css (the .sv scope provides the colours). */
+
+.sv-cols21 { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+
+/* ---------- where it is: chevrons ---------- */
+.ap2-cm { display: flex; gap: 2px; flex-wrap: nowrap; }
+.ap2-cm span {
+  padding: 4px 12px 4px 16px; background: var(--sv-surface2); color: var(--sv-faint); font-size: 12.5px; font-weight: 600;
+  white-space: nowrap; clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 0 100%, 9px 50%);
+}
+.ap2-cm span:first-child { padding-left: 12px; clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 0 100%); }
+.ap2-cm span.is-done { background: rgba(83, 1, 38, 0.14); color: var(--hh-burgundy); }
+.ap2-cm span.is-current { background: var(--hh-burgundy); color: #fff; }
+.ap2-cm span.is-bad { background: #f6dcd9; color: var(--hh-error); }
+.ap2-cm span.is-skipped { background: var(--sv-surface2); color: var(--sv-faint); }
+.ap2-where { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ap2-where .sv-sb.is-warn { color: var(--sv-warn-text); }
+.ap2-pill { font-size: 13px; font-weight: 500; color: var(--sv-mute); background: var(--sv-surface2); border-radius: 999px; padding: 2px 12px; justify-self: start; }
+
+/* ---------- the open application ---------- */
+.ap2-head { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+.ap2-title { font-size: 20px; font-weight: 600; color: var(--hh-burgundy); }
+.ap2-sub { margin-left: 8px; font-size: 13px; color: var(--sv-faint); }
+.ap2-sub .is-warn { color: var(--sv-warn-text); }
+
+.ap2-stepper { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 24px; }
+.ap2-step {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative; text-align: center;
+  padding: 0 6px; border: 0; background: transparent; color: inherit;
+}
+.ap2-step:not(:last-child)::after { content: ""; position: absolute; top: 19px; left: calc(50% + 24px); right: calc(-50% + 24px); height: 2px; background: var(--sv-line); }
+.ap2-step.is-done:not(:last-child)::after { background: var(--hh-burgundy); }
+.ap2-dot {
+  width: 38px; height: 38px; border-radius: 50%; background: var(--hh-white); border: 2px solid var(--sv-field); color: var(--sv-faint);
+  display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600;
+}
+.ap2-step.is-done .ap2-dot { background: var(--hh-burgundy); border-color: var(--hh-burgundy); color: #fff; }
+.ap2-step.is-current .ap2-dot { border-color: var(--hh-burgundy); color: var(--hh-burgundy); }
+.ap2-step.is-bad .ap2-dot { background: #f6dcd9; border-color: var(--hh-error); color: var(--hh-error); }
+.ap2-step.is-pick .ap2-dot { box-shadow: 0 0 0 4px rgba(83, 1, 38, 0.16); }
+.ap2-step b { font-size: 15px; font-weight: 600; color: var(--sv-faint); }
+.ap2-step.is-done b, .ap2-step.is-current b, .ap2-step.is-bad b, .ap2-step.is-pick b { color: var(--hh-ink); }
+.ap2-step small { font-size: 12.5px; color: var(--sv-faint); margin-top: -6px; overflow-wrap: anywhere; }
+
+.ap2-card > h3 { margin-bottom: 14px; }
+/* The stage cards keep their existing fields; bring them up to the bigger text. */
+.ap2 .ps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 0 0 12px; }
+.ap2 .ps-field { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--sv-faint); }
+.ap2 .panel-input, .ap2 .panel-select, .ap2 .as-input {
+  font-size: 15px; min-height: 40px; border-radius: 9px; border: 1.5px solid var(--sv-field); padding: 8px 12px;
+}
+.ap2 textarea.as-input { min-height: 70px; }
+.ap2 .panel-btn:not(.panel-btn-primary):not(.panel-btn-quiet) {
+  font-size: 14.5px; font-weight: 600; min-height: 40px; padding: 0 18px; border-radius: 10px; border: 1.5px solid var(--sv-field); color: var(--hh-ink);
+}
+.ap2 .panel-btn-primary { font-size: 14.5px; font-weight: 600; min-height: 40px; padding: 0 18px; border-radius: 10px; }
+.ap2 .ps-hint { font-size: 13.5px; color: var(--sv-mute); }
+.ap2 .ps-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.ap2 .ap-oa { border: 1px solid var(--sv-line); background: var(--hh-white); border-radius: 12px; padding: 16px 18px; }
+.ap2 .ap-oa-grid { grid-template-columns: minmax(0, 1fr); }
+.ap2 .ap-oa-box { border: 0; padding: 0; }
+
+/* ---------- collapsible rows under the card ---------- */
+.ap2-rows { margin-top: 16px; padding: 4px 18px; }
+.ap2-row { border-top: 1px solid var(--sv-line2); }
+.ap2-row:first-child { border-top: 0; }
+.ap2-row > summary {
+  list-style: none; cursor: pointer; display: flex; justify-content: space-between; gap: 12px; align-items: center;
+  padding: 12px 0; font-size: 14.5px;
+}
+.ap2-row > summary::-webkit-details-marker { display: none; }
+.ap2-row > summary span:last-child { color: var(--sv-faint); font-size: 13.5px; text-align: right; }
+.ap2-row-body { padding: 0 0 14px; }
+.ap2-row-body .ap-portal { grid-template-columns: minmax(0, 1fr); margin-top: 0; }
+.ap2-foot { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.ap2-foot-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+.ap2-foot-row label { display: inline-flex; gap: 8px; align-items: center; font-size: 14.5px; }
+.ap2-note { background: var(--sv-surface2); border-radius: 10px; padding: 10px 14px; font-size: 14px; color: var(--sv-mute); margin: 0 0 14px; }
+
+@media (max-width: 900px) {
+  .sv-cols21 { grid-template-columns: minmax(0, 1fr); }
+  .ap2-step small { display: none; }
+}

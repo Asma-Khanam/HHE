@@ -3,14 +3,16 @@
    Brand tokens from styles/tokens.css. */
 
 .sv {
-  --sv-line: #eee6ea;
-  --sv-line2: #f5eff2;
-  --sv-surface2: #f8f3f5;
-  --sv-tint: #fdf4f7;
-  --sv-field: #e0d6db;
-  --sv-mute: #7a6d75;
-  --sv-faint: #a89da4;
-  --sv-amber: #b45309;
+  /* Brand palette only (styles/tokens.css): burgundy, gold, cream, ink. */
+  --sv-line: rgba(83, 1, 38, 0.12);
+  --sv-line2: rgba(83, 1, 38, 0.07);
+  --sv-surface2: var(--hh-cream);
+  --sv-tint: rgba(83, 1, 38, 0.045);
+  --sv-field: rgba(83, 1, 38, 0.22);
+  --sv-mute: rgba(42, 17, 25, 0.62);
+  --sv-faint: rgba(42, 17, 25, 0.46);
+  --sv-amber: var(--hh-gold);
+  --sv-warn-text: #8a5200;
   --sv-green: var(--hh-good);
   display: flex;
   flex-direction: column;
@@ -54,7 +56,7 @@
 .sv-n { font-size: 13px; font-weight: 500; color: var(--sv-mute); background: var(--sv-surface2); border-radius: 999px; padding: 1px 9px; }
 
 /* ---------- cards ---------- */
-.sv-card { background: var(--hh-white); border: 1px solid var(--sv-line); border-radius: 14px; }
+.sv-card { background: var(--hh-white); border: 1px solid var(--sv-line); border-radius: 14px; box-shadow: var(--hh-shadow); }
 .sv-card-pad { padding: 20px 24px; }
 .sv-card-title { font-size: 18px; font-weight: 600; color: var(--hh-ink); margin: 0; }
 .sv-sub { font-size: 13px; color: var(--sv-faint); }
@@ -85,7 +87,7 @@
 }
 .sv-tb.is-sel { background: var(--sv-tint); box-shadow: inset 4px 0 0 var(--hh-burgundy); }
 .sv-tb:not(.is-head):not(.is-closed):not(.is-band):hover { background: var(--sv-tint); }
-.sv-tb.is-closed { background: #fbf9fa; cursor: default; }
+.sv-tb.is-closed { background: var(--hh-cream); cursor: default; }
 .sv-tb.is-closed .sv-nm, .sv-tb.is-closed .sv-st { color: var(--sv-faint); }
 .sv-tb.is-band { background: var(--sv-surface2); padding-top: 10px; padding-bottom: 10px; cursor: default; }
 .sv-band-label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sv-faint); }
@@ -97,7 +99,7 @@
 .sv-st .sv-clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sv-tour { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .sv-tour small { font-size: 12.5px; color: var(--sv-faint); }
-.sv-tour small.is-warn { color: var(--sv-amber); }
+.sv-tour small.is-warn { color: var(--sv-warn-text); }
 .sv-d { width: 8px; height: 8px; border-radius: 50%; background: var(--sv-faint); flex: none; display: inline-block; }
 .sv-d.is-a { background: var(--sv-amber); }
 .sv-d.is-g { background: var(--sv-green); }
@@ -117,7 +119,7 @@
 .sv-open-head { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
 .sv-open-msg { color: #4a3d45; }
 .sv-open-msg b { font-weight: 600; }
-.sv-warn { color: var(--sv-amber); }
+.sv-warn { color: var(--sv-warn-text); }
 .sv-ok { color: var(--sv-green); }
 .sv-pills { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .sv-seg { display: inline-flex; border: 1.5px solid var(--sv-field); border-radius: 10px; overflow: hidden; }
@@ -147,7 +149,7 @@
 .sv-g2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .sv-g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .sv-stars { font-size: 22px; color: var(--sv-field); letter-spacing: 2px; }
-.sv-stars .is-on { color: var(--sv-amber); }
+.sv-stars .is-on { color: var(--hh-gold); }
 .sv-saved { font-size: 13px; color: var(--sv-faint); }
 .sv-saved.is-error { color: var(--hh-error); }
 .sv-quote { margin: 0 0 8px; padding: 8px 12px; border-left: 3px solid var(--hh-gold); background: var(--sv-surface2); border-radius: 0 8px 8px 0; font-size: 14px; }

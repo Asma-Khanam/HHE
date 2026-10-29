@@ -1,5 +1,5 @@
 import AutosaveField from "./Autosave";
-import ProcessSteps from "./ProcessSteps";
+import ApplicationStepper from "./ApplicationStepper";
 import ApplicationFeeStep from "./ApplicationFeeStep";
 import { REJECTION_REASONS } from "../lib/workflow";
 import { meetingPlatform } from "../lib/meetingLink";
@@ -45,6 +45,7 @@ export default function ApplicationProcess({
   fees = [], // this application's application_fees rows
   familyId = null, // the family's id (invoice files are kept under it)
   onFeesChange = () => {}, // (updater) => void
+  aside = null, // shown beside the open stage card (the OpenApply box)
 }) {
   const cur = CURRENT[a.status] ?? 0;
   const declined = a.status === "rejected";
@@ -489,7 +490,7 @@ export default function ApplicationProcess({
     ),
   };
 
-  return <ProcessSteps steps={[s1, sFee, s2, s3, s4]} />;
+  return <ApplicationStepper steps={[s1, sFee, s2, s3, s4]} aside={aside} />;
 }
 
 // For the collapsed card's mini bar. Fee is its own stage between Apply

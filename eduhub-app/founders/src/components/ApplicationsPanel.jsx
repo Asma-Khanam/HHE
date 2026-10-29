@@ -26,13 +26,15 @@ import {
 } from "../lib/workflow";
 import CopyButton from "./CopyButton";
 import ApplicationProcess, { applicationMiniSteps } from "./ApplicationProcess";
-import { FlowBar } from "./ProcessSteps";
+import { KidTag } from "./SchoolVisitsParts";
 import UpdateFamilyButton from "./UpdateFamilyButton";
 import "./panels.css";
 import AutosaveField from "./Autosave";
 import { placedByChild, closedForChild, shortDate, roundInfoByChild, inCurrentRound } from "../lib/placement";
 import { parseMeetingInvite, looksLikeInvite } from "../lib/meetingLink";
 import "./ApplicationsPanel.css";
+import "./SchoolVisits.css";
+import "./ApplicationsRebuild.css";
 
 
 function formatShortDate(iso) {
@@ -40,23 +42,13 @@ function formatShortDate(iso) {
   return new Date(iso + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
-function schoolInitials(name) {
-  return (name || "?")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w.charAt(0).toUpperCase())
-    .join("");
-}
-
-
 const ALIAS_DOMAIN = "applications.heatherharries.com";
 
 // Portal login + activity log for one application, shown when a consultant
 // opens the application. Login details are the parent's application alias
 // and password (the same ones shown on the Application email panel); nothing
 // here is deletable -- log entries are only ever added.
-function PortalAndLog({ application, school, parents, events, onEventAdded, onPortalUrlSaved, staffNames = {} }) {
+function PortalAndLog({ application, school, parents, events, onEventAdded, onPortalUrlSaved, staffNames = {}, part }) {
   const [revealed, setRevealed] = useState(false);
   const [entry, setEntry] = useState("");
   const [saving, setSaving] = useState(false);
@@ -83,6 +75,7 @@ function PortalAndLog({ application, school, parents, events, onEventAdded, onPo
 
   return (
     <div className="ap-portal">
+      {(!part || part === "login") && (
       <div className="ap-portal-box">
         <div className="ap-portal-title">Portal login</div>
         {school ? (
@@ -146,7 +139,9 @@ function PortalAndLog({ application, school, parents, events, onEventAdded, onPo
           </div>
         )}
       </div>
+      )}
 
+      {(!part || part === "log") && (
       <div className="ap-portal-box">
         <div className="ap-portal-title">Activity log</div>
         <div className="ap-log-add">
@@ -193,6 +188,7 @@ function PortalAndLog({ application, school, parents, events, onEventAdded, onPo
           </ul>
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -313,11 +309,15 @@ export default function ApplicationsPanel({
   parents = [],
   onProgressChange,
   onGoToVisits,
+  onGoToEmails,
   staff = [],
 }) {
   // Who did what, for the activity log (founders: many consultants).
   const staffNames = Object.fromEntries((staff || []).map((s) => [s.user_id, s.full_name || s.email]));
   const [apps, setApps] = useState(applicationsByChild || {});
+  const [tab, setTab] = useState("overview");
+  const [addOpen, setAddOpen] = useState(false);
+  const [addChild, setAddChild] = useState("");
   // Every change made here is reported to the page above, so leaving this tab
   // and coming back shows the current data, not what was loaded at page open.
   const onChangeRef = useRef(onApplicationsChange);
@@ -443,6 +443,8 @@ export default function ApplicationsPanel({
         });
       return next;
     });
+    const owner = Object.entries(appsRef.current).find(([, list]) => list.some((a) => String(a.school_id) === String(highlightSchoolId)));
+    if (owner) setTab(owner[0]);
     const el = document.getElementById(`app-row-school-${highlightSchoolId}`);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
     setHighlightActive(true);
@@ -450,7 +452,6 @@ export default function ApplicationsPanel({
     return () => clearTimeout(timer);
   }, [highlightSchoolId]);
 
-  const [addingFor, setAddingFor] = useState(null); // child id
   const [schoolId, setSchoolId] = useState("");
   const [newSchoolName, setNewSchoolName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -583,7 +584,7 @@ export default function ApplicationsPanel({
       const schoolName = schools.find((s) => s.id === targetSchoolId)?.name || typedName;
       setApps((map) => ({ ...map, [child.id]: [...(map[child.id] || []), { ...created, schoolName }] }));
       resetForm();
-      setAddingFor(null);
+      setAddOpen(false);
     } catch (err) {
       setError(err.message || "Couldn't add that application.");
     } finally {
@@ -622,441 +623,614 @@ export default function ApplicationsPanel({
     );
   }
 
-  return (
-    <section className="panel ap">
-      <div className="panel-head">
-        <h2>Applications</h2>
+  /* ---------- new layout (29 Oct 2026) ---------- */
+
+  const childIdx = (childId) => familyChildren.findIndex((c) => c.id === childId);
+  const activeTab = tab !== "overview" && familyChildren.some((c) => c.id === tab) ? tab : "overview";
+  const activeChild = familyChildren.find((c) => c.id === activeTab) || null;
+
+  // Everything the rows and the open card need to know about one application.
+  function infoFor(child, application) {
+    const i = childIdx(child.id);
+    const name = displayNameForChild(child, i);
+    const childPlaced = placed[child.id];
+    const days = daysInStage(application, eventsByApp[application.id]);
+    const attentionTone = currentStageTone(application, days);
+    const isWithdrawn = application.status === "withdrawn";
+    const isDeclined = application.status === "rejected";
+    const placedElsewhere = !isWithdrawn && closedForChild(placed, child.id, application.school_id, application.schoolName, application.keep_open);
+    const isPlacedHere = childPlaced && !placedElsewhere && !isWithdrawn && application.status === "offer_accepted";
+    const school = schools.find((sc) => sc.id === application.school_id);
+    const schoolName = school?.name || application.schoolName;
+    const start = placementFor(child.id, schoolName)?.start_date;
+    const fees = feesByApp[application.id] || [];
+    const hint = placedElsewhere
+      ? `Closed · ${name} placed at ${childPlaced.schoolName}`
+      : isDeclined
+      ? `Closed · declined${application.rejected_reason ? `: ${application.rejected_reason}` : ""}`
+      : isWithdrawn
+      ? `Withdrawn${application.withdrawn_reason ? `: ${application.withdrawn_reason}` : ""}`
+      : isPlacedHere
+      ? start
+        ? `🎓 Placed · starts ${shortDate(start)}`
+        : "🎓 Placed · add the first day"
+      : application.status === "waitlisted"
+      ? "Waitlisted"
+      : attentionTone === "attention"
+      ? `Needs attention · ${days ?? "?"} days at this step`
+      : days !== null
+      ? days === 0
+        ? "Moved today"
+        : `${days} day${days === 1 ? "" : "s"} at this step`
+      : "";
+    return {
+      i, name, childPlaced, days, attentionTone, isWithdrawn, isDeclined, placedElsewhere, isPlacedHere, school, schoolName,
+      start, fees, hint, closedCard: placedElsewhere || isDeclined || isWithdrawn,
+      portalUrl: school?.openapply_login_url || school?.application_url || "",
+      events: eventsByApp[application.id] || [],
+    };
+  }
+
+  // The one thing to do next on a live application, and how urgent it is.
+  function nextStepFor(application, info) {
+    const a = application;
+    const unpaid = info.fees.some((f) => f.status !== "paid" && f.status !== "waived" && !f.paid_direct_by_family);
+    switch (a.status) {
+      case "draft":
+        return ["Submit the application", "a"];
+      case "submitted":
+      case "assessment_booked": {
+        if (unpaid) return ["Fee to pay", "a"];
+        if (!a.assessment_date && !a.assessment_in_person && !a.assessment_video_requested) return ["Add assessment details", "a"];
+        if (a.assessment_date) {
+          const online = !a.assessment_in_person && !a.assessment_video_requested;
+          if (online && !a.assessment_link) return ["Add the join link", "a"];
+          return [`Assessment ${shortDate(a.assessment_date)}`, ""];
+        }
+        return ["Waiting for the school", ""];
+      }
+      case "under_review":
+        return ["Waiting for the school", ""];
+      case "waitlisted":
+        return ["On the waitlist", ""];
+      case "offer":
+        return [a.offer_decision_by ? `Answer by ${shortDate(a.offer_decision_by)}` : "Record the family's answer", "a"];
+      case "offer_accepted":
+        return info.start ? [`Starts ${shortDate(info.start)}`, "g"] : ["Add the first day", "a"];
+      default:
+        return ["–", ""];
+    }
+  }
+
+  // The start term the family chose, from the child's own record
+  // ("Term 1 (September start), 2027/2028"). Flexible is left out.
+  function entryLabel(child) {
+    const list = (v) => (Array.isArray(v) ? v.filter(Boolean) : []);
+    const terms = list(child.terms).filter((x) => !/flexible/i.test(x));
+    const years = list(child.academic_years_of_entry).sort();
+    return [terms.join(" or "), years.join(" or ")].filter(Boolean).join(", ");
+  }
+
+  function chevrons(application, info) {
+    const flow = applicationMiniSteps(application, info.fees);
+    return (
+      <div className="ap2-where">
+        <div className="ap2-cm" role="img" aria-label={flow.map((s) => `${s.label}: ${s.state}`).join(", ")}>
+          {flow.map((s) => (
+            <span key={s.key} className={"is-" + s.state}>
+              {s.state === "done" ? "✓ " : s.state === "bad" ? "✕ " : ""}
+              {s.label === "Assessment" ? "Assess." : s.label}
+            </span>
+          ))}
+        </div>
+        <div className={"sv-sb" + (info.attentionTone === "attention" ? " is-warn" : "")}>{info.hint}</div>
       </div>
+    );
+  }
 
-      {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
+  function reopenApplication(child, application, info) {
+    if (info.placedElsewhere) {
+      return patch(child.id, application, { keep_open: true }).then((ok) => ok && logEvent(application, "Kept open alongside the placement"));
+    }
+    return changeStatus(child.id, application, info.isDeclined ? "under_review" : "draft");
+  }
 
-      {familyChildren.map((child, i) => {
-        // The school they're placed at first, then open applications, then
-        // closed ones (placed elsewhere, withdrawn) at the bottom.
-        const childPlaced = placed[child.id];
-        const isClosedApp = (a) => closedForChild(placed, child.id, a.school_id, a.schoolName, a.keep_open);
-        const rankApp = (a) =>
-          a.status === "offer_accepted" && !isClosedApp(a)
-            ? 0
-            : a.status === "withdrawn"
-            ? 4
-            : a.status === "rejected"
-            ? 3
-            : isClosedApp(a)
-            ? 2
-            : 1;
-        const allChildApps = apps[child.id] || [];
-        const childApps = allChildApps.filter((a) => inCurrentRound(a, roundInfo)).sort((a, b) => rankApp(a) - rankApp(b));
-        const earlierApps = allChildApps.filter((a) => !inCurrentRound(a, roundInfo));
-        const name = displayNameForChild(child, i);
-        return (
-          <div key={child.id} className="ap-child">
-            <div className="ap-child-head">
-              <div className="ap-child-title">
-                <span className="ap-child-name">{name}</span>
-                {child.current_year_group && <span className="ap-child-year">Now {child.current_year_group}</span>}
-                {child.year_group_applying_for && <span className="ap-child-year">Applying {child.year_group_applying_for}</span>}
-              </div>
-              <button
-                type="button"
-                className="panel-btn"
-                onClick={() => {
-                  resetForm();
-                  setAddingFor(addingFor === child.id ? null : child.id);
-                }}
-              >
-                {addingFor === child.id ? "Cancel" : "+ Add school"}
+  function onRowKey(e, fn) {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      fn();
+    }
+  }
+
+  /* ---------- the open application ---------- */
+
+  function renderLiveDetail(child, application, info) {
+    const { name, childPlaced, school, schoolName, events } = info;
+    const lastEvent = events[0];
+    const logSummary = lastEvent
+      ? `Last: ${lastEvent.description}${staffNames[lastEvent.created_by] ? ` · ${staffNames[lastEvent.created_by]}` : ""} · ${new Date(lastEvent.occurred_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+      : "Nothing logged yet";
+    const portalProps = {
+      application,
+      school,
+      parents,
+      staffNames,
+      events,
+      onPortalUrlSaved: (id, url, platform) =>
+        setSchools((list) => list.map((sc) => (sc.id === id ? { ...sc, openapply_login_url: url, application_platform: platform || sc.application_platform } : sc))),
+      onEventAdded: (ev) => setEventsByApp((m) => ({ ...m, [application.id]: [ev, ...(m[application.id] || [])] })),
+    };
+    return (
+      <div className="sv-open" onClick={(e) => e.stopPropagation()}>
+        <div className="ap2-head">
+          <div>
+            <span className="ap2-title">{application.schoolName}</span>
+            <span className="ap2-sub">
+              {name}
+              {child.year_group_applying_for ? ` · ${child.year_group_applying_for}` : ""}
+              {info.hint ? " · " : ""}
+              <span className={info.attentionTone === "attention" ? "is-warn" : ""}>{info.hint}</span>
+            </span>
+          </div>
+          <div className="sv-pills">
+            {info.portalUrl && (
+              <a className="sv-btn is-sm" href={info.portalUrl} target="_blank" rel="noreferrer">
+                Open school portal
+              </a>
+            )}
+            <button type="button" className="sv-btn is-sm is-quiet" onClick={() => changeStatus(child.id, application, "withdrawn")}>
+              Withdraw
+            </button>
+          </div>
+        </div>
+
+        {childPlaced && application.keep_open && (
+          <p className="ap2-note">
+            Kept open even though {name} is placed at {childPlaced.schoolName}.{" "}
+            <button
+              type="button"
+              className="apx-link"
+              onClick={() =>
+                patch(child.id, application, { keep_open: false }).then((ok) => ok && logEvent(application, "No longer kept open -- closed with the placement"))
+              }
+            >
+              Let it close instead
+            </button>
+          </p>
+        )}
+
+        <ApplicationProcess
+          application={application}
+          childName={name}
+          portalUrl={info.portalUrl}
+          placement={placementFor(child.id, schoolName)}
+          onPatch={(changes) => patch(child.id, application, changes)}
+          onStatus={(next, extra) => changeStatus(child.id, application, next, extra)}
+          onMeetingLink={(v) => saveMeetingLink(child.id, application, v)}
+          onStartDate={(v) => savePlacementDate(child, info.i, schoolName, v)}
+          onLog={(text, type) => logEvent(application, text, type)}
+          fees={info.fees}
+          familyId={familyId}
+          onFeesChange={(update) => setFeesByApp((m) => ({ ...m, [application.id]: update(m[application.id] || []) }))}
+          aside={
+            <OpenApplySynced
+              application={application}
+              items={checklistByApp[application.id] || []}
+              fees={info.fees}
+              isOpenApply={school?.application_platform === "openapply"}
+            />
+          }
+        />
+
+        <div className="sv-blk ap2-rows">
+          <details className="ap2-row">
+            <summary>
+              <span>Portal login</span>
+              <span>Link, email and password · Show</span>
+            </summary>
+            <div className="ap2-row-body">
+              <PortalAndLog {...portalProps} part="login" />
+            </div>
+          </details>
+          <details className="ap2-row">
+            <summary>
+              <span>Activity log</span>
+              <span>{logSummary} · Show</span>
+            </summary>
+            <div className="ap2-row-body">
+              <PortalAndLog {...portalProps} part="log" />
+            </div>
+          </details>
+          <details className="ap2-row">
+            <summary>
+              <span>Emails with this school</span>
+              <span>Open the Emails tab</span>
+            </summary>
+            <div className="ap2-row-body">
+              <p className="ps-hint" style={{ margin: "0 0 10px" }}>
+                Every email with {application.schoolName} is kept on the Emails tab, and the family&apos;s application email is below the applications.
+              </p>
+              {onGoToEmails && (
+                <button type="button" className="sv-btn is-sm" onClick={() => onGoToEmails(application.school_id)}>
+                  Open the Emails tab
+                </button>
+              )}
+            </div>
+          </details>
+        </div>
+
+        <div className="ap2-foot">
+          <UpdateFamilyButton
+            familyId={familyId}
+            schoolId={application.school_id}
+            childId={child.id}
+            suggested={
+              {
+                submitted: "applied",
+                assessment_booked: "assessment",
+                under_review: "assessment",
+                offer: "offer",
+                offer_accepted: "placed",
+                waitlisted: "waitlisted",
+              }[application.status] || "applied"
+            }
+          />
+          <AutosaveField
+            collapsible
+            multiline
+            rows={2}
+            label="Team notes"
+            placeholder="Anything the team should know. The family can't see this."
+            value={application.notes}
+            onSave={async (v) => {
+              const ok = await patch(child.id, application, { notes: v });
+              if (!ok) throw new Error("check the message above, then Retry");
+            }}
+          />
+          <div className="ap2-foot-row">
+            <div className="sv-pills">
+              {application.status !== "offer_accepted" && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={!!application.needs_attention}
+                    onChange={(e) => patch(child.id, application, { needs_attention: e.target.checked })}
+                  />
+                  Flag as needing attention
+                </label>
+              )}
+              {onGoToVisits && (
+                <button type="button" className="sv-btn is-link" onClick={() => onGoToVisits(application.school_id)}>
+                  ← School visit
+                </button>
+              )}
+            </div>
+            <div className="sv-pills" style={{ gap: 4 }}>
+              <button type="button" className="sv-btn is-sm is-quiet" onClick={() => setConfirmDelete({ child, application, name })}>
+                Delete
+              </button>
+              <button type="button" className="sv-btn is-sm is-quiet" onClick={() => toggleExpanded(application)}>
+                Close
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-            {childPlaced && (
-              <div className="ap-placed-banner">
-                <span className="ap-placed-banner-icon" aria-hidden="true">
-                  🎓
-                </span>
-                <span>
-                  <strong>
-                    {name} is placed at {childPlaced.schoolName}
-                  </strong>
-                  {childPlaced.startDate ? ` · starts ${shortDate(childPlaced.startDate)}` : " · add the first day under Placed"}
-                  <span className="ap-placed-banner-sub">Their other schools are closed and kept below for reference.</span>
-                </span>
+  // Closed applications are view-only: what was recorded, plus the way back.
+  function renderClosedDetail(child, application, info) {
+    const { name, childPlaced, isDeclined } = info;
+    return (
+      <div className="sv-open" onClick={(e) => e.stopPropagation()}>
+        {info.placedElsewhere ? (
+          <>
+            <p className="ap2-note">
+              View only. {name} was placed at {childPlaced.schoolName}, so this application is closed. If that placement falls through, it opens again by itself. If {name} is applying here as well (a second school through us), you can keep it open instead.
+            </p>
+            <fieldset className="apx-readonly" disabled style={{ border: 0, padding: 0, margin: 0 }}>
+              <ApplicationProcess
+                application={application}
+                childName={name}
+                placement={null}
+                onPatch={async () => false}
+                onStatus={() => {}}
+                onMeetingLink={async () => false}
+                onStartDate={() => {}}
+                onLog={() => {}}
+              />
+            </fieldset>
+          </>
+        ) : (
+          <div className="sv-blk">
+            <h3>
+              <span>{isDeclined ? "Declined" : "Withdrawn"}</span>
+            </h3>
+            <p style={{ margin: "0 0 12px" }}>
+              {isDeclined ? `${application.schoolName} declined ${name}.` : "This application was withdrawn."} It&apos;s closed and kept here for the record.
+            </p>
+            <AutosaveField
+              collapsible
+              label={isDeclined ? "Why the school said no" : "Why it was withdrawn"}
+              placeholder={isDeclined ? "e.g. No space this year" : "e.g. family chose another school"}
+              value={isDeclined ? application.rejected_reason : application.withdrawn_reason}
+              onSave={async (v) => {
+                const ok = await patch(child.id, application, { [isDeclined ? "rejected_reason" : "withdrawn_reason"]: v });
+                if (!ok) throw new Error("check the message above, then Retry");
+                if (v) logEvent(application, `Reason: ${v}`);
+              }}
+            />
+            {isDeclined && (
+              <div className="ap-chips">
+                <span className="ap-chips-label">Quick pick</span>
+                {REJECTION_REASONS.filter((r) => r !== "Other").map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    className={"ap-chip" + (application.rejected_reason === r ? " is-on" : "")}
+                    onClick={() => patch(child.id, application, { rejected_reason: r }).then((ok) => ok && logEvent(application, `Reason: ${r}`))}
+                  >
+                    {r}
+                  </button>
+                ))}
               </div>
             )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
-            {addingFor === child.id && (
-              <form className="ap-add" onSubmit={(e) => handleAdd(e, child)}>
-                <select
-                  className="panel-select ap-add-grow"
-                  value={schoolId}
-                  onChange={(e) => {
-                    setSchoolId(e.target.value);
-                    if (e.target.value) setNewSchoolName("");
-                  }}
-                >
-                  <option value="">Pick a school…</option>
-                  {schools.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
+  /* ---------- the table ---------- */
+
+  const overviewCols = "minmax(0,1.8fr) minmax(0,0.9fr) minmax(0,2.8fr) minmax(0,1.5fr)";
+  const childCols = "minmax(0,1.9fr) minmax(0,3fr) minmax(0,1.5fr)";
+
+  function renderTable(list, withChild) {
+    const cols = withChild ? overviewCols : childCols;
+    const rankApp = (child, a) =>
+      a.status === "offer_accepted" && !closedForChild(placed, child.id, a.school_id, a.schoolName, a.keep_open)
+        ? 0
+        : a.status === "withdrawn"
+        ? 4
+        : a.status === "rejected"
+        ? 3
+        : closedForChild(placed, child.id, a.school_id, a.schoolName, a.keep_open)
+        ? 2
+        : 1;
+    const items = list
+      .map(({ child, application }) => ({ child, application, info: infoFor(child, application) }))
+      .sort((x, y) => rankApp(x.child, x.application) - rankApp(y.child, y.application));
+    const live = items.filter((x) => !x.info.closedCard);
+    const closed = items.filter((x) => x.info.closedCard);
+    return (
+      <div className="sv-card" style={{ overflow: "hidden" }}>
+        {items.length === 0 ? (
+          <p className="sv-hint" style={{ margin: 20 }}>No schools added here yet. Use + Add school, or Proceed to application on the School visits tab.</p>
+        ) : (
+          <div className="sv-scroll">
+            <div className="sv-tbl">
+              <div className="sv-tb is-head" style={{ "--sv-cols": cols }}>
+                <span>School</span>
+                {withChild && <span>Child</span>}
+                <span>Where it is</span>
+                <span>Next step</span>
+              </div>
+              {live.map(({ child, application, info }) => {
+                const open = isExpanded(application);
+                const [nextLabel, tone] = nextStepFor(application, info);
+                const highlighted = highlightActive && String(highlightSchoolId) === String(application.school_id);
+                return (
+                  <div key={application.id} id={`app-row-school-${application.school_id}`}>
+                    <div
+                      className={"sv-tb" + (open || highlighted ? " is-sel" : "")}
+                      style={{ "--sv-cols": cols }}
+                      tabIndex={0}
+                      role="button"
+                      aria-expanded={open}
+                      onClick={() => toggleExpanded(application)}
+                      onKeyDown={(e) => onRowKey(e, () => toggleExpanded(application))}
+                    >
+                      <div>
+                        <div className={"sv-nm" + (open ? " is-sel" : "")}>{application.schoolName}</div>
+                        {entryLabel(child) && <div className="sv-sb">{entryLabel(child)}</div>}
+                      </div>
+                      {withChild && <span className="sv-st"><KidTag name={info.name} index={info.i} /></span>}
+                      {chevrons(application, info)}
+                      <span className="sv-st">
+                        {tone && <i className={"sv-d is-" + tone} />}
+                        {nextLabel}
+                      </span>
+                    </div>
+                    {open && renderLiveDetail(child, application, info)}
+                  </div>
+                );
+              })}
+              {closed.length > 0 && (
+                <>
+                  <div className="sv-tb is-band" style={{ "--sv-cols": cols }}>
+                    <span className="sv-band-label">Closed · {closed.length}</span>
+                    {withChild && <span />}
+                    <span />
+                    <span className="sv-sub" style={{ textAlign: "right" }}>Greyed out, kept for the record</span>
+                  </div>
+                  {closed.map(({ child, application, info }) => {
+                    const open = isExpanded(application);
+                    return (
+                      <div key={application.id} id={`app-row-school-${application.school_id}`}>
+                        <div
+                          className={"sv-tb is-closed" + (open ? " is-sel" : "")}
+                          style={{ "--sv-cols": cols, cursor: "pointer" }}
+                          tabIndex={0}
+                          role="button"
+                          aria-expanded={open}
+                          onClick={() => toggleExpanded(application)}
+                          onKeyDown={(e) => onRowKey(e, () => toggleExpanded(application))}
+                        >
+                          <div>
+                            <div className="sv-nm">{application.schoolName}</div>
+                            <div className="sv-sb">{info.hint}</div>
+                          </div>
+                          {withChild && <span className="sv-st">{info.name}</span>}
+                          <span className="ap2-pill">{info.placedElsewhere ? "Closed" : info.isDeclined ? "Declined" : "Withdrawn"}</span>
+                          <span className="sv-st" onClick={(e) => e.stopPropagation()}>
+                            <button type="button" className="sv-btn is-link" onClick={() => reopenApplication(child, application, info)}>
+                              Reopen
+                            </button>
+                            <button
+                              type="button"
+                              className="sv-btn is-link"
+                              style={{ color: "var(--sv-mute)", marginLeft: 12 }}
+                              onClick={() => setConfirmDelete({ child, application, name: info.name })}
+                            >
+                              Delete
+                            </button>
+                          </span>
+                        </div>
+                        {open && renderClosedDetail(child, application, info)}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const countFor = (child) => (apps[child.id] || []).filter((a) => inCurrentRound(a, roundInfo)).length;
+  const allApps = familyChildren.flatMap((child) =>
+    (apps[child.id] || []).filter((a) => inCurrentRound(a, roundInfo)).map((application) => ({ child, application }))
+  );
+  const shownApps = activeChild
+    ? (apps[activeChild.id] || []).filter((a) => inCurrentRound(a, roundInfo)).map((application) => ({ child: activeChild, application }))
+    : allApps;
+  const addTarget = familyChildren.find((c) => c.id === addChild) || activeChild || familyChildren[0];
+
+  return (
+    <section className="sv ap2">
+      {error && <p className="sv-error">{error}</p>}
+
+      <div className="sv-vrow">
+        <div className="sv-tabs" role="tablist">
+          <button type="button" role="tab" aria-selected={activeTab === "overview"} className={activeTab === "overview" ? "is-on" : ""} onClick={() => setTab("overview")}>
+            Overview
+          </button>
+          {familyChildren.map((c, i) => (
+            <button key={c.id} type="button" role="tab" aria-selected={activeTab === c.id} className={activeTab === c.id ? "is-on" : ""} onClick={() => setTab(c.id)}>
+              {displayNameForChild(c, i)}
+              <span className="sv-n">{countFor(c)}</span>
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="sv-btn is-primary"
+          style={{ marginBottom: 8 }}
+          onClick={() => {
+            resetForm();
+            setAddChild(activeChild ? activeChild.id : familyChildren[0].id);
+            setAddOpen(true);
+          }}
+        >
+          + Add school
+        </button>
+      </div>
+
+      {activeChild && placed[activeChild.id] && (
+        <div className="sv-placed">
+          <span aria-hidden="true">🎓</span>
+          <span>
+            <strong>
+              {displayNameForChild(activeChild, childIdx(activeChild.id))} is placed at {placed[activeChild.id].schoolName}
+            </strong>
+            {placed[activeChild.id].startDate ? ` · starts ${shortDate(placed[activeChild.id].startDate)}` : " · add the first day under Placed"}
+            <span className="sv-placed-sub">Their other schools are closed and kept below for reference.</span>
+          </span>
+        </div>
+      )}
+
+      {renderTable(shownApps, !activeChild)}
+
+      {(activeChild ? [activeChild] : familyChildren).map((child) => {
+        const earlier = (apps[child.id] || []).filter((a) => !inCurrentRound(a, roundInfo));
+        if (earlier.length === 0) return null;
+        return (
+          <details key={child.id} className="ap-earlier">
+            <summary>
+              {displayNameForChild(child, childIdx(child.id))}: earlier rounds ({earlier.length} application{earlier.length === 1 ? "" : "s"}, kept as history)
+            </summary>
+            <ul className="ap-list">
+              {earlier.map((a) => (
+                <li key={a.id} className="ap-closed-note">
+                  Round {a.round_number || 1} · {a.schoolName || schools.find((x) => x.id === a.school_id)?.name || "School"} · {String(a.status || "").replace(/_/g, " ")}
+                </li>
+              ))}
+            </ul>
+          </details>
+        );
+      })}
+
+      {addOpen && addTarget && (
+        <div className="sv-modal-back" onClick={() => !busy && setAddOpen(false)}>
+          <form className="sv-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} onSubmit={(e) => handleAdd(e, addTarget)}>
+            <h3>Add a school</h3>
+            {familyChildren.length > 1 && (
+              <label className="sv-fld">
+                For
+                <select value={addTarget.id} onChange={(e) => setAddChild(e.target.value)}>
+                  {familyChildren.map((c, i) => (
+                    <option key={c.id} value={c.id}>
+                      {displayNameForChild(c, i)}
                     </option>
                   ))}
                 </select>
-                <span className="ap-add-or">or</span>
-                <input
-                  type="text"
-                  className="panel-input ap-add-grow"
-                  placeholder="Type a new school name"
-                  value={newSchoolName}
-                  onChange={(e) => {
-                    setNewSchoolName(e.target.value);
-                    if (e.target.value) setSchoolId("");
-                  }}
-                />
-                <button
-                  type="submit"
-                  className="panel-btn panel-btn-primary"
-                  disabled={busy || (!schoolId && !newSchoolName.trim())}
-                >
-                  {busy ? "Adding…" : "Add"}
-                </button>
-              </form>
+              </label>
             )}
-
-            {childApps.length === 0 ? (
-              <p className="panel-hint ap-empty">No schools added for {name} yet.</p>
-            ) : (
-              <ul className="ap-list">
-                {childApps.map((application) => {
-                  const days = daysInStage(application, eventsByApp[application.id]);
-                  const attentionTone = currentStageTone(application, days);
-                  const isHighlighted =
-                    highlightActive && String(highlightSchoolId) === String(application.school_id);
-                  const isWithdrawn = application.status === "withdrawn";
-                  const isDeclined = application.status === "rejected";
-                  const placedElsewhere = !isWithdrawn && isClosedApp(application);
-                  const isPlacedHere = childPlaced && !placedElsewhere && !isWithdrawn && application.status === "offer_accepted";
-                  const school = schools.find((sc) => sc.id === application.school_id);
-                  const portalUrl = school?.openapply_login_url || school?.application_url || "";
-                  const expanded = isExpanded(application);
-                  const events = eventsByApp[application.id] || [];
-                  const lastEvent = events[0];
-                  const flow = applicationMiniSteps(application, feesByApp[application.id] || []);
-                  const hint = placedElsewhere
-                    ? `Closed · ${name} placed at ${childPlaced.schoolName}`
-                    : isDeclined
-                    ? `Closed · declined${application.rejected_reason ? `: ${application.rejected_reason}` : ""}`
-                    : isWithdrawn
-                    ? `Withdrawn${application.withdrawn_reason ? `: ${application.withdrawn_reason}` : ""}`
-                    : isPlacedHere
-                    ? childPlaced.startDate
-                      ? `🎓 Placed · starts ${shortDate(childPlaced.startDate)}`
-                      : "🎓 Placed · add the first day"
-                    : application.status === "waitlisted"
-                    ? "Waitlisted"
-                    : attentionTone === "attention"
-                    ? `Needs attention · ${days ?? "?"} days at this step`
-                    : days !== null
-                    ? days === 0
-                      ? "Moved today"
-                      : `${days} day${days === 1 ? "" : "s"} at this step`
-                    : "";
-                  const closedCard = placedElsewhere || isDeclined || isWithdrawn;
-                  return (
-                    <li
-                      key={application.id}
-                      id={`app-row-school-${application.school_id}`}
-                      className={
-                        "ap-card2" +
-                        (closedCard ? " is-closed" : "") +
-                        (isPlacedHere ? " is-placed" : "") +
-                        (isHighlighted ? " is-highlight" : "") +
-                        (expanded ? " is-expanded" : " is-collapsed")
-                      }
-                    >
-                      <button
-                        type="button"
-                        className="ap-card2-head"
-                        onClick={() => toggleExpanded(application)}
-                        aria-expanded={expanded}
-                      >
-                        <div className="ap-school">
-                          <span className="ap-avatar">{schoolInitials(application.schoolName)}</span>
-                          <span className="ap-school-text">
-                            <span className="ap-school-name">{application.schoolName}</span>
-                            <span className={"ap-school-meta apx-hint" + (attentionTone === "attention" && !closedCard ? " is-attention" : "")}>
-                              {hint}
-                            </span>
-                          </span>
-                        </div>
-                        {closedCard ? (
-                          <span className="ap-pill ap-pill-closed">
-                            {placedElsewhere ? "Closed" : isDeclined ? "Declined" : "Withdrawn"}
-                          </span>
-                        ) : (
-                          <FlowBar steps={flow} />
-                        )}
-                        <span className={"ap-chevron" + (expanded ? " is-open" : "")} aria-hidden="true">
-                          ▾
-                        </span>
-                      </button>
-
-                      {expanded && (
-                        <div className="ap-card2-body">
-                          {/* 1. Portal login & activity log -- at the top, open/close. */}
-                          <details className="apx-portal">
-                            <summary>
-                              <span className="apx-portal-title">Portal login &amp; activity log</span>
-                              <span className="apx-portal-sub">
-                                {lastEvent
-                                  ? `Last: ${lastEvent.description}${
-                                      staffNames[lastEvent.created_by] ? ` · ${staffNames[lastEvent.created_by]}` : ""
-                                    } · ${new Date(lastEvent.occurred_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
-                                  : "Nothing logged yet"}
-                              </span>
-                            </summary>
-                            <div className="apx-portal-body">
-                              <PortalAndLog
-                                application={application}
-                                school={school}
-                                parents={parents}
-                                staffNames={staffNames}
-                                onPortalUrlSaved={(id, url, platform) =>
-                                  setSchools((list) =>
-                                    list.map((sc) =>
-                                      sc.id === id
-                                        ? { ...sc, openapply_login_url: url, application_platform: platform || sc.application_platform }
-                                        : sc
-                                    )
-                                  )
-                                }
-                                events={events}
-                                onEventAdded={(ev) =>
-                                  setEventsByApp((m) => ({ ...m, [application.id]: [ev, ...(m[application.id] || [])] }))
-                                }
-                              />
-                              <OpenApplySynced
-                                application={application}
-                                items={checklistByApp[application.id] || []}
-                                fees={feesByApp[application.id] || []}
-                                isOpenApply={school?.application_platform === "openapply"}
-                              />
-                            </div>
-                          </details>
-
-                          {/* 2. The process, or why it's closed. */}
-                          {placedElsewhere ? (
-                            <>
-                              <p className="ap-closed-note">
-                                View only. {name} was placed at {childPlaced.schoolName}, so this application is closed. If
-                                that placement falls through, it opens again by itself. If {name} is applying here as well
-                                (a second school through us), you can keep it open instead:
-                              </p>
-                              <button
-                                type="button"
-                                className="apx-link"
-                                onClick={() =>
-                                  patch(child.id, application, { keep_open: true }).then(
-                                    (ok) => ok && logEvent(application, "Kept open alongside the placement")
-                                  )
-                                }
-                              >
-                                Keep this application open too
-                              </button>
-                              <fieldset className="apx-readonly" disabled>
-                                <ApplicationProcess
-                                  application={application}
-                                  childName={name}
-                                  placement={null}
-                                  onPatch={async () => false}
-                                  onStatus={() => {}}
-                                  onMeetingLink={async () => false}
-                                  onStartDate={() => {}}
-                                  onLog={() => {}}
-                                />
-                              </fieldset>
-                            </>
-                          ) : isDeclined || isWithdrawn ? (
-                            <div className="apx-closed-box">
-                              <p className="apx-closed-title">
-                                {isDeclined ? `${application.schoolName} declined ${name}.` : "This application was withdrawn."} It&apos;s
-                                closed and kept here for the record.
-                              </p>
-                              <AutosaveField
-                                collapsible
-                                label={isDeclined ? "Why the school said no" : "Why it was withdrawn"}
-                                placeholder={isDeclined ? "e.g. No space this year" : "e.g. family chose another school"}
-                                value={isDeclined ? application.rejected_reason : application.withdrawn_reason}
-                                onSave={async (v) => {
-                                  const ok = await patch(child.id, application, {
-                                    [isDeclined ? "rejected_reason" : "withdrawn_reason"]: v,
-                                  });
-                                  if (!ok) throw new Error("check the message above, then Retry");
-                                  if (v) logEvent(application, `Reason: ${v}`);
-                                }}
-                              />
-                              {isDeclined && (
-                                <div className="ap-chips">
-                                  <span className="ap-chips-label">Quick pick</span>
-                                  {REJECTION_REASONS.filter((r) => r !== "Other").map((r) => (
-                                    <button
-                                      key={r}
-                                      type="button"
-                                      className={"ap-chip" + (application.rejected_reason === r ? " is-on" : "")}
-                                      onClick={() =>
-                                        patch(child.id, application, { rejected_reason: r }).then(
-                                          (ok) => ok && logEvent(application, `Reason: ${r}`)
-                                        )
-                                      }
-                                    >
-                                      {r}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                              <button
-                                type="button"
-                                className="apx-link"
-                                onClick={() => changeStatus(child.id, application, isDeclined ? "under_review" : "draft")}
-                              >
-                                {isDeclined ? "Reopen: the school changed its mind" : "Reopen this application"}
-                              </button>
-                              <button
-                                type="button"
-                                className="ap-withdraw-link"
-                                onClick={() => setConfirmDelete({ child, application, name })}
-                              >
-                                Delete this application
-                              </button>
-                            </div>
-                          ) : (
-                            <>
-                              {childPlaced && application.keep_open && (
-                                <p className="ap-closed-note">
-                                  Kept open even though {name} is placed at {childPlaced.schoolName}.{" "}
-                                  <button
-                                    type="button"
-                                    className="apx-link"
-                                    onClick={() =>
-                                      patch(child.id, application, { keep_open: false }).then(
-                                        (ok) => ok && logEvent(application, "No longer kept open -- closed with the placement")
-                                      )
-                                    }
-                                  >
-                                    Let it close instead
-                                  </button>
-                                </p>
-                              )}
-                              <ApplicationProcess
-                                application={application}
-                                childName={name}
-                                portalUrl={portalUrl}
-                                placement={placementFor(child.id, school?.name || application.schoolName)}
-                                onPatch={(changes) => patch(child.id, application, changes)}
-                                onStatus={(next, extra) => changeStatus(child.id, application, next, extra)}
-                                onMeetingLink={(v) => saveMeetingLink(child.id, application, v)}
-                                onStartDate={(v) => savePlacementDate(child, i, school?.name || application.schoolName, v)}
-                                onLog={(text, type) => logEvent(application, text, type)}
-                                fees={feesByApp[application.id] || []}
-                                familyId={familyId}
-                                onFeesChange={(update) =>
-                                  setFeesByApp((m) => ({
-                                    ...m,
-                                    [application.id]: update(m[application.id] || []),
-                                  }))
-                                }
-                              />
-                            </>
-                          )}
-
-                          {/* 3. Everything else, kept small. */}
-                          {!closedCard && (
-                            <div className="apx-foot">
-                              <UpdateFamilyButton
-                                familyId={familyId}
-                                schoolId={application.school_id}
-                                childId={child.id}
-                                suggested={
-                                  {
-                                    submitted: "applied",
-                                    assessment_booked: "assessment",
-                                    under_review: "assessment",
-                                    offer: "offer",
-                                    offer_accepted: "placed",
-                                    waitlisted: "waitlisted",
-                                  }[application.status] || "applied"
-                                }
-                              />
-                              <AutosaveField
-                                collapsible
-                                multiline
-                                rows={2}
-                                label="Team notes"
-                                placeholder="Anything the team should know. The family can't see this."
-                                value={application.notes}
-                                onSave={async (v) => {
-                                  const ok = await patch(child.id, application, { notes: v });
-                                  if (!ok) throw new Error("check the message above, then Retry");
-                                }}
-                              />
-                              <div className="apx-foot-row">
-                                {application.status !== "offer_accepted" && (
-                                  <label className="apx-inline apx-flag">
-                                    <input
-                                      type="checkbox"
-                                      checked={!!application.needs_attention}
-                                      onChange={(e) => patch(child.id, application, { needs_attention: e.target.checked })}
-                                    />
-                                    Flag as needing attention
-                                  </label>
-                                )}
-                                {onGoToVisits && (
-                                  <button type="button" className="apx-link" onClick={() => onGoToVisits(application.school_id)}>
-                                    ← School visit
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  className="ap-withdraw-link"
-                                  onClick={() => changeStatus(child.id, application, "withdrawn")}
-                                >
-                                  Withdraw
-                                </button>
-                                <button
-                                  type="button"
-                                  className="ap-withdraw-link"
-                                  onClick={() => setConfirmDelete({ child, application, name })}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-
-            {earlierApps.length > 0 && (
-              <details className="ap-earlier">
-                <summary>
-                  Earlier rounds ({earlierApps.length} application{earlierApps.length === 1 ? "" : "s"}, kept as history)
-                </summary>
-                <ul className="ap-list">
-                  {earlierApps.map((a) => (
-                    <li key={a.id} className="ap-closed-note">
-                      Round {a.round_number || 1} · {a.schoolName || schools.find((x) => x.id === a.school_id)?.name || "School"} ·{" "}
-                      {String(a.status || "").replace(/_/g, " ")}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-          </div>
-        );
-      })}
+            <label className="sv-fld">
+              School
+              <select
+                value={schoolId}
+                onChange={(e) => {
+                  setSchoolId(e.target.value);
+                  if (e.target.value) setNewSchoolName("");
+                }}
+              >
+                <option value="">Pick a school…</option>
+                {schools.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="sv-fld">
+              Or type a new school name
+              <input
+                type="text"
+                placeholder="Type a new school name"
+                value={newSchoolName}
+                onChange={(e) => {
+                  setNewSchoolName(e.target.value);
+                  if (e.target.value) setSchoolId("");
+                }}
+              />
+            </label>
+            <div className="sv-modal-actions">
+              <button type="button" className="sv-btn is-sm is-quiet" onClick={() => setAddOpen(false)} disabled={busy}>
+                Cancel
+              </button>
+              <button type="submit" className="sv-btn is-primary is-sm" disabled={busy || (!schoolId && !newSchoolName.trim())}>
+                {busy ? "Adding…" : "Add school"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {confirmDelete && (
         <div className="ap-confirm" role="dialog" aria-modal="true" onClick={() => !deleting && setConfirmDelete(null)}>
