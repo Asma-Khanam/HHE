@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getTodayData, getCurrentStaff, setTaskDone, friendlyError } from "../lib/staffData";
+import { getTodayData, getCurrentStaff, setTaskDone, listFamilyActionRows, friendlyError } from "../lib/staffData";
+import { computeFamilyActions } from "../lib/familyActions";
 import { daysUntil, isOverdue, isDueToday, noteKindLabel, relativeDay } from "../lib/workflow";
 import "./TodayPage.css";
 
@@ -44,12 +45,16 @@ export default function TodayPage() {
   const [me, setMe] = useState(null);
   const [error, setError] = useState("");
   const [busyTaskId, setBusyTaskId] = useState(null);
+  const [actions, setActions] = useState({});
 
   function load() {
     getCurrentStaff().then(setMe).catch(() => {});
     getTodayData()
       .then(setData)
       .catch((err) => setError(friendlyError(err, "Couldn't load your dashboard.")));
+    listFamilyActionRows()
+      .then(({ rows, suggestions }) => setActions(computeFamilyActions(rows, suggestions)))
+      .catch(() => {});
   }
 
   useEffect(load, []);
@@ -95,6 +100,11 @@ export default function TodayPage() {
   const myTaskOverdue = myTasks.filter((t) => isOverdue(t.due_date)).length;
   const myTasksShown = myTasks.slice(0, 6);
 
+  // Only families with something for us to do, most items first (archived ones are not in data.families).
+  const needsAction = data.families
+    .filter((f) => (actions[f.id] || []).length > 0)
+    .sort((a, b) => actions[b.id].length - actions[a.id].length);
+
   const upcomingPayments = data.payments.slice(0, 4);
   const upcomingDeadlines = thisWeek.slice(0, 4);
   const activity = (data.recentActivity || []).slice(0, 5);
@@ -114,6 +124,34 @@ export default function TodayPage() {
       </div>
 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
+
+      {needsAction.length > 0 && (
+        <section className="today-card today-actions">
+          <div className="today-card-head">
+            <h2>
+              Needs action <span className="today-count is-bad">{needsAction.length} famil{needsAction.length === 1 ? "y" : "ies"}</span>
+            </h2>
+          </div>
+          <ul className="today-actions-list">
+            {needsAction.map((f) => (
+              <li key={f.id}>
+                <Link to={`/staff/families/${f.id}?tab=visits`} className="today-actions-family">
+                  {data.familyNames[f.id] || "Family"}
+                </Link>
+                <ul>
+                  {actions[f.id].map((a) => (
+                    <li key={a.key}>
+                      <Link to={`/staff/families/${f.id}?tab=visits`}>
+                        <span className="today-actions-where">School visits</span> {a.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {data.unownedFamilies.length > 0 && (
         <div className="today-owner-banner">

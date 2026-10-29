@@ -58,8 +58,9 @@
 .sv-n { font-size: 13px; font-weight: 500; color: var(--sv-mute); background: var(--sv-surface2); border-radius: 999px; padding: 1px 9px; }
 
 /* ---------- cards ---------- */
-.sv-card { background: var(--sv-card, #faf3e3); border: 1px solid var(--sv-line); border-radius: 14px; box-shadow: var(--hh-shadow); }
-.sv-card-pad { padding: 20px 24px; }
+/* Scoped under .sv: SchoolDetailPage.css also defines a plain .sv-card (pale yellow, 12px padding) that was winning. */
+.sv .sv-card { background: var(--sv-card, #faf3e3); border: 1px solid var(--sv-line); border-radius: 14px; box-shadow: var(--hh-shadow); padding: 0; }
+.sv .sv-card.sv-card-pad { padding: 20px 24px; }
 .sv-card-title { font-size: 18px; font-weight: 600; color: var(--hh-ink); margin: 0; }
 .sv-sub { font-size: 13px; color: var(--sv-faint); }
 .sv-hint { background: var(--sv-surface2); border-radius: 10px; padding: 10px 14px; font-size: 13.5px; color: var(--sv-mute); }
@@ -216,3 +217,9 @@
 .sv-new { background: var(--sv-card, #faf3e3); border: 1.5px solid var(--sv-amber); border-radius: 12px; padding: 14px 18px; margin: 0 0 16px; }
 .sv-new-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
 .sv-new-list { margin: 6px 0 12px; padding-left: 20px; font-size: 14.5px; }
+
+/* ---------- who's move: To do / Waiting on school / Waiting on parent ---------- */
+.sv-next { flex-direction: column; align-items: flex-start; gap: 3px; }
+.sv-who { display: inline-block; font-size: 11.5px; font-weight: 600; line-height: 1.5; padding: 0 9px; border-radius: 999px; white-space: nowrap; }
+.sv-who.is-us { background: var(--hh-burgundy); color: #fff; }
+.sv-who.is-school, .sv-who.is-family { border: 1px solid var(--sv-field); color: var(--sv-mute); background: transparent; }

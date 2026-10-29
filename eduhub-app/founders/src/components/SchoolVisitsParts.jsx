@@ -4,7 +4,7 @@ import { saveShortlistNote } from "../lib/staffData";
 // Small shared pieces for the School visits tab (SchoolShortlistPanel.jsx).
 
 export const AVAILABILITY_OPTIONS = [
-  { value: "awaiting", label: "Awaiting reply" },
+  { value: "awaiting", label: "Waiting for the school's reply" },
   { value: "yes", label: "Yes, place available" },
   { value: "some_year_groups", label: "Some year groups only" },
   { value: "waitlist", label: "Waitlist" },
@@ -12,7 +12,7 @@ export const AVAILABILITY_OPTIONS = [
 ];
 
 export const CHIP_LABEL = {
-  awaiting: "Awaiting reply",
+  awaiting: "Waiting for school",
   yes: "Place",
   no: "No place",
   waitlist: "Waitlist",
@@ -162,6 +162,14 @@ export function KidTag({ name, index }) {
       {name}
     </span>
   );
+}
+
+// Says whose move it is, so a consultant picking up a family cold knows what to do:
+// us = something for the consultant, school / family = we are waiting on them.
+export function WhoTag({ who }) {
+  if (!who || who === "none") return null;
+  const text = who === "us" ? "To do" : who === "school" ? "Waiting on school" : "Waiting on parent";
+  return <span className={"sv-who is-" + who}>{text}</span>;
 }
 
 export function SaveBadge({ state }) {

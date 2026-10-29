@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { listFamilies, shortId, friendlyError } from "../lib/staffData";
+import { useNavigate, Link } from "react-router-dom";
+import { listFamilies, listFamilyActionRows, shortId, friendlyError } from "../lib/staffData";
+import { computeFamilyActions } from "../lib/familyActions";
 import { PIPELINE_STAGES, CLIENT_STAGES, clientStageLabel, stageIndex, stageLabel, isOverdue } from "../lib/workflow";
 import { packageLabel } from "../data/packages";
 import PersonAvatar from "../components/PersonAvatar";
@@ -34,22 +35,27 @@ export default function FamiliesListPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("live");
+  const [actions, setActions] = useState({});
 
   useEffect(() => {
     listFamilies()
       .then(setFamilies)
       .catch((err) => setError(friendlyError(err, "Couldn't load families.")));
+    listFamilyActionRows()
+      .then(({ rows, suggestions }) => setActions(computeFamilyActions(rows, suggestions)))
+      .catch(() => {});
   }, []);
 
   const counts = useMemo(() => {
     const list = families || [];
     const active = list.filter((f) => !f.archived_at);
     const c = { all: active.filter((f) => f.client_stage !== "placed").length, archived: list.length - active.length, active: active.length };
+    c.action = active.filter((f) => (actions[f.id] || []).length > 0).length;
     CLIENT_STAGES.forEach((s) => {
       c[s.key] = active.filter((f) => f.client_stage === s.key).length;
     });
     return c;
-  }, [families]);
+  }, [families, actions]);
 
   const filtered = useMemo(() => {
     if (!families) return [];
@@ -60,6 +66,7 @@ export default function FamiliesListPage() {
     if (!q) {
       if (tab === "archived") return list.filter((f) => f.archived_at);
       list = list.filter((f) => !f.archived_at);
+      if (tab === "action") return list.filter((f) => (actions[f.id] || []).length > 0);
       if (tab === "all") list = list.filter((f) => f.client_stage !== "placed");
       else list = list.filter((f) => f.client_stage === tab);
       return list;
@@ -71,13 +78,14 @@ export default function FamiliesListPage() {
         f.childLabels.join(" ").toLowerCase().includes(q) ||
         (f.destination || "").toLowerCase().includes(q)
     );
-  }, [families, search, tab]);
+  }, [families, search, tab, actions]);
 
   const TABS = [
     ...["live", "paid_consult", "free_sanity_check", "consultant", "placed"].map((k) => ({
       key: k,
       label: `${k === "paid_consult" ? "Paid consults" : clientStageLabel(k)} (${counts[k] || 0})`,
     })),
+    { key: "action", label: `Needs action (${counts.action || 0})` },
     { key: "all", label: `All families (${counts.all})` },
     { key: "archived", label: `Archived (${counts.archived || 0})` },
   ];
@@ -141,6 +149,7 @@ export default function FamiliesListPage() {
             <thead>
               <tr>
                 <th>Family</th>
+                <th>Needs action</th>
                 <th>Children</th>
                 <th>Destination</th>
                 <th>Client stage</th>
@@ -172,6 +181,24 @@ export default function FamiliesListPage() {
                         </span>
                       </span>
                     </div>
+                  </td>
+                  <td className="families-cell-action-flag">
+                    {(actions[family.id] || []).length > 0 ? (
+                      <Link
+                        to={`/staff/families/${family.id}?tab=visits`}
+                        className="families-flag"
+                        title={actions[family.id].map((a) => a.label).join("\n")}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="families-flag-count">{actions[family.id].length}</span>
+                        <span className="families-flag-text">
+                          School visits: {actions[family.id][0].label}
+                          {actions[family.id].length > 1 ? ` (+${actions[family.id].length - 1} more)` : ""}
+                        </span>
+                      </Link>
+                    ) : (
+                      <span className="is-muted">Nothing to do</span>
+                    )}
                   </td>
                   <td className="families-cell-children">
                     {family.childLabels.length ? family.childLabels.join(", ") : <span className="is-muted">None yet</span>}

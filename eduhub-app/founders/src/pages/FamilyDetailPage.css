@@ -621,3 +621,6 @@
 
 .hh-avatar.family-detail-avatar { width: 52px; height: 52px; background: var(--hh-burgundy); color: var(--hh-white); font-family: var(--hh-font-heading); font-size: 1.3rem; }
 .hh-avatar.family-detail-avatar.has-photo { background: transparent; }
+
+/* Red count on a tab: how many things on it need someone to act. */
+.family-detail-tab-flag { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; margin-left: 8px; padding: 0 6px; border-radius: 999px; background: var(--hh-error, #b3261e); color: #fff; font-size: 11.5px; font-weight: 600; }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { getFamilyDetail, getCurrentStaff, shortId, friendlyError, touchFamilyActivity, getFamilyStages, listBlockedTimes } from "../lib/staffData";
+import { getFamilyDetail, getCurrentStaff, shortId, friendlyError, touchFamilyActivity, getFamilyStages, listBlockedTimes, listFamilyActionRows } from "../lib/staffData";
+import { computeFamilyActions } from "../lib/familyActions";
 import { getMissingItems, getOutstandingDocuments, displayNameForChild } from "../lib/completeness";
 import { householdAddress } from "../lib/address";
 import CaseSettingsPanel from "../components/CaseSettingsPanel";
@@ -501,6 +502,17 @@ export default function FamilyDetailPage() {
     return FAMILY_DETAIL_TAB_KEYS.includes(requested) ? requested : "overview";
   });
   const [activeHouseholdKey, setActiveHouseholdKey] = useState(null);
+  const [actionItems, setActionItems] = useState([]);
+  // Red count on the School visits tab; looked at again whenever a tab changes, so it is up to date after working in it.
+  useEffect(() => {
+    let alive = true;
+    listFamilyActionRows(familyId)
+      .then(({ rows, suggestions }) => alive && setActionItems(computeFamilyActions(rows, suggestions)[familyId] || []))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [familyId, activeTab]);
   // Which school to open when jumping between School visits and Applications.
   const [focusSchoolId, setFocusSchoolId] = useState(() => searchParams.get("school"));
   // School Visits workflow: the parent's unavailable times, and a counter the
@@ -776,6 +788,11 @@ export default function FamilyDetailPage() {
             onClick={() => setActiveTab(key)}
           >
             {label}
+            {key === "visits" && actionItems.length > 0 && (
+              <span className="family-detail-tab-flag" title={actionItems.map((a) => a.label).join("\n")}>
+                {actionItems.length}
+              </span>
+            )}
           </button>
         ))}
       </div>

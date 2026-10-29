@@ -3004,3 +3004,24 @@ export async function resolveReplySuggestion(id, status) {
       .single()
   );
 }
+
+// Everything the action flags are worked out from (see lib/familyActions.js): one query for
+// the shortlists and one for the school replies still waiting to be checked. Best effort --
+// if either fails (or addendum 144 has not been run) the flags are simply fewer.
+export async function listFamilyActionRows(familyId) {
+  let shortlistQ = supabase
+    .from("school_shortlist")
+    .select(
+      "id, family_id, family_decision, enquiry_sent_at, enquiry_skipped_at, availability_status, tour_date, tour_status, tour2_date, tour2_status, feedback_text, school:schools(name)"
+    );
+  let suggQ = supabase.from("school_reply_suggestions").select("id, family_id, shortlist_id").eq("status", "new");
+  if (familyId) {
+    shortlistQ = shortlistQ.eq("family_id", familyId);
+    suggQ = suggQ.eq("family_id", familyId);
+  }
+  const [rows, suggestions] = await Promise.all([
+    shortlistQ.then((r) => (r.error ? [] : r.data || [])),
+    suggQ.then((r) => (r.error ? [] : r.data || [])),
+  ]);
+  return { rows, suggestions };
+}

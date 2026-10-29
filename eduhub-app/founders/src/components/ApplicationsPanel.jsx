@@ -26,7 +26,7 @@ import {
 } from "../lib/workflow";
 import CopyButton from "./CopyButton";
 import ApplicationProcess, { applicationMiniSteps } from "./ApplicationProcess";
-import { KidTag } from "./SchoolVisitsParts";
+import { KidTag, WhoTag } from "./SchoolVisitsParts";
 import UpdateFamilyButton from "./UpdateFamilyButton";
 import "./panels.css";
 import AutosaveField from "./Autosave";
@@ -677,26 +677,26 @@ export default function ApplicationsPanel({
     const unpaid = info.fees.some((f) => f.status !== "paid" && f.status !== "waived" && !f.paid_direct_by_family);
     switch (a.status) {
       case "draft":
-        return ["Submit the application", "a"];
+        return ["Submit the application", "a", "us"];
       case "submitted":
       case "assessment_booked": {
-        if (unpaid) return ["Fee to pay", "a"];
-        if (!a.assessment_date && !a.assessment_in_person && !a.assessment_video_requested) return ["Add assessment details", "a"];
+        if (unpaid) return ["Pay the application fee", "a", "us"];
+        if (!a.assessment_date && !a.assessment_in_person && !a.assessment_video_requested) return ["Add assessment details", "a", "us"];
         if (a.assessment_date) {
           const online = !a.assessment_in_person && !a.assessment_video_requested;
-          if (online && !a.assessment_link) return ["Add the join link", "a"];
+          if (online && !a.assessment_link) return ["Add the join link", "a", "us"];
           return [`Assessment ${shortDate(a.assessment_date)}`, ""];
         }
-        return ["Waiting for the school", ""];
+        return ["Assessment details from the school", "", "school"];
       }
       case "under_review":
-        return ["Waiting for the school", ""];
+        return ["Decision from the school", "", "school"];
       case "waitlisted":
-        return ["On the waitlist", ""];
+        return ["On the waitlist", "", "school"];
       case "offer":
-        return [a.offer_decision_by ? `Answer by ${shortDate(a.offer_decision_by)}` : "Record the family's answer", "a"];
+        return [a.offer_decision_by ? `Answer by ${shortDate(a.offer_decision_by)}` : "Family to answer the offer", "a", "family"];
       case "offer_accepted":
-        return info.start ? [`Starts ${shortDate(info.start)}`, "g"] : ["Add the first day", "a"];
+        return info.start ? [`Starts ${shortDate(info.start)}`, "g"] : ["Add the first day", "a", "us"];
       default:
         return ["–", ""];
     }
@@ -1020,7 +1020,7 @@ export default function ApplicationsPanel({
               </div>
               {live.map(({ child, application, info }) => {
                 const open = isExpanded(application);
-                const [nextLabel, tone] = nextStepFor(application, info);
+                const [nextLabel, tone, nextWho] = nextStepFor(application, info);
                 const highlighted = highlightActive && String(highlightSchoolId) === String(application.school_id);
                 return (
                   <div key={application.id} id={`app-row-school-${application.school_id}`}>
@@ -1039,9 +1039,12 @@ export default function ApplicationsPanel({
                       </div>
                       {withChild && <span className="sv-st"><KidTag name={info.name} index={info.i} /></span>}
                       {chevrons(application, info)}
-                      <span className="sv-st">
-                        {tone && <i className={"sv-d is-" + tone} />}
-                        {nextLabel}
+                      <span className="sv-st sv-next">
+                        <WhoTag who={nextWho} />
+                        <span>
+                          {tone && <i className={"sv-d is-" + tone} />}
+                          {nextLabel}
+                        </span>
                       </span>
                     </div>
                     {open && renderLiveDetail(child, application, info)}

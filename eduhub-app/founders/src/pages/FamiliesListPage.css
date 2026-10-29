@@ -331,3 +331,9 @@
   font-weight: 700;
   vertical-align: middle;
 }
+
+/* "Needs action" flag: a number in a burgundy dot, then the first thing to do and where. */
+.families-flag { display: inline-flex; align-items: flex-start; gap: 8px; text-decoration: none; color: var(--hh-ink); max-width: 300px; }
+.families-flag-count { flex: none; min-width: 22px; height: 22px; border-radius: 999px; background: var(--hh-error, #b3261e); color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; }
+.families-flag-text { font-size: 0.86rem; line-height: 1.35; }
+.families-flag:hover .families-flag-text { text-decoration: underline; }

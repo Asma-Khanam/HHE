@@ -46,6 +46,7 @@ import {
   SchoolContactsInline,
   KidTag,
   SaveBadge,
+  WhoTag,
 } from "./SchoolVisitsParts";
 import "./panels.css";
 import "./SchoolShortlistPanel.css";
@@ -534,17 +535,17 @@ export default function SchoolShortlistPanel({
     );
 
   function nextStep(row, childId) {
-    if (suggestions.some((x) => x.shortlist_id === row.id)) return ["New information", "a"];
+    if (suggestions.some((x) => x.shortlist_id === row.id)) return ["Check the school's reply", "a", "us"];
     if (row.family_decision === "proceeding") return ["In Applications", ""];
     const live = PREFIXES.filter(({ p }) => row[p + "date"] && !["cancelled", "completed"].includes(row[p + "status"]));
     if (live.some(({ p }) => (row[p + "status"] || "offered") === "offered")) {
-      return [conflictRows.has(row.id) ? "Check the clash" : "Accept time", "a"];
+      return [conflictRows.has(row.id) ? "Check the clash" : "Accept the time or ask for another", "a", "us"];
     }
     if (live.some(({ p }) => row[p + "status"] === "confirmed")) return ["Tour booked", "g"];
-    if (PREFIXES.some(({ p }) => row[p + "status"] === "completed")) return ["Decide", "a"];
+    if (PREFIXES.some(({ p }) => row[p + "status"] === "completed")) return ["Get feedback, then decide", "a", "us"];
     const v = childId ? availOf(row, childId) : "awaiting";
-    if (v === "awaiting") return row.enquiry_sent_at ? ["Awaiting reply", ""] : ["Email school", "a"];
-    if (v === "waitlist") return ["Chase school", ""];
+    if (v === "awaiting") return row.enquiry_sent_at ? ["Reply to our enquiry", "", "school"] : ["Email the school", "a", "us"];
+    if (v === "waitlist") return ["On their waitlist", "", "school"];
     return ["–", ""];
   }
 
@@ -1321,7 +1322,7 @@ export default function SchoolShortlistPanel({
                         return (
                           <span key={c.id} className="sv-st">
                             <i className={"sv-d " + (placed[c.id] && !why ? "is-g" : dotClass(v))} />
-                            {placed[c.id] && !why ? "Placed ✓" : why ? "Closed" : CHIP_LABEL[v]}
+                            {placed[c.id] && !why ? "Placed ✓" : why ? "Closed" : v === "awaiting" && !row.enquiry_sent_at ? "Not emailed yet" : CHIP_LABEL[v]}
                           </span>
                         );
                       })}
@@ -1465,7 +1466,7 @@ export default function SchoolShortlistPanel({
               </div>
               {liveRows.map((row) => {
                 const open = expandedId === row.id;
-                const [nextLabel, nextTone] = nextStep(row, child.id);
+                const [nextLabel, nextTone, nextWho] = nextStep(row, child.id);
                 const kidsPlacedHere = placedHere(placed, children, row.school_id, row.school?.name);
                 return (
                   <div key={row.id}>
@@ -1492,9 +1493,12 @@ export default function SchoolShortlistPanel({
                       {tourCell(row, "tour_")}
                       {tourCell(row, "tour2_")}
                       {feedbackCell(row)}
-                      <span className="sv-st">
-                        {nextTone && <i className={"sv-d is-" + nextTone} />}
-                        {nextLabel}
+                      <span className="sv-st sv-next">
+                        <WhoTag who={nextWho} />
+                        <span>
+                          {nextTone && <i className={"sv-d is-" + nextTone} />}
+                          {nextLabel}
+                        </span>
                       </span>
                     </div>
                     {open && renderDetail(row)}

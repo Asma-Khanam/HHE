@@ -1,5 +1,6 @@
 import { useState } from "react";
 import EmailComposer from "./EmailComposer";
+import { WhoTag } from "./SchoolVisitsParts";
 import { addBlockedTime, deleteBlockedTime, markParentAvailabilityRequested, friendlyError } from "../lib/staffData";
 import { parentAvailabilityEmail } from "../lib/visitEmails";
 import { clock12 } from "../lib/tourConflicts";
@@ -94,6 +95,18 @@ export default function FamilyBlockedTimes({ familyId, family, familyName, famil
             <b>
               {dayFmt(from)} to {dayFmt(to)}
             </b>
+          </div>
+          <div className="sv-sub" style={{ marginTop: 6 }}>
+            {askedAt ? (
+              <>
+                <WhoTag who="family" /> Asked on {new Date(askedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}.{" "}
+                {blocked.length ? "Their times are saved below." : "Add their unavailable times when they reply."}
+              </>
+            ) : (
+              <>
+                <WhoTag who="us" /> Ask the parent which times they are not free.
+              </>
+            )}
           </div>
           <div className="sv-visit-actions">
             <button type="button" className="sv-btn is-sm" onClick={openAsk} disabled={!!asking}>
