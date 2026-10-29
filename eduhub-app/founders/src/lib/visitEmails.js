@@ -92,3 +92,58 @@ export function parentAvailabilityEmail({ parentName, from, to, consultant }) {
       `Warm regards,\n${consultant || ""}`,
   };
 }
+
+// Stage 5. Sent to the parent once every tour is confirmed and nothing clashes.
+// tours: [{ date, start, end, school, kids: ["Jaxon", ...], label, details: ["Gate 3", ...] }]
+export function tourScheduleEmail({ parentName, tours, consultant }) {
+  const lines = (tours || []).map((t) => {
+    const when = `${weekdayDate(t.date)}${t.start ? ", " + clock(t.start) + (t.end ? " to " + clock(t.end) : "") : ""}`;
+    const kids = (t.kids || []).length ? ` (${t.kids.join(", ")})` : "";
+    const extra = (t.details || []).filter(Boolean).join(" · ");
+    return `${when}: ${t.school}${kids}${extra ? "\n   " + extra : ""}`;
+  });
+  return {
+    subject: "Your school tour schedule",
+    text:
+      `Hi ${firstName(parentName) || "there"},\n\n` +
+      `Every tour is now confirmed. Here is your schedule while you're in Dubai:\n\n` +
+      `${lines.join("\n\n")}\n\n` +
+      `Please let us know if anything changes on your side and we'll rearrange it with the school.\n\n` +
+      `${sign(consultant)}`,
+  };
+}
+
+const slotPhrase = (t) =>
+  `${weekdayDate(t.date)}${t.start ? ` at ${clock(t.start)}` : ""}${t.start && t.end ? ` (until ${clock(t.end)})` : ""}`;
+const kidsPhrase = (kids) => {
+  const k = (kids || []).filter(Boolean);
+  return k.length <= 1 ? k[0] || "the family" : k.slice(0, -1).join(", ") + " and " + k[k.length - 1];
+};
+
+// Email automation. Sent to the school after the consultant accepts an offered tour.
+export function tourConfirmEmail({ contactName, schoolName, familyName, kids, tour, consultant }) {
+  return {
+    subject: `Tour confirmation: ${surnameOf(familyName)} family, ${weekdayDate(tour.date)}`,
+    text:
+      `Dear ${contactName || "Admissions team"},\n\n` +
+      `Thank you for offering a tour at ${schoolName}. I am pleased to confirm that the ${surnameOf(familyName)} family would like to attend on ${slotPhrase(tour)}, for ${kidsPhrase(kids)}.\n\n` +
+      `Could you please let me know if there is anything the family should bring, where they should go on arrival, and where to park?\n\n` +
+      `Thank you so much for your help.\n\n${sign(consultant)}`,
+  };
+}
+
+// Email automation. Sent when the offered time does not suit the parents: says
+// when they are NOT free and asks for another time inside their visit.
+export function tourChangeEmail({ contactName, schoolName, familyName, kids, offered, from, to, blocked, why, consultant }) {
+  const bp = blockedPhrase(blocked);
+  return {
+    subject: `Another tour time? ${surnameOf(familyName)} family, ${schoolName}`,
+    text:
+      `Dear ${contactName || "Admissions team"},\n\n` +
+      `Thank you for offering ${slotPhrase(offered)} for ${kidsPhrase(kids)}. Unfortunately that time does not work for the family${why ? ` (${why.replace(/\.$/, "")})` : ""}.\n\n` +
+      (from && to ? `They will be in Dubai between ${longDate(from)} and ${longDate(to)}` : "They will be in Dubai during their visit") +
+      (bp ? ` and are not available on ${bp}` : "") +
+      `. Could you please offer another tour time within those dates?\n\n` +
+      `Thank you so much for your help.\n\n${sign(consultant)}`,
+  };
+}

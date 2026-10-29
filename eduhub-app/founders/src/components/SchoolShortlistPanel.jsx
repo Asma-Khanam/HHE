@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import UpdateFamilyButton from "./UpdateFamilyButton";
 import TourDetailsEditor from "./TourDetailsEditor";
 import FamilyBlockedTimes from "./FamilyBlockedTimes";
+import EmailComposer from "./EmailComposer";
+import { tourScheduleEmail, enquiryEmail, tourConfirmEmail, tourChangeEmail } from "../lib/visitEmails";
 import AutosaveField from "./Autosave";
 import {
   listShortlistForFamily,
@@ -21,6 +23,9 @@ import {
   listSearchRounds,
   listSchoolContacts,
   setShortlistKeepOpen,
+  listReplySuggestions,
+  resolveReplySuggestion,
+  saveShortlistNote,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import { placedByChild, placedHere, shortDate, childClosedReason, rowClosedReason, CLOSED_TEXT } from "../lib/placement";
@@ -45,6 +50,8 @@ import {
 import "./panels.css";
 import "./SchoolShortlistPanel.css";
 import "./SchoolVisits.css";
+
+const CLOSED_WORDS = { ...CLOSED_TEXT, full: "the school has no places" };
 
 const PREFIXES = [
   { p: "tour_", label: "Primary tour" },
@@ -87,6 +94,9 @@ export default function SchoolShortlistPanel({
   const [placements, setPlacements] = useState([]);
   const [rounds, setRounds] = useState([]);
   const [contactsBySchool, setContactsBySchool] = useState({});
+  const [suggestions, setSuggestions] = useState([]);
+  const [schoolDraft, setSchoolDraft] = useState(null);
+  const [enquiryPrompt, setEnquiryPrompt] = useState(null);
 
   const children = familyChildren || [];
   const blocked = visit?.blocked || [];
@@ -101,7 +111,7 @@ export default function SchoolShortlistPanel({
       setAllSchools(schools);
       const shortlistIds = shortlist.map((r) => r.id);
       const schoolIds = [...new Set(shortlist.map((r) => r.school_id))];
-      const [cs, other, notes, placementRows, contacts, roundRows] = await Promise.all([
+      const [cs, other, notes, placementRows, contacts, roundRows, sugg] = await Promise.all([
         listChildAvailabilityForShortlistIds(shortlistIds),
         listOtherFeedbackForSchools(schoolIds, familyId),
         // Notes failing to load (e.g. addendum 63 not run yet) shouldn't
@@ -110,7 +120,9 @@ export default function SchoolShortlistPanel({
         listPlacements(familyId).catch(() => []),
         listSchoolContacts(schoolIds).catch(() => null),
         listSearchRounds(familyId),
+        listReplySuggestions(familyId).catch(() => []),
       ]);
+      setSuggestions(sugg || []);
       setChildStatus(cs);
       setOtherFeedback(other);
       setNotesById(notes);
@@ -151,8 +163,13 @@ export default function SchoolShortlistPanel({
     () => placedByChild({ children, applicationsByChild: applicationsByChild || {}, placements, schools: allSchools, rounds }),
     [children, applicationsByChild, placements, allSchools, rounds]
   );
+  // A reply that says "no places" for every child greys the school out (nothing more to do there).
+  const noPlacesAt = (row) =>
+    children.length > 0 &&
+    children.every((c) => childStatus.find((x) => x.shortlist_id === row.id && x.child_id === c.id)?.availability_status === "no");
   const closedReason = (row) =>
-    rowClosedReason(placed, children, row.school_id, row.school?.name, allApplications, row.keep_open);
+    rowClosedReason(placed, children, row.school_id, row.school?.name, allApplications, row.keep_open) ||
+    (noPlacesAt(row) && !row.keep_open ? "full" : null);
   const isRowClosed = (row) => !!closedReason(row);
   const placedKids = Object.entries(placed);
 
@@ -266,7 +283,7 @@ export default function SchoolShortlistPanel({
 
   async function reopen(row) {
     if (row.family_decision === "declined") await handleUndoDecision(row);
-    if (closedReason(row) === "placed") await setRowKeepOpen(row, true);
+    if (["placed", "full"].includes(closedReason(row))) await setRowKeepOpen(row, true);
   }
 
   async function handleAdd(e) {
@@ -279,7 +296,8 @@ export default function SchoolShortlistPanel({
       // explicit "second school through us" signal -- keep it open instead
       // of it being grey on arrival.
       const anyChildPlaced = children.some((c) => placed[c.id]);
-      await addToShortlist({ familyId, schoolId: addingSchoolId, keepOpen: anyChildPlaced });
+      const added = await addToShortlist({ familyId, schoolId: addingSchoolId, keepOpen: anyChildPlaced });
+      if (visit && added?.id) setEnquiryPrompt(added.id);
       setAddingSchoolId("");
       setShowAdd(false);
       await load();
@@ -368,8 +386,91 @@ export default function SchoolShortlistPanel({
     patchRow(row, patch, { progress: field === "date" || field === "status" });
   }
 
-  function acceptTour(row, prefix) {
-    patchRow(row, { [prefix + "status"]: "confirmed", [prefix + "confirmed_at"]: new Date().toISOString() }, { progress: true });
+  async function acceptTour(row, prefix) {
+    const ok = await patchRow(row, { [prefix + "status"]: "confirmed", [prefix + "confirmed_at"]: new Date().toISOString() }, { progress: true });
+    if (ok && visit) openSchoolDraft("confirm", row, prefix);
+  }
+
+  // Email automation: the system drafts the school email, the consultant reviews and sends.
+  function schoolContactFor(row) {
+    const list = contactsBySchool[row.school_id] || [];
+    const main = list.find((c) => c.is_main && c.email) || list.find((c) => c.email);
+    return {
+      email: main?.email || row.school?.admissions_contact_email || "",
+      name: main?.full_name || row.school?.admissions_contact_name || "",
+    };
+  }
+
+  function openSchoolDraft(kind, row, prefix) {
+    if (!visit) return;
+    const { email, name } = schoolContactFor(row);
+    const base = { contactName: name, schoolName: row.school?.name || "the school", familyName: visit.familyName, consultant: visit.composerCtx?.staffName };
+    const kids = kidsFor(row).map(childName);
+    const slot = prefix ? { date: row[prefix + "date"], start: row[prefix + "start_time"], end: row[prefix + "end_time"] } : null;
+    const from = visit.family?.dubai_available_from || "";
+    const to = visit.family?.dubai_available_until || "";
+    let draft;
+    if (kind === "confirm") draft = tourConfirmEmail({ ...base, kids, tour: slot });
+    else if (kind === "change") draft = tourChangeEmail({ ...base, kids, offered: slot, from, to, blocked, why: slotConflict[row.id + prefix] });
+    else {
+      draft = enquiryEmail({
+        option: from && to ? "option_1" : "option_2",
+        familyName: visit.familyName,
+        children: children.map((c, i) => ({ name: displayNameForChild(c, i), year: c.year_group_applying_for || "", record: c })),
+        from,
+        to,
+        blocked,
+        contactName: name,
+        schoolName: base.schoolName,
+        consultant: base.consultant,
+        plannedMoveDate: visit.family?.planned_move_date || "",
+      });
+    }
+    setExpandedId(row.id);
+    if (children[0] && activeTab === "overview") setTab(children[0].id);
+    setSchoolDraft({
+      rowId: row.id,
+      kind,
+      option: from && to ? "option_1" : "option_2",
+      initial: { mode: "draft", to: email ? [email] : [], subject: draft.subject, text: draft.text },
+    });
+  }
+
+  async function schoolDraftSent() {
+    const d = schoolDraft;
+    setSchoolDraft(null);
+    if (d?.kind !== "enquiry") return;
+    try {
+      const updated = await updateShortlistTour(d.rowId, { enquiry_sent_at: new Date().toISOString(), enquiry_type: d.option, enquiry_skipped_at: null });
+      setRows((rs) => rs.map((r) => (r.id === d.rowId ? { ...r, ...updated, school: r.school } : r)));
+    } catch (err) {
+      setError(friendlyError(err, "The email was sent, but it couldn't be marked as sent. Do not send it again."));
+    }
+  }
+
+  function renderSchoolDraft(row) {
+    if (!schoolDraft || schoolDraft.rowId !== row.id) return null;
+    const title = { confirm: "Confirmation to the school", change: "Ask the school for another time", enquiry: "Availability enquiry to the school" }[schoolDraft.kind];
+    return (
+      <div className="tw-compose" key="school-draft">
+        <div className="tw-compose-head"><b>{title}</b><span className="sv-sub">Review it, then press Send. Nothing is sent by itself.</span></div>
+        <EmailComposer
+          key={"draft-" + schoolDraft.kind + row.id}
+          familyId={familyId}
+          familyName={visit.familyName}
+          childLines={visit.composerCtx.childLines}
+          documents={[]}
+          staffName={visit.composerCtx.staffName}
+          familyAddress={visit.composerCtx.familyAddress}
+          childRows={children}
+          dubaiFrom={visit.family?.dubai_available_from}
+          dubaiUntil={visit.family?.dubai_available_until}
+          initial={schoolDraft.initial}
+          onSent={schoolDraftSent}
+          onClose={() => setSchoolDraft(null)}
+        />
+      </div>
+    );
   }
 
   const stats = useMemo(() => {
@@ -433,6 +534,7 @@ export default function SchoolShortlistPanel({
     );
 
   function nextStep(row, childId) {
+    if (suggestions.some((x) => x.shortlist_id === row.id)) return ["New information", "a"];
     if (row.family_decision === "proceeding") return ["In Applications", ""];
     const live = PREFIXES.filter(({ p }) => row[p + "date"] && !["cancelled", "completed"].includes(row[p + "status"]));
     if (live.some(({ p }) => (row[p + "status"] || "offered") === "offered")) {
@@ -444,6 +546,104 @@ export default function SchoolShortlistPanel({
     if (v === "awaiting") return row.enquiry_sent_at ? ["Awaiting reply", ""] : ["Email school", "a"];
     if (v === "waitlist") return ["Chase school", ""];
     return ["–", ""];
+  }
+
+  const longDay = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const slotText = (t) => `${longDay(t.date)}${t.start ? ", " + clock12(t.start) : ""}${t.end ? " to " + clock12(t.end) : ""}`;
+
+  // Confirming a suggestion fills in the real fields. Availability goes on the
+  // children, offered tour times go into any empty tour slot (as "offered", so
+  // the clash check and Accept still apply), and assessment dates are added to
+  // the school's private note until the application's own assessment card exists.
+  async function acceptSuggestion(sug) {
+    const row = rows.find((r) => r.id === sug.shortlist_id);
+    if (!row) return;
+    setBusy(true);
+    setError("");
+    try {
+      for (const a of sug.availability || []) {
+        const updated = await upsertChildAvailability(row.id, a.child_id, a.status);
+        setChildStatus((cs) => [...cs.filter((c) => !(c.shortlist_id === row.id && c.child_id === a.child_id)), updated]);
+      }
+      const patch = {};
+      const taken = { tour_: !!row.tour_date, tour2_: !!row.tour2_date };
+      for (const t of sug.tour_slots || []) {
+        const same = PREFIXES.some(({ p }) => row[p + "date"] === t.date && (row[p + "start_time"] || "").slice(0, 5) === (t.start || ""));
+        if (same) continue;
+        const p = !taken.tour_ ? "tour_" : !taken.tour2_ ? "tour2_" : null;
+        if (!p) break;
+        taken[p] = true;
+        patch[p + "date"] = t.date;
+        patch[p + "start_time"] = t.start || null;
+        patch[p + "end_time"] = t.end || null;
+        patch[p + "status"] = "offered";
+      }
+      if (Object.keys(patch).length) await patchRow(row, patch, { progress: true });
+      if ((sug.assessment_dates || []).length) {
+        const lines = sug.assessment_dates.map(
+          (a) => `Assessment${a.child_name ? " (" + a.child_name + ")" : ""}: ${longDay(a.date)}${a.time ? ", " + clock12(a.time) : ""}${a.how && a.how !== "unknown" ? ", " + a.how : ""} (from the school's email)`
+        );
+        const body = [notesById[row.id] || "", ...lines].filter(Boolean).join("\n");
+        await saveShortlistNote(row.id, body);
+        setNotesById((m) => ({ ...m, [row.id]: body }));
+      }
+      await resolveReplySuggestion(sug.id, "accepted");
+      setSuggestions((l) => l.filter((x) => x.id !== sug.id));
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function dismissSuggestion(sug) {
+    setBusy(true);
+    try {
+      await resolveReplySuggestion(sug.id, "dismissed");
+      setSuggestions((l) => l.filter((x) => x.id !== sug.id));
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderSuggestion(row) {
+    const list = suggestions.filter((x) => x.shortlist_id === row.id);
+    return list.map((sug) => (
+      <div className="sv-new" key={sug.id}>
+        <div className="sv-new-head">
+          <b>New information from the school</b>
+          <span className="sv-sub">Read from their email. Nothing changes until you confirm.</span>
+        </div>
+        {sug.summary && <p style={{ margin: "6px 0" }}>{sug.summary}</p>}
+        <ul className="sv-new-list">
+          {(sug.availability || []).map((a) => (
+            <li key={a.child_id}>
+              {a.child_name}: {(AVAILABILITY_OPTIONS.find((o) => o.value === a.status) || {}).label || a.status}
+            </li>
+          ))}
+          {(sug.tour_slots || []).map((t, i) => (
+            <li key={"t" + i}>Tour offered: {slotText(t)}</li>
+          ))}
+          {(sug.assessment_dates || []).map((a, i) => (
+            <li key={"a" + i}>
+              Assessment{a.child_name ? ` (${a.child_name})` : ""}: {longDay(a.date)}
+              {a.time ? `, ${clock12(a.time)}` : ""}
+              {a.how && a.how !== "unknown" ? `, ${a.how}` : ""}
+            </li>
+          ))}
+        </ul>
+        <div className="sv-pills">
+          <button type="button" className="sv-btn is-primary is-sm" onClick={() => acceptSuggestion(sug)} disabled={busy}>
+            Confirm and fill in
+          </button>
+          <button type="button" className="sv-btn is-sm" onClick={() => dismissSuggestion(sug)} disabled={busy}>
+            Not right, dismiss
+          </button>
+        </div>
+      </div>
+    ));
   }
 
   function toggleRow(row) {
@@ -577,9 +777,16 @@ export default function SchoolShortlistPanel({
                 {offered.length > 1 ? `Accept ${label.toLowerCase()}` : clash ? "Accept anyway" : "Accept this time"}
               </button>
             ))}
+            {visit && offered.map(({ p, label }) => (
+              <button key={"chg" + p} type="button" className="sv-btn is-sm" onClick={() => openSchoolDraft("change", row, p)}>
+                {offered.length > 1 ? `Request a change (${label.toLowerCase()})` : "Request a change"}
+              </button>
+            ))}
           </div>
         </div>
 
+        {renderSuggestion(row)}
+        {renderSchoolDraft(row)}
         <div className="sv-itabs">
           {[
             ["tour", "Tour"],
@@ -887,7 +1094,7 @@ export default function SchoolShortlistPanel({
       <div className="sv-open" onClick={(e) => e.stopPropagation()}>
         <p className="sv-hint" style={{ margin: "0 0 14px" }}>
           View only.{" "}
-          {reason ? `This school is closed because ${CLOSED_TEXT[reason] || "no child is going ahead here"}. If that changes on the Applications tab, it opens again by itself.` : "Reopen it to make changes."}
+          {reason ? `This school is closed because ${CLOSED_WORDS[reason] || "no child is going ahead here"}. If that changes on the Applications tab, it opens again by itself.` : "Reopen it to make changes."}
         </p>
         <fieldset className="svt-detail svt-closed-detail" disabled style={{ border: 0, padding: 0, margin: 0 }}>
           <TourDetailsEditor row={row} onUpdated={() => {}} readOnly />
@@ -912,7 +1119,7 @@ export default function SchoolShortlistPanel({
 
   function closedText(row) {
     const reason = closedReason(row);
-    if (reason) return `Closed · ${CLOSED_TEXT[reason] || "closed"}`;
+    if (reason) return `Closed · ${CLOSED_WORDS[reason] || "closed"}`;
     return row.family_decision_note ? `Closed · ${row.family_decision_note}` : "Closed · family declined";
   }
 
@@ -931,7 +1138,7 @@ export default function SchoolShortlistPanel({
         </div>
         {closedRows.map((row) => {
           const reason = closedReason(row);
-          const canReopen = row.family_decision === "declined" || reason === "placed";
+          const canReopen = row.family_decision === "declined" || reason === "placed" || reason === "full";
           const open = expandedId === row.id;
           return (
             <div key={row.id}>
@@ -1010,6 +1217,32 @@ export default function SchoolShortlistPanel({
   const childCols = "minmax(0,2fr) minmax(0,1.1fr) minmax(0,1.2fr) minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.2fr)";
 
   // Every tour that still stands, earliest first (cancelled ones drop out).
+  const [sendingSchedule, setSendingSchedule] = useState(null);
+  const [scheduleSent, setScheduleSent] = useState(false);
+  const liveSlotItems = allSlots.filter((s) => s.status !== "completed");
+  const scheduleReady = liveSlotItems.length > 0 && liveSlotItems.every((s) => s.status === "confirmed") && conflictRows.size === 0;
+
+  function openSendSchedule() {
+    if (!visit) return;
+    const parents = visit.parents || [];
+    const p = parents.find((x) => x.email) || parents[0];
+    const draft = tourScheduleEmail({
+      parentName: p?.full_name,
+      consultant: visit.composerCtx?.staffName,
+      tours: scheduleItems
+        .filter((t) => t.status !== "completed")
+        .map((t) => ({
+          date: t.date,
+          start: t.start,
+          end: t.end,
+          school: t.row.school?.name,
+          kids: kidsFor(t.row).map(childName),
+          details: [t.row.tour_gate, t.row.tour_building, t.row.tour_ask_for && "Ask for " + t.row.tour_ask_for],
+        })),
+    });
+    setSendingSchedule({ mode: "draft", to: parents.map((x) => x.email).filter(Boolean), subject: draft.subject, text: draft.text });
+  }
+
   const scheduleItems = liveRows
     .flatMap((row) =>
       PREFIXES.filter(({ p }) => row[p + "date"] && row[p + "status"] !== "cancelled").map(({ p, label }) => ({
@@ -1166,6 +1399,44 @@ export default function SchoolShortlistPanel({
                   })}
                 </div>
               )}
+              {visit && scheduleItems.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    className={"sv-btn " + (scheduleReady ? "is-primary" : "is-off")}
+                    style={{ width: "100%", marginTop: 8 }}
+                    onClick={() => scheduleReady && openSendSchedule()}
+                    disabled={!scheduleReady || !!sendingSchedule}
+                  >
+                    {scheduleSent ? "Schedule sent ✓ (send again)" : "Send schedule to parent"}
+                  </button>
+                  <div className="sv-sub" style={{ marginTop: 8, textAlign: "center" }}>
+                    {scheduleReady ? "Every tour is confirmed" : "Available once every tour is confirmed and nothing clashes"}
+                  </div>
+                </>
+              )}
+              {sendingSchedule && (
+                <div className="tw-compose">
+                  <EmailComposer
+                    key="send-schedule"
+                    familyId={familyId}
+                    familyName={visit.familyName}
+                    childLines={visit.composerCtx.childLines}
+                    documents={[]}
+                    staffName={visit.composerCtx.staffName}
+                    familyAddress={visit.composerCtx.familyAddress}
+                    childRows={children}
+                    dubaiFrom={visit.family?.dubai_available_from}
+                    dubaiUntil={visit.family?.dubai_available_until}
+                    initial={sendingSchedule}
+                    onSent={() => {
+                      setSendingSchedule(null);
+                      setScheduleSent(true);
+                    }}
+                    onClose={() => setSendingSchedule(null)}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1264,6 +1535,29 @@ export default function SchoolShortlistPanel({
       )}
 
       {error && <p className="sv-error">{error}</p>}
+      {enquiryPrompt && rows.find((r) => r.id === enquiryPrompt) && (
+        <div className="sv-new" style={{ marginTop: 12 }}>
+          <div className="sv-new-head">
+            <b>{rows.find((r) => r.id === enquiryPrompt).school?.name} is on the shortlist</b>
+            <span className="sv-sub">The availability email is ready to review. Nothing is sent until you press Send.</span>
+          </div>
+          <div className="sv-pills" style={{ marginTop: 10 }}>
+            <button
+              type="button"
+              className="sv-btn is-primary is-sm"
+              onClick={() => {
+                openSchoolDraft("enquiry", rows.find((r) => r.id === enquiryPrompt));
+                setEnquiryPrompt(null);
+              }}
+            >
+              Review the email
+            </button>
+            <button type="button" className="sv-btn is-sm" onClick={() => setEnquiryPrompt(null)}>
+              Later
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="sv-vrow">
         <div className="sv-tabs" role="tablist">
