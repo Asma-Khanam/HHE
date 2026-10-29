@@ -78,25 +78,33 @@ export default function FamilyBlockedTimes({ familyId, family, familyName, famil
 
   const askedAt = family?.parent_availability_requested_at;
 
-  // No visit dates yet (Option 2): there is nothing to ask the parent about.
-  if (!hasWindow) return null;
+  const dayFmt = (iso) => new Date(iso + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "long" });
 
   return (
-    <section className="panel tw-card tw-slim">
-      <div className="panel-head">
-        <h2>
-          When the parent isn't free
-          {blocked.length > 0 && <span className="panel-count">{blocked.length}</span>}
-        </h2>
-        <div className="tw-head-actions">
-          <button type="button" className="panel-btn" onClick={openAsk} disabled={!!asking}>
-            {askedAt ? "Ask again" : "Ask the parent"}
-          </button>
-          <button type="button" className="panel-btn" onClick={() => setAdding((v) => !v)}>
-            {adding ? "Close" : "Add a time"}
-          </button>
-        </div>
-      </div>
+    <section className="sv-card sv-card-pad">
+      <h2 className="sv-card-title">Family visit</h2>
+      {!hasWindow ? (
+        <p className="sv-hint" style={{ margin: "10px 0 0" }}>
+          No visit dates yet. Once the family has dates in Dubai, you can ask them which times they are not free.
+        </p>
+      ) : (
+        <>
+          <div className="sv-visit-line">
+            In Dubai{" "}
+            <b>
+              {dayFmt(from)} to {dayFmt(to)}
+            </b>
+          </div>
+          <div className="sv-visit-actions">
+            <button type="button" className="sv-btn is-sm" onClick={openAsk} disabled={!!asking}>
+              {askedAt ? "Ask again" : "Ask the parent"}
+            </button>
+            <button type="button" className="sv-btn is-sm" onClick={() => setAdding((v) => !v)}>
+              {adding ? "Close" : "Add a time"}
+            </button>
+          </div>
+        </>
+      )}
       {asking && (
         <div className="tw-compose">
           <EmailComposer
@@ -118,16 +126,16 @@ export default function FamilyBlockedTimes({ familyId, family, familyName, famil
       )}
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
-      {blocked.length > 0 && (
-        <ul className="tw-blocks">
+      {hasWindow && blocked.length > 0 && (
+        <ul className="sv-blocks">
           {blocked.map((b) => (
-            <li key={b.id} className="tw-block">
-              <span className="tw-block-day">{dayLabel(b.blocks_date)}</span>
+            <li key={b.id} className="sv-block">
+              <b>{dayLabel(b.blocks_date)}</b>
               <span className="tw-block-time">
                 {b.blocks_start ? `${clock12(b.blocks_start)} – ${clock12(b.blocks_end)}` : "All day"}
               </span>
               {b.reason && <span className="tw-block-reason">{b.reason}</span>}
-              <button type="button" className="tw-x" onClick={() => remove(b.id)} disabled={busy} aria-label="Remove this time">
+              <button type="button" className="sv-block-x" onClick={() => remove(b.id)} disabled={busy} aria-label="Remove this time">
                 ×
               </button>
             </li>
@@ -135,7 +143,7 @@ export default function FamilyBlockedTimes({ familyId, family, familyName, famil
         </ul>
       )}
 
-      {adding && (
+      {hasWindow && adding && (
       <form className="tw-add" onSubmit={add}>
         <label className="tw-field">
           <span>Date</span>

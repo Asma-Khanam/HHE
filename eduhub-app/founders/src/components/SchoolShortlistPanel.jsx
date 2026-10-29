@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import UpdateFamilyButton from "./UpdateFamilyButton";
 import TourDetailsEditor from "./TourDetailsEditor";
-import { Link } from "react-router-dom";
+import FamilyBlockedTimes from "./FamilyBlockedTimes";
+import AutosaveField from "./Autosave";
 import {
   listShortlistForFamily,
   listSchools,
@@ -15,7 +17,6 @@ import {
   friendlyError,
   autoCompletePastTours,
   listShortlistNotes,
-  saveShortlistNote,
   listPlacements,
   listSearchRounds,
   listSchoolContacts,
@@ -23,133 +24,39 @@ import {
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import { placedByChild, placedHere, shortDate, childClosedReason, rowClosedReason, CLOSED_TEXT } from "../lib/placement";
+import { slotsFromShortlist, conflictFor, clock12 } from "../lib/tourConflicts";
+import {
+  AVAILABILITY_OPTIONS,
+  CHIP_LABEL,
+  chipClass,
+  dotClass,
+  TOUR_STATUS_OPTIONS,
+  TOUR_STATUS_LABEL,
+  formatDate,
+  shortTour,
+  relativeDay,
+  daysBetween,
+  admissionsProcessText,
+  ShortlistNotes,
+  SchoolContactsInline,
+  KidTag,
+  SaveBadge,
+} from "./SchoolVisitsParts";
 import "./panels.css";
-import AutosaveField from "./Autosave";
 import "./SchoolShortlistPanel.css";
+import "./SchoolVisits.css";
 
-const AVAILABILITY_OPTIONS = [
-  { value: "awaiting", label: "Awaiting reply" },
-  { value: "yes", label: "Yes, place available" },
-  { value: "some_year_groups", label: "Some year groups only" },
-  { value: "waitlist", label: "Waitlist" },
-  { value: "no", label: "No, full" },
+const PREFIXES = [
+  { p: "tour_", label: "Primary tour" },
+  { p: "tour2_", label: "Secondary tour" },
 ];
 
-const CHIP_LABEL = {
-  awaiting: "—",
-  yes: "Place",
-  no: "No place",
-  waitlist: "Waitlist",
-  some_year_groups: "Some yrs",
-};
-
-function chipClass(value) {
-  if (value === "yes") return "is-yes";
-  if (value === "no") return "is-no";
-  if (value === "waitlist" || value === "some_year_groups") return "is-partial";
-  return "is-awaiting";
-}
-
-const TOUR_STATUS_OPTIONS = ["offered", "confirmed", "completed", "cancelled"];
-const TOUR_STATUS_LABEL = { offered: "Booked", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
-
-function formatDate(iso) {
-  if (!iso) return null;
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-}
-
-function formatDateTime(dateStr, timeStr) {
-  if (!dateStr) return "";
-  const d = formatDate(dateStr + "T00:00:00");
-  if (!timeStr) return d;
-  const [h, m] = timeStr.split(":");
-  const hour = Number(h);
-  const suffix = hour >= 12 ? "pm" : "am";
-  const hour12 = ((hour + 11) % 12) + 1;
-  return `${d}, ${hour12}${m && m !== "00" ? ":" + m : ""}${suffix}`;
-}
-
-function daysBetween(a, b) {
-  return Math.round((new Date(b).getTime() - new Date(a).getTime()) / (1000 * 60 * 60 * 24));
-}
-
-// Full "Monday, 9 September 2026" style date, with a relative marker for
-// tour dates specifically -- founder feedback (Sept 2026): used on the
-// Tour schedule list under the table (not in the table's tour columns).
-function formatTourDate(dateStr, timeStr) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr + "T00:00:00");
-  let out = d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  if (timeStr) {
-    const [h, m] = timeStr.split(":");
-    const hour = Number(h);
-    const suffix = hour >= 12 ? "pm" : "am";
-    const hour12 = ((hour + 11) % 12) + 1;
-    out += `, ${hour12}${m && m !== "00" ? ":" + m : ""}${suffix}`;
-  }
-  const days = daysBetween(new Date().toISOString().slice(0, 10), dateStr);
-  if (days === 0) out += " (today)";
-  else if (days === 1) out += " (tomorrow)";
-  else if (days === -1) out += " (yesterday)";
-  else if (days > 1) out += ` (in ${days} days)`;
-  else if (days < -1) out += ` (${Math.abs(days)} days ago)`;
-  return out;
-}
-
-function relativeToNow(iso, futureLabel) {
-  if (!iso) return "";
-  const days = daysBetween(new Date().toISOString(), iso);
-  if (days === 0) return "today";
-  if (days > 0) return `${futureLabel || "in"} ${days} day${days === 1 ? "" : "s"}`;
-  const ago = Math.abs(days);
-  return `${ago} day${ago === 1 ? "" : "s"} ago`;
-}
-
-// Internal notes for one shortlisted school -- somewhere to paste what a
-// school's admissions team emailed back about availability. Separate from
-// the Feedback box (which is about how the tour went). Saves by itself (see
-// Autosave.jsx). Stored in shortlist_notes (staff-only, addendum 63), not on
-// the shortlist row, because families can read that row.
-function ShortlistNotes({ shortlistId, initial, onSaved }) {
-  return (
-    <div className="svt-notes">
-      <AutosaveField
-        label="Notes"
-        multiline
-        rows={8}
-        placeholder="Internal notes, e.g. paste the school's email about availability. The family can't see this."
-        value={initial}
-        onSave={async (v) => {
-          await saveShortlistNote(shortlistId, v || "");
-          onSaved?.(shortlistId, v || "");
-        }}
-      />
-    </div>
-  );
-}
-
-function admissionsProcessText(school) {
-  return (
-    [
-      school.requires_cat4 && "CAT4",
-      school.requires_map && "MAP",
-      school.requires_interview && "Interview",
-      school.requires_taster_day && "Taster day",
-      school.application_fee != null && `Application fee: ${school.fee_currency || "AED"} ${school.application_fee}`,
-      school.deposit_amount != null && `Deposit: ${school.fee_currency || "AED"} ${school.deposit_amount}`,
-    ]
-      .filter(Boolean)
-      .join(" · ") || null
-  );
-}
-
-// The family-facing "School shortlist" panel — redesigned per Heather's own
-// mockup: a table with one column per child, a tour column, and a "where
-// it's up to" summary, each row expanding into full admissions/tour/
-// feedback detail. Phase 1 (add/remove/family-level status) is preserved
-// underneath the new Phase 2 layer (per-child availability, tours,
-// feedback) rather than replaced by it. (Addendum 44 removed the same-day
-// tour clash check that used to sit alongside these.)
+// The School visits tab, rebuilt on the new layout (29 Oct 2026): an
+// Overview plus one tab per child, a table with the availability, both
+// tours, feedback and the next step, and every row opening inline with
+// Tour / After the tour / School and notes. Everything the old tab did is
+// still here; the two interim cards (parent's unavailable times and the
+// tour slot review) now live inside it.
 export default function SchoolShortlistPanel({
   familyId,
   familyChildren,
@@ -158,6 +65,7 @@ export default function SchoolShortlistPanel({
   onGoToApplications,
   onProgressChange,
   focusSchoolId,
+  visit,
 }) {
   const [rows, setRows] = useState([]);
   const [childStatus, setChildStatus] = useState([]);
@@ -166,27 +74,22 @@ export default function SchoolShortlistPanel({
   const [allSchools, setAllSchools] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [addingSchoolId, setAddingSchoolId] = useState("");
   const [busy, setBusy] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
-  const [tourDraftById, setTourDraftById] = useState({});
-  const [savedNoteId, setSavedNoteId] = useState(null);
-  const [decliningId, setDecliningId] = useState(null);
-  const [declineNote, setDeclineNote] = useState("");
-  // Founder feedback (Sept 2026, Heather via WhatsApp): "I want to remove
-  // a school from a shortlist... I cant get past this screen" -- that
-  // screen was the browser's own native window.confirm() popup, which can
-  // silently stop responding in some setups (repeated dialogs get an
-  // auto-suppress option some browsers tick on their own). Replaced with
-  // an ordinary in-page confirm step, same as the Decline flow already
-  // uses elsewhere on this panel, so there's no separate browser dialog to
-  // get stuck on at all.
-  const [removingId, setRemovingId] = useState(null);
+  const [tab, setTab] = useState("overview");
+  const [itab, setItab] = useState("tour");
+  // One inline question at a time: { rowId, type: proceed | decline | withdraw | delete }.
+  const [ask, setAsk] = useState(null);
+  const [askNote, setAskNote] = useState("");
+  const [tourSave, setTourSave] = useState({});
+  const [showAdd, setShowAdd] = useState(false);
+  const [addingSchoolId, setAddingSchoolId] = useState("");
   const [placements, setPlacements] = useState([]);
   const [rounds, setRounds] = useState([]);
   const [contactsBySchool, setContactsBySchool] = useState({});
 
   const children = familyChildren || [];
+  const blocked = visit?.blocked || [];
 
   async function load() {
     setLoading(true);
@@ -232,7 +135,11 @@ export default function SchoolShortlistPanel({
   useEffect(() => {
     if (!focusSchoolId || !rows.length) return;
     const row = rows.find((r) => String(r.school_id) === String(focusSchoolId));
-    if (row) setExpandedId(row.id);
+    if (row) {
+      setExpandedId(row.id);
+      if (children[0]) setTab(children[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusSchoolId, rows.length]);
 
   const allApplications = useMemo(() => Object.values(applicationsByChild || {}).flat(), [applicationsByChild]);
@@ -244,32 +151,26 @@ export default function SchoolShortlistPanel({
     () => placedByChild({ children, applicationsByChild: applicationsByChild || {}, placements, schools: allSchools, rounds }),
     [children, applicationsByChild, placements, allSchools, rounds]
   );
-  // Closed = every child placed elsewhere, or declined / withdrawn here.
   const closedReason = (row) =>
     rowClosedReason(placed, children, row.school_id, row.school?.name, allApplications, row.keep_open);
   const isRowClosed = (row) => !!closedReason(row);
   const placedKids = Object.entries(placed);
 
-  // The interconnection the founders asked for: once a tour is done and the
-  // family wants to move forward with a school, this is the one click that
-  // should exist -- no separately remembering to go create the application
-  // on a different tab. Creates a draft application for whichever of the
-  // family's children don't already have one at this school, then jumps to
-  // the Applications tab so staff can see it land (and take it from there --
-  // fit, submitting it, etc. still happen normally on that tab).
+  const childIndex = (childId) => children.findIndex((c) => c.id === childId);
+  const childName = (c) => displayNameForChild(c, childIndex(c.id));
+
+  // The one-click handoff from a tour to an application: creates a draft
+  // application for whichever children don't have one at this school yet,
+  // then jumps to the Applications tab.
   async function handleReadyToApply(row) {
     setBusy(true);
     setError("");
     try {
       const applicationsForSchool = allApplications.filter((a) => a.school_id === row.school_id);
-      const childrenNeedingApplication = children.filter(
-        (c) => !applicationsForSchool.some((a) => a.child_id === c.id)
-      );
+      const childrenNeedingApplication = children.filter((c) => !applicationsForSchool.some((a) => a.child_id === c.id));
       if (childrenNeedingApplication.length > 0) {
         await Promise.all(
-          childrenNeedingApplication.map((c) =>
-            createApplication({ childId: c.id, schoolId: row.school_id, status: "draft" })
-          )
+          childrenNeedingApplication.map((c) => createApplication({ childId: c.id, schoolId: row.school_id, status: "draft" }))
         );
         if (onFamilyRefresh) await onFamilyRefresh();
       }
@@ -280,6 +181,7 @@ export default function SchoolShortlistPanel({
         });
         setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, ...updated } : r)));
       }
+      setAsk(null);
       onGoToApplications?.(row.school_id);
     } catch (err) {
       setError(friendlyError(err));
@@ -288,22 +190,22 @@ export default function SchoolShortlistPanel({
     }
   }
 
-  // The other half of that same handoff: the family toured a school and
-  // decided NOT to apply there. Recorded on the tour itself (not the
-  // applications table -- no application exists yet at this point), so a
-  // "no answer yet" tour and a "family said no" tour don't look identical.
-  async function handleDeclineFamily(row) {
+  // The family decided NOT to go ahead with this school (or we withdrew it).
+  // Recorded on the shortlist row, so the school greys out and drops to the
+  // bottom with the reason, and nothing is erased.
+  async function handleDeclineFamily(row, note) {
     setBusy(true);
     setError("");
     try {
       const updated = await updateShortlistTour(row.id, {
         family_decision: "declined",
-        family_decision_note: declineNote.trim() || null,
+        family_decision_note: (note || "").trim() || null,
         family_decision_at: new Date().toISOString(),
       });
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, ...updated } : r)));
-      setDecliningId(null);
-      setDeclineNote("");
+      setAsk(null);
+      setAskNote("");
+      setExpandedId(null);
     } catch (err) {
       setError(friendlyError(err));
     } finally {
@@ -311,9 +213,7 @@ export default function SchoolShortlistPanel({
     }
   }
 
-  // In case staff logged a decline by mistake, or the family changes their
-  // mind later -- clears the decision back to "no answer yet" so the normal
-  // proceed/decline choice reappears.
+  // In case it was declined by mistake, or the family changes their mind.
   async function handleUndoDecision(row) {
     setBusy(true);
     setError("");
@@ -331,10 +231,8 @@ export default function SchoolShortlistPanel({
     }
   }
 
-  // Founders' request: some way to flag the family's actual top choice
-  // versus schools that are just backups. Only one "primary" is meant to
-  // exist per family at a time -- setting a new one clears whichever school
-  // held it before, in the same round trip.
+  // Only one "primary" per family at a time -- setting a new one clears the
+  // school that held it before, in the same round trip.
   async function handleSetPriority(row, priority) {
     setBusy(true);
     setError("");
@@ -354,6 +252,124 @@ export default function SchoolShortlistPanel({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function setRowKeepOpen(row, keepOpen) {
+    setRows((list) => list.map((r) => (r.id === row.id ? { ...r, keep_open: keepOpen } : r)));
+    try {
+      await setShortlistKeepOpen(row.id, keepOpen);
+    } catch (err) {
+      setError(friendlyError(err));
+      setRows((list) => list.map((r) => (r.id === row.id ? { ...r, keep_open: row.keep_open } : r)));
+    }
+  }
+
+  async function reopen(row) {
+    if (row.family_decision === "declined") await handleUndoDecision(row);
+    if (closedReason(row) === "placed") await setRowKeepOpen(row, true);
+  }
+
+  async function handleAdd(e) {
+    e.preventDefault();
+    if (!addingSchoolId) return;
+    setBusy(true);
+    setError("");
+    try {
+      // Adding a school once a child is already placed elsewhere is the
+      // explicit "second school through us" signal -- keep it open instead
+      // of it being grey on arrival.
+      const anyChildPlaced = children.some((c) => placed[c.id]);
+      await addToShortlist({ familyId, schoolId: addingSchoolId, keepOpen: anyChildPlaced });
+      setAddingSchoolId("");
+      setShowAdd(false);
+      await load();
+      onProgressChange?.();
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Row-level availability_status (the old "Overall" field) still drives the
+  // replied / days-since-brief stats; per-child names are what staff look at.
+  async function handleChildStatusChange(row, childId, value) {
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await upsertChildAvailability(row.id, childId, value);
+      setChildStatus((cs) => {
+        const next = cs.filter((c) => !(c.shortlist_id === row.id && c.child_id === childId));
+        return [...next, updated];
+      });
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // A real, permanent delete, for "added by mistake". A family dropping a
+  // school they considered should use Decline / Withdraw instead, which keeps
+  // the school visible, greyed out, with a reason.
+  async function handleRemove(row) {
+    setAsk(null);
+    setBusy(true);
+    setError("");
+    try {
+      await removeFromShortlist(row.id);
+      setRows((rs) => rs.filter((r) => r.id !== row.id));
+      setExpandedId(null);
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Every typed or picked tour / feedback field saves by itself. The screen
+  // updates straight away; if the save fails the old value comes back.
+  async function patchRow(row, patch, { progress = false } = {}) {
+    setTourSave((s) => ({ ...s, [row.id]: "saving" }));
+    setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, ...patch } : r)));
+    try {
+      const updated = await updateShortlistTour(row.id, patch);
+      setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, ...updated } : r)));
+      setTourSave((s) => ({ ...s, [row.id]: "saved" }));
+      setTimeout(() => setTourSave((s) => (s[row.id] === "saved" ? { ...s, [row.id]: "idle" } : s)), 2500);
+      if (progress) onProgressChange?.();
+      return true;
+    } catch (err) {
+      const back = Object.fromEntries(Object.keys(patch).map((k) => [k, row[k]]));
+      setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, ...back } : r)));
+      setTourSave((s) => ({ ...s, [row.id]: "error" }));
+      setError(friendlyError(err));
+      return false;
+    }
+  }
+
+  // prefix is "tour_" (primary) or "tour2_" (secondary).
+  function changeTour(row, prefix, field, value) {
+    const patch = {};
+    if (field === "date") {
+      patch[prefix + "date"] = value || null;
+      if (!value) {
+        patch[prefix + "status"] = null;
+        patch[prefix + "cancelled_reason"] = null;
+      } else if (!row[prefix + "status"]) {
+        patch[prefix + "status"] = "offered";
+      }
+    } else if (field === "status") {
+      patch[prefix + "status"] = value;
+      if (value !== "cancelled") patch[prefix + "cancelled_reason"] = null;
+    } else {
+      patch[prefix + field] = value || null;
+    }
+    patchRow(row, patch, { progress: field === "date" || field === "status" });
+  }
+
+  function acceptTour(row, prefix) {
+    patchRow(row, { [prefix + "status"]: "confirmed", [prefix + "confirmed_at"]: new Date().toISOString() }, { progress: true });
   }
 
   const stats = useMemo(() => {
@@ -379,225 +395,857 @@ export default function SchoolShortlistPanel({
     };
   }, [rows, allApplications]);
 
-  // One entry per booked tour slot, so a school with both a primary and a
-  // secondary tour shows both in the Tour schedule underneath. Cancelled
-  // slots are left out so the schedule only shows what still stands (Miss
-  // Lyndsay, 9 Oct 2026).
-  const tours = rows.filter((r) => !isRowClosed(r)).flatMap((r) =>
-    [
-      r.tour_date && r.tour_status !== "cancelled" && {
-        id: r.id + "-primary",
-        kind: "Primary tour",
-        school: r.school,
-        date: r.tour_date,
-        start: r.tour_start_time,
-        status: r.tour_status,
-      },
-      r.tour2_date && r.tour2_status !== "cancelled" && {
-        id: r.id + "-secondary",
-        kind: "Secondary tour",
-        school: r.school,
-        date: r.tour2_date,
-        start: r.tour2_start_time,
-        status: r.tour2_status,
-      },
-    ].filter(Boolean)
-  );
-
-  async function setRowKeepOpen(row, keepOpen) {
-    setRows((list) => list.map((r) => (r.id === row.id ? { ...r, keep_open: keepOpen } : r)));
-    try {
-      await setShortlistKeepOpen(row.id, keepOpen);
-    } catch (err) {
-      setError(friendlyError(err));
-      setRows((list) => list.map((r) => (r.id === row.id ? { ...r, keep_open: row.keep_open } : r)));
-    }
-  }
-
-  async function handleAdd(e) {
-    e.preventDefault();
-    if (!addingSchoolId) return;
-    setBusy(true);
-    setError("");
-    try {
-      // Adding a school once a child is already placed elsewhere is the
-      // explicit "second school through us" signal -- keep it open instead
-      // of it being grey on arrival. The placement and every other closed
-      // school are untouched.
-      const anyChildPlaced = children.some((c) => placed[c.id]);
-      await addToShortlist({ familyId, schoolId: addingSchoolId, keepOpen: anyChildPlaced });
-      setAddingSchoolId("");
-      await load();
-      onProgressChange?.();
-    } catch (err) {
-      setError(friendlyError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // Row-level availability_status (the old "Overall" field) is still set
-  // and used for the replied/days-since-brief stats -- it's just no longer
-  // hand-edited from here, per-child names are what staff actually look at
-  // on a family's own page. It's still editable from the school's own
-  // record (SchoolDetailPage.jsx's per-family availability dropdown).
-  async function handleChildStatusChange(row, childId, value) {
-    setBusy(true);
-    setError("");
-    try {
-      const updated = await upsertChildAvailability(row.id, childId, value);
-      setChildStatus((cs) => {
-        const next = cs.filter((c) => !(c.shortlist_id === row.id && c.child_id === childId));
-        return [...next, updated];
-      });
-    } catch (err) {
-      setError(friendlyError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // Founder feedback (Sept 2026): "if I remove a school from a shortlist -
-  // where does it go? It seems to disappear" -- it disappears because this
-  // is a real, permanent delete with no undo, and there was no confirmation
-  // step to warn anyone before it ran. This is meant for "added by
-  // mistake", not for a family dropping a school they've actually
-  // considered -- that case should use Decline instead, which keeps the
-  // school visible (greyed out, sorted last) rather than erasing it.
-  //
-  // The confirmation step itself used to be a native window.confirm() --
-  // see the removingId state above for why that got replaced with an
-  // in-page step instead.
-  async function handleRemove(row) {
-    setRemovingId(null);
-    setBusy(true);
-    setError("");
-    try {
-      await removeFromShortlist(row.id);
-      setRows((rs) => rs.filter((r) => r.id !== row.id));
-    } catch (err) {
-      setError(friendlyError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // `section` says which of the always-visible columns triggered this --
-  // "primary" or "secondary" opens just that tour's edit form, null (typing
-  // straight into the Feedback column) opens neither. Founder feedback
-  // (Sept 2026): "i clicked edit on the primary tour column, and secondary
-  // tour also opened up" -- both used to share one `draft` object with no
-  // way to tell which column asked for it, so every column checked the
-  // same truthy `draft` and all three edit UIs appeared at once. The two
-  // tour date/status/time fields still live in one shared draft (Save
-  // still writes both together, same as before), only which form is drawn
-  // is now scoped to the column that was actually clicked.
-  function startTourEdit(row, section) {
-    setTourDraftById((d) => ({
-      ...d,
-      [row.id]: {
-        editSection: section || null,
-        tour_date: row.tour_date || "",
-        tour_start_time: row.tour_start_time || "",
-        tour_end_time: row.tour_end_time || "",
-        tour_status: row.tour_status || "offered",
-        // Addendum 59 -- why a tour was cancelled, entered alongside the
-        // Cancelled status itself rather than buried in the separate
-        // Feedback box.
-        tour_cancelled_reason: row.tour_cancelled_reason || "",
-        // Addendum 58 -- an independent second slot ("Secondary tour"),
-        // for a school that does an initial visit and a separate
-        // follow-up/assessment visit. Left blank unless a second tour is
-        // actually booked -- most schools only ever use the first slot.
-        tour2_date: row.tour2_date || "",
-        tour2_start_time: row.tour2_start_time || "",
-        tour2_end_time: row.tour2_end_time || "",
-        tour2_status: row.tour2_status || "offered",
-        tour2_cancelled_reason: row.tour2_cancelled_reason || "",
-        feedback_text: row.feedback_text || "",
-      },
-    }));
-  }
-
-  function cancelTourEdit(rowId) {
-    setTourDraftById((d) => {
-      const next = { ...d };
-      delete next[rowId];
-      return next;
-    });
-  }
-
-  async function saveTour(row) {
-    const draft = tourDraftById[row.id];
-    if (!draft) return;
-    setBusy(true);
-    setError("");
-    try {
-      const patch = {
-        tour_date: draft.tour_date || null,
-        tour_start_time: draft.tour_start_time || null,
-        tour_end_time: draft.tour_end_time || null,
-        tour_status: draft.tour_date ? draft.tour_status : null,
-        tour_cancelled_reason: draft.tour_date && draft.tour_status === "cancelled" ? draft.tour_cancelled_reason || null : null,
-        tour2_date: draft.tour2_date || null,
-        tour2_start_time: draft.tour2_start_time || null,
-        tour2_end_time: draft.tour2_end_time || null,
-        tour2_status: draft.tour2_date ? draft.tour2_status : null,
-        tour2_cancelled_reason: draft.tour2_date && draft.tour2_status === "cancelled" ? draft.tour2_cancelled_reason || null : null,
-        feedback_text: draft.feedback_text || null,
-        feedback_by: draft.feedback_text ? "staff" : null,
-      };
-      const updated = await updateShortlistTour(row.id, patch);
-      setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, ...updated } : r)));
-      onProgressChange?.();
-      cancelTourEdit(row.id);
-      setSavedNoteId(row.id);
-      setTimeout(() => setSavedNoteId((id) => (id === row.id ? null : id)), 2000);
-    } catch (err) {
-      setError(friendlyError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // The family's primary choice floats to the top, a declined school
-  // sinks to the bottom, everything else keeps its existing order in
-  // between -- Array.sort is stable, so this only moves those two groups.
+  // The family's primary choice floats to the top, everything else keeps its
+  // order, earliest visit first; schools with no tour yet go last in their group.
   const sortedRows = useMemo(() => {
     const rank = (row) => {
-      if (rowClosedReason(placed, children, row.school_id, row.school?.name, allApplications, row.keep_open)) return 5;
       if (placedHere(placed, children, row.school_id, row.school?.name).length) return -1;
-      if (row.family_decision === "declined") return 3;
       if (row.priority === "primary") return 0;
       if (row.priority === "secondary") return 1;
       return 2;
     };
-    const when = (r) => {
-      const d = [r.tour_date, r.tour2_date].filter(Boolean).sort()[0];
-      return d || "9999-12-31";
-    };
-    // Earliest visit first; schools with no tour yet go last in their group.
+    const when = (r) => [r.tour_date, r.tour2_date].filter(Boolean).sort()[0] || "9999-12-31";
     return [...rows].sort((a, b) => rank(a) - rank(b) || when(a).localeCompare(when(b)));
-  }, [rows, placed, children, allApplications]);
+  }, [rows, placed, children]);
+
+  // Closed = every child placed elsewhere / declined / withdrawn, or the
+  // family declined it here. Greyed out at the bottom, never erased.
+  const liveRows = sortedRows.filter((r) => !isRowClosed(r) && r.family_decision !== "declined");
+  const closedRows = sortedRows.filter((r) => isRowClosed(r) || r.family_decision === "declined");
+
+  // Every offered / confirmed slot on a live school, checked against the
+  // parent's unavailable times and the family's other tours.
+  const allSlots = slotsFromShortlist(liveRows);
+  const slotConflict = {};
+  allSlots.forEach((s) => {
+    const why = conflictFor(s, blocked, allSlots);
+    if (why) slotConflict[s.key] = why;
+  });
+  const conflictRows = new Set(allSlots.filter((s) => slotConflict[s.key]).map((s) => s.rowId));
+  const confirmedSlots = allSlots.filter((s) => s.status === "confirmed").length;
+
+  const availOf = (row, childId) => childStatus.find((cs) => cs.shortlist_id === row.id && cs.child_id === childId)?.availability_status || "awaiting";
+
+  // The children who would go on a tour at this school.
+  const kidsFor = (row) =>
+    children.filter(
+      (c) => availOf(row, c.id) !== "no" && !childClosedReason(placed, c.id, row.school_id, row.school?.name, allApplications, row.keep_open)
+    );
+
+  function nextStep(row, childId) {
+    if (row.family_decision === "proceeding") return ["In Applications", ""];
+    const live = PREFIXES.filter(({ p }) => row[p + "date"] && !["cancelled", "completed"].includes(row[p + "status"]));
+    if (live.some(({ p }) => (row[p + "status"] || "offered") === "offered")) {
+      return [conflictRows.has(row.id) ? "Check the clash" : "Accept time", "a"];
+    }
+    if (live.some(({ p }) => row[p + "status"] === "confirmed")) return ["Tour booked", "g"];
+    if (PREFIXES.some(({ p }) => row[p + "status"] === "completed")) return ["Decide", "a"];
+    const v = childId ? availOf(row, childId) : "awaiting";
+    if (v === "awaiting") return row.enquiry_sent_at ? ["Awaiting reply", ""] : ["Email school", "a"];
+    if (v === "waitlist") return ["Chase school", ""];
+    return ["–", ""];
+  }
+
+  function toggleRow(row) {
+    setExpandedId((id) => (id === row.id ? null : row.id));
+    setAsk(null);
+    setAskNote("");
+  }
+
+  function openFromOverview(row) {
+    if (children[0]) setTab(children[0].id);
+    setExpandedId(row.id);
+    setItab("tour");
+    setAsk(null);
+  }
 
   const shortlistedIds = new Set(rows.map((r) => r.school_id));
   const addableSchools = allSchools.filter((s) => !shortlistedIds.has(s.id));
+  const activeTab = tab !== "overview" && children.some((c) => c.id === tab) ? tab : "overview";
+  const activeChild = children.find((c) => c.id === activeTab) || null;
+
+  /* ---------- pieces of the table ---------- */
+
+  function tourCell(row, prefix) {
+    const date = row[prefix + "date"];
+    if (!date) return <span className="sv-st is-mute">–</span>;
+    const status = row[prefix + "status"] || "offered";
+    const clash = slotConflict[row.id + prefix];
+    return (
+      <span className="sv-tour">
+        <span className="sv-st">
+          <i className={"sv-d " + (status === "confirmed" || status === "completed" ? "is-g" : status === "cancelled" ? "" : "is-a")} />
+          {shortTour(date, row[prefix + "start_time"])}
+        </span>
+        <small className={clash ? "is-warn" : ""}>{clash ? "Clashes with a busy time" : TOUR_STATUS_LABEL[status]}</small>
+      </span>
+    );
+  }
+
+  function feedbackCell(row) {
+    if (row.feedback_rating) return <span className="sv-st">{`★ ${row.feedback_rating} of 5`}</span>;
+    if (row.feedback_text) return <span className="sv-st"><span className="sv-clip">{row.feedback_text}</span></span>;
+    return <span className="sv-st is-mute">–</span>;
+  }
+
+  function availabilityCell(row, child) {
+    const value = availOf(row, child.id);
+    const why = childClosedReason(placed, child.id, row.school_id, row.school?.name, allApplications, row.keep_open);
+    if (placed[child.id] || why) {
+      const here = placed[child.id] && !why;
+      return (
+        <span className="sv-st" title={why === "placed" ? `Placed at ${placed[child.id].schoolName}` : undefined}>
+          <i className={"sv-d" + (here ? " is-g" : "")} />
+          {here ? "Placed ✓" : why === "placed" ? "Placed elsewhere" : why === "declined" ? "Declined" : why === "dropped" ? "Not carried over" : "Withdrawn"}
+        </span>
+      );
+    }
+    return (
+      <select
+        className={"sv-select " + chipClass(value)}
+        value={value}
+        aria-label={`${childName(child)} availability at ${row.school?.name || "this school"}`}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => handleChildStatusChange(row, child.id, e.target.value)}
+        disabled={busy}
+      >
+        {AVAILABILITY_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {CHIP_LABEL[o.value] || o.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  function onRowKey(e, fn) {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      fn();
+    }
+  }
+
+  /* ---------- the open row ---------- */
+
+  function renderDetail(row) {
+    const school = row.school || {};
+    const process = admissionsProcessText(school);
+    const feedbackRows = otherFeedback[row.school_id] || [];
+    const offered = PREFIXES.filter(({ p }) => row[p + "date"] && (row[p + "status"] || "offered") === "offered");
+    const clash = conflictRows.has(row.id);
+    const proceeding = row.family_decision === "proceeding";
+    const asking = ask && ask.rowId === row.id ? ask.type : null;
+    const tourLine = (() => {
+      const next = PREFIXES.find(({ p }) => row[p + "date"] && !["cancelled", "completed"].includes(row[p + "status"]));
+      if (!next) return PREFIXES.some(({ p }) => row[p + "status"] === "completed") ? "The family has toured. Time to decide." : "No tour booked yet.";
+      const when = <b>{shortTour(row[next.p + "date"], row[next.p + "start_time"])}</b>;
+      if ((row[next.p + "status"] || "offered") === "offered")
+        return <>The school offered {when}. {clash ? <span className="sv-warn">This clashes with a time the parents are not free, or another tour.</span> : "It fits the family's diary."}</>;
+      return <>{next.label} confirmed for {when}.</>;
+    })();
+    const names = kidsFor(row).map(childName);
+
+    return (
+      <div className="sv-open" onClick={(e) => e.stopPropagation()}>
+        <div className="sv-open-head">
+          <div className="sv-open-msg">{tourLine}</div>
+          <div className="sv-pills">
+            <SaveBadge state={tourSave[row.id]} />
+            <div className="sv-seg" role="group" aria-label="Primary or backup choice">
+              <button
+                type="button"
+                className={row.priority === "primary" ? "is-on" : ""}
+                onClick={() => handleSetPriority(row, row.priority === "primary" ? "" : "primary")}
+                disabled={busy}
+                title="The family's top choice"
+              >
+                Primary
+              </button>
+              <button
+                type="button"
+                className={row.priority === "secondary" ? "is-on" : ""}
+                onClick={() => handleSetPriority(row, row.priority === "secondary" ? "" : "secondary")}
+                disabled={busy}
+                title="A backup option"
+              >
+                Backup
+              </button>
+            </div>
+            {offered.map(({ p, label }) => (
+              <button key={p} type="button" className="sv-btn is-primary is-sm" onClick={() => acceptTour(row, p)}>
+                {offered.length > 1 ? `Accept ${label.toLowerCase()}` : clash ? "Accept anyway" : "Accept this time"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="sv-itabs">
+          {[
+            ["tour", "Tour"],
+            ["after", "After the tour"],
+            ["school", "School and notes"],
+          ].map(([k, l]) => (
+            <button key={k} type="button" className={itab === k ? "is-on" : ""} onClick={() => setItab(k)}>
+              {l}
+            </button>
+          ))}
+        </div>
+
+        {itab === "tour" && (
+          <div className="sv-cols2">
+            <div>
+              {PREFIXES.map(({ p, label }) => {
+                const hasDate = !!row[p + "date"];
+                const status = row[p + "status"] || "offered";
+                return (
+                  <div className="sv-blk" key={p}>
+                    <h3>
+                      <span>{label}</span>
+                    </h3>
+                    <div className="sv-g2">
+                      <label className="sv-fld">
+                        Date
+                        <input type="date" value={row[p + "date"] || ""} onChange={(e) => changeTour(row, p, "date", e.target.value)} />
+                      </label>
+                      <label className="sv-fld">
+                        Status
+                        <select value={status} disabled={!hasDate} onChange={(e) => changeTour(row, p, "status", e.target.value)}>
+                          {TOUR_STATUS_OPTIONS.map((s) => (
+                            <option key={s} value={s}>
+                              {TOUR_STATUS_LABEL[s]}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="sv-fld">
+                        Start
+                        <input
+                          type="time"
+                          value={row[p + "start_time"] || ""}
+                          disabled={!hasDate}
+                          onChange={(e) => changeTour(row, p, "start_time", e.target.value)}
+                        />
+                      </label>
+                      <label className="sv-fld">
+                        End
+                        <input
+                          type="time"
+                          value={row[p + "end_time"] || ""}
+                          disabled={!hasDate}
+                          onChange={(e) => changeTour(row, p, "end_time", e.target.value)}
+                        />
+                      </label>
+                    </div>
+                    {hasDate && status === "cancelled" && (
+                      <div style={{ marginTop: 10 }}>
+                        <AutosaveField
+                          label="Why was it cancelled?"
+                          placeholder="Why was it cancelled?"
+                          value={row[p + "cancelled_reason"] || ""}
+                          onSave={(v) => patchRow(row, { [p + "cancelled_reason"]: v })}
+                        />
+                      </div>
+                    )}
+                    {slotConflict[row.id + p] && <p className="sv-warn" style={{ margin: "10px 0 0", fontSize: 14 }}>{slotConflict[row.id + p]}</p>}
+                  </div>
+                );
+              })}
+            </div>
+            <TourDetailsEditor
+              row={row}
+              onUpdated={(updated) => setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, ...updated, school: r.school } : r)))}
+            />
+          </div>
+        )}
+
+        {itab === "after" && (
+          <div className="sv-cols2">
+            <div className="sv-blk">
+              <h3>
+                <span>Feedback</span>
+                <em>{PREFIXES.some(({ p }) => row[p + "status"] === "completed") ? "Toured" : "Not toured yet"}</em>
+              </h3>
+              {row.feedback_rating ? (
+                <p style={{ margin: "0 0 10px" }}>
+                  <span className="sv-stars" aria-label={`${row.feedback_rating} out of 5`}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <span key={n} className={row.feedback_rating >= n ? "is-on" : ""}>
+                        ★
+                      </span>
+                    ))}
+                  </span>{" "}
+                  <span className="sv-sub">rated by the family</span>
+                </p>
+              ) : null}
+              <AutosaveField
+                label="How the tour went"
+                multiline
+                rows={5}
+                placeholder="How did it go?"
+                value={row.feedback_text || ""}
+                onSave={(v) => patchRow(row, { feedback_text: v, feedback_by: v ? "staff" : null })}
+              />
+            </div>
+            <div>
+              <div className="sv-blk">
+                <h3>
+                  <span>Decision</span>
+                </h3>
+                <p style={{ margin: 0 }}>
+                  {proceeding
+                    ? "Proceeding to an application."
+                    : "No decision yet. Use Proceed to application or Decline below when the family has decided."}
+                </p>
+              </div>
+              {feedbackRows.length > 0 && (
+                <div className="sv-blk">
+                  <h3>
+                    <span>Other families on this school</span>
+                  </h3>
+                  {feedbackRows.slice(0, 3).map((f) => (
+                    <blockquote key={f.id} className="sv-quote">
+                      <p>{f.feedback_text}</p>
+                      <cite>
+                        {f.familyName}
+                        {f.feedback_at ? `, ${formatDate(f.feedback_at)}` : ""}
+                      </cite>
+                    </blockquote>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {itab === "school" && (
+          <div className="sv-cols2">
+            <div className="sv-blk">
+              <h3>
+                <span>Admissions</span>
+              </h3>
+              <dl className="sv-kv">
+                <SchoolContactsInline school={school} contacts={contactsBySchool[row.school_id]} />
+                {school.address && (
+                  <>
+                    <dt>Address</dt>
+                    <dd>{school.address}</dd>
+                  </>
+                )}
+                {process && (
+                  <>
+                    <dt>Admissions process</dt>
+                    <dd>{process}</dd>
+                  </>
+                )}
+              </dl>
+              <div className="sv-links">
+                {school.website_url && (
+                  <a className="sv-btn is-sm" href={school.website_url} target="_blank" rel="noreferrer">
+                    Website
+                  </a>
+                )}
+                {school.tour_booking_url && (
+                  <a className="sv-btn is-sm" href={school.tour_booking_url} target="_blank" rel="noreferrer">
+                    Book a tour
+                  </a>
+                )}
+                {school.application_url && (
+                  <a className="sv-btn is-sm" href={school.application_url} target="_blank" rel="noreferrer">
+                    Apply
+                  </a>
+                )}
+                <Link className="sv-btn is-sm" to={`/staff/schools/${row.school_id}`}>
+                  Full school record
+                </Link>
+              </div>
+            </div>
+            <div className="sv-blk">
+              <h3>
+                <span>Notes, private to the team</span>
+              </h3>
+              <ShortlistNotes
+                shortlistId={row.id}
+                initial={notesById[row.id] || ""}
+                onSaved={(id, body) => setNotesById((m) => ({ ...m, [id]: body }))}
+              />
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginTop: 18 }}>
+          <UpdateFamilyButton
+            familyId={familyId}
+            schoolId={row.school_id}
+            suggested={PREFIXES.some(({ p }) => row[p + "status"] === "completed") ? "toured" : "shortlisted"}
+          />
+        </div>
+        <div className="sv-actions">
+          <div className="sv-pills">
+            {proceeding ? (
+              <button type="button" className="sv-btn is-primary is-sm" onClick={() => handleReadyToApply(row)} disabled={busy}>
+                View application →
+              </button>
+            ) : (
+              <>
+                <button type="button" className="sv-btn is-primary is-sm" onClick={() => setAsk({ rowId: row.id, type: "proceed" })} disabled={busy}>
+                  Proceed to application
+                </button>
+                <button
+                  type="button"
+                  className="sv-btn is-sm"
+                  onClick={() => {
+                    setAskNote("");
+                    setAsk({ rowId: row.id, type: "decline" });
+                  }}
+                  disabled={busy}
+                >
+                  Decline, with a reason
+                </button>
+              </>
+            )}
+          </div>
+          <div className="sv-pills" style={{ gap: 4 }}>
+            <button
+              type="button"
+              className="sv-btn is-sm is-quiet"
+              onClick={() => {
+                setAskNote("");
+                setAsk({ rowId: row.id, type: "withdraw" });
+              }}
+              disabled={busy}
+            >
+              Withdraw
+            </button>
+            <button type="button" className="sv-btn is-sm is-quiet" onClick={() => setAsk({ rowId: row.id, type: "delete" })} disabled={busy}>
+              Delete
+            </button>
+            <button type="button" className="sv-btn is-sm is-quiet" onClick={() => toggleRow(row)}>
+              Close
+            </button>
+          </div>
+        </div>
+
+        {asking && (
+          <div className="sv-confirm">
+            {asking === "proceed" && (
+              <>
+                <span>
+                  Hand {school.name || "this school"} to Applications{names.length ? ` for ${names.join(" and ")}` : ""}?
+                </span>
+                <button type="button" className="sv-btn is-primary is-sm" onClick={() => handleReadyToApply(row)} disabled={busy}>
+                  Yes, proceed
+                </button>
+              </>
+            )}
+            {asking === "decline" && (
+              <>
+                <span>Why is the family not going ahead?</span>
+                <input type="text" placeholder="Reason (e.g. too far)" value={askNote} onChange={(e) => setAskNote(e.target.value)} />
+                <button type="button" className="sv-btn is-primary is-sm" onClick={() => handleDeclineFamily(row, askNote)} disabled={busy}>
+                  Decline school
+                </button>
+              </>
+            )}
+            {asking === "withdraw" && (
+              <>
+                <span>Withdraw this school? It stays on the list, greyed out at the bottom.</span>
+                <input type="text" placeholder="Reason (optional)" value={askNote} onChange={(e) => setAskNote(e.target.value)} />
+                <button
+                  type="button"
+                  className="sv-btn is-primary is-sm"
+                  onClick={() => handleDeclineFamily(row, askNote.trim() ? `Withdrawn: ${askNote.trim()}` : "Withdrawn")}
+                  disabled={busy}
+                >
+                  Yes, withdraw
+                </button>
+              </>
+            )}
+            {asking === "delete" && (
+              <>
+                <span>
+                  Delete {school.name || "this school"} for good, with its tour dates, feedback and notes? It cannot be undone. If the family simply decided against it, use Withdraw instead.
+                </span>
+                <button type="button" className="sv-btn is-primary is-sm" onClick={() => handleRemove(row)} disabled={busy}>
+                  {busy ? "Deleting…" : "Yes, delete"}
+                </button>
+              </>
+            )}
+            <button type="button" className="sv-btn is-sm is-quiet" onClick={() => setAsk(null)}>
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Closed schools are view-only: what was recorded, nothing to change.
+  function renderClosedDetail(row, reason) {
+    const note = notesById[row.id] || "";
+    return (
+      <div className="sv-open" onClick={(e) => e.stopPropagation()}>
+        <p className="sv-hint" style={{ margin: "0 0 14px" }}>
+          View only.{" "}
+          {reason ? `This school is closed because ${CLOSED_TEXT[reason] || "no child is going ahead here"}. If that changes on the Applications tab, it opens again by itself.` : "Reopen it to make changes."}
+        </p>
+        <fieldset className="svt-detail svt-closed-detail" disabled style={{ border: 0, padding: 0, margin: 0 }}>
+          <TourDetailsEditor row={row} onUpdated={() => {}} readOnly />
+          <div className="sv-blk" style={{ marginTop: 16 }}>
+            <h3>
+              <span>Admissions</span>
+            </h3>
+            <dl className="sv-kv">
+              <SchoolContactsInline school={row.school} contacts={contactsBySchool[row.school_id]} />
+            </dl>
+            {note.trim() && <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{note}</p>}
+          </div>
+        </fieldset>
+        <div className="sv-links" style={{ marginTop: 14 }}>
+          <Link className="sv-btn is-sm" to={`/staff/schools/${row.school_id}`}>
+            Full school record
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  function closedText(row) {
+    const reason = closedReason(row);
+    if (reason) return `Closed · ${CLOSED_TEXT[reason] || "closed"}`;
+    return row.family_decision_note ? `Closed · ${row.family_decision_note}` : "Closed · family declined";
+  }
+
+  function renderClosedBand(cols, withChild) {
+    if (closedRows.length === 0) return null;
+    return (
+      <>
+        <div className="sv-tb is-band" style={{ "--sv-cols": cols }}>
+          <span className="sv-band-label">Closed · {closedRows.length}</span>
+          {Array.from({ length: cols.split(" ").length - 2 }).map((_, i) => (
+            <span key={i} />
+          ))}
+          <span className="sv-sub" style={{ textAlign: "right" }}>
+            Greyed out, kept for the record
+          </span>
+        </div>
+        {closedRows.map((row) => {
+          const reason = closedReason(row);
+          const canReopen = row.family_decision === "declined" || reason === "placed";
+          const open = expandedId === row.id;
+          return (
+            <div key={row.id}>
+              <div
+                className={"sv-tb is-closed" + (open ? " is-sel" : "")}
+                style={{ "--sv-cols": cols, cursor: "pointer" }}
+                tabIndex={0}
+                role="button"
+                aria-expanded={open}
+                onClick={() => toggleRow(row)}
+                onKeyDown={(e) => onRowKey(e, () => toggleRow(row))}
+              >
+                <div>
+                  <div className="sv-nm">{row.school?.name || "Unknown school"}</div>
+                  <div className="sv-sb">{closedText(row)}</div>
+                </div>
+                {withChild ? (
+                  <>
+                    <span className="sv-st">Closed</span>
+                    <span className="sv-st">{row.tour_date ? shortTour(row.tour_date, row.tour_start_time) : "–"}</span>
+                    <span className="sv-st">{row.tour2_date ? shortTour(row.tour2_date, row.tour2_start_time) : "–"}</span>
+                    <span className="sv-st"><span className="sv-clip">{row.feedback_text || "–"}</span></span>
+                  </>
+                ) : (
+                  <>
+                    {children.map((c) => (
+                      <span key={c.id} className="sv-st">Closed</span>
+                    ))}
+                  </>
+                )}
+                <span className="sv-st" onClick={(e) => e.stopPropagation()}>
+                  {canReopen ? (
+                    <button type="button" className="sv-btn is-link" onClick={() => reopen(row)} disabled={busy}>
+                      Reopen
+                    </button>
+                  ) : (
+                    <span className="sv-sub">Reopens from Applications</span>
+                  )}
+                  {row.family_decision === "declined" && (
+                    <button
+                      type="button"
+                      className="sv-btn is-link"
+                      style={{ color: "var(--sv-mute)", marginLeft: 12 }}
+                      onClick={() => {
+                        setExpandedId(row.id);
+                        setAsk({ rowId: row.id, type: "delete" });
+                      }}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </span>
+              </div>
+              {open && renderClosedDetail(row, reason)}
+              {open && ask && ask.rowId === row.id && ask.type === "delete" && (
+                <div className="sv-confirm" style={{ margin: "0 24px 14px" }} onClick={(e) => e.stopPropagation()}>
+                  <span>Delete {row.school?.name || "this school"} for good? It cannot be undone.</span>
+                  <button type="button" className="sv-btn is-primary is-sm" onClick={() => handleRemove(row)} disabled={busy}>
+                    Yes, delete
+                  </button>
+                  <button type="button" className="sv-btn is-sm is-quiet" onClick={() => setAsk(null)}>
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </>
+    );
+  }
+
+  /* ---------- Overview ---------- */
+
+  const overviewCols = ["minmax(0,2fr)", ...children.map(() => "minmax(0,1fr)"), "minmax(0,1.3fr)"].join(" ");
+  const childCols = "minmax(0,2fr) minmax(0,1.1fr) minmax(0,1.2fr) minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.2fr)";
+
+  // Every tour that still stands, earliest first (cancelled ones drop out).
+  const scheduleItems = liveRows
+    .flatMap((row) =>
+      PREFIXES.filter(({ p }) => row[p + "date"] && row[p + "status"] !== "cancelled").map(({ p, label }) => ({
+        key: row.id + p,
+        row,
+        label,
+        date: row[p + "date"],
+        start: row[p + "start_time"],
+        end: row[p + "end_time"],
+        status: row[p + "status"] || "offered",
+        clash: slotConflict[row.id + p],
+      }))
+    )
+    .sort((a, b) => (a.date + (a.start || "")).localeCompare(b.date + (b.start || "")));
+
+  function renderOverview() {
+    const nextTour = (row) => {
+      const s = scheduleItems.find((x) => x.row.id === row.id && x.status !== "completed");
+      if (!s) return <span className="sv-st is-mute">–</span>;
+      return (
+        <span className="sv-tour">
+          <span className="sv-st">{shortTour(s.date, s.start)}</span>
+          {s.clash && <small className="is-warn">Clashes</small>}
+        </span>
+      );
+    };
+    return (
+      <>
+        {rows.length > 0 && (
+          <div className="sv-card sv-stats">
+            <div><b>{stats.shortlisted}</b><span>Shortlisted</span></div>
+            <div><b>{stats.replied}</b><span>Replied</span></div>
+            <div><b>{stats.toursBooked}</b><span>Tours booked</span></div>
+            <div><b>{stats.toured}</b><span>Toured</span></div>
+            <div><b>{stats.applied}</b><span>Applied</span></div>
+            {stats.daysSinceBrief !== null && <div><b>{stats.daysSinceBrief}</b><span>Days since brief</span></div>}
+          </div>
+        )}
+        <div className="sv-side">
+          <div className="sv-card" style={{ overflow: "hidden" }}>
+            <div style={{ padding: "18px 24px 4px", display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <h2 className="sv-card-title">All schools</h2>
+              {children.length > 0 && <span className="sv-sub" style={{ fontSize: 14 }}>Open a child's tab to work on their schools</span>}
+            </div>
+            {rows.length === 0 ? (
+              <p className="sv-hint" style={{ margin: "10px 24px 20px" }}>No schools shortlisted for this family yet.</p>
+            ) : (
+              <div className="sv-scroll">
+                <div className="sv-tbl is-narrow">
+                  <div className="sv-tb is-head" style={{ "--sv-cols": overviewCols }}>
+                    <span>School</span>
+                    {children.map((c) => (
+                      <span key={c.id}>{childName(c)}</span>
+                    ))}
+                    <span>Next tour</span>
+                  </div>
+                  {liveRows.map((row) => (
+                    <div
+                      key={row.id}
+                      className="sv-tb"
+                      style={{ "--sv-cols": overviewCols }}
+                      tabIndex={0}
+                      role="button"
+                      onClick={() => openFromOverview(row)}
+                      onKeyDown={(e) => onRowKey(e, () => openFromOverview(row))}
+                    >
+                      <div>
+                        <div className="sv-nm">{row.school?.name || "Unknown school"}</div>
+                        {placedHere(placed, children, row.school_id, row.school?.name).length > 0 && (
+                          <div className="sv-sb">🎓 Placed here</div>
+                        )}
+                      </div>
+                      {children.map((c) => {
+                        const why = childClosedReason(placed, c.id, row.school_id, row.school?.name, allApplications, row.keep_open);
+                        const v = availOf(row, c.id);
+                        return (
+                          <span key={c.id} className="sv-st">
+                            <i className={"sv-d " + (placed[c.id] && !why ? "is-g" : dotClass(v))} />
+                            {placed[c.id] && !why ? "Placed ✓" : why ? "Closed" : CHIP_LABEL[v]}
+                          </span>
+                        );
+                      })}
+                      {nextTour(row)}
+                    </div>
+                  ))}
+                  {renderClosedBand(overviewCols, false)}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="sv-stack">
+            {visit && (
+              <FamilyBlockedTimes
+                familyId={familyId}
+                family={visit.family}
+                familyName={visit.familyName}
+                familyChildren={children}
+                parents={visit.parents}
+                composerCtx={visit.composerCtx}
+                from={visit.family?.dubai_available_from}
+                to={visit.family?.dubai_available_until}
+                blocked={blocked}
+                onChange={visit.onBlockedChange}
+                onFamilyChanged={visit.onFamilyChanged}
+              />
+            )}
+            <div className="sv-card sv-card-pad">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+                <h2 className="sv-card-title">Tour schedule</h2>
+                {allSlots.length > 0 && <span className="sv-sub">{confirmedSlots} of {allSlots.length} confirmed</span>}
+              </div>
+              {conflictRows.size > 0 && (
+                <p className="sv-warn" style={{ margin: "8px 0 0", fontSize: 14 }}>
+                  {Object.keys(slotConflict).length === 1 ? "1 tour needs a look" : `${Object.keys(slotConflict).length} tours need a look`}: it clashes with a time the parent can't do, or with another tour.
+                </p>
+              )}
+              {scheduleItems.length === 0 ? (
+                <p className="sv-hint" style={{ margin: "12px 0 0" }}>No tours booked yet.</p>
+              ) : (
+                <div style={{ marginTop: 8 }}>
+                  {scheduleItems.map((t) => {
+                    const d = new Date(t.date + "T00:00:00");
+                    return (
+                      <div className="sv-tl" key={t.key} style={t.status === "completed" ? { opacity: 0.6 } : undefined}>
+                        <div className="sv-tl-dt">
+                          <b>{d.getDate()}</b>
+                          {d.toLocaleDateString(undefined, { weekday: "short", month: "short" })}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div className="sv-nm" style={{ fontSize: 15 }}>{t.row.school?.name}</div>
+                          <div style={{ margin: "3px 0" }}>
+                            {kidsFor(t.row).map((c) => (
+                              <KidTag key={c.id} name={childName(c)} index={childIndex(c.id)} />
+                            ))}
+                          </div>
+                          <div className="sv-sub">
+                            {t.start ? clock12(t.start) : "Time to be set"}
+                            {t.end ? ` – ${clock12(t.end)}` : ""} · {t.label.toLowerCase()} ·{" "}
+                            {t.clash ? (
+                              <span className="sv-warn">{t.clash}</span>
+                            ) : t.status === "confirmed" ? (
+                              <span className="sv-ok">confirmed</span>
+                            ) : t.status === "completed" ? (
+                              "toured"
+                            ) : (
+                              "waiting to confirm"
+                            )}{" "}
+                            · {relativeDay(t.date)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  /* ---------- One child's tab ---------- */
+
+  function renderChild(child) {
+    const empty = rows.length === 0;
+    return (
+      <div className="sv-card" style={{ overflow: "hidden" }}>
+        {empty ? (
+          <p className="sv-hint" style={{ margin: 20 }}>No schools shortlisted for this family yet.</p>
+        ) : (
+          <div className="sv-scroll">
+            <div className="sv-tbl">
+              <div className="sv-tb is-head" style={{ "--sv-cols": childCols }}>
+                <span>School</span>
+                <span>Availability</span>
+                <span>Primary tour</span>
+                <span>Secondary tour</span>
+                <span>Feedback</span>
+                <span>Next step</span>
+              </div>
+              {liveRows.map((row) => {
+                const open = expandedId === row.id;
+                const [nextLabel, nextTone] = nextStep(row, child.id);
+                const kidsPlacedHere = placedHere(placed, children, row.school_id, row.school?.name);
+                return (
+                  <div key={row.id}>
+                    <div
+                      className={"sv-tb" + (open ? " is-sel" : "")}
+                      style={{ "--sv-cols": childCols }}
+                      tabIndex={0}
+                      role="button"
+                      aria-expanded={open}
+                      onClick={() => toggleRow(row)}
+                      onKeyDown={(e) => onRowKey(e, () => toggleRow(row))}
+                    >
+                      <div>
+                        <div className={"sv-nm" + (open ? " is-sel" : "")}>
+                          {row.school?.name || "Unknown school"}
+                          {(notesById[row.id] || "").trim() && <span title="Has a note"> 📝</span>}
+                        </div>
+                        <div className="sv-sb">
+                          {row.priority === "primary" ? "★ Primary choice" : row.priority === "secondary" ? "Backup choice" : row.school?.area || ""}
+                          {kidsPlacedHere.length > 0 && ` · 🎓 Placed: ${kidsPlacedHere.map(childName).join(", ")}`}
+                        </div>
+                      </div>
+                      <div>{availabilityCell(row, child)}</div>
+                      {tourCell(row, "tour_")}
+                      {tourCell(row, "tour2_")}
+                      {feedbackCell(row)}
+                      <span className="sv-st">
+                        {nextTone && <i className={"sv-d is-" + nextTone} />}
+                        {nextLabel}
+                      </span>
+                    </div>
+                    {open && renderDetail(row)}
+                  </div>
+                );
+              })}
+              {renderClosedBand(childCols, true)}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <section className="panel">
-      <div className="panel-head">
-        <h2>
-          School shortlist
-          {rows.length > 0 && <span className="panel-count">{rows.length}</span>}
-        </h2>
-      </div>
-
+    <section className="sv">
       {placedKids.length > 0 && (
-        <div className="svt-placed-banner">
+        <div className="sv-placed">
           <span aria-hidden="true">🎓</span>
           <span>
             {placedKids.map(([childId, p], i) => {
-              const idx = children.findIndex((c) => c.id === childId);
+              const idx = childIndex(childId);
               return (
                 <span key={childId}>
                   {i > 0 && " · "}
@@ -606,7 +1254,7 @@ export default function SchoolShortlistPanel({
                 </span>
               );
             })}
-            <span className="svt-placed-banner-sub">
+            <span className="sv-placed-sub">
               {placedKids.length >= children.length
                 ? "Every child is placed, so the other schools are closed and kept at the bottom for reference."
                 : "Schools stay open until every child is placed. Placed children show as placed in their column."}
@@ -615,882 +1263,65 @@ export default function SchoolShortlistPanel({
         </div>
       )}
 
-      {rows.length > 0 && (
-        <div className="svt-stats-row">
-          <div className="svt-stat">
-            <span className="svt-stat-value">{stats.shortlisted}</span>
-            <span className="svt-stat-label">shortlisted</span>
-          </div>
-          <div className="svt-stat">
-            <span className="svt-stat-value">{stats.replied}</span>
-            <span className="svt-stat-label">replied</span>
-          </div>
-          <div className="svt-stat">
-            <span className="svt-stat-value">{stats.toursBooked}</span>
-            <span className="svt-stat-label">tours booked</span>
-          </div>
-          <div className="svt-stat">
-            <span className="svt-stat-value">{stats.toured}</span>
-            <span className="svt-stat-label">toured</span>
-          </div>
-          <div className="svt-stat">
-            <span className="svt-stat-value">{stats.applied}</span>
-            <span className="svt-stat-label">applied</span>
-          </div>
-          {stats.daysSinceBrief !== null && (
-            <div className="svt-stat">
-              <span className="svt-stat-value">{stats.daysSinceBrief}</span>
-              <span className="svt-stat-label">days since brief</span>
-            </div>
-          )}
-        </div>
-      )}
+      {error && <p className="sv-error">{error}</p>}
 
-      {error && <p className="panel-hint svt-error">{error}</p>}
-
-      {loading ? (
-        <p className="panel-hint">Loading…</p>
-      ) : rows.length === 0 ? (
-        <p className="panel-hint">No schools shortlisted for this family yet.</p>
-      ) : (
-        <div className="svt-table">
-          <div className="svt-head-row" style={{ gridTemplateColumns: svtColumns(children.length) }}>
-            <span>School</span>
-            {children.map((c, i) => (
-              <span key={c.id}>{displayNameForChild(c, i)}{c.year_group_applying_for ? ` · ${c.year_group_applying_for}` : ""}</span>
-            ))}
-            <span>Primary tour</span>
-            <span>Secondary tour</span>
-            <span>Feedback</span>
-            <span>Proceed?</span>
-            <span />
-          </div>
-
-          {sortedRows.map((row) => {
-            const expanded = expandedId === row.id;
-            const rowChildStatuses = childStatus.filter((cs) => cs.shortlist_id === row.id);
-            const applicationsForSchool = allApplications.filter((a) => a.school_id === row.school_id);
-            const draft = tourDraftById[row.id];
-            const feedbackRows = otherFeedback[row.school_id] || [];
-            const process = admissionsProcessText(row.school || {});
-            const declined = row.family_decision === "declined";
-            const closed = isRowClosed(row);
-            const kidsPlacedHere = placedHere(placed, children, row.school_id, row.school?.name);
-            if (closed) {
-              return (
-                <ClosedRow
-                  key={row.id}
-                  reason={closedReason(row)}
-                  apps={allApplications}
-                  row={row}
-                  children={children}
-                  placed={placed}
-                  expanded={expanded}
-                  onToggle={() => setExpandedId(expanded ? null : row.id)}
-                  onKeepOpen={() => setRowKeepOpen(row, true)}
-                  contacts={contactsBySchool[row.school_id]}
-                  note={notesById[row.id] || ""}
-                />
-              );
-            }
-            // Founder feedback (Sept 2026): "seperate columsn for primary
-            // tour and secondary tour... and then last column can just be
-            // proceed to application or not proceed" -- Proceed used to be
-            // gated on the primary tour alone; now either slot completing
-            // is enough to surface the decision, since some schools only
-            // ever run their "real" tour as the secondary/assessment visit.
-            // 21 Sept 2026 (Heather): a visit is NOT a required step before
-            // applying, so Proceed / Decline below no longer waits for a
-            // tour to be completed -- the gate this used to feed is gone.
-
-            return (
-              <div
-                key={row.id}
-                className={"svt-row-wrap" + (declined ? " is-declined" : "") + (kidsPlacedHere.length ? " is-placed" : "")}
-              >
-                <div
-                  className="svt-row"
-                  style={{ gridTemplateColumns: svtColumns(children.length) }}
-                  onClick={() => setExpandedId(expanded ? null : row.id)}
-                >
-                  <div className="svt-cell svt-cell-school">
-                    <div className="svt-school-name">{row.school?.name || "Unknown school"}</div>
-                    {row.school?.area && <div className="svt-school-area">{row.school.area}</div>}
-                    {kidsPlacedHere.length > 0 && (
-                      <div className="svt-placed-tag">
-                        🎓 Placed:{" "}
-                        {kidsPlacedHere.map((c) => displayNameForChild(c, children.indexOf(c))).join(", ")}
-                      </div>
-                    )}
-                    <div className="svt-priority-toggle" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        className={"svt-priority-btn" + (row.priority === "primary" ? " is-primary" : "")}
-                        onClick={() => handleSetPriority(row, row.priority === "primary" ? "" : "primary")}
-                        disabled={busy}
-                        title="Primary choice"
-                      >
-                        ★ Primary
-                      </button>
-                      <button
-                        type="button"
-                        className={"svt-priority-btn" + (row.priority === "secondary" ? " is-secondary" : "")}
-                        onClick={() => handleSetPriority(row, row.priority === "secondary" ? "" : "secondary")}
-                        disabled={busy}
-                        title="Backup option"
-                      >
-                        Backup
-                      </button>
-                    </div>
-                  </div>
-                  {children.map((c) => {
-                    const cs = rowChildStatuses.find((r) => r.child_id === c.id);
-                    const value = cs?.availability_status || "awaiting";
-                    const why = childClosedReason(placed, c.id, row.school_id, row.school?.name, allApplications, row.keep_open);
-                    if (placed[c.id] || why) {
-                      const here = placed[c.id] && !why;
-                      return (
-                        <div className="svt-cell" key={c.id}>
-                          <span
-                            className={"svt-child-placed" + (here ? " is-here" : " is-elsewhere")}
-                            title={why === "placed" ? `Placed at ${placed[c.id].schoolName}` : undefined}
-                          >
-                            {here ? "Placed ✓" : why === "placed" ? "Placed elsewhere" : why === "declined" ? "Declined" : why === "dropped" ? "Not carried over" : "Withdrawn"}
-                          </span>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div className="svt-cell" key={c.id}>
-                        {/* Founder feedback (Sept 2026): "instead of having
-                            [to open] the box and then select options there"
-                            -- this used to be a read-only chip; changing it
-                            meant expanding the row and finding the same
-                            field again in the Availability section below.
-                            Same select, same handler, just reachable
-                            directly from the column the reference mockup
-                            already puts it in. */}
-                        <select
-                          className={"svt-chip-select " + chipClass(value)}
-                          value={value}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => handleChildStatusChange(row, c.id, e.target.value)}
-                          disabled={busy}
-                        >
-                          {AVAILABILITY_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {CHIP_LABEL[o.value] || o.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    );
-                  })}
-
-                  {/* Primary tour column. Founder feedback (Sept 2026):
-                      "seperate columsn for primary tour and secondary
-                      tour" -- both used to be edited together inside the
-                      expanded "On the day" panel; now each has its own
-                      always-visible column, editable in place without
-                      opening the row at all. Editing either slot opens the
-                      same shared draft (tourDraftById), so Save writes
-                      both tours (and feedback) together, same as before. */}
-                  <div className="svt-cell svt-cell-tour" onClick={(e) => e.stopPropagation()}>
-                    {draft && draft.editSection === "primary" ? (
-                      <div className="svt-col-tour-edit">
-                        <label className="svt-col-field">
-                          <span>Date</span>
-                          <input
-                            type="date"
-                            className="panel-input"
-                            value={draft.tour_date}
-                            onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_date: e.target.value } }))}
-                          />
-                        </label>
-                        <label className="svt-col-field">
-                          <span>Status</span>
-                          <select
-                            className="panel-select"
-                            value={draft.tour_status}
-                            onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_status: e.target.value } }))}
-                          >
-                            {TOUR_STATUS_OPTIONS.map((s) => (
-                              <option key={s} value={s}>
-                                {TOUR_STATUS_LABEL[s]}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        {draft.tour_status === "cancelled" && (
-                          // Founder feedback (Sept 2026, Heather via
-                          // WhatsApp): "I also need to cancel the Brighton
-                          // tour and record why on their profile" --
-                          // cancelling used to have nowhere to put a
-                          // reason; this only appears once Cancelled is
-                          // picked, and is saved right alongside it.
-                          <label className="svt-col-field">
-                            <span>Reason for cancelling</span>
-                            <input
-                              type="text"
-                              className="panel-input"
-                              placeholder="Why was it cancelled?"
-                              value={draft.tour_cancelled_reason}
-                              onChange={(e) =>
-                                setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_cancelled_reason: e.target.value } }))
-                              }
-                            />
-                          </label>
-                        )}
-                        <div className="svt-col-field-row">
-                          <label className="svt-col-field">
-                            <span>Start</span>
-                            <input
-                              type="time"
-                              className="panel-input"
-                              value={draft.tour_start_time}
-                              onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_start_time: e.target.value } }))}
-                            />
-                          </label>
-                          <label className="svt-col-field">
-                            <span>End</span>
-                            <input
-                              type="time"
-                              className="panel-input"
-                              value={draft.tour_end_time}
-                              onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour_end_time: e.target.value } }))}
-                            />
-                          </label>
-                        </div>
-                        <div className="svt-col-actions">
-                          <button type="button" className="panel-btn panel-btn-primary svt-col-btn" onClick={() => saveTour(row)} disabled={busy}>
-                            Save
-                          </button>
-                          <button type="button" className="panel-btn panel-btn-quiet svt-col-btn" onClick={() => cancelTourEdit(row.id)} disabled={busy}>
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {row.tour_date ? (
-                          <span className="svt-tour-chip">
-                            <span className="svt-dot is-ok" />
-                            {formatDateTime(row.tour_date, row.tour_start_time)}
-                          </span>
-                        ) : (
-                          <span className="svt-muted">Not booked</span>
-                        )}
-                        {row.tour_status && (
-                          <span className={"svt-tour-status-badge is-" + row.tour_status}>{TOUR_STATUS_LABEL[row.tour_status]}</span>
-                        )}
-                        {row.tour_status === "cancelled" && row.tour_cancelled_reason && (
-                          <span className="svt-cancel-reason">"{row.tour_cancelled_reason}"</span>
-                        )}
-                        <button type="button" className="panel-btn panel-btn-quiet svt-col-edit-btn" onClick={() => startTourEdit(row, "primary")}>
-                          {row.tour_date ? "Edit" : "Book"}
-                        </button>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Secondary tour column -- same shared draft as the
-                      primary tour column above, just editing the tour2_*
-                      fields. */}
-                  <div className="svt-cell svt-cell-tour" onClick={(e) => e.stopPropagation()}>
-                    {draft && draft.editSection === "secondary" ? (
-                      <div className="svt-col-tour-edit">
-                        <label className="svt-col-field">
-                          <span>Date</span>
-                          <input
-                            type="date"
-                            className="panel-input"
-                            value={draft.tour2_date}
-                            onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_date: e.target.value } }))}
-                          />
-                        </label>
-                        <label className="svt-col-field">
-                          <span>Status</span>
-                          <select
-                            className="panel-select"
-                            value={draft.tour2_status}
-                            onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_status: e.target.value } }))}
-                          >
-                            {TOUR_STATUS_OPTIONS.map((s) => (
-                              <option key={s} value={s}>
-                                {TOUR_STATUS_LABEL[s]}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        {draft.tour2_status === "cancelled" && (
-                          <label className="svt-col-field">
-                            <span>Reason for cancelling</span>
-                            <input
-                              type="text"
-                              className="panel-input"
-                              placeholder="Why was it cancelled?"
-                              value={draft.tour2_cancelled_reason}
-                              onChange={(e) =>
-                                setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_cancelled_reason: e.target.value } }))
-                              }
-                            />
-                          </label>
-                        )}
-                        <div className="svt-col-field-row">
-                          <label className="svt-col-field">
-                            <span>Start</span>
-                            <input
-                              type="time"
-                              className="panel-input"
-                              value={draft.tour2_start_time}
-                              onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_start_time: e.target.value } }))}
-                            />
-                          </label>
-                          <label className="svt-col-field">
-                            <span>End</span>
-                            <input
-                              type="time"
-                              className="panel-input"
-                              value={draft.tour2_end_time}
-                              onChange={(e) => setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], tour2_end_time: e.target.value } }))}
-                            />
-                          </label>
-                        </div>
-                        <div className="svt-col-actions">
-                          <button type="button" className="panel-btn panel-btn-primary svt-col-btn" onClick={() => saveTour(row)} disabled={busy}>
-                            Save
-                          </button>
-                          <button type="button" className="panel-btn panel-btn-quiet svt-col-btn" onClick={() => cancelTourEdit(row.id)} disabled={busy}>
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {row.tour2_date ? (
-                          <span className="svt-tour-chip">
-                            <span className="svt-dot is-ok" />
-                            {formatDateTime(row.tour2_date, row.tour2_start_time)}
-                          </span>
-                        ) : (
-                          <span className="svt-muted">Not booked</span>
-                        )}
-                        {row.tour2_status && (
-                          <span className={"svt-tour-status-badge is-" + row.tour2_status}>{TOUR_STATUS_LABEL[row.tour2_status]}</span>
-                        )}
-                        {row.tour2_status === "cancelled" && row.tour2_cancelled_reason && (
-                          <span className="svt-cancel-reason">"{row.tour2_cancelled_reason}"</span>
-                        )}
-                        <button type="button" className="panel-btn panel-btn-quiet svt-col-edit-btn" onClick={() => startTourEdit(row, "secondary")}>
-                          {row.tour2_date ? "Edit" : "Add"}
-                        </button>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Feedback column -- typing here creates the same
-                      shared draft as the tour columns (unchanged behaviour
-                      from the old "Feedback & notes" box), it just lives
-                      in the table now instead of the expanded panel. */}
-                  <div className="svt-cell svt-cell-feedback" onClick={(e) => e.stopPropagation()}>
-                    <textarea
-                      className="svt-col-feedback-input"
-                      rows={2}
-                      placeholder="How did it go?"
-                      value={draft ? draft.feedback_text : row.feedback_text || ""}
-                      onChange={(e) => {
-                        if (draft) {
-                          setTourDraftById((d) => ({ ...d, [row.id]: { ...d[row.id], feedback_text: e.target.value } }));
-                        } else {
-                          startTourEdit(row, null);
-                          setTourDraftById((d) => ({
-                            ...d,
-                            [row.id]: { ...d[row.id], tour_date: row.tour_date || "", feedback_text: e.target.value },
-                          }));
-                        }
-                      }}
-                    />
-                    <div className="svt-col-actions">
-                      {draft && (
-                        <button type="button" className="panel-btn panel-btn-primary svt-col-btn" onClick={() => saveTour(row)} disabled={busy}>
-                          Save
-                        </button>
-                      )}
-                      {savedNoteId === row.id && <span className="svt-saved-note">Saved</span>}
-                    </div>
-                  </div>
-
-                  {/* Proceed column -- founder feedback (Sept 2026):
-                      "we can just do with a green tick or cross option" --
-                      replaced the two text buttons with a tick/cross pair;
-                      same handleReadyToApply/handleDeclineFamily/
-                      handleUndoDecision logic underneath, gated on either
-                      tour now being completed rather than just the
-                      primary one. */}
-                  <div className="svt-cell svt-cell-proceed" onClick={(e) => e.stopPropagation()}>
-                    {declined ? (
-                      <div className="svt-proceed-declined">
-                        <span className="svt-decision-icon is-no" title="Not proceeding">
-                          ✕
-                        </span>
-                        <span className="svt-family-declined-text">
-                          {row.family_decision_note ? `"${row.family_decision_note}"` : "Not proceeding"}
-                        </span>
-                        <button type="button" className="panel-btn panel-btn-quiet svt-col-btn" onClick={() => handleUndoDecision(row)} disabled={busy}>
-                          Undo
-                        </button>
-                      </div>
-                    ) : row.family_decision === "proceeding" ? (
-                      <div className="svt-proceed-actions">
-                        <span className="svt-decision-icon is-yes" title="Proceeding">
-                          ✓
-                        </span>
-                        <button
-                          type="button"
-                          className="panel-btn panel-btn-quiet svt-col-edit-btn"
-                          onClick={() => handleReadyToApply(row)}
-                          disabled={busy}
-                        >
-                          View application →
-                        </button>
-                      </div>
-                    ) : decliningId === row.id ? (
-                      <div className="svt-decline-form">
-                        <input
-                          type="text"
-                          className="panel-input svt-decline-input"
-                          placeholder="Reason (optional)"
-                          value={declineNote}
-                          onChange={(e) => setDeclineNote(e.target.value)}
-                        />
-                        <div className="svt-col-actions">
-                          <button type="button" className="panel-btn panel-btn-quiet svt-col-btn" onClick={() => handleDeclineFamily(row)} disabled={busy}>
-                            Confirm
-                          </button>
-                          <button
-                            type="button"
-                            className="panel-btn panel-btn-quiet svt-col-btn"
-                            onClick={() => {
-                              setDecliningId(null);
-                              setDeclineNote("");
-                            }}
-                            disabled={busy}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="svt-decision-toggle">
-                        {/* Founder feedback (Sept 2026, Heather via
-                            WhatsApp): "I cant see how to proceed from
-                            visit to application" -- the tick/cross were
-                            icon-only, with just a hover title for context,
-                            so the actual click target wasn't obvious at a
-                            glance. Same buttons, now labelled. */}
-                        <button
-                          type="button"
-                          className="svt-decision-btn is-yes"
-                          onClick={() => handleReadyToApply(row)}
-                          disabled={busy}
-                          title="Proceed to application"
-                        >
-                          <span className="svt-decision-icon-inline">✓</span>
-                          <span className="svt-decision-btn-label">Proceed</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="svt-decision-btn is-no"
-                          onClick={() => {
-                            setDecliningId(row.id);
-                            setDeclineNote("");
-                          }}
-                          disabled={busy}
-                          title="Not proceeding"
-                        >
-                          <span className="svt-decision-icon-inline">✕</span>
-                          <span className="svt-decision-btn-label">Decline</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="svt-cell svt-cell-caret">
-                    {/* Founder feedback (Sept 2026): a note left in
-                        Admissions used to be invisible until the row was
-                        opened -- this small dot shows on the collapsed bar
-                        whenever there's a note inside, so consultants know
-                        to check without opening every row. */}
-                    {(notesById[row.id] || "").trim() && (
-                      <span className="svt-note-flag" title="Has a note">📝</span>
-                    )}
-                    <span className={"svt-caret" + (expanded ? " is-open" : "")}>▾</span>
-                  </div>
-                </div>
-
-                {expanded && (
-                  <div className="svt-detail">
-                    <UpdateFamilyButton
-                      familyId={familyId}
-                      schoolId={row.school_id}
-                      suggested={
-                        row.tour_status === "completed" || row.tour2_status === "completed" ? "toured" : "shortlisted"
-                      }
-                    />
-                    <TourDetailsEditor
-                      row={row}
-                      onUpdated={(updated) => setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, ...updated, school: r.school } : r)))}
-                    />
-                    {/* Founder feedback (Sept 2026): "when they click on
-                        the dropdown, it should only show the details
-                        under admissions" -- the tour form, feedback box
-                        and proceed/decline controls that used to live in
-                        a second "On the day" column here have all moved
-                        up into the always-visible table columns above, so
-                        this is Admissions and only Admissions now. */}
-                    <div className="svt-detail-single">
-                      <div className="svt-detail-main">
-                      <h3 className="svt-detail-heading">Admissions</h3>
-                      <dl className="svt-kv">
-                        <SchoolContactsInline school={row.school} contacts={contactsBySchool[row.school_id]} />
-                        {row.school?.address && (
-                          <>
-                            <dt>Address</dt>
-                            <dd>{row.school.address}</dd>
-                          </>
-                        )}
-                      </dl>
-
-                      <div className="svt-btn-row">
-                        {row.school?.website_url && (
-                          <a className="panel-btn" href={row.school.website_url} target="_blank" rel="noreferrer">
-                            Website
-                          </a>
-                        )}
-                        {row.school?.tour_booking_url && (
-                          <a className="panel-btn" href={row.school.tour_booking_url} target="_blank" rel="noreferrer">
-                            Book a tour
-                          </a>
-                        )}
-                        {row.school?.application_url && (
-                          <a className="panel-btn" href={row.school.application_url} target="_blank" rel="noreferrer">
-                            Apply
-                          </a>
-                        )}
-                        <Link className="panel-btn" to={`/staff/schools/${row.school_id}`}>
-                          Full school record
-                        </Link>
-                      </div>
-
-                      {process && (
-                        <>
-                          <h4 className="svt-sub-heading">Admissions process</h4>
-                          <p className="svt-process-text">{process}</p>
-                        </>
-                      )}
-
-                      {feedbackRows.length > 0 && (
-                        <>
-                          <h4 className="svt-sub-heading">Other families on this school</h4>
-                          <div className="svt-other-feedback">
-                            {feedbackRows.slice(0, 3).map((f) => (
-                              <blockquote key={f.id} className="svt-other-feedback-item">
-                                <p>{f.feedback_text}</p>
-                                <cite>
-                                  {f.familyName}
-                                  {f.feedback_at ? `, ${formatDate(f.feedback_at)}` : ""}
-                                </cite>
-                              </blockquote>
-                            ))}
-                          </div>
-                        </>
-                      )}
-
-                      {/* Founder feedback (Sept 2026, Heather via
-                          WhatsApp): "even tho she says she wants it
-                          removed from shortlist, it shouldnt entirely go
-                          from that list once added, it could grey out and
-                          fall at the bottom of the list. she should be
-                          able to add reason as to why the family wanted
-                          it removed." -- "Remove from shortlist" used to
-                          mean a real, permanent delete every time it was
-                          reached for, even for an ordinary "this school
-                          doesn't work for the family" case (like a school
-                          that can't take all the children). This is now
-                          the same soft Decline used by the Proceed
-                          column -- greyed out, sorted last, with a reason
-                          -- and doesn't require a tour to have happened
-                          first, since a school can turn out unsuitable at
-                          any stage. A genuine mistaken add can still be
-                          deleted outright, tucked under its own explicit
-                          second step so it's not the default reach. */}
-                      {!declined &&
-                        (decliningId === row.id ? (
-                          <div className="svt-remove-confirm" onClick={(e) => e.stopPropagation()}>
-                            <p className="svt-remove-confirm-text">
-                              Mark {row.school?.name || "this school"} as not being pursued. It stays on the list,
-                              greyed out at the bottom, so there's still a record.
-                            </p>
-                            <input
-                              type="text"
-                              className="panel-input svt-decline-input"
-                              placeholder="Reason (e.g. couldn't accommodate all children)"
-                              value={declineNote}
-                              onChange={(e) => setDeclineNote(e.target.value)}
-                            />
-                            <div className="svt-col-actions">
-                              <button
-                                type="button"
-                                className="panel-btn panel-btn-primary svt-col-btn"
-                                onClick={() => handleDeclineFamily(row)}
-                                disabled={busy}
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                type="button"
-                                className="panel-btn panel-btn-quiet svt-col-btn"
-                                onClick={() => {
-                                  setDecliningId(null);
-                                  setDeclineNote("");
-                                }}
-                                disabled={busy}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className="panel-btn svt-remove svt-withdraw-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDecliningId(row.id);
-                              setDeclineNote("");
-                            }}
-                            disabled={busy}
-                          >
-                            Withdraw this school
-                          </button>
-                        ))}
-                      <div className="svt-danger-row">
-                        <button type="button" className="panel-btn svt-delete-btn" onClick={(e) => { e.stopPropagation(); setRemovingId(row.id); }} disabled={busy}>
-                          Delete school
-                        </button>
-                        <span className="svt-danger-hint">Wrong school added? Delete it. Family decided against it? Withdraw it.</span>
-                      </div>
-
-                      </div>
-                      <ShortlistNotes
-                        shortlistId={row.id}
-                        initial={notesById[row.id] || ""}
-                        onSaved={(id, body) => setNotesById((m) => ({ ...m, [id]: body }))}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {addableSchools.length > 0 && (
-        <form className="panel-form" onSubmit={handleAdd}>
-          <select
-            className="panel-select panel-form-grow"
-            value={addingSchoolId}
-            onChange={(e) => setAddingSchoolId(e.target.value)}
-            disabled={busy}
-          >
-            <option value="">Add a school to the shortlist…</option>
-            {addableSchools.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-                {s.area ? `, ${s.area}` : ""}
-              </option>
-            ))}
-          </select>
-          <button type="submit" className="panel-btn panel-btn-primary" disabled={busy || !addingSchoolId}>
-            Add
+      <div className="sv-vrow">
+        <div className="sv-tabs" role="tablist">
+          <button type="button" role="tab" aria-selected={activeTab === "overview"} className={activeTab === "overview" ? "is-on" : ""} onClick={() => { setTab("overview"); setAsk(null); }}>
+            Overview
           </button>
-        </form>
-      )}
-
-      {tours.length > 0 && (
-        <div className="svt-schedule">
-          <h3 className="svt-sub-heading">Tour schedule</h3>
-          <ul className="svt-schedule-list">
-            {[...tours]
-              .sort((a, b) => (a.date + (a.start || "")).localeCompare(b.date + (b.start || "")))
-              .map((t) => (
-                <li key={t.id} className="svt-schedule-row">
-                  <span className="svt-schedule-when">{formatTourDate(t.date, t.start)}</span>
-                  <span className="svt-schedule-school">{t.school?.name}</span>
-                  <span className="svt-tour-chip-inline">{t.kind}</span>
-                  {t.status && <span className="svt-tour-chip-inline">{TOUR_STATUS_LABEL[t.status]}</span>}
-                </li>
-              ))}
-          </ul>
-        </div>
-      )}
-
-      {removingId && (() => {
-        const target = rows.find((r) => r.id === removingId);
-        if (!target) return null;
-        return (
-          <div className="svt-modal-back" onClick={() => !busy && setRemovingId(null)}>
-            <div className="svt-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-              <h3>Delete {target.school?.name || "this school"}?</h3>
-              <p>
-                This removes the school from this family's list completely, with its tour dates, feedback and notes.
-                It cannot be undone.
-              </p>
-              <p className="svt-modal-tip">If the family simply decided against it, use Withdraw instead. It greys out and keeps a record.</p>
-              <div className="svt-modal-actions">
-                <button type="button" className="panel-btn" onClick={() => setRemovingId(null)} disabled={busy}>
-                  Cancel
-                </button>
-                <button type="button" className="panel-btn svt-delete-btn is-solid" onClick={() => handleRemove(target)} disabled={busy}>
-                  {busy ? "Deleting…" : "Yes, delete"}
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-    </section>
-  );
-}
-
-function svtColumns(childCount) {
-  // School | one column per child | Primary tour | Secondary tour |
-  // Feedback | Proceed? | caret -- widened from the old Tour/"Where
-  // it is up to" pair per founder feedback (Sept 2026) asking for the
-  // tour slots, feedback and proceed decision to each get their own
-  // always-visible column instead of being buried in the expanded row.
-  return `minmax(150px,2fr) repeat(${childCount || 0}, minmax(80px,1fr)) minmax(150px,1.3fr) minmax(150px,1.3fr) minmax(160px,1.4fr) minmax(150px,1.3fr) 24px`;
-}
-
-// Every current contact at the school, each with their job title
-// (addendum 80). Falls back to the single contact on the school row if the
-// contacts list isn't set up yet.
-function SchoolContactsInline({ school, contacts }) {
-  const list =
-    contacts && contacts.length
-      ? contacts
-      : school?.admissions_contact_name || school?.admissions_contact_email || school?.admissions_contact_phone
-      ? [
-          {
-            id: "legacy",
-            full_name: school.admissions_contact_name,
-            email: school.admissions_contact_email,
-            phone: school.admissions_contact_phone,
-          },
-        ]
-      : [];
-  if (!list.length) return null;
-  return (
-    <>
-      <dt>{list.length === 1 ? "Contact" : "Contacts"}</dt>
-      <dd>
-        <ul className="svt-contacts">
-          {list.map((c) => (
-            <li key={c.id}>
-              <span className="svt-contact-name">
-                {c.full_name || (c.id === "legacy" ? "Admissions" : "No name")}
-                {c.job_title && <span className="svt-contact-title"> · {c.job_title}</span>}
-                {c.is_main && contacts?.length > 1 && <span className="svt-contact-main">Main</span>}
-              </span>
-              <span className="svt-contact-lines">
-                {c.email && (
-                  <a href={`mailto:${c.email}`} title="Opens in Titan">
-                    {c.email}
-                  </a>
-                )}
-                {c.phone && <span>{c.phone}</span>}
-              </span>
-            </li>
+          {children.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === c.id}
+              className={activeTab === c.id ? "is-on" : ""}
+              onClick={() => { setTab(c.id); setAsk(null); }}
+            >
+              {childName(c)}
+              <span className="sv-n">{liveRows.length}</span>
+            </button>
           ))}
-        </ul>
-      </dd>
-    </>
-  );
-}
-
-// A school that's closed because every child is placed somewhere else:
-// dark grey, at the bottom, view-only (founders, 25 Sept 2026). Opens to
-// show what was recorded, nothing can be changed from here.
-function ClosedRow({ row, children, placed, apps, reason, expanded, onToggle, onKeepOpen, contacts, note }) {
-  const tourLine = (date, time, status) =>
-    date ? `${formatDateTime(date, time)}${status ? ` · ${TOUR_STATUS_LABEL[status]}` : ""}` : "Not booked";
-  return (
-    <div className="svt-row-wrap is-closed">
-      <div className="svt-row" style={{ gridTemplateColumns: svtColumns(children.length) }} onClick={onToggle}>
-        <div className="svt-cell svt-cell-school">
-          <div className="svt-school-name">{row.school?.name || "Unknown school"}</div>
-          <div className="svt-closed-tag">Closed · {CLOSED_TEXT[reason] || "closed"}</div>
         </div>
-        {children.map((c) => {
-          const why = childClosedReason(placed, c.id, row.school_id, row.school?.name, apps, row.keep_open);
-          return (
-            <div className="svt-cell" key={c.id}>
-              <span className="svt-child-placed is-elsewhere" title={why === "placed" ? `Placed at ${placed[c.id]?.schoolName}` : undefined}>
-                {why === "placed" ? "Placed elsewhere" : why === "declined" ? "Declined" : why === "dropped" ? "Not carried over" : "Withdrawn"}
-              </span>
-            </div>
-          );
-        })}
-        <div className="svt-cell svt-closed-text">{tourLine(row.tour_date, row.tour_start_time, row.tour_status)}</div>
-        <div className="svt-cell svt-closed-text">{tourLine(row.tour2_date, row.tour2_start_time, row.tour2_status)}</div>
-        <div className="svt-cell svt-closed-text">{row.feedback_text || "No feedback"}</div>
-        <div className="svt-cell svt-closed-text">
-          {row.family_decision === "proceeding" ? "Applied" : row.family_decision === "declined" ? "Not proceeding" : "—"}
-        </div>
-        <div className="svt-cell svt-cell-caret">
-          <span className={"svt-caret" + (expanded ? " is-open" : "")}>▾</span>
-        </div>
+        <button type="button" className="sv-btn is-primary" style={{ marginBottom: 8 }} onClick={() => setShowAdd(true)}>
+          + Shortlist a school
+        </button>
       </div>
-      {expanded && (
-        <>
-        <div className="svt-closed-note-wrap">
-          <p className="svt-closed-note">
-            View only. This school is closed because {CLOSED_TEXT[reason] || "no child is going ahead here"}. If that
-            changes on the Applications tab, it opens again by itself.
-            {reason === "placed" && (
-              <>
-                {" "}
-                Applying here as well?{" "}
-                <button type="button" className="apx-link" onClick={onKeepOpen}>
-                  Keep this school open too
-                </button>
-              </>
+
+      {loading ? <p className="sv-hint">Loading…</p> : activeChild ? renderChild(activeChild) : renderOverview()}
+
+      {showAdd && (
+        <div className="sv-modal-back" onClick={() => !busy && setShowAdd(false)}>
+          <form className="sv-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} onSubmit={handleAdd}>
+            <h3>Shortlist a school</h3>
+            {addableSchools.length === 0 ? (
+              <p className="sv-hint" style={{ margin: 0 }}>Every school in the list is already on this family's shortlist.</p>
+            ) : (
+              <label className="sv-fld">
+                School
+                <select value={addingSchoolId} onChange={(e) => setAddingSchoolId(e.target.value)} disabled={busy} autoFocus>
+                  <option value="">Choose a school…</option>
+                  {addableSchools.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                      {s.area ? `, ${s.area}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
             )}
-          </p>
-        </div>
-        <fieldset className="svt-detail svt-closed-detail" disabled>
-          <TourDetailsEditor row={row} onUpdated={() => {}} readOnly />
-          <div className="svt-detail-single">
-            <div className="svt-detail-main">
-              <h3 className="svt-detail-heading">Admissions</h3>
-              <dl className="svt-kv">
-                <SchoolContactsInline school={row.school} contacts={contacts} />
-              </dl>
-              <Link className="panel-btn" to={`/staff/schools/${row.school_id}`}>
-                Full school record
-              </Link>
+            <div className="sv-modal-actions">
+              <button type="button" className="sv-btn is-sm is-quiet" onClick={() => setShowAdd(false)} disabled={busy}>
+                Cancel
+              </button>
+              <button type="submit" className="sv-btn is-primary is-sm" disabled={busy || !addingSchoolId}>
+                Add to shortlist
+              </button>
             </div>
-            {note.trim() && (
-              <div className="svt-notes">
-                <h3 className="svt-detail-heading">Notes</h3>
-                <p className="svt-closed-notes-text">{note}</p>
-              </div>
-            )}
-          </div>
-        </fieldset>
-        </>
+          </form>
+        </div>
       )}
-    </div>
+    </section>
   );
 }

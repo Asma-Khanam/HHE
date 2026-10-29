@@ -8,8 +8,6 @@ import ApplicationEmailPanel from "../components/ApplicationEmailPanel";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import ApplicationsPanel from "../components/ApplicationsPanel";
 import SchoolShortlistPanel from "../components/SchoolShortlistPanel";
-import FamilyBlockedTimes from "../components/FamilyBlockedTimes";
-import TourSlotReview from "../components/TourSlotReview";
 import SchoolEnquiryDrafts from "../components/SchoolEnquiryDrafts";
 import TasksPanel from "../components/TasksPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
@@ -1028,27 +1026,6 @@ export default function FamilyDetailPage() {
 
       {activeTab === "visits" && (
         <div className="family-detail-stack">
-          <FamilyBlockedTimes
-            familyId={family.id}
-            family={family}
-            familyName={displayName}
-            familyChildren={children}
-            parents={parents || []}
-            composerCtx={visitComposerCtx}
-            onFamilyChanged={refreshFamily}
-            from={family.dubai_available_from}
-            to={family.dubai_available_until}
-            blocked={blockedTimes}
-            onChange={async () => setBlockedTimes(await listBlockedTimes(family.id))}
-          />
-          <TourSlotReview
-            familyId={family.id}
-            familyChildren={children}
-            blocked={blockedTimes}
-            hasVisitDates={!!(family.dubai_available_from && family.dubai_available_until)}
-            refreshKey={reviewKey}
-            onChanged={refreshStages}
-          />
           <SchoolShortlistPanel
             familyId={family.id}
             familyChildren={children}
@@ -1060,6 +1037,15 @@ export default function FamilyDetailPage() {
               setReviewKey((k) => k + 1);
             }}
             focusSchoolId={focusSchoolId}
+            visit={{
+              family,
+              familyName: displayName,
+              parents: parents || [],
+              composerCtx: visitComposerCtx,
+              blocked: blockedTimes,
+              onBlockedChange: async () => setBlockedTimes(await listBlockedTimes(family.id)),
+              onFamilyChanged: refreshFamily,
+            }}
           />
         </div>
       )}
