@@ -3,16 +3,18 @@
    Brand tokens from styles/tokens.css. */
 
 .sv {
-  /* Brand palette only (styles/tokens.css): burgundy, gold, cream, ink. */
-  --sv-line: rgba(83, 1, 38, 0.12);
-  --sv-line2: rgba(83, 1, 38, 0.07);
-  --sv-surface2: var(--hh-cream);
-  --sv-tint: rgba(83, 1, 38, 0.045);
+  /* Same palette as the staff prototype: burgundy, cream, ink, one burnt-orange accent for 'needs attention'. */
+  /* Card colour = the family Overview's warm sand cards (OverviewPanel.css .ov-person). */
+  --sv-card: #faf3e3;
+  --sv-line: rgba(184, 154, 90, 0.45);
+  --sv-line2: rgba(184, 154, 90, 0.28);
+  --sv-surface2: rgba(184, 154, 90, 0.14);
+  --sv-tint: rgba(184, 154, 90, 0.14);
   --sv-field: rgba(83, 1, 38, 0.22);
   --sv-mute: rgba(42, 17, 25, 0.62);
   --sv-faint: rgba(42, 17, 25, 0.46);
-  --sv-amber: var(--hh-gold);
-  --sv-warn-text: #8a5200;
+  --sv-amber: #b45309;
+  --sv-warn-text: #b45309;
   --sv-green: var(--hh-good);
   display: flex;
   flex-direction: column;
@@ -56,7 +58,7 @@
 .sv-n { font-size: 13px; font-weight: 500; color: var(--sv-mute); background: var(--sv-surface2); border-radius: 999px; padding: 1px 9px; }
 
 /* ---------- cards ---------- */
-.sv-card { background: var(--hh-white); border: 1px solid var(--sv-line); border-radius: 14px; box-shadow: var(--hh-shadow); }
+.sv-card { background: var(--sv-card, #faf3e3); border: 1px solid var(--sv-line); border-radius: 14px; box-shadow: var(--hh-shadow); }
 .sv-card-pad { padding: 20px 24px; }
 .sv-card-title { font-size: 18px; font-weight: 600; color: var(--hh-ink); margin: 0; }
 .sv-sub { font-size: 13px; color: var(--sv-faint); }
@@ -132,7 +134,7 @@
 }
 .sv-itabs button.is-on { color: var(--hh-burgundy); border-bottom-color: var(--hh-burgundy); font-weight: 600; }
 .sv-cols2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
-.sv-blk { background: var(--hh-white); border: 1px solid var(--sv-line); border-radius: 12px; padding: 16px 18px; min-width: 0; }
+.sv-blk { background: var(--sv-card, #faf3e3); border: 1px solid var(--sv-line); border-radius: 12px; padding: 16px 18px; min-width: 0; }
 .sv-blk + .sv-blk { margin-top: 16px; }
 .sv-cols2 > .sv-blk + .sv-blk { margin-top: 0; }
 .sv-blk h3 {
@@ -149,10 +151,10 @@
 .sv-g2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .sv-g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .sv-stars { font-size: 22px; color: var(--sv-field); letter-spacing: 2px; }
-.sv-stars .is-on { color: var(--hh-gold); }
+.sv-stars .is-on { color: var(--sv-amber); }
 .sv-saved { font-size: 13px; color: var(--sv-faint); }
 .sv-saved.is-error { color: var(--hh-error); }
-.sv-quote { margin: 0 0 8px; padding: 8px 12px; border-left: 3px solid var(--hh-gold); background: var(--sv-surface2); border-radius: 0 8px 8px 0; font-size: 14px; }
+.sv-quote { margin: 0 0 8px; padding: 8px 12px; border-left: 3px solid var(--hh-burgundy); background: var(--sv-surface2); border-radius: 0 8px 8px 0; font-size: 14px; }
 .sv-quote p { margin: 0 0 2px; }
 .sv-quote cite { font-size: 12.5px; color: var(--sv-mute); font-style: normal; }
 .sv-kv { display: grid; grid-template-columns: 130px 1fr; gap: 8px 14px; margin: 0 0 12px; font-size: 14.5px; }
@@ -167,7 +169,7 @@
 .sv-actions .uf { margin: 0; }
 .sv-actions .uf-btn { min-height: 40px; font-size: 14.5px; padding: 0 18px; border-radius: 10px; }
 .sv-confirm {
-  display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: var(--hh-white);
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: var(--sv-card, #faf3e3);
   border: 1.5px solid var(--sv-amber); border-radius: 10px; padding: 10px 14px; margin-top: 12px; font-size: 14.5px;
 }
 .sv-confirm input { font: 15px var(--hh-font-body); padding: 8px 12px; border: 1.5px solid var(--sv-field); border-radius: 9px; min-width: 240px; flex: 1; }
@@ -193,11 +195,11 @@
   font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;
 }
 .sv-kid.is-b i { background: var(--sv-mute); }
-.sv-kid.is-c i { background: var(--hh-gold); }
+.sv-kid.is-c i { background: var(--hh-burgundy-light); }
 
 /* ---------- add-school popup ---------- */
 .sv-modal-back { position: fixed; inset: 0; background: rgba(20, 10, 16, 0.45); display: flex; align-items: center; justify-content: center; z-index: 60; padding: 16px; }
-.sv-modal { background: var(--hh-white); border-radius: 16px; padding: 24px 26px; width: min(520px, 100%); display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 60px rgba(83, 1, 38, 0.2); }
+.sv-modal { background: var(--sv-card, #faf3e3); border-radius: 16px; padding: 24px 26px; width: min(520px, 100%); display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 60px rgba(83, 1, 38, 0.2); }
 .sv-modal h3 { margin: 0; font-size: 20px; font-weight: 600; }
 .sv-modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
@@ -207,3 +209,10 @@
   .sv-open { padding: 18px 16px 18px 20px; }
   .sv-stats { gap: 16px 36px; }
 }
+
+.sv-btn.is-off { background: var(--sv-surface2); color: var(--sv-faint); border-color: var(--sv-surface2); cursor: not-allowed; }
+
+/* ---------- email automation: "New information" review ---------- */
+.sv-new { background: var(--sv-card, #faf3e3); border: 1.5px solid var(--sv-amber); border-radius: 12px; padding: 14px 18px; margin: 0 0 16px; }
+.sv-new-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.sv-new-list { margin: 6px 0 12px; padding-left: 20px; font-size: 14.5px; }
