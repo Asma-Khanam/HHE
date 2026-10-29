@@ -1,4 +1,5 @@
 import { getEmailInsight, insightEnabled } from "./_lib/emailInsight.js";
+import { readSchoolReply } from "./_lib/schoolReply.js";
 
 // Vercel serverless function — receives ImprovMX's webhook POST for mail
 // sent to *@applications.heatherharries.com and logs it against the right
@@ -342,6 +343,17 @@ export default async function handler(req, res) {
       } catch (e) {
         console.error("email insight failed", e?.message);
       }
+    }
+
+    // Email automation (addendum 144): read the school's reply for availability, tour
+    // times and assessment dates and park it as a suggestion on the right school's row.
+    // Best effort -- a consultant still confirms it, and logging never depends on it.
+    if (out.logged && out.note_id && out.family_id && !out.duplicate) {
+      await readSchoolReply({
+        familyId: out.family_id,
+        noteId: out.note_id,
+        email: { from: fromEmail, fromName: body.from?.name, subject: body.subject, text, html },
+      });
     }
 
     // The same email also addressed to other families: file it on each of them too.

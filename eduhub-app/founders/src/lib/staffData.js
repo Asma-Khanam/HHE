@@ -2977,3 +2977,30 @@ export async function markParentAvailabilityRequested(familyId) {
       .single()
   );
 }
+
+// Email automation (addendum 144): what Claude read out of a school's reply.
+// Only the ones still waiting for a consultant. If the addendum has not been
+// run yet the table is missing, so this quietly returns nothing.
+export async function listReplySuggestions(familyId) {
+  const { data, error } = await supabase
+    .from("school_reply_suggestions")
+    .select("*")
+    .eq("family_id", familyId)
+    .eq("status", "new")
+    .order("created_at");
+  return error ? [] : data || [];
+}
+
+export async function resolveReplySuggestion(id, status) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return unwrap(
+    await supabase
+      .from("school_reply_suggestions")
+      .update({ status, resolved_at: new Date().toISOString(), resolved_by: user?.id || null })
+      .eq("id", id)
+      .select()
+      .single()
+  );
+}
