@@ -805,6 +805,7 @@ export default function FamilyDetailPage() {
           familyChildren={children}
           applicationsByChild={applicationsByChild}
           onFamilyRefresh={refreshFamily}
+          tasks={tasks}
           onGoToVisits={() => setActiveTab("visits")}
           onGoToApplications={() => setActiveTab("applications")}
           onGoToMember={(key) => {

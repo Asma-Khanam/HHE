@@ -1,6 +1,7 @@
 import { displayNameForChild } from "../lib/completeness";
 import { packageLabel } from "../data/packages";
 import TourSchedulePanel from "./TourSchedulePanel";
+import NeedsAttentionPanel from "./NeedsAttentionPanel";
 import CopyButton from "./CopyButton";
 import ReferralsPanel from "./ReferralsPanel";
 import IntroductionsPanel from "./IntroductionsPanel";
@@ -87,6 +88,7 @@ export default function OverviewPanel({
   staff,
   schoolCatalog,
   currentSchools,
+  tasks,
 }) {
   const [mother, father] = namedParents;
   const parentSurnames = [surnameOf(mother?.full_name), surnameOf(father?.full_name)].filter(Boolean);
@@ -193,7 +195,10 @@ export default function OverviewPanel({
         </div>
       </section>
 
-      <TourSchedulePanel familyId={family.id} onGoToVisits={onGoToVisits} />
+      <div className="ov-twocol">
+        <TourSchedulePanel familyId={family.id} onGoToVisits={onGoToVisits} />
+        <NeedsAttentionPanel familyId={family.id} tasks={tasks} onGoToVisits={onGoToVisits} />
+      </div>
 
       <ApplicationProgressPanel
         familyId={family.id}

@@ -3,12 +3,7 @@ import { listShortlistForFamily, friendlyError } from "../lib/staffData";
 import "./panels.css";
 import "./OverviewPanel.css";
 
-const STATUS_LABEL = { offered: "Booked", confirmed: "Confirmed", completed: "Completed" };
-
-function fmtDate(iso) {
-  if (!iso) return "";
-  return new Date(iso + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
-}
+const STATUS_LABEL = { offered: "Offered by the school", confirmed: "Confirmed", completed: "Done" };
 
 function fmtTime(t) {
   return t ? String(t).slice(0, 5) : "";
@@ -53,6 +48,7 @@ export default function TourSchedulePanel({ familyId, onGoToVisits }) {
               start: r[p + "start_time"],
               end: r[p + "end_time"],
               status,
+              shared: r[p + "shared_at"],
               school: r.school?.name || "School",
               feedback: attach && !seenFeedback ? feedback : null,
             });
@@ -95,28 +91,41 @@ export default function TourSchedulePanel({ familyId, onGoToVisits }) {
       ) : tours.length === 0 ? (
         <p className="panel-hint">No tours booked yet.</p>
       ) : (
-        <ul className="ov-tours">
-          {tours.map((t) => (
-            <li key={t.key} className={"ov-tour" + (t.date < today || t.status === "completed" ? " is-past" : "")}>
-              <span className="ov-tour-date">{fmtDate(t.date)}</span>
-              <span className="ov-tour-time">{fmtTime(t.start)}{t.end ? `–${fmtTime(t.end)}` : ""}</span>
-              <span className="ov-tour-school">{t.school}</span>
-              {t.status && <span className="ov-pill">{STATUS_LABEL[t.status] || t.status}</span>}
-              {t.feedback && (
-                <span className="ov-tour-feedback" title={t.feedback.by === "family" ? "From the family" : "Noted by us"}>
-                  {t.feedback.rating > 0 && (
-                    <span className="ov-tour-stars" aria-label={`${t.feedback.rating} out of 5`}>
-                      {"★".repeat(t.feedback.rating)}
-                      {"☆".repeat(5 - t.feedback.rating)}
-                    </span>
+        <div className="ov-t2-list">
+          {tours.map((t) => {
+            const d = new Date(t.date + "T00:00:00");
+            const past = t.date < today || t.status === "completed";
+            return (
+              <div key={t.key} className={"ov-t2" + (past ? " is-past" : "")}>
+                <div className="ov-t2-dt">
+                  <b>{d.getDate()}</b>
+                  {d.toLocaleDateString(undefined, { month: "short", weekday: "short" })}
+                </div>
+                <div className="ov-t2-body">
+                  <div className="ov-t2-school">{t.school}</div>
+                  <div className="ov-t2-sub">
+                    {t.start ? fmtTime(t.start) : "Time to be set"}
+                    {t.end ? `–${fmtTime(t.end)}` : ""} ·{" "}
+                    <span className={t.status === "confirmed" ? "ov-t2-ok" : ""}>{STATUS_LABEL[t.status] || t.status}</span>
+                    {t.status === "confirmed" && t.shared ? " · on the parent's app" : ""}
+                    {t.status === "confirmed" && t.shared === null ? " · not sent to the parent yet" : ""}
+                  </div>
+                  {t.feedback && (
+                    <div className="ov-t2-fb" title={t.feedback.by === "family" ? "From the family" : "Noted by us"}>
+                      {t.feedback.rating > 0 && (
+                        <span className="ov-tour-stars" aria-label={`${t.feedback.rating} out of 5`}>
+                          {"★".repeat(t.feedback.rating)}
+                          {"☆".repeat(5 - t.feedback.rating)}
+                        </span>
+                      )}{" "}
+                      {t.feedback.text} <em>({t.feedback.by === "family" ? "from the family" : "noted by us"})</em>
+                    </div>
                   )}
-                  {t.feedback.text && <span className="ov-tour-note">{t.feedback.text}</span>}
-                  <span className="ov-tour-fby">{t.feedback.by === "family" ? "from the family" : "noted by us"}</span>
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </section>
   );

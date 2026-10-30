@@ -3017,18 +3017,24 @@ export async function resolveReplySuggestion(id, status) {
 // the shortlists and one for the school replies still waiting to be checked. Best effort --
 // if either fails (or addendum 144 has not been run) the flags are simply fewer.
 export async function listFamilyActionRows(familyId) {
-  let shortlistQ = supabase
-    .from("school_shortlist")
-    .select(
-      "id, family_id, family_decision, enquiry_sent_at, enquiry_skipped_at, availability_status, tour_date, tour_status, tour2_date, tour2_status, feedback_text, school:schools(name)"
-    );
+  const base =
+    "id, family_id, family_decision, enquiry_sent_at, enquiry_skipped_at, availability_status, tour_date, tour_status, tour2_date, tour2_status, feedback_text, school:schools(name)";
+  const shortlistQuery = (cols) => {
+    let q = supabase.from("school_shortlist").select(cols);
+    if (familyId) q = q.eq("family_id", familyId);
+    return q;
+  };
   let suggQ = supabase.from("school_reply_suggestions").select("id, family_id, shortlist_id").eq("status", "new");
-  if (familyId) {
-    shortlistQ = shortlistQ.eq("family_id", familyId);
-    suggQ = suggQ.eq("family_id", familyId);
-  }
+  if (familyId) suggQ = suggQ.eq("family_id", familyId);
+  // Addendum 145 adds tour_shared_at / tour2_shared_at; older databases fall back without them.
+  const shortlistRows = async () => {
+    const withShared = await shortlistQuery(base + ", tour_shared_at, tour2_shared_at");
+    if (!withShared.error) return withShared.data || [];
+    const plain = await shortlistQuery(base);
+    return plain.error ? [] : plain.data || [];
+  };
   const [rows, suggestions] = await Promise.all([
-    shortlistQ.then((r) => (r.error ? [] : r.data || [])),
+    shortlistRows(),
     suggQ.then((r) => (r.error ? [] : r.data || [])),
   ]);
   return { rows, suggestions };

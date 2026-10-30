@@ -149,12 +149,11 @@ export default function FamiliesListPage() {
             <thead>
               <tr>
                 <th>Family</th>
-                <th>Needs action</th>
                 <th>Children</th>
                 <th>Destination</th>
                 <th>Client stage</th>
                 <th>Pipeline stage</th>
-                <th>Next action</th>
+                <th>Needs attention</th>
                 <th>Owner</th>
                 <th>Status</th>
               </tr>
@@ -182,24 +181,6 @@ export default function FamiliesListPage() {
                       </span>
                     </div>
                   </td>
-                  <td className="families-cell-action-flag">
-                    {(actions[family.id] || []).length > 0 ? (
-                      <Link
-                        to={`/staff/families/${family.id}?tab=visits`}
-                        className="families-flag"
-                        title={actions[family.id].map((a) => a.label).join("\n")}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span className="families-flag-count">{actions[family.id].length}</span>
-                        <span className="families-flag-text">
-                          School visits: {actions[family.id][0].label}
-                          {actions[family.id].length > 1 ? ` (+${actions[family.id].length - 1} more)` : ""}
-                        </span>
-                      </Link>
-                    ) : (
-                      <span className="is-muted">Nothing to do</span>
-                    )}
-                  </td>
                   <td className="families-cell-children">
                     {family.childLabels.length ? family.childLabels.join(", ") : <span className="is-muted">None yet</span>}
                   </td>
@@ -211,13 +192,30 @@ export default function FamiliesListPage() {
                     <StageDots stage={family.pipeline_stage} />
                   </td>
                   <td className="families-cell-action">
+                    <div className="families-attn">
+                    {(actions[family.id] || []).length > 0 && (
+                      <Link
+                        to={`/staff/families/${family.id}?tab=visits`}
+                        className="families-flag"
+                        title={actions[family.id].map((a) => a.label).join("\n")}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="families-flag-count">{actions[family.id].length}</span>
+                        <span className="families-flag-text">
+                          {actions[family.id][0].label}
+                          {actions[family.id].length > 1 ? ` (+${actions[family.id].length - 1} more)` : ""}
+                        </span>
+                      </Link>
+                    )}
                     {family.nextTask ? (
-                      <span className={isOverdue(family.nextTask.due_date) ? "is-overdue" : ""}>
+                      <span className={"families-next-task" + (isOverdue(family.nextTask.due_date) ? " is-overdue" : "")}>
+                        {(actions[family.id] || []).length > 0 ? "Task: " : ""}
                         {family.nextTask.title}
                       </span>
                     ) : (
-                      <span className="is-muted">Nothing scheduled</span>
+                      (actions[family.id] || []).length === 0 && <span className="is-muted">Nothing to do</span>
                     )}
+                    </div>
                   </td>
                   <td>
                     <span className="families-owner" title={family.ownerName}>
