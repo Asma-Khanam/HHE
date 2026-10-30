@@ -605,3 +605,20 @@
 .today-actions-list ul a { color: var(--hh-ink); text-decoration: none; font-size: 0.9rem; }
 .today-actions-list ul a:hover { text-decoration: underline; }
 .today-actions-where { display: inline-block; font-size: 0.72rem; font-weight: 600; background: rgba(83, 1, 38, 0.08); color: var(--hh-burgundy); border-radius: 999px; padding: 1px 8px; margin-right: 6px; }
+
+/* Red count on a family chip: how many things need attention. */
+.today-owner-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 7px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--hh-error, #b3261e);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: 1px;
+}

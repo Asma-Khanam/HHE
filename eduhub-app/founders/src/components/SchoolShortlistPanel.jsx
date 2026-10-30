@@ -26,6 +26,7 @@ import {
   listReplySuggestions,
   resolveReplySuggestion,
   saveShortlistNote,
+  shareTourSchedule,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import { placedByChild, placedHere, shortDate, childClosedReason, rowClosedReason, CLOSED_TEXT } from "../lib/placement";
@@ -653,8 +654,9 @@ export default function SchoolShortlistPanel({
     setAskNote("");
   }
 
-  function openFromOverview(row) {
-    if (children[0]) setTab(children[0].id);
+  function openFromOverview(row, childId) {
+    const target = childId || children[0]?.id;
+    if (target) setTab(target);
     setExpandedId(row.id);
     setItab("tour");
     setAsk(null);
@@ -1220,6 +1222,38 @@ export default function SchoolShortlistPanel({
   // Every tour that still stands, earliest first (cancelled ones drop out).
   const [sendingSchedule, setSendingSchedule] = useState(null);
   const [scheduleSent, setScheduleSent] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  // Confirmed tours the parent's app does not show yet (addendum 145; undefined = not run yet).
+  const unsharedTours = liveRows.reduce(
+    (n, r) =>
+      n +
+      PREFIXES.filter(({ p }) => r[p + "date"] && r[p + "status"] === "confirmed" && r[p + "shared_at"] === null).length,
+    0
+  );
+
+  // Put the confirmed tours on the family's app (and notify them).
+  async function shareToApp() {
+    setSharing(true);
+    setError("");
+    try {
+      await shareTourSchedule(familyId);
+      const now = new Date().toISOString();
+      setRows((rs) =>
+        rs.map((r) => {
+          const next = { ...r };
+          PREFIXES.forEach(({ p }) => {
+            if (r[p + "date"] && r[p + "status"] === "confirmed" && r[p + "shared_at"] === null) next[p + "shared_at"] = now;
+          });
+          return next;
+        })
+      );
+      setScheduleSent(true);
+    } catch (err) {
+      setError(friendlyError(err, "Couldn't post the schedule to the parent's app."));
+    } finally {
+      setSharing(false);
+    }
+  }
   const liveSlotItems = allSlots.filter((s) => s.status !== "completed");
   const scheduleReady = liveSlotItems.length > 0 && liveSlotItems.every((s) => s.status === "confirmed") && conflictRows.size === 0;
 
@@ -1254,6 +1288,7 @@ export default function SchoolShortlistPanel({
         start: row[p + "start_time"],
         end: row[p + "end_time"],
         status: row[p + "status"] || "offered",
+        shared: row[p + "shared_at"],
         clash: slotConflict[row.id + p],
       }))
     )
@@ -1320,7 +1355,21 @@ export default function SchoolShortlistPanel({
                         const why = childClosedReason(placed, c.id, row.school_id, row.school?.name, allApplications, row.keep_open);
                         const v = availOf(row, c.id);
                         return (
-                          <span key={c.id} className="sv-st">
+                          <span
+                            key={c.id}
+                            className="sv-st sv-st-go"
+                            role="button"
+                            tabIndex={0}
+                            title={`Open ${childName(c)}`}
+                            onClick={(e) => { e.stopPropagation(); openFromOverview(row, c.id); }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                openFromOverview(row, c.id);
+                              }
+                            }}
+                          >
                             <i className={"sv-d " + (placed[c.id] && !why ? "is-g" : dotClass(v))} />
                             {placed[c.id] && !why ? "Placed ✓" : why ? "Closed" : v === "awaiting" && !row.enquiry_sent_at ? "Not emailed yet" : CHIP_LABEL[v]}
                           </span>
@@ -1386,7 +1435,9 @@ export default function SchoolShortlistPanel({
                             {t.clash ? (
                               <span className="sv-warn">{t.clash}</span>
                             ) : t.status === "confirmed" ? (
-                              <span className="sv-ok">confirmed</span>
+                              <span className="sv-ok">
+                                confirmed{t.shared ? " · on the parent's app" : t.shared === null ? " · not sent to the parent yet" : ""}
+                              </span>
                             ) : t.status === "completed" ? (
                               "toured"
                             ) : (
@@ -1411,6 +1462,13 @@ export default function SchoolShortlistPanel({
                   >
                     {scheduleSent ? "Schedule sent ✓ (send again)" : "Send schedule to parent"}
                   </button>
+                  {scheduleReady && (
+                    <div style={{ textAlign: "center", marginTop: 6 }}>
+                      <button type="button" className="sv-btn is-link is-sm" onClick={shareToApp} disabled={sharing || unsharedTours === 0}>
+                        {sharing ? "Posting…" : unsharedTours === 0 ? "On the parent's app ✓" : "Post to the parent's app only (no email)"}
+                      </button>
+                    </div>
+                  )}
                   <div className="sv-sub" style={{ marginTop: 8, textAlign: "center" }}>
                     {scheduleReady ? "Every tour is confirmed" : "Available once every tour is confirmed and nothing clashes"}
                   </div>
@@ -1432,7 +1490,7 @@ export default function SchoolShortlistPanel({
                     initial={sendingSchedule}
                     onSent={() => {
                       setSendingSchedule(null);
-                      setScheduleSent(true);
+                      shareToApp();
                     }}
                     onClose={() => setSendingSchedule(null)}
                   />

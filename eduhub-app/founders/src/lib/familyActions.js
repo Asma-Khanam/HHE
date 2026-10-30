@@ -30,6 +30,12 @@ export function computeFamilyActions(rows, suggestions) {
     if (slots.some((s) => (s.status || "offered") === "offered")) {
       add(row.family_id, { key: "offer-" + row.id, where: "visits", schoolName: name, label: `${name} offered a tour time: accept it or ask for another` });
     }
+    const unshared =
+      (row.tour_date && row.tour_status === "confirmed" && row.tour_shared_at === null) ||
+      (row.tour2_date && row.tour2_status === "confirmed" && row.tour2_shared_at === null);
+    if (unshared) {
+      add(row.family_id, { key: "share-" + row.id, where: "visits", schoolName: name, label: `${name}: tour confirmed, send the schedule to the parent` });
+    }
     const toured = slots.some((s) => s.status === "completed" || (s.status === "confirmed" && s.date < today));
     if (toured && !(row.feedback_text || "").trim()) {
       add(row.family_id, { key: "feedback-" + row.id, where: "visits", schoolName: name, label: `${name}: the tour has happened, get the family's feedback` });

@@ -210,13 +210,13 @@ function SchoolNotesFeed({ schoolId }) {
 
 function LongText({ text }) {
   const [open, setOpen] = useState(false);
-  if (!text) return <span className="sv-empty">Nothing added yet</span>;
+  if (!text) return <span className="sd-empty">Nothing added yet</span>;
   const long = text.length > 280 || text.split("\n").length > 4;
   return (
     <div>
-      <div className={"sv-long" + (long && !open ? " is-clamped" : "")}>{text}</div>
+      <div className={"sd-long" + (long && !open ? " is-clamped" : "")}>{text}</div>
       {long && (
-        <button type="button" className="sv-more" onClick={() => setOpen((o) => !o)}>
+        <button type="button" className="sd-more" onClick={() => setOpen((o) => !o)}>
           {open ? "Show less" : "Show more"}
         </button>
       )}
@@ -226,9 +226,9 @@ function LongText({ text }) {
 
 function SvRow({ label, children }) {
   return (
-    <div className="sv-row">
-      <span className="sv-label">{label}</span>
-      <span className="sv-value">{children || <span className="sv-empty">Not added</span>}</span>
+    <div className="sd-row">
+      <span className="sd-label">{label}</span>
+      <span className="sd-value">{children || <span className="sd-empty">Not added</span>}</span>
     </div>
   );
 }
@@ -256,26 +256,26 @@ function SchoolRecordView({ school, onEmirate }) {
     school.requires_taster_day && "Taster day",
   ].filter(Boolean);
   return (
-    <div className="sv">
-      <div className="sv-links">
+    <div className="sd">
+      <div className="sd-links">
         {links.map(([label, url]) =>
           url ? (
-            <a key={label} className="sv-chip is-on" href={url} target="_blank" rel="noreferrer">
+            <a key={label} className="sd-chip is-on" href={url} target="_blank" rel="noreferrer">
               {label} ↗
             </a>
           ) : (
-            <span key={label} className="sv-chip">{label}: not set</span>
+            <span key={label} className="sd-chip">{label}: not set</span>
           )
         )}
       </div>
-      <div className="sv-cols">
-        <div className="sv-card">
+      <div className="sd-cols">
+        <div className="sd-card">
           <h3>Basics</h3>
-          <div className="sv-row">
-            <span className="sv-label">Emirate</span>
-            <span className="sv-value">
+          <div className="sd-row">
+            <span className="sd-label">Emirate</span>
+            <span className="sd-value">
               <select
-                className="panel-select sv-emirate"
+                className="panel-select sd-emirate"
                 value={school.emirate || ""}
                 onChange={(e) => onEmirate(e.target.value)}
                 aria-label="Emirate"
@@ -292,7 +292,7 @@ function SchoolRecordView({ school, onEmirate }) {
             {school.general_phone && <a href={"tel:" + school.general_phone.replace(/\s+/g, "")}>{school.general_phone}</a>}
           </SvRow>
         </div>
-        <div className="sv-card">
+        <div className="sd-card">
           <h3>Tours</h3>
           <SvRow label="Usual schedule">{school.typical_tour_schedule}</SvRow>
           {onDay.map(([l, v]) => (
@@ -300,12 +300,12 @@ function SchoolRecordView({ school, onEmirate }) {
           ))}
           {onDay.length === 0 && <SvRow label="On the day" />}
         </div>
-        <div className="sv-card">
+        <div className="sd-card">
           <h3>Admissions</h3>
           <SvRow label="Assessments">
             {reqs.length > 0 && (
-              <span className="sv-pills">
-                {reqs.map((r) => <span key={r} className="sv-pill">{r}</span>)}
+              <span className="sd-pills">
+                {reqs.map((r) => <span key={r} className="sd-pill">{r}</span>)}
               </span>
             )}
           </SvRow>
@@ -313,7 +313,7 @@ function SchoolRecordView({ school, onEmirate }) {
           <SvRow label="Deposit">{school.deposit_amount != null ? `${school.fee_currency || "AED"} ${school.deposit_amount}` : ""}</SvRow>
         </div>
       </div>
-      <div className="sv-card sv-wide">
+      <div className="sd-card sd-wide">
         <h3>Documents required</h3>
         <LongText text={school.documents_required} />
       </div>
@@ -1035,7 +1035,7 @@ export default function SchoolDetailPage() {
         <div className="panel-head"><h2>Notes</h2></div>
         <SchoolNotesFeed schoolId={schoolId} />
         <h3 className="snf-sub">Reference notes</h3>
-        <div className="sv-notes">
+        <div className="sd-notes">
           <AutosaveField
             label="Admissions process notes"
             multiline
@@ -1067,7 +1067,7 @@ export default function SchoolDetailPage() {
           {shortlist.length > 0 && <span className="family-detail-card-count">{shortlist.length}</span>}
         </h2>
         {shortlist.length > 0 && (
-          <div className="family-detail-tabs household-tabs sv-subtabs" role="tablist">
+          <div className="family-detail-tabs household-tabs sd-subtabs" role="tablist">
             {FAMILY_FILTERS.map(([key, label, test]) => (
               <button
                 key={key}

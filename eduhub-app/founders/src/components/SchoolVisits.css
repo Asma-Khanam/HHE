@@ -223,3 +223,7 @@
 .sv-who { display: inline-block; font-size: 11.5px; font-weight: 600; line-height: 1.5; padding: 0 9px; border-radius: 999px; white-space: nowrap; }
 .sv-who.is-us { background: var(--hh-burgundy); color: #fff; }
 .sv-who.is-school, .sv-who.is-family { border: 1px solid var(--sv-field); color: var(--sv-mute); background: transparent; }
+
+/* Each child's cell in an Overview row opens that child's tab. */
+.sv .sv-st-go { cursor: pointer; border-radius: 6px; }
+.sv .sv-st-go:hover, .sv .sv-st-go:focus-visible { text-decoration: underline; outline: none; }

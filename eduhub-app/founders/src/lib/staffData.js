@@ -2991,6 +2991,14 @@ export async function listReplySuggestions(familyId) {
   return error ? [] : data || [];
 }
 
+// Addendum 145: send the family their tour schedule. Marks every confirmed, not yet shared
+// tour as shared, which is what makes it appear in the family's app (with a notification).
+export async function shareTourSchedule(familyId) {
+  const { data, error } = await supabase.rpc("share_tour_schedule", { p_family: familyId });
+  if (error) throw error;
+  return data || 0;
+}
+
 export async function resolveReplySuggestion(id, status) {
   const {
     data: { user },

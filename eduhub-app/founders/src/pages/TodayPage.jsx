@@ -100,10 +100,9 @@ export default function TodayPage() {
   const myTaskOverdue = myTasks.filter((t) => isOverdue(t.due_date)).length;
   const myTasksShown = myTasks.slice(0, 6);
 
-  // Only families with something for us to do, most items first (archived ones are not in data.families).
-  const needsAction = data.families
-    .filter((f) => (actions[f.id] || []).length > 0)
-    .sort((a, b) => actions[b.id].length - actions[a.id].length);
+  // Families still being worked on need a consultant; placed / archived ones don't.
+  const liveIds = new Set(data.families.filter((f) => f.client_stage === "live").map((f) => f.id));
+  const unowned = data.unownedFamilies.filter((f) => liveIds.has(f.id));
 
   const upcomingPayments = data.payments.slice(0, 4);
   const upcomingDeadlines = thisWeek.slice(0, 4);
@@ -125,46 +124,27 @@ export default function TodayPage() {
 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
-      {needsAction.length > 0 && (
-        <section className="today-card today-actions">
-          <div className="today-card-head">
-            <h2>
-              Needs action <span className="today-count is-bad">{needsAction.length} famil{needsAction.length === 1 ? "y" : "ies"}</span>
-            </h2>
-          </div>
-          <ul className="today-actions-list">
-            {needsAction.map((f) => (
-              <li key={f.id}>
-                <Link to={`/staff/families/${f.id}?tab=visits`} className="today-actions-family">
-                  {data.familyNames[f.id] || "Family"}
-                </Link>
-                <ul>
-                  {actions[f.id].map((a) => (
-                    <li key={a.key}>
-                      <Link to={`/staff/families/${f.id}?tab=visits`}>
-                        <span className="today-actions-where">School visits</span> {a.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {data.unownedFamilies.length > 0 && (
+      {unowned.length > 0 && (
         <div className="today-owner-banner">
           <span>
-            <strong>{data.unownedFamilies.length}</strong> famil{data.unownedFamilies.length === 1 ? "y needs" : "ies need"} a
+            <strong>{unowned.length}</strong> live famil{unowned.length === 1 ? "y needs" : "ies need"} a
             consultant:
           </span>
           <div className="today-owner-chips">
-            {data.unownedFamilies.map((f) => (
-              <Link key={f.id} to={`/staff/families/${f.id}`} className="today-owner-chip">
-                {f.name}
-              </Link>
-            ))}
+            {unowned.map((f) => {
+              const n = (actions[f.id] || []).length;
+              return (
+                <Link
+                  key={f.id}
+                  to={n > 0 ? `/staff/families/${f.id}?tab=visits` : `/staff/families/${f.id}`}
+                  className="today-owner-chip"
+                  title={n > 0 ? (actions[f.id] || []).map((a) => a.label).join("\n") : undefined}
+                >
+                  {f.name}
+                  {n > 0 && <span className="today-owner-badge">{n}</span>}
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}

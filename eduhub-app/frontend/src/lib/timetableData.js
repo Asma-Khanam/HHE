@@ -11,6 +11,7 @@ import { supabase } from "./supabaseClient";
 const SHORTLIST_COLUMNS = `id, school_id, availability_status, availability_replied_at,
        tour_date, tour_start_time, tour_end_time, tour_status,
        tour2_date, tour2_start_time, tour2_end_time, tour2_status,
+       tour_shared_at, tour2_shared_at,
        tour_gate, tour_building, tour_parking, tour_ask_for, tour_bring,
        feedback_text, feedback_rating, feedback_at, feedback_by,
        priority, family_decision, family_decision_note,
@@ -34,7 +35,10 @@ export async function fetchFamilyTimetable(familyId) {
     ) + ", family_interest, family_interest_note, family_interest_at",
     SHORTLIST_COLUMNS + ", family_interest, family_interest_note, family_interest_at",
   ];
-  const attempts = [full[0], full[1], SHORTLIST_COLUMNS];
+  // Addendum 145 adds tour_shared_at / tour2_shared_at. Older databases fall back
+  // to the same lists without them (every tour then counts as shared).
+  const withoutShared = (cols) => cols.replace("tour_shared_at, tour2_shared_at,", "");
+  const attempts = [full[0], full[1], SHORTLIST_COLUMNS, withoutShared(full[0]), withoutShared(full[1]), withoutShared(SHORTLIST_COLUMNS)];
   let data;
   let error;
   for (const cols of attempts) {
@@ -50,7 +54,19 @@ export async function fetchFamilyTimetable(familyId) {
 
   if (childStatusError) throw childStatusError;
 
-  return { shortlist: data || [], childStatus: childStatusRows || [] };
+  // A tour is only shown once the consultant has sent the family their schedule
+  // (addendum 145). tour_shared_at undefined = column not there yet = show it.
+  const shortlist = (data || []).map((row) => {
+    const hide1 = row.tour_shared_at === null;
+    const hide2 = row.tour2_shared_at === null;
+    if (!hide1 && !hide2) return row;
+    const next = { ...row };
+    if (hide1) Object.assign(next, { tour_date: null, tour_start_time: null, tour_end_time: null, tour_status: null });
+    if (hide2) Object.assign(next, { tour2_date: null, tour2_start_time: null, tour2_end_time: null, tour2_status: null });
+    return next;
+  });
+
+  return { shortlist, childStatus: childStatusRows || [] };
 }
 
 // September 2026 redesign: "Your schools" merges the founders' School
