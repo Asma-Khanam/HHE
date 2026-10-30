@@ -82,3 +82,7 @@
   .sv-cols21 { grid-template-columns: minmax(0, 1fr); }
   .ap2-step small { display: none; }
 }
+
+/* Placed here: the Placed step and its line turn green. */
+.ap2-where.is-placed .ap2-cm span:last-child { background: var(--sv-green); color: #fff; }
+.ap2-where.is-placed .sv-sb { color: var(--sv-green); font-weight: 600; }

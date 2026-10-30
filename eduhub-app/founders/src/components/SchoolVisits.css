@@ -227,3 +227,6 @@
 /* Each child's cell in an Overview row opens that child's tab. */
 .sv .sv-st-go { cursor: pointer; border-radius: 6px; }
 .sv .sv-st-go:hover, .sv .sv-st-go:focus-visible { text-decoration: underline; outline: none; }
+
+/* Status dot in the Next step cell: breathing room before the text. */
+.sv-next .sv-d { margin-right: 9px; vertical-align: 1px; }

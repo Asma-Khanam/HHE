@@ -714,7 +714,7 @@ export default function ApplicationsPanel({
   function chevrons(application, info) {
     const flow = applicationMiniSteps(application, info.fees);
     return (
-      <div className="ap2-where">
+      <div className={"ap2-where" + (info.isPlacedHere ? " is-placed" : "")}>
         <div className="ap2-cm" role="img" aria-label={flow.map((s) => `${s.label}: ${s.state}`).join(", ")}>
           {flow.map((s) => (
             <span key={s.key} className={"is-" + s.state}>
