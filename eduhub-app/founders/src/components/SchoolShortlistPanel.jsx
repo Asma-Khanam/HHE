@@ -41,7 +41,6 @@ import {
   formatDate,
   shortTour,
   relativeDay,
-  daysBetween,
   admissionsProcessText,
   ShortlistNotes,
   SchoolContactsInline,
@@ -475,29 +474,6 @@ export default function SchoolShortlistPanel({
     );
   }
 
-  const stats = useMemo(() => {
-    const replied = rows.filter((r) => r.availability_status !== "awaiting").length;
-    // Both tour slots count -- a school with a primary AND a secondary tour
-    // is two tours booked.
-    const toursBooked = rows.reduce((n, r) => n + (r.tour_date ? 1 : 0) + (r.tour2_date ? 1 : 0), 0);
-    const toured = rows.filter((r) => r.tour_status === "completed" || r.tour2_status === "completed").length;
-    const appliedSchools = new Set(
-      allApplications.filter((a) => a.status !== "draft" && a.status !== "withdrawn").map((a) => a.school_id)
-    );
-    const earliestShortlisted = rows.reduce(
-      (min, r) => (r.shortlisted_at && (!min || r.shortlisted_at < min) ? r.shortlisted_at : min),
-      null
-    );
-    return {
-      shortlisted: rows.length,
-      replied,
-      toursBooked,
-      toured,
-      applied: appliedSchools.size,
-      daysSinceBrief: earliestShortlisted ? Math.abs(daysBetween(new Date().toISOString(), earliestShortlisted)) : null,
-    };
-  }, [rows, allApplications]);
-
   // The family's primary choice floats to the top, everything else keeps its
   // order, earliest visit first; schools with no tour yet go last in their group.
   const sortedRows = useMemo(() => {
@@ -694,8 +670,8 @@ export default function SchoolShortlistPanel({
   function availabilityCell(row, child) {
     const value = availOf(row, child.id);
     const why = childClosedReason(placed, child.id, row.school_id, row.school?.name, allApplications, row.keep_open);
-    if (placed[child.id] || why) {
-      const here = placed[child.id] && !why;
+    const here = placedHere(placed, [child], row.school_id, row.school?.name).length > 0 && !why;
+    if (here || why) {
       return (
         <span className="sv-st" title={why === "placed" ? `Placed at ${placed[child.id].schoolName}` : undefined}>
           <i className={"sv-d" + (here ? " is-g" : "")} />
@@ -1307,16 +1283,6 @@ export default function SchoolShortlistPanel({
     };
     return (
       <>
-        {rows.length > 0 && (
-          <div className="sv-card sv-stats">
-            <div><b>{stats.shortlisted}</b><span>Shortlisted</span></div>
-            <div><b>{stats.replied}</b><span>Replied</span></div>
-            <div><b>{stats.toursBooked}</b><span>Tours booked</span></div>
-            <div><b>{stats.toured}</b><span>Toured</span></div>
-            <div><b>{stats.applied}</b><span>Applied</span></div>
-            {stats.daysSinceBrief !== null && <div><b>{stats.daysSinceBrief}</b><span>Days since brief</span></div>}
-          </div>
-        )}
         <div className="sv-side">
           <div className="sv-card" style={{ overflow: "hidden" }}>
             <div style={{ padding: "18px 24px 4px", display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -1354,6 +1320,7 @@ export default function SchoolShortlistPanel({
                       {children.map((c) => {
                         const why = childClosedReason(placed, c.id, row.school_id, row.school?.name, allApplications, row.keep_open);
                         const v = availOf(row, c.id);
+                        const here = !why && placedHere(placed, [c], row.school_id, row.school?.name).length > 0;
                         return (
                           <span
                             key={c.id}
@@ -1370,8 +1337,8 @@ export default function SchoolShortlistPanel({
                               }
                             }}
                           >
-                            <i className={"sv-d " + (placed[c.id] && !why ? "is-g" : dotClass(v))} />
-                            {placed[c.id] && !why ? "Placed ✓" : why ? "Closed" : v === "awaiting" && !row.enquiry_sent_at ? "Not emailed yet" : CHIP_LABEL[v]}
+                            <i className={"sv-d " + (here ? "is-g" : dotClass(v))} />
+                            {here ? "Placed ✓" : why ? "Closed" : v === "awaiting" && !row.enquiry_sent_at ? "Not emailed yet" : CHIP_LABEL[v]}
                           </span>
                         );
                       })}
