@@ -2991,6 +2991,16 @@ export async function listReplySuggestions(familyId) {
   return error ? [] : data || [];
 }
 
+// Addendum 146: has the school opened an email we sent? Best effort (null = unknown / not run yet).
+export async function getEmailOpen(noteId) {
+  const { data, error } = await supabase
+    .from("case_notes")
+    .select("email_first_opened_at, email_last_opened_at, email_open_count")
+    .eq("id", noteId)
+    .maybeSingle();
+  return error ? null : data;
+}
+
 // Addendum 145: send the family their tour schedule. Marks every confirmed, not yet shared
 // tour as shared, which is what makes it appear in the family's app (with a notification).
 export async function shareTourSchedule(familyId) {

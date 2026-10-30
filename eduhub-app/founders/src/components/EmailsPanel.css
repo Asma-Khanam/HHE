@@ -712,3 +712,7 @@
 .mx-row.is-unread .mx-row-sender,
 .mx-row.is-unread .mx-row-subject { font-weight: 800; }
 .mx-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: #7b1e3a; flex-shrink: 0; }
+
+/* Sent emails: has the school opened it? */
+.mx-opened { font-size: 0.78rem; opacity: 0.65; }
+.mx-opened.is-yes { color: var(--hh-good, #1f6b3a); opacity: 1; font-weight: 600; }

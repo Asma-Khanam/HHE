@@ -1,4 +1,7 @@
+import { randomUUID } from "node:crypto";
 import nodemailer from "nodemailer";
+import MailComposer from "nodemailer/lib/mail-composer/index.js";
+import { ImapFlow } from "imapflow";
 
 // Vercel serverless function -- send an email to a school from a family's
 // Emails tab (founders, 26 Sept 2026: "send emails to the schools from the
@@ -17,6 +20,14 @@ import nodemailer from "nodemailer";
 //   A copy of every sent email goes into case_notes (direction outbound) with
 //   the full text, To/Cc, message ID and attachments, so the Sent folder on
 //   the Emails tab shows exactly what went out and who sent it.
+//
+// ALSO (30 Oct 2026, Miss Lyndsay: "it doesn't show in the main Titan sent items, and we can't
+// see when someone has opened it"):
+//   * A copy is put in the Sent folder of the relocate@ Titan mailbox (IMAP), so it shows
+//     there like any email sent from Titan. Needs TITAN_EMAIL and TITAN_PASSWORD on Vercel
+//     (the same two values the Titan sync uses). Skipped quietly if they are not set.
+//   * The sent email carries a 1x1 image that reports opens to api/email-open (addendum
+//     146). Switch off with EMAIL_OPEN_TRACKING=off.
 //
 // ENV (founders Vercel project): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 // VITE_SUPABASE_ANON_KEY, IMPROVMX_SMTP_USER, IMPROVMX_SMTP_PASS.
@@ -119,6 +130,48 @@ async function sendViaImprovmx(message, state) {
   throw lastErr;
 }
 
+// Put a copy of what was sent in the Titan mailbox's Sent folder. Best effort: it never
+// makes the send fail, and gives up after 7 seconds.
+async function copyToTitan(message, state) {
+  const user = process.env.TITAN_EMAIL;
+  const pass = process.env.TITAN_PASSWORD;
+  if (!user || !pass) return "not set up";
+  const work = (async () => {
+    const raw = await new Promise((resolve, reject) =>
+      new MailComposer(message).compile().build((err, buf) => (err ? reject(err) : resolve(buf)))
+    );
+    const client = new ImapFlow({
+      host: "imap.titan.email",
+      port: 993,
+      secure: true,
+      auth: { user, pass },
+      logger: false,
+      connectionTimeout: 5_000,
+      greetingTimeout: 5_000,
+      socketTimeout: 7_000,
+    });
+    client.on("error", () => {});
+    await client.connect();
+    try {
+      const boxes = await client.list();
+      const sent = boxes.find((b) => b.specialUse === "\\Sent") || boxes.find((b) => /^sent( items| mail)?$/i.test(b.path));
+      if (!sent) throw new Error("no Sent folder found");
+      await client.append(sent.path, raw, ["\\Seen"], new Date());
+    } finally {
+      await client.logout().catch(() => {});
+    }
+    return "saved";
+  })();
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("timed out")), 7_000));
+  try {
+    state.titan = await Promise.race([work, timeout]);
+  } catch (e) {
+    state.titan = "failed: " + String(e?.message || e).slice(0, 100);
+    console.error("send-email: copy to Titan Sent failed:", state.titan);
+  }
+  return state.titan;
+}
+
 async function sendHandler(req, res, state) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   if (!SB() || !KEY()) return res.status(503).json({ error: "Email sending isn't set up yet (Supabase keys missing)." });
@@ -208,19 +261,33 @@ async function sendHandler(req, res, state) {
       cut > 0 ? raw.slice(0, cut).trim() + signature + raw.slice(cut) : cut === 0 ? signature.trim() + raw : raw.trim() + signature;
     const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#222">${textToHtml(bodyText)}</div>`;
 
-    state.stage = "handing the email to the mail server (ImprovMX)";
-    const info = await sendViaImprovmx({
+    // The note id is chosen now so the open-tracking image can point at it.
+    const noteId = randomUUID();
+    const host = req.headers["x-forwarded-host"] || req.headers.host;
+    const tracking = process.env.EMAIL_OPEN_TRACKING !== "off" && host;
+    const sentHtml = tracking
+      ? html + `<img src="https://${host}/api/email-open?n=${noteId}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">`
+      : html;
+    const messageId = `<${randomUUID()}@applications.heatherharries.com>`;
+    const message = {
       from: { name: fromName, address: fromAddress },
       replyTo: familyAddress || undefined,
       to: toList,
       cc: ccList.length ? ccList : undefined,
       subject: String(subject || "").trim() || "(no subject)",
       text: bodyText,
-      html,
+      html: sentHtml,
+      messageId,
+      date: new Date(),
       inReplyTo: inReplyTo || undefined,
       references: references || inReplyTo || undefined,
       attachments: files,
-    }, state);
+    };
+
+    state.stage = "handing the email to the mail server (ImprovMX)";
+    const info = await sendViaImprovmx(message, state);
+    // The copy for Titan's Sent folder has no tracking image (opening it there is not a school open).
+    const titanDone = copyToTitan({ ...message, html }, state);
 
     // Keep a copy on the family's Emails tab. The email is already sent by now, so a
     // failure here must not look like the send failed (that invites a duplicate).
@@ -231,6 +298,7 @@ async function sendHandler(req, res, state) {
       [note] = await sb("case_notes", {
       method: "POST",
       body: JSON.stringify({
+        id: noteId,
         family_id: familyId,
         kind: "email",
         direction: "outbound",
@@ -248,6 +316,7 @@ async function sendHandler(req, res, state) {
       }),
     });
     } catch (saveErr) {
+      await titanDone;
       console.error("send-email: sent but could not save the copy:", saveErr.message);
       return res.status(200).json({
         ok: true,
@@ -256,6 +325,8 @@ async function sendHandler(req, res, state) {
         detail: String(saveErr.message || saveErr).slice(0, 300),
       });
     }
+
+    await titanDone;
 
     // Save the attachments with it, so Sent shows them too.
     if (files.length && note) {
@@ -271,9 +342,9 @@ async function sendHandler(req, res, state) {
         saved.push({ name: f.filename, type: f.contentType, size: f.content.length, path: up.ok ? path : null, ...(up.ok ? {} : { error: "couldn't be saved" }) });
       }
       const [patched] = await sb(`case_notes?id=eq.${note.id}`, { method: "PATCH", body: JSON.stringify({ email_attachments: saved }) });
-      return res.status(200).json({ ok: true, note: patched || note });
+      return res.status(200).json({ ok: true, note: patched || note, titan: state.titan });
     }
-    return res.status(200).json({ ok: true, note });
+    return res.status(200).json({ ok: true, note, titan: state.titan });
   } catch (err) {
     const msg = String(err?.message || err);
     const code = err?.code ? `${err.code}: ` : "";

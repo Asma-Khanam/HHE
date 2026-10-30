@@ -5,6 +5,7 @@ import {
   friendlyError,
   getEmailAttachmentUrl,
   getEmailNote,
+  getEmailOpen,
   listFamilyEmailsLight,
   requestEmailInsight,
   saveEmailInsight,
@@ -500,6 +501,18 @@ function Attachments({ items }) {
 
 export function ReadingPane({ note, onBack, familyId, onUpdate, onReply, onToggleRead, noInsight = false }) {
   const resolvedHtml = useResolvedHtml(note);
+  // Has the school opened it? Only emails sent from the dashboard carry the tracking image.
+  const [opened, setOpened] = useState(null);
+  const noteId = note?.id;
+  const sentFromDashboard = note?.direction === "outbound";
+  useEffect(() => {
+    let alive = true;
+    setOpened(null);
+    if (noteId && sentFromDashboard) getEmailOpen(noteId).then((o) => alive && setOpened(o));
+    return () => {
+      alive = false;
+    };
+  }, [noteId, sentFromDashboard]);
   if (!note) {
     return (
       <div className="mx-reading mx-reading-empty">
@@ -560,6 +573,16 @@ export function ReadingPane({ note, onBack, familyId, onUpdate, onReply, onToggl
         <div className="mx-read-side">
           <span className={"mx-tag" + (outbound ? " is-sent" : " is-received")}>{outbound ? "Sent" : "Received"}</span>
           <time dateTime={note.occurred_at}>{fullDate(note.occurred_at)}</time>
+          {outbound && opened && (
+            <span
+              className={"mx-opened" + (opened.email_open_count > 0 ? " is-yes" : "")}
+              title="Based on a tiny image in the email. Some mail programs block it, and some load it for the reader."
+            >
+              {opened.email_open_count > 0
+                ? `Opened${opened.email_open_count > 1 ? ` ${opened.email_open_count} times` : ""} · last ${fullDate(opened.email_last_opened_at)}`
+                : "Not opened yet"}
+            </span>
+          )}
         </div>
       </header>
 
