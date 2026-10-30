@@ -33,6 +33,8 @@ function authorName(note, staffById) {
 export default function CaseNotesPanel({ familyId, notes: initialNotes, staff, familyChildren, schoolCatalog }) {
   const [notes, setNotes] = useState(initialNotes || []);
   const [composing, setComposing] = useState(false);
+  // Closed by default so a long log is not a big scroll; opens when logging something.
+  const [open, setOpen] = useState(false);
   const [kind, setKind] = useState("call");
   const [body, setBody] = useState("");
   const [childId, setChildId] = useState("");
@@ -138,16 +140,28 @@ export default function CaseNotesPanel({ familyId, notes: initialNotes, staff, f
     <section className="panel">
       <div className="panel-head">
         <h2>
-          Case log
-          {notes.length > 0 && <span className="panel-count">{notes.length}</span>}
+          <button type="button" className="panel-fold" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+            <span className="panel-fold-chev" aria-hidden="true">{open ? "▴" : "▾"}</span>
+            Case log
+            {notes.length > 0 && <span className="panel-count">{notes.length}</span>}
+          </button>
         </h2>
         {!composing && (
-          <button type="button" className="panel-btn" onClick={() => setComposing(true)}>
+          <button
+            type="button"
+            className="panel-btn"
+            onClick={() => {
+              setOpen(true);
+              setComposing(true);
+            }}
+          >
             + Log something
           </button>
         )}
       </div>
 
+      {open && (
+        <>
       <p className="panel-hint">
         Internal to the team — families never see any of this. Everything saves itself, and nothing here is ever deleted.
       </p>
@@ -277,6 +291,8 @@ export default function CaseNotesPanel({ familyId, notes: initialNotes, staff, f
             </li>
           ))}
         </ol>
+      )}
+        </>
       )}
     </section>
   );

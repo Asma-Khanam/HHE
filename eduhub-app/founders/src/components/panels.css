@@ -1259,3 +1259,8 @@
   overflow-wrap: anywhere;
 }
 .doc-row-controls.is-multi > .panel-btn { align-self: flex-start; margin-top: 4px; }
+
+/* Collapsible panel title (Case log): the whole title is the open/close toggle. */
+.panel-fold { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.panel-fold-chev { font-size: 0.85em; opacity: 0.6; width: 14px; }
+.panel-fold:hover .panel-fold-chev { opacity: 1; }
