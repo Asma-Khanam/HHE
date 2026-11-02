@@ -81,10 +81,16 @@ export default function FamilyBalanceSummary({ familyId, payments = [], billTo, 
   }
 
   const feeRows = fees || [];
-  const feePaid = (f) => f.status === "paid" || !!f.paid_at;
+  // A fee the family paid straight to the school is settled: the school has
+  // its money and nothing is owed, even though the row stays "unpaid"
+  // because nothing was owed to HHE (same rule as the Applications tab).
+  const feePaid = (f) => f.status === "paid" || !!f.paid_at || !!f.paid_direct_by_family;
   const feeWaived = (f) => f.status === "waived";
   const owedFees = feeRows.filter((f) => !feePaid(f) && !feeWaived(f));
   const paidFees = feeRows.filter(feePaid);
+  // Of what is still owed, the part the family owes HHE back (HHE paid the
+  // school for them); the rest is still owed to the schools themselves.
+  const owedToHhe = owedFees.filter((f) => f.hhe_paid_school_on_behalf);
   const owedPayments = payments.filter((p) => p.status === "unpaid" || p.status === "submitted");
   const paidPayments = payments.filter((p) => p.status === "paid");
 
@@ -104,6 +110,7 @@ export default function FamilyBalanceSummary({ familyId, payments = [], billTo, 
           <strong>{money(outstanding, currency)}</strong>
           <em>
             {owedPayments.length + owedFees.length} item{owedPayments.length + owedFees.length === 1 ? "" : "s"}
+            {owedToHhe.length > 0 && ` · ${money(sum(owedToHhe), currency)} owed back to HHE`}
           </em>
         </div>
         <div className="fbs-tile is-paid">
@@ -161,8 +168,9 @@ export default function FamilyBalanceSummary({ familyId, payments = [], billTo, 
             const dd = f.due_date ? new Date(f.due_date) : null;
             const overdue = !isPaid && !feeWaived(f) && dd && dd < new Date(new Date().toDateString());
             let chip = { text: "Awaiting payment", tone: "due" };
-            if (isPaid) chip = { text: "Paid", tone: "paid" };
+            if (isPaid) chip = f.paid_at ? { text: "Paid", tone: "paid" } : { text: "Paid to the school", tone: "paid" };
             else if (feeWaived(f)) chip = { text: "Waived", tone: "muted" };
+            else if (f.hhe_paid_school_on_behalf) chip = { text: "Owed back to HHE", tone: overdue ? "over" : "due" };
             else if (overdue) chip = { text: "Overdue", tone: "over" };
             return (
               <li key={f.id} className={"inv-row" + (isPaid ? " is-done" : "")}>
