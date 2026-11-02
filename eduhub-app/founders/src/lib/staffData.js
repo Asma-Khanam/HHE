@@ -1251,7 +1251,7 @@ export async function regenerateParentApplicationPassword(parentId) {
 }
 
 export async function getTodayData() {
-  const [tasks, families, parents, applications, parentDocs, childDocs, staff, payments, recentNotes] = await Promise.all([
+  const [tasks, families, parents, applications, parentDocs, childDocs, staff, payments, recentNotes, appFees] = await Promise.all([
     supabase.from("tasks").select("*").order("due_date", { nullsFirst: false }).then(unwrap),
     supabase.from("families").select("*").then(unwrap),
     supabase.from("parents").select("id, family_id, relationship, full_name, user_id").then(unwrap),
@@ -1270,6 +1270,13 @@ export async function getTodayData() {
       .order("created_at", { ascending: false })
       .limit(10)
       .then(unwrap),
+    // School application fees the family still owes (HHE pays the school, then the family settles with HHE).
+    // Read the same way the family page's Money owed does. A failure here must never stop Today loading.
+    supabase
+      .from("application_fees")
+      .select("*, application:applications!inner(id, school:schools(id, name), child:children!inner(id, full_name, preferred_name, first_name, family_id))")
+      .then(unwrap)
+      .catch(() => []),
   ]);
 
   const parentsByFamily = groupBy(parents, "family_id");
@@ -1305,6 +1312,29 @@ export async function getTodayData() {
     isOverdue: !!p.due_date && new Date(p.due_date) < today,
   }));
 
+  const decoratedFees = (appFees || [])
+    .filter((f) => !(f.status === "paid" || f.paid_at) && f.status !== "waived")
+    .filter((f) => f.application?.child?.family_id && !archivedIds.has(f.application.child.family_id))
+    .map((f) => {
+      const c = f.application.child;
+      const kid = (c.preferred_name || c.first_name || (c.full_name || "").split(" ")[0] || "").trim();
+      const school = f.application.school?.name;
+      return {
+        id: "fee:" + f.id,
+        kind: "fee",
+        family_id: c.family_id,
+        label: [f.label, school].filter(Boolean).join(": ") + (kid ? ` (${kid})` : ""),
+        amount: f.amount,
+        currency: f.currency,
+        due_date: f.due_date,
+        status: "unpaid",
+        schoolId: f.application.school?.id || null,
+        familyName: familyNames[c.family_id] || "Unknown family",
+        isOverdue: !!f.due_date && new Date(f.due_date) < today,
+      };
+    });
+  const allPayments = [...decoratedPayments.map((p) => ({ ...p, kind: "payment" })), ...decoratedFees];
+
   const decoratedActivity = (recentNotes || []).map((n) => ({
     ...n,
     familyName: familyNames[n.family_id] || "Unknown family",
@@ -1323,9 +1353,9 @@ export async function getTodayData() {
     chasingDocs: allDocs.filter((d) => d.status === "chasing").length,
     expiringDocs: allDocs.filter((d) => isExpiring(d.expires_at)).length,
     documents: allDocs,
-    payments: decoratedPayments,
-    overduePayments: decoratedPayments.filter((p) => p.status === "unpaid" && p.isOverdue).length,
-    paymentsToConfirm: decoratedPayments.filter((p) => p.status === "submitted").length,
+    payments: allPayments,
+    overduePayments: allPayments.filter((p) => p.status === "unpaid" && p.isOverdue).length,
+    paymentsToConfirm: allPayments.filter((p) => p.status === "submitted").length,
     recentActivity: decoratedActivity,
     unownedFamilies,
     staff: staff || [],

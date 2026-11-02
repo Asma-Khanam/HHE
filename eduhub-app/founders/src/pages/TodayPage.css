@@ -704,3 +704,6 @@
 .today-tab-count, .today-tab.is-on .today-tab-count { background: rgba(83, 1, 38, 0.08); color: var(--hh-burgundy); }
 .today-add { background: var(--hh-white); color: var(--hh-burgundy); border: 1px solid rgba(83, 1, 38, 0.35); font-size: 0.95rem; }
 .today-add:hover { background: rgba(83, 1, 38, 0.06); }
+
+/* Payments and deadlines now live in the task list, so the page is one column. */
+.today-main-grid { grid-template-columns: minmax(0, 1fr); }

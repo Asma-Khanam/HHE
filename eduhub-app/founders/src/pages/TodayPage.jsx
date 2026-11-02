@@ -16,6 +16,16 @@ function readSavedSection() {
   }
 }
 
+function payMoney(p) {
+  if (p.amount === null || p.amount === undefined || p.amount === "") return "";
+  return `${p.currency || "AED"} ${Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+function payState(p) {
+  const what = p.status === "submitted" ? "The family says they have paid. Check and confirm." : p.isOverdue ? "Overdue." : "Not paid yet.";
+  const m = payMoney(p);
+  return m ? `${m}. ${what}` : what;
+}
+
 function greeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -134,10 +144,6 @@ export default function TodayPage() {
   const panelTask = panel && panel !== "new" ? data.tasks.find((t) => t.id === panel && !t.done_at) || null : null;
 
   const open = data.tasks.filter((t) => !t.done_at);
-  const thisWeek = open.filter((t) => {
-    const d = daysUntil(t.due_date);
-    return d !== null && d >= 0 && d <= 7;
-  });
 
   // Every open task, in groups, in the page itself (no cap). Tabs say whose.
   const byDate = (x, y) => (x.due_date || "9999").localeCompare(y.due_date || "9999");
@@ -166,10 +172,23 @@ export default function TodayPage() {
     const sub = g.key === "overdue" ? (tasks[0]?.due_date ? `Oldest due ${shortDate(tasks[0].due_date)}` : "Late") : g.sub;
     return { ...g, tasks, sub };
   });
+  // Payments owed live in the same list, so everything is in one place.
+  const payRows = [...data.payments].sort(
+    (a, b) => (b.isOverdue ? 1 : 0) - (a.isOverdue ? 1 : 0) || (a.due_date || "9999").localeCompare(b.due_date || "9999")
+  );
+  const allSections = [
+    ...sections,
+    {
+      key: "payments",
+      label: "Payments owed",
+      tasks: payRows,
+      sub: data.overduePayments > 0 ? `${data.overduePayments} overdue` : "Money families owe",
+    },
+  ];
   // Opens on whatever was open last time; if that is empty now, the first section with something in it.
-  const firstFull = sections.find((x) => x.tasks.length)?.key || "overdue";
-  const activeKey = sections.find((x) => x.key === section && x.tasks.length) ? section : firstFull;
-  const active = sections.find((x) => x.key === activeKey);
+  const firstFull = allSections.find((x) => x.tasks.length)?.key || "overdue";
+  const activeKey = allSections.find((x) => x.key === section && x.tasks.length) ? section : firstFull;
+  const active = allSections.find((x) => x.key === activeKey);
   function pickSection(key) {
     setSection(key);
     try {
@@ -189,8 +208,6 @@ export default function TodayPage() {
   const liveIds = new Set(data.families.filter((f) => f.client_stage === "live").map((f) => f.id));
   const unowned = data.unownedFamilies.filter((f) => liveIds.has(f.id));
 
-  const upcomingPayments = data.payments.slice(0, 4);
-  const upcomingDeadlines = thisWeek.slice(0, 4);
   const activity = (data.recentActivity || []).slice(0, 5);
 
   return (
@@ -255,6 +272,7 @@ export default function TodayPage() {
             </Link>
           </div>
 
+          {activeKey !== "payments" && (
           <div className="today-tabs" role="tablist" aria-label="Which tasks">
             {TABS.map((t) => (
               <button
@@ -269,10 +287,11 @@ export default function TodayPage() {
               </button>
             ))}
           </div>
+          )}
 
           <div className="today-split">
             <nav className="today-sections" aria-label="Task sections">
-              {sections.map((x) => (
+              {allSections.map((x) => (
                 <button
                   key={x.key}
                   type="button"
@@ -292,6 +311,30 @@ export default function TodayPage() {
             <div className="today-section-list">
               {active.tasks.length === 0 ? (
                 <p className="today-hint">All clear. Nothing here.</p>
+              ) : activeKey === "payments" ? (
+                <ul className="today-task-list">
+                  {active.tasks.map((p) => {
+                    const path = `/staff/families/${p.family_id}?tab=${p.kind === "fee" ? "applications" : "accounting"}${p.schoolId ? `&school=${p.schoolId}` : ""}`;
+                    return (
+                      <li key={p.id} className="today-task">
+                        <div className="today-task-text">
+                          <div className="today-task-title">{p.label}</div>
+                          <div className="today-task-state">{payState(p)}</div>
+                          <div className="today-task-meta">
+                            <span className="today-task-family-name">{p.familyName}</span>
+                            {" · "}
+                            <span className={p.isOverdue ? "today-due-late" : ""}>{p.due_date ? `Due ${shortDate(p.due_date)}` : "No due date"}</span>
+                          </div>
+                        </div>
+                        <div className="today-task-actions">
+                          <Link to={path} className="today-open">
+                            Open →
+                          </Link>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               ) : (
                 <ul className="today-task-list">
                   {active.tasks.map((task) => {
@@ -356,68 +399,6 @@ export default function TodayPage() {
           </div>
         </section>
 
-        <div className="today-side-stack">
-          <section className="today-card today-card-compact">
-            <div className="today-card-head">
-              <h2>
-                Payments owed <span className="today-count">{data.payments.length}</span>
-                {data.overduePayments > 0 && <span className="today-count is-bad">{data.overduePayments} overdue</span>}
-              </h2>
-            </div>
-            {upcomingPayments.length === 0 ? (
-              <p className="today-hint">Nothing outstanding.</p>
-            ) : (
-              <ul className="today-mini-list">
-                {upcomingPayments.map((payment) => (
-                  <li key={payment.id} className="today-mini-row">
-                    <div className="today-mini-text">
-                      <span className="today-mini-title">{payment.label}</span>
-                      <span className="today-mini-meta">
-                        {payment.family_id ? (
-                          <Link to={`/staff/families/${payment.family_id}`}>{payment.familyName}</Link>
-                        ) : (
-                          payment.familyName
-                        )}
-                      </span>
-                    </div>
-                    {payment.status === "submitted" ? (
-                      <span className="today-pill is-today">To confirm</span>
-                    ) : payment.isOverdue ? (
-                      <span className="today-pill is-overdue">Overdue</span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="today-card today-card-compact">
-            <div className="today-card-head">
-              <h2>Deadlines this week</h2>
-            </div>
-            {upcomingDeadlines.length === 0 ? (
-              <p className="today-hint">Nothing due in 7 days.</p>
-            ) : (
-              <ul className="today-mini-list">
-                {upcomingDeadlines.map((task) => (
-                  <li key={task.id} className="today-mini-row">
-                    <span className="today-mini-date">{shortDate(task.due_date)}</span>
-                    <div className="today-mini-text">
-                      <span className="today-mini-title">{task.title}</span>
-                      <span className="today-mini-meta">
-                        {task.family_id ? (
-                          <Link to={`/staff/families/${task.family_id}`}>{task.familyName}</Link>
-                        ) : (
-                          task.familyName
-                        )}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
       </div>
 
       <section className="today-card">
