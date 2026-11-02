@@ -930,18 +930,20 @@ export default function ApplicationsPanel({
             <p className="ap2-note">
               View only. {name} was placed at {childPlaced.schoolName}, so this application is closed. If that placement falls through, it opens again by itself. If {name} is applying here as well (a second school through us), you can keep it open instead.
             </p>
-            <fieldset className="apx-readonly" disabled style={{ border: 0, padding: 0, margin: 0 }}>
-              <ApplicationProcess
-                application={application}
-                childName={name}
-                placement={null}
-                onPatch={async () => false}
-                onStatus={() => {}}
-                onMeetingLink={async () => false}
-                onStartDate={() => {}}
-                onLog={() => {}}
-              />
-            </fieldset>
+            <ApplicationProcess
+              application={application}
+              childName={name}
+              placement={placementFor(child.id, application.schoolName)}
+              onPatch={async () => false}
+              onStatus={() => {}}
+              onMeetingLink={async () => false}
+              onStartDate={() => {}}
+              onLog={() => {}}
+              fees={info.fees}
+              familyId={familyId}
+              portalUrl={info.portalUrl}
+              readOnly
+            />
           </>
         ) : (
           <div className="sv-blk">

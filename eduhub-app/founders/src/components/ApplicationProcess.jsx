@@ -46,6 +46,7 @@ export default function ApplicationProcess({
   familyId = null, // the family's id (invoice files are kept under it)
   onFeesChange = () => {}, // (updater) => void
   aside = null, // shown beside the open stage card (the OpenApply box)
+  readOnly = false, // closed application: readable, not editable
 }) {
   const cur = CURRENT[a.status] ?? 0;
   const declined = a.status === "rejected";
@@ -490,7 +491,7 @@ export default function ApplicationProcess({
     ),
   };
 
-  return <ApplicationStepper steps={[s1, sFee, s2, s3, s4]} aside={aside} />;
+  return <ApplicationStepper steps={[s1, sFee, s2, s3, s4]} aside={aside} readOnly={readOnly} />;
 }
 
 // For the collapsed card's mini bar. Fee is its own stage between Apply

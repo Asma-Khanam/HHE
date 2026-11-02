@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 const SHORT = { application: "Apply", fee: "Fee", assessment: "Assessment", decision: "Outcome", placed: "Placed" };
 const MARK = { done: "✓", skipped: "–", bad: "✕", na: "–", current: "", todo: "" };
 
-export default function ApplicationStepper({ steps, aside }) {
+export default function ApplicationStepper({ steps, aside, readOnly = false }) {
   const fallback =
     steps.find((s) => s.state === "current") || steps.find((s) => s.state === "bad") || steps.find((s) => s.state === "todo") || steps[steps.length - 1];
   const [openKey, setOpenKey] = useState(fallback.key);
@@ -47,7 +47,15 @@ export default function ApplicationStepper({ steps, aside }) {
               Step {openIndex + 1} · {open.label}
             </span>
           </h3>
-          {open.children}
+          {readOnly ? (
+            // Closed application: every step can still be opened and read,
+            // nothing in it can be changed (fieldset, not the tabs above).
+            <fieldset className="apx-readonly" disabled style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+              {open.children}
+            </fieldset>
+          ) : (
+            open.children
+          )}
         </div>
         {aside}
       </div>
