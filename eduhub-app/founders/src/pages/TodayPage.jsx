@@ -74,9 +74,9 @@ export default function TodayPage() {
       .then(setData)
       .catch((err) => setError(friendlyError(err, "Couldn't load your dashboard.")));
     listFamilyActionRows()
-      .then(({ rows, suggestions }) => {
+      .then(({ rows, suggestions, offers }) => {
         setShortlistRows(rows);
-        setActions(computeFamilyActions(rows, suggestions));
+        setActions(computeFamilyActions(rows, suggestions, offers));
       })
       .catch(() => {});
   }
@@ -161,7 +161,8 @@ export default function TodayPage() {
           familyName: data.familyNames[fid] || "Unknown family",
           title: a.label,
           state: ACTION_HINT[a.step] || "",
-          due_date: null,
+          due_date: a.dueDate || null,
+          isActionOverdue: !!a.isOverdue,
           assigned_to: familyById[fid].owner_staff_id || null,
           link_tab: "visits",
           link_school_id: a.schoolId,
@@ -182,7 +183,7 @@ export default function TodayPage() {
     .filter((t) => filter === "all" || (filter === "mine" && t.assigned_to === me?.user_id) || (filter === "unclaimed" && !t.assigned_to))
     .sort(byDate);
   const groupOf = (t) => {
-    if (t.isAction) return "today";
+    if (t.isAction) return t.isActionOverdue ? "overdue" : "today";
     if (isOverdue(t.due_date)) return "overdue";
     if (isDueToday(t.due_date)) return "today";
     const d = daysUntil(t.due_date);
@@ -203,7 +204,23 @@ export default function TodayPage() {
   const payRows = [...data.payments].sort(
     (a, b) => (b.isOverdue ? 1 : 0) - (a.isOverdue ? 1 : 0) || (a.due_date || "9999").localeCompare(b.due_date || "9999")
   );
-  const upRows = comingUpItems(events, shortlistRows).filter((u) => {
+  // A place offered has a date by which the family must answer, so it belongs
+  // with the week's dates as well as in the list of things to do.
+  const offerRows = Object.values(actions)
+    .flat()
+    .filter((a) => a.step === "offer_place" && a.dueDate)
+    .map((a) => ({
+      id: "up:" + a.key,
+      date: a.dueDate,
+      at: a.dueDate + "T00:00:00",
+      when: new Date(a.dueDate + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) + " \u00b7 Reply by",
+      kind: "Offer",
+      title: a.label,
+      state: "Check with the family, then accept or decline the place.",
+      familyName: "",
+      path: null,
+    }));
+  const upRows = [...comingUpItems(events, shortlistRows), ...offerRows].sort((a, b) => String(a.at).localeCompare(String(b.at))).filter((u) => {
     const d = daysUntil(u.date);
     return d !== null && d >= 0 && d <= 7;
   });
@@ -444,7 +461,10 @@ export default function TodayPage() {
                                 {" · "}
                               </>
                             )}
-                            {task.isAction && "Needs doing now · "}
+                            {task.isAction &&
+                              (task.due_date
+                                ? `${task.isActionOverdue ? "Reply was due" : "Reply by"} ${shortDate(task.due_date)} · `
+                                : "Needs doing now · ")}
                             {task.assigned_to
                               ? task.assigned_to === me?.user_id
                                 ? "Yours"

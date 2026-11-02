@@ -18,8 +18,8 @@ export default function NeedsAttentionPanel({ familyId, tasks, onGoToVisits }) {
   useEffect(() => {
     let alive = true;
     listFamilyActionRows(familyId)
-      .then(({ rows, suggestions }) => {
-        if (alive) setItems(computeFamilyActions(rows, suggestions)[familyId] || []);
+      .then(({ rows, suggestions, offers }) => {
+        if (alive) setItems(computeFamilyActions(rows, suggestions, offers)[familyId] || []);
       })
       .catch(() => alive && setItems([]));
     return () => {

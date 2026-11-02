@@ -58,7 +58,7 @@ export default function FamiliesListPage() {
       .then(setFamilies)
       .catch((err) => setError(friendlyError(err, "Couldn't load families.")));
     listFamilyActionRows()
-      .then(({ rows, suggestions }) => setActions(computeFamilyActions(rows, suggestions)))
+      .then(({ rows, suggestions, offers }) => setActions(computeFamilyActions(rows, suggestions, offers)))
       .catch(() => {});
   }, []);
 

@@ -693,8 +693,11 @@ export default function ApplicationsPanel({
         return ["Decision from the school", "", "school"];
       case "waitlisted":
         return ["On the waitlist", "", "school"];
-      case "offer":
-        return [a.offer_decision_by ? `Answer by ${shortDate(a.offer_decision_by)}` : "Family to answer the offer", "a", "family"];
+      case "offer": {
+        if (!a.offer_decision_by) return ["Offer: add the reply-by date", "a", "us"];
+        const late = a.offer_decision_by < new Date().toLocaleDateString("en-CA");
+        return [`${late ? "Reply was due" : "Answer by"} ${shortDate(a.offer_decision_by)}`, "a", "family"];
+      }
       case "offer_accepted":
         return info.start ? [`Starts ${shortDate(info.start)}`, "g"] : ["Add the first day", "a", "us"];
       default:

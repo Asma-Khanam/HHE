@@ -632,3 +632,4 @@
 .sv-move-row { display: flex; align-items: center; gap: 10px; font-size: 14px; }
 .sv-move-row > span { min-width: 92px; color: var(--hh-muted, #6b565e); }
 .sv-move-row input, .sv-move-row select, .sv-move textarea { flex: 1; padding: 8px 10px; border: 1px solid rgba(83, 1, 38, 0.2); border-radius: 8px; font: inherit; }
+.sv-booklink { color: var(--hh-burgundy, #530126); font-weight: 600; text-decoration: underline; }

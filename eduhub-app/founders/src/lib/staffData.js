@@ -3125,6 +3125,13 @@ export async function listFamilyActionRows(familyId) {
   };
   let suggQ = supabase.from("school_reply_suggestions").select("id, family_id, shortlist_id").eq("status", "new");
   if (familyId) suggQ = suggQ.eq("family_id", familyId);
+  // Miss Lyndsay (30 Oct 2026): a place offered needs a decision by a date,
+  // so an open offer is something for us to do, with its deadline.
+  let offerQ = supabase
+    .from("applications")
+    .select("id, child_id, school_id, status, offer_decision_by, school:schools(name), child:children!inner(id, family_id, full_name, preferred_name, first_name)")
+    .eq("status", "offer");
+  if (familyId) offerQ = offerQ.eq("child.family_id", familyId);
   // Addendum 145 adds tour_shared_at / tour2_shared_at; older databases fall back without them.
   const shortlistRows = async () => {
     const withShared = await shortlistQuery(base + ", tour_shared_at, tour2_shared_at");
@@ -3132,9 +3139,10 @@ export async function listFamilyActionRows(familyId) {
     const plain = await shortlistQuery(base);
     return plain.error ? [] : plain.data || [];
   };
-  const [rows, suggestions] = await Promise.all([
+  const [rows, suggestions, offers] = await Promise.all([
     shortlistRows(),
     suggQ.then((r) => (r.error ? [] : r.data || [])),
+    offerQ.then((r) => (r.error ? [] : r.data || [])),
   ]);
-  return { rows, suggestions };
+  return { rows, suggestions, offers };
 }

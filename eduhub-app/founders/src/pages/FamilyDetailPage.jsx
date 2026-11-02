@@ -507,7 +507,7 @@ export default function FamilyDetailPage() {
   useEffect(() => {
     let alive = true;
     listFamilyActionRows(familyId)
-      .then(({ rows, suggestions }) => alive && setActionItems(computeFamilyActions(rows, suggestions)[familyId] || []))
+      .then(({ rows, suggestions, offers }) => alive && setActionItems(computeFamilyActions(rows, suggestions, offers)[familyId] || []))
       .catch(() => {});
     return () => {
       alive = false;

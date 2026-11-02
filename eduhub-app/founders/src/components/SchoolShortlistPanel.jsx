@@ -720,7 +720,26 @@ export default function SchoolShortlistPanel({
     const asking = ask && ask.rowId === row.id ? ask.type : null;
     const tourLine = (() => {
       const next = PREFIXES.find(({ p }) => row[p + "date"] && !["cancelled", "completed"].includes(row[p + "status"]));
-      if (!next) return PREFIXES.some(({ p }) => row[p + "status"] === "completed") ? "The family has toured. Time to decide." : "No tour booked yet.";
+      if (!next) {
+        if (PREFIXES.some(({ p }) => row[p + "status"] === "completed")) return "The family has toured. Time to decide.";
+        // Miss Lyndsay (30 Oct 2026): book a tour straight from here. The
+        // school's own booking page if it has one, otherwise the school
+        // record, where the link is added.
+        return (
+          <>
+            No tour booked yet.{" "}
+            {school.tour_booking_url ? (
+              <a className="sv-booklink" href={school.tour_booking_url} target="_blank" rel="noreferrer">
+                Book a tour at {school.name || "this school"} ↗
+              </a>
+            ) : (
+              <Link className="sv-booklink" to={`/staff/schools/${row.school_id}`}>
+                Add this school's booking link
+              </Link>
+            )}
+          </>
+        );
+      }
       const when = <b>{shortTour(row[next.p + "date"], row[next.p + "start_time"])}</b>;
       if ((row[next.p + "status"] || "offered") === "offered")
         return <>The school offered {when}. {clash ? <span className="sv-warn">This clashes with a time the parents are not free, or another tour.</span> : "It fits the family's diary."}</>;
