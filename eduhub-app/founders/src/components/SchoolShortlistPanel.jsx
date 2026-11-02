@@ -850,8 +850,8 @@ export default function SchoolShortlistPanel({
         {renderSchoolDraft(row)}
         <div className="sv-itabs">
           {[
-            ["tour", "Tour"],
-            ["after", "After the tour"],
+            ["tour", "What the family needs to know"],
+            ["after", "Feedback"],
             ["school", "School and notes"],
           ].map(([k, l]) => (
             <button key={k} type="button" className={itab === k ? "is-on" : ""} onClick={() => setItab(k)}>
@@ -861,70 +861,28 @@ export default function SchoolShortlistPanel({
         </div>
 
         {itab === "tour" && (
-          <div className="sv-cols2">
-            <div>
-              {PREFIXES.map(({ p, label }) => {
-                const hasDate = !!row[p + "date"];
-                const status = row[p + "status"] || "offered";
-                return (
-                  <div className="sv-blk" key={p}>
-                    <h3>
-                      <span>{label}</span>
-                    </h3>
-                    <div className="sv-g2">
-                      <label className="sv-fld">
-                        Date
-                        <input type="date" value={row[p + "date"] || ""} onChange={(e) => changeTour(row, p, "date", e.target.value)} />
-                      </label>
-                      <label className="sv-fld">
-                        Status
-                        <select value={status} disabled={!hasDate} onChange={(e) => changeTour(row, p, "status", e.target.value)}>
-                          {TOUR_STATUS_OPTIONS.map((s) => (
-                            <option key={s} value={s}>
-                              {TOUR_STATUS_LABEL[s]}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="sv-fld">
-                        Start
-                        <input
-                          type="time"
-                          value={row[p + "start_time"] || ""}
-                          disabled={!hasDate}
-                          onChange={(e) => changeTour(row, p, "start_time", e.target.value)}
-                        />
-                      </label>
-                      <label className="sv-fld">
-                        End
-                        <input
-                          type="time"
-                          value={row[p + "end_time"] || ""}
-                          disabled={!hasDate}
-                          onChange={(e) => changeTour(row, p, "end_time", e.target.value)}
-                        />
-                      </label>
-                    </div>
-                    {hasDate && status === "cancelled" && (
-                      <div style={{ marginTop: 10 }}>
-                        <AutosaveField
-                          label="Why was it cancelled?"
-                          placeholder="Why was it cancelled?"
-                          value={row[p + "cancelled_reason"] || ""}
-                          onSave={(v) => patchRow(row, { [p + "cancelled_reason"]: v })}
-                        />
-                      </div>
-                    )}
-                    {slotConflict[row.id + p] && <p className="sv-warn" style={{ margin: "10px 0 0", fontSize: 14 }}>{slotConflict[row.id + p]}</p>}
-                  </div>
-                );
-              })}
-            </div>
+          // The tour dates themselves are typed on the row in the list now, so
+          // this tab is only what the family is told about the visit -- plus a
+          // reason when a tour has been cancelled, which the row has no space for.
+          <>
+            {PREFIXES.filter(({ p }) => row[p + "status"] === "cancelled").map(({ p, label }) => (
+              <div className="sv-blk" key={p}>
+                <h3>
+                  <span>{label} was cancelled</span>
+                </h3>
+                <AutosaveField
+                  label="Why was it cancelled?"
+                  placeholder="Why was it cancelled?"
+                  value={row[p + "cancelled_reason"] || ""}
+                  onSave={(v) => patchRow(row, { [p + "cancelled_reason"]: v })}
+                />
+              </div>
+            ))}
             <TourDetailsEditor
               row={row}
               onUpdated={(updated) => setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, ...updated, school: r.school } : r)))}
             />
-          </div>
+          </>
         )}
 
         {itab === "after" && (
