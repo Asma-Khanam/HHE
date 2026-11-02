@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getTodayData, getCurrentStaff, setTaskDone, listFamilyActionRows, friendlyError } from "../lib/staffData";
+import { getTodayData, getCurrentStaff, setTaskDone, updateTask, listFamilyActionRows, friendlyError } from "../lib/staffData";
+import TaskPanel from "../components/TaskPanel";
 import { computeFamilyActions } from "../lib/familyActions";
 import { taskPath, taskRow, taskWhere, taskState } from "../lib/taskLinks";
 import { daysUntil, isOverdue, isDueToday, noteKindLabel, relativeDay } from "../lib/workflow";
@@ -50,6 +51,8 @@ export default function TodayPage() {
   const [shortlistRows, setShortlistRows] = useState([]);
   const [filter, setFilter] = useState("all");
   const [closedGroups, setClosedGroups] = useState({});
+  const [panel, setPanel] = useState(null); // null, "new", or the id of the open task
+  const [toast, setToast] = useState("");
 
   function load() {
     getCurrentStaff().then(setMe).catch(() => {});
@@ -66,9 +69,16 @@ export default function TodayPage() {
 
   useEffect(load, []);
 
+  useEffect(() => {
+    if (!toast) return undefined;
+    const t = setTimeout(() => setToast(""), 6000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   async function handleToggleTask(task) {
     setBusyTaskId(task.id);
     const wasDone = !!task.done_at;
+    if (!wasDone) setToast(`Done. It is off the list and kept on ${task.familyName}\u2019s page.`);
     setData((d) => ({
       ...d,
       tasks: d.tasks.map((t) => (t.id === task.id ? { ...t, done_at: wasDone ? null : new Date().toISOString() } : t)),
@@ -83,6 +93,21 @@ export default function TodayPage() {
     }
   }
 
+  function mergeTask(updated) {
+    setData((d) => ({ ...d, tasks: d.tasks.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)) }));
+  }
+  function addTask(created) {
+    setData((d) => ({ ...d, tasks: [...d.tasks, { ...created, familyName: d.familyNames[created.family_id] || "Unknown family" }] }));
+  }
+  async function handleTake(task) {
+    if (!me) return;
+    try {
+      mergeTask(await updateTask(task.id, { assignedTo: me.user_id }));
+    } catch (err) {
+      setError(friendlyError(err, "Couldn't take that task."));
+    }
+  }
+
   if (error && !data) {
     return (
       <div className="today-page">
@@ -91,6 +116,13 @@ export default function TodayPage() {
     );
   }
   if (!data) return <div className="today-page">Loading…</div>;
+
+  const staffById = Object.fromEntries((data.staff || []).map((x) => [x.user_id, x]));
+  const nameOf = (id) => (id ? staffById[id]?.full_name || staffById[id]?.email || "Someone" : null);
+  const familyChoices = data.families
+    .map((f) => ({ id: f.id, name: data.familyNames[f.id] || "Unnamed family" }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const panelTask = panel && panel !== "new" ? data.tasks.find((t) => t.id === panel && !t.done_at) || null : null;
 
   const open = data.tasks.filter((t) => !t.done_at);
   const thisWeek = open.filter((t) => {
@@ -148,9 +180,18 @@ export default function TodayPage() {
             caseload
           </p>
         </div>
+        <button type="button" className="today-add" onClick={() => setPanel("new")}>
+          + Add a task
+        </button>
       </div>
 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
+
+      {toast && (
+        <div className="today-toast" role="status">
+          ✓ {toast}
+        </div>
+      )}
 
       {unowned.length > 0 && (
         <div className="today-owner-banner">
@@ -240,7 +281,18 @@ export default function TodayPage() {
                               aria-label="Mark done"
                               title="Mark done"
                             />
-                            <div className="today-task-text">
+                            <div
+                              className="today-task-text is-clickable"
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setPanel(task.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  setPanel(task.id);
+                                }
+                              }}
+                            >
                               <div className="today-task-title">{task.title}</div>
                               {state && <div className="today-task-state">{state}</div>}
                               <div className="today-task-meta">
@@ -251,16 +303,23 @@ export default function TodayPage() {
                                 {task.assigned_to
                                   ? task.assigned_to === me?.user_id
                                     ? "Yours"
-                                    : `With ${task.assigneeName}`
+                                    : `With ${nameOf(task.assigned_to)}`
                                   : "Waiting to be taken"}
                                 {path && <> · Opens {taskWhere(task, row)}</>}
                               </div>
                             </div>
-                            {path && (
-                              <Link to={path} className="today-open">
-                                Open →
-                              </Link>
-                            )}
+                            <div className="today-task-actions">
+                              {path && (
+                                <Link to={path} className="today-open">
+                                  Open →
+                                </Link>
+                              )}
+                              {!task.assigned_to && me && (
+                                <button type="button" className="today-take" onClick={() => handleTake(task)}>
+                                  Take this
+                                </button>
+                              )}
+                            </div>
                           </li>
                         );
                       })}
@@ -361,6 +420,29 @@ export default function TodayPage() {
           </ul>
         )}
       </section>
+
+      {panel && (panel === "new" || panelTask) && (
+        <TaskPanel
+          task={panelTask}
+          families={familyChoices}
+          staff={data.staff || []}
+          me={me}
+          shortlistRows={shortlistRows}
+          nameOf={nameOf}
+          onClose={() => setPanel(null)}
+          onChanged={mergeTask}
+          onCreated={(t) => {
+            addTask(t);
+            setPanel(null);
+            setToast("Task added.");
+          }}
+          onDone={(t) => {
+            mergeTask({ id: t.id, done_at: new Date().toISOString() });
+            setPanel(null);
+            setToast(`Done. It is off the list and kept on ${t.familyName}\u2019s page.`);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -595,7 +595,7 @@ export async function deleteApplicationFee(feeId) {
 // Tasks
 // ---------------------------------------------------------------------------
 
-export async function createTask({ familyId, title, dueDate, assignedTo }) {
+export async function createTask({ familyId, title, dueDate, assignedTo, note, linkTab }) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -608,17 +608,21 @@ export async function createTask({ familyId, title, dueDate, assignedTo }) {
         due_date: dueDate || null,
         assigned_to: assignedTo || null,
         created_by: user?.id || null,
+        // Only sent when given, so older databases without these columns still work.
+        ...(note ? { note } : {}),
+        ...(linkTab ? { link_tab: linkTab } : {}),
       })
       .select()
       .single()
   );
 }
 
-export async function updateTask(taskId, { title, dueDate, assignedTo, familyId } = {}) {
+export async function updateTask(taskId, { title, dueDate, assignedTo, familyId, note } = {}) {
   const row = {};
   if (title !== undefined) row.title = title.trim();
   if (dueDate !== undefined) row.due_date = dueDate || null;
   if (assignedTo !== undefined) row.assigned_to = assignedTo || null;
+  if (note !== undefined) row.note = note || null;
   // Same reassignment gap as updateCalendarEvent above — the "Family"
   // select on the edit form is never disabled for a task either, so it has
   // to actually be saveable.
@@ -1324,6 +1328,7 @@ export async function getTodayData() {
     paymentsToConfirm: decoratedPayments.filter((p) => p.status === "submitted").length,
     recentActivity: decoratedActivity,
     unownedFamilies,
+    staff: staff || [],
   };
 }
 

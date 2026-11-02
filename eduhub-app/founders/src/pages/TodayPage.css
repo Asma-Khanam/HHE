@@ -657,3 +657,20 @@
 .today-group-name { font-size: 1.1rem; font-weight: 600; }
 .today-chev { display: inline-block; transition: transform var(--hh-transition); }
 .today-chev.is-closed { transform: rotate(-90deg); }
+
+/* ---- Task panel hooks: add button, clickable rows, take button, done message ---- */
+.today-header { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; justify-content: space-between; }
+.today-add {
+  font-family: var(--hh-font-body); font-size: 1rem; font-weight: 600; min-height: 48px; padding: 12px 22px; cursor: pointer;
+  border: none; border-radius: 12px; background: var(--hh-burgundy); color: var(--hh-white);
+}
+.today-add:hover { background: var(--hh-burgundy-light); }
+.today-task-text.is-clickable { cursor: pointer; border-radius: 8px; }
+.today-task-text.is-clickable:hover .today-task-title { text-decoration: underline; }
+.today-task-actions { display: flex; flex-direction: column; gap: 8px; align-self: center; flex-shrink: 0; }
+.today-task-actions .today-open { align-self: stretch; justify-content: center; }
+.today-take {
+  font-family: var(--hh-font-body); font-size: 0.92rem; font-weight: 600; min-height: 44px; padding: 8px 16px; cursor: pointer;
+  border: 2px solid var(--hh-burgundy); border-radius: var(--hh-radius); background: var(--hh-white); color: var(--hh-burgundy);
+}
+.today-toast { background: var(--hh-good-bg); color: #1f4a36; border-radius: 12px; padding: 14px 20px; font-size: 1rem; font-weight: 500; }
