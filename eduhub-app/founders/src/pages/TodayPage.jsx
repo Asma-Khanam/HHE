@@ -7,6 +7,15 @@ import { taskPath, taskRow, taskWhere, taskState } from "../lib/taskLinks";
 import { daysUntil, isOverdue, isDueToday, noteKindLabel, relativeDay } from "../lib/workflow";
 import "./TodayPage.css";
 
+const SECTION_KEY = "hh_today_section";
+function readSavedSection() {
+  try {
+    return localStorage.getItem(SECTION_KEY);
+  } catch {
+    return null;
+  }
+}
+
 function greeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -50,7 +59,7 @@ export default function TodayPage() {
   const [actions, setActions] = useState({});
   const [shortlistRows, setShortlistRows] = useState([]);
   const [filter, setFilter] = useState("all");
-  const [closedGroups, setClosedGroups] = useState({});
+  const [section, setSection] = useState(readSavedSection);
   const [panel, setPanel] = useState(null); // null, "new", or the id of the open task
   const [toast, setToast] = useState("");
 
@@ -147,12 +156,28 @@ export default function TodayPage() {
     return d !== null && d >= 0 && d <= 7 ? "week" : "later";
   };
   const GROUPS = [
-    { key: "overdue", label: "Overdue", bad: true },
-    { key: "today", label: "Today" },
-    { key: "week", label: "This week" },
-    { key: "later", label: "Later" },
+    { key: "overdue", label: "Overdue" },
+    { key: "today", label: "Today", sub: "Due today" },
+    { key: "week", label: "This week", sub: "Due in the next 7 days" },
+    { key: "later", label: "Later", sub: "Due after that, or no date" },
   ];
-  const groups = GROUPS.map((g) => ({ ...g, tasks: shown.filter((t) => groupOf(t) === g.key) })).filter((g) => g.tasks.length);
+  const sections = GROUPS.map((g) => {
+    const tasks = shown.filter((t) => groupOf(t) === g.key);
+    const sub = g.key === "overdue" ? (tasks[0]?.due_date ? `Oldest due ${shortDate(tasks[0].due_date)}` : "Late") : g.sub;
+    return { ...g, tasks, sub };
+  });
+  // Opens on whatever was open last time; if that is empty now, the first section with something in it.
+  const firstFull = sections.find((x) => x.tasks.length)?.key || "overdue";
+  const activeKey = sections.find((x) => x.key === section && x.tasks.length) ? section : firstFull;
+  const active = sections.find((x) => x.key === activeKey);
+  function pickSection(key) {
+    setSection(key);
+    try {
+      localStorage.setItem(SECTION_KEY, key);
+    } catch {
+      /* private window: just do not remember it */
+    }
+  }
   const overdueAll = open.filter((t) => isOverdue(t.due_date)).length;
   const TABS = [
     { key: "all", label: "Everyone\u2019s" },
@@ -245,90 +270,90 @@ export default function TodayPage() {
             ))}
           </div>
 
-          {groups.length === 0 ? (
-            <p className="today-hint">All clear. Nothing here.</p>
-          ) : (
-            groups.map((g) => {
-              const isClosed = !!closedGroups[g.key];
-              return (
-                <div key={g.key} className="today-group">
-                  <button
-                    type="button"
-                    className="today-group-head"
-                    aria-expanded={!isClosed}
-                    onClick={() => setClosedGroups((c) => ({ ...c, [g.key]: !c[g.key] }))}
-                  >
-                    <span className={"today-chev" + (isClosed ? " is-closed" : "")} aria-hidden="true">
-                      ▾
-                    </span>
-                    <span className="today-group-name">{g.label}</span>
-                    <span className={"today-count" + (g.bad ? " is-bad" : "")}>{g.tasks.length}</span>
-                  </button>
-                  {!isClosed && (
-                    <ul className="today-task-list">
-                      {g.tasks.map((task) => {
-                        const row = taskRow(task, shortlistRows);
-                        const state = taskState(task, row);
-                        const path = taskPath(task);
-                        const late = isOverdue(task.due_date);
-                        return (
-                          <li key={task.id} className={"today-task" + (late ? " is-late" : "")}>
-                            <button
-                              type="button"
-                              className="today-check"
-                              onClick={() => handleToggleTask(task)}
-                              disabled={busyTaskId === task.id}
-                              aria-label="Mark done"
-                              title="Mark done"
-                            />
-                            <div
-                              className="today-task-text is-clickable"
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => setPanel(task.id)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  setPanel(task.id);
-                                }
-                              }}
-                            >
-                              <div className="today-task-title">{task.title}</div>
-                              {state && <div className="today-task-state">{state}</div>}
-                              <div className="today-task-meta">
-                                <strong className="today-task-family-name">{task.familyName}</strong>
-                                {" · "}
-                                <span className={late ? "today-due-late" : ""}>{task.due_date ? `Due ${shortDate(task.due_date)}` : "No date"}</span>
-                                {" · "}
-                                {task.assigned_to
-                                  ? task.assigned_to === me?.user_id
-                                    ? "Yours"
-                                    : `With ${nameOf(task.assigned_to)}`
-                                  : "Waiting to be taken"}
-                                {path && <> · Opens {taskWhere(task, row)}</>}
-                              </div>
-                            </div>
-                            <div className="today-task-actions">
-                              {path && (
-                                <Link to={path} className="today-open">
-                                  Open →
-                                </Link>
-                              )}
-                              {!task.assigned_to && me && (
-                                <button type="button" className="today-take" onClick={() => handleTake(task)}>
-                                  Take this
-                                </button>
-                              )}
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              );
-            })
-          )}
+          <div className="today-split">
+            <nav className="today-sections" aria-label="Task sections">
+              {sections.map((x) => (
+                <button
+                  key={x.key}
+                  type="button"
+                  className={"today-section" + (x.key === activeKey ? " is-on" : "")}
+                  aria-current={x.key === activeKey ? "true" : undefined}
+                  disabled={!x.tasks.length}
+                  onClick={() => pickSection(x.key)}
+                >
+                  <span className="today-section-name">
+                    {x.label} <span className="today-section-count">{x.tasks.length}</span>
+                  </span>
+                  <span className="today-section-sub">{x.sub}</span>
+                </button>
+              ))}
+            </nav>
+
+            <div className="today-section-list">
+              {active.tasks.length === 0 ? (
+                <p className="today-hint">All clear. Nothing here.</p>
+              ) : (
+                <ul className="today-task-list">
+                  {active.tasks.map((task) => {
+                    const row = taskRow(task, shortlistRows);
+                    const state = taskState(task, row);
+                    const path = taskPath(task);
+                    const late = isOverdue(task.due_date);
+                    return (
+                      <li key={task.id} className="today-task">
+                        <button
+                          type="button"
+                          className="today-check"
+                          onClick={() => handleToggleTask(task)}
+                          disabled={busyTaskId === task.id}
+                          aria-label="Mark done"
+                          title="Mark done"
+                        />
+                        <div
+                          className="today-task-text is-clickable"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setPanel(task.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setPanel(task.id);
+                            }
+                          }}
+                        >
+                          <div className="today-task-title">{task.title}</div>
+                          {state && <div className="today-task-state">{state}</div>}
+                          <div className="today-task-meta">
+                            <span className="today-task-family-name">{task.familyName}</span>
+                            {" · "}
+                            <span className={late ? "today-due-late" : ""}>{task.due_date ? `Due ${shortDate(task.due_date)}` : "No date"}</span>
+                            {" · "}
+                            {task.assigned_to
+                              ? task.assigned_to === me?.user_id
+                                ? "Yours"
+                                : `With ${nameOf(task.assigned_to)}`
+                              : "Waiting to be taken"}
+                          </div>
+                        </div>
+                        <div className="today-task-actions">
+                          {path && (
+                            <Link to={path} className="today-open" title={`Opens ${taskWhere(task, row)}`}>
+                              Open →
+                            </Link>
+                          )}
+                          {!task.assigned_to && me && (
+                            <button type="button" className="today-take" onClick={() => handleTake(task)}>
+                              Take this
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
         </section>
 
         <div className="today-side-stack">

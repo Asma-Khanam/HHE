@@ -674,3 +674,33 @@
   border: 2px solid var(--hh-burgundy); border-radius: var(--hh-radius); background: var(--hh-white); color: var(--hh-burgundy);
 }
 .today-toast { background: var(--hh-good-bg); color: #1f4a36; border-radius: 12px; padding: 14px 20px; font-size: 1rem; font-weight: 500; }
+
+/* ---- Calmer Today (02/11/2026): sections down the left like Settings, quiet rows and buttons ---- */
+.today-split { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; margin-top: 6px; }
+.today-sections { flex: 0 0 210px; display: flex; flex-direction: column; gap: 4px; background: var(--hh-cream); border-radius: 12px; padding: 8px; }
+.today-section {
+  text-align: left; background: none; border: none; border-left: 3px solid transparent; border-radius: 10px; cursor: pointer;
+  padding: 12px 14px; min-height: 44px; display: flex; flex-direction: column; gap: 2px; font-family: var(--hh-font-body);
+}
+.today-section:disabled { opacity: 0.45; cursor: default; }
+.today-section.is-on { background: var(--hh-white); border-left-color: var(--hh-burgundy); box-shadow: 0 2px 10px rgba(83, 1, 38, 0.08); }
+.today-section-name { font-family: var(--hh-font-heading); font-weight: 600; font-size: 1.02rem; color: var(--hh-burgundy); display: flex; gap: 8px; align-items: center; }
+.today-section-count { font-size: 0.78rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: rgba(83, 1, 38, 0.08); }
+.today-section-sub { font-size: 0.8rem; color: var(--hh-ink); opacity: 0.65; }
+.today-section-list { flex: 1 1 340px; min-width: 0; }
+
+.today-tasks .today-task { padding: 14px 4px; gap: 14px; border-bottom: 1px solid rgba(83, 1, 38, 0.08); }
+.today-tasks .today-task.is-late { box-shadow: none; padding-left: 4px; }
+.today-tasks .today-check { width: 24px; height: 24px; border-color: rgba(83, 1, 38, 0.35); }
+.today-tasks .today-task-title { font-size: 1rem; font-weight: 500; }
+.today-task-state { font-size: 0.9rem; opacity: 0.8; }
+.today-tasks .today-task-meta { font-size: 0.8rem; opacity: 0.7; }
+.today-task-family-name { font-weight: 500; }
+.today-open { background: rgba(83, 1, 38, 0.07); color: var(--hh-burgundy); font-size: 0.9rem; padding: 8px 16px; }
+.today-open:hover { background: rgba(83, 1, 38, 0.14); }
+.today-take { border: 1px solid rgba(83, 1, 38, 0.25); font-weight: 500; font-size: 0.88rem; }
+.today-tab { border: 1px solid rgba(83, 1, 38, 0.18); font-weight: 500; font-size: 0.9rem; }
+.today-tab.is-on { background: rgba(83, 1, 38, 0.1); border-color: transparent; color: var(--hh-burgundy); }
+.today-tab-count, .today-tab.is-on .today-tab-count { background: rgba(83, 1, 38, 0.08); color: var(--hh-burgundy); }
+.today-add { background: var(--hh-white); color: var(--hh-burgundy); border: 1px solid rgba(83, 1, 38, 0.35); font-size: 0.95rem; }
+.today-add:hover { background: rgba(83, 1, 38, 0.06); }
