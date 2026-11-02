@@ -35,3 +35,5 @@
   .activity-kind { display: none; }
   .activity-time { width: 48px; }
 }
+.activity-nobody { color: var(--hh-muted, #6b565e); font-style: italic; }
+.activity-note { margin: 6px 0 0; font-size: 13px; color: var(--hh-muted, #6b565e); max-width: 62ch; }

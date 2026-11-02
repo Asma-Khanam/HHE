@@ -52,7 +52,7 @@ export default function ActivityPage() {
     const q = search.trim().toLowerCase();
     return (rows || []).filter((r) => {
       if (kind !== "all" && r.kind !== kind) return false;
-      if (person !== "all" && r.who !== person) return false;
+      if (person === "__none" ? !!r.who : person !== "all" && r.who !== person) return false;
       if (!q) return true;
       return [r.who, r.title, r.familyName, ...(r.detail || [])].filter(Boolean).join(" ").toLowerCase().includes(q);
     });
@@ -75,6 +75,11 @@ export default function ActivityPage() {
         <div>
           <h1>Activity</h1>
           <p className="activity-sub">Everything the team has changed, added or marked, newest first.</p>
+          {(rows || []).some((r) => !r.who) && (
+            <p className="activity-note">
+              Who did it is only recorded from 2 November 2026, when this trail was added. Anything finished before that says “Not recorded”.
+            </p>
+          )}
         </div>
         <div className="activity-range">
           {RANGES.map((r) => (
@@ -97,6 +102,7 @@ export default function ActivityPage() {
         />
         <select value={person} onChange={(e) => setPerson(e.target.value)}>
           <option value="all">Everyone</option>
+          <option value="__none">Not recorded</option>
           {people.map((p) => (
             <option key={p} value={p}>
               {p}
@@ -130,7 +136,8 @@ export default function ActivityPage() {
                   </span>
                   <div className="activity-text">
                     <div className="activity-line">
-                      <strong>{r.who || "Someone"}</strong> {r.title}
+                      {r.who ? <strong>{r.who}</strong> : <span className="activity-nobody" title="This change happened before we started recording who did it">Not recorded</span>}{" "}
+                      {r.title}
                       {r.familyName ? (
                         <>
                           {" · "}
