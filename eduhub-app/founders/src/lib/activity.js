@@ -91,19 +91,32 @@ export async function loadActivity({ sinceDays = 30, limit = 400 } = {}) {
   const out = [];
   const push = (row) => row.at && out.push(row);
 
-  audit.forEach((a) =>
+  // Addendum 150: the audit log now also carries tour, fee, document, task and
+  // shortlist changes, each of which belongs on its own tab.
+  const AUDIT_TAB = {
+    school_shortlist: "visits",
+    application_fees: "applications",
+    documents: "documents",
+    tasks: null,
+    parents: "details",
+    children: "details",
+    current_schools: "details",
+  };
+  audit.forEach((a) => {
+    const added = a.field_name === "added" || a.field_name === "removed";
     push({
       id: "audit:" + a.id,
       at: a.changed_at,
       who: a.changed_by_name || who(a.changed_by),
       kind: "edit",
-      title: `changed ${a.field_label || a.field_name}`,
-      detail: [a.old_value || "(empty)", a.new_value || "(empty)"],
+      title: added ? `${a.field_name} ${a.field_label || "a record"}` : `changed ${a.field_label || a.field_name}`,
+      detail: added ? [a.new_value || a.old_value || ""] : [a.old_value || "(empty)", a.new_value || "(empty)"],
+      isChange: !added,
       familyId: a.family_id,
       familyName: familyName(a.family_id),
-      path: familyPath(a.family_id, "details"),
-    })
-  );
+      path: familyPath(a.family_id, AUDIT_TAB[a.table_name] ?? "details"),
+    });
+  });
 
   appEvents.forEach((e) => {
     const app = appById[e.application_id];

@@ -145,7 +145,7 @@ export default function ActivityPage() {
                         </>
                       ) : null}
                     </div>
-                    {r.kind === "edit" || r.kind === "stage" ? (
+                    {(r.kind === "edit" && r.isChange) || r.kind === "stage" ? (
                       <div className="activity-detail">
                         <span className="activity-old">{r.detail[0]}</span>
                         <span aria-hidden="true"> → </span>
