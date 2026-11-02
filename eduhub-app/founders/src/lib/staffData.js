@@ -1313,7 +1313,9 @@ export async function getTodayData() {
   }));
 
   const decoratedFees = (appFees || [])
-    .filter((f) => !(f.status === "paid" || f.paid_at) && f.status !== "waived")
+    // Only fees HHE paid to the school for the family and the family has not
+    // paid back yet. A fee the family paid straight to the school owes HHE nothing.
+    .filter((f) => f.hhe_paid_school_on_behalf && !f.paid_direct_by_family && !(f.status === "paid" || f.paid_at) && f.status !== "waived")
     .filter((f) => f.application?.child?.family_id && !archivedIds.has(f.application.child.family_id))
     .map((f) => {
       const c = f.application.child;
