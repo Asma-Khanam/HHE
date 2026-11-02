@@ -1992,6 +1992,37 @@ export async function updatePlacementDate(placement, startDate) {
   return row;
 }
 
+// Addendum 149: a child leaves a school. The placement row stays as history --
+// it is marked moved, with the day it ended, where they went and why.
+export async function markPlacementMoved(placementId, { endedOn, toSchool, reason, note }) {
+  return unwrap(
+    await supabase
+      .from("family_placements")
+      .update({
+        placement_status: "moved",
+        ended_on: endedOn || null,
+        moved_to_school: (toSchool || "").trim() || null,
+        moved_reason: reason || null,
+        moved_note: (note || "").trim() || null,
+        moved_at: new Date().toISOString(),
+      })
+      .eq("id", placementId)
+      .select()
+      .single()
+  );
+}
+
+export async function undoPlacementMoved(placementId) {
+  return unwrap(
+    await supabase
+      .from("family_placements")
+      .update({ placement_status: "current", ended_on: null, moved_to_school: null, moved_reason: null, moved_note: null, moved_at: null })
+      .eq("id", placementId)
+      .select()
+      .single()
+  );
+}
+
 // Addendum 74: "Update family" -- school progress the family sees on their
 // Dashboard as a timeline. Insert-only; a wrong update is fixed by sending
 // the right one, never by deleting.

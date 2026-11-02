@@ -43,6 +43,7 @@ import {
   relativeDay,
   admissionsProcessText,
   ShortlistNotes,
+  PlacementHere,
   SchoolContactsInline,
   KidTag,
   SaveBadge,
@@ -867,13 +868,22 @@ export default function SchoolShortlistPanel({
                 </p>
               ) : null}
               <AutosaveField
-                label="How the tour went"
+                label="Parent feedback"
                 multiline
                 rows={5}
-                placeholder="How did it go?"
+                placeholder="What the family said about this school, in their words."
                 value={row.feedback_text || ""}
-                onSave={(v) => patchRow(row, { feedback_text: v, feedback_by: v ? "staff" : null })}
+                onSave={(v) => patchRow(row, { feedback_text: v, feedback_by: v ? "family" : null })}
               />
+              <p className="sv-sub" style={{ margin: "6px 0 14px" }}>
+                The family sees this half. If they write their own note on their dashboard it replaces what is typed here.
+              </p>
+              <ShortlistNotes
+                shortlistId={row.id}
+                initial={notesById[row.id] || ""}
+                onSaved={(id, body) => setNotesById((m) => ({ ...m, [id]: body }))}
+              />
+              <p className="sv-sub" style={{ margin: "6px 0 0" }}>Private to the team.</p>
             </div>
             <div>
               <div className="sv-blk">
@@ -948,16 +958,12 @@ export default function SchoolShortlistPanel({
                 </Link>
               </div>
             </div>
-            <div className="sv-blk">
-              <h3>
-                <span>Notes, private to the team</span>
-              </h3>
-              <ShortlistNotes
-                shortlistId={row.id}
-                initial={notesById[row.id] || ""}
-                onSaved={(id, body) => setNotesById((m) => ({ ...m, [id]: body }))}
-              />
-            </div>
+            <PlacementHere
+              row={row}
+              kids={children}
+              placements={placements}
+              onChanged={(saved) => setPlacements((ps) => ps.map((x) => (x.id === saved.id ? saved : x)))}
+            />
           </div>
         )}
 

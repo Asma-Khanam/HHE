@@ -1,5 +1,8 @@
+import { useState } from "react";
 import AutosaveField from "./Autosave";
-import { saveShortlistNote } from "../lib/staffData";
+import { saveShortlistNote, markPlacementMoved, undoPlacementMoved, friendlyError } from "../lib/staffData";
+import { displayNameForChild } from "../lib/completeness";
+import { shortDate } from "../lib/placement";
 
 // Small shared pieces for the School visits tab (SchoolShortlistPanel.jsx).
 
@@ -93,10 +96,10 @@ export function admissionsProcessText(school) {
 export function ShortlistNotes({ shortlistId, initial, onSaved }) {
   return (
     <AutosaveField
-      label="Notes"
+      label="Consultant observations"
       multiline
       rows={8}
-      placeholder="Internal notes, e.g. paste the school's email about availability. The family can't see this."
+      placeholder="What you saw and what you think, and anything pasted from the school. The family can't see this."
       value={initial}
       onSave={async (v) => {
         await saveShortlistNote(shortlistId, v || "");
@@ -177,4 +180,140 @@ export function SaveBadge({ state }) {
   if (state === "saving") return <span className="sv-saved">Saving…</span>;
   if (state === "saved") return <span className="sv-saved">✓ Saved</span>;
   return <span className="sv-saved is-error">Couldn't save. Try again.</span>;
+}
+
+// Addendum 149: who is placed at this school, and letting a consultant record
+// that a child has moved on, with a reason. The placement row is never
+// deleted -- it is marked moved, so the history stays.
+export const MOVE_REASONS = [
+  "Not happy at the school",
+  "Moving again / relocating",
+  "The place fell through",
+  "Wanted a different curriculum or type of school",
+  "Sibling needed to be at the same school",
+  "Other",
+];
+
+export function PlacementHere({ row, kids, placements, onChanged }) {
+  const [openFor, setOpenFor] = useState(null);
+  const [form, setForm] = useState({ endedOn: "", toSchool: "", reason: "", note: "" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const name = (row.school?.name || "").trim().toLowerCase();
+  const here = (placements || []).filter((p) => (p.school_name || "").trim().toLowerCase() === name);
+  const childName = (id) => {
+    const i = (kids || []).findIndex((c) => c.id === id);
+    return i === -1 ? "This child" : displayNameForChild(kids[i], i);
+  };
+
+  if (!here.length) return null;
+
+  async function save(p) {
+    setBusy(true);
+    setError("");
+    try {
+      onChanged?.(await markPlacementMoved(p.id, form));
+      setOpenFor(null);
+      setForm({ endedOn: "", toSchool: "", reason: "", note: "" });
+    } catch (e) {
+      setError(friendlyError(e, "Couldn't save that."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="sv-blk">
+      <h3>
+        <span>Placement</span>
+      </h3>
+      {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
+      {here.map((p) => (
+        <div key={p.id} className="sv-place">
+          <p style={{ margin: "0 0 6px" }}>
+            <strong>{childName(p.child_id)}</strong>{" "}
+            {p.placement_status === "moved" ? (
+              <>
+                left this school{p.ended_on ? ` on ${shortDate(p.ended_on)}` : ""}
+                {p.moved_to_school ? `, now at ${p.moved_to_school}` : ""}.
+              </>
+            ) : (
+              <>is placed here{p.start_date ? `, started ${shortDate(p.start_date)}` : ""}.</>
+            )}
+          </p>
+          {p.placement_status === "moved" && (p.moved_reason || p.moved_note) && (
+            <p className="sv-sub" style={{ margin: "0 0 6px" }}>
+              {p.moved_reason}
+              {p.moved_note ? ` — ${p.moved_note}` : ""}
+            </p>
+          )}
+          {p.placement_status === "moved" ? (
+            <button
+              type="button"
+              className="sv-btn is-sm"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  onChanged?.(await undoPlacementMoved(p.id));
+                } catch (e) {
+                  setError(friendlyError(e, "Couldn't undo that."));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Still at this school
+            </button>
+          ) : openFor === p.id ? (
+            <div className="sv-move">
+              <label className="sv-move-row">
+                <span>Last day here</span>
+                <input type="date" value={form.endedOn} onChange={(e) => setForm((f) => ({ ...f, endedOn: e.target.value }))} />
+              </label>
+              <label className="sv-move-row">
+                <span>Moved to</span>
+                <input
+                  type="text"
+                  placeholder="School name, if known"
+                  value={form.toSchool}
+                  onChange={(e) => setForm((f) => ({ ...f, toSchool: e.target.value }))}
+                />
+              </label>
+              <label className="sv-move-row">
+                <span>Why</span>
+                <select value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}>
+                  <option value="">Choose a reason</option>
+                  {MOVE_REASONS.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Anything else worth knowing"
+                value={form.note}
+                onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
+              />
+              <div className="sv-pills">
+                <button type="button" className="sv-btn is-primary is-sm" disabled={busy || !form.reason} onClick={() => save(p)}>
+                  {busy ? "Saving…" : "Save"}
+                </button>
+                <button type="button" className="sv-btn is-sm" disabled={busy} onClick={() => setOpenFor(null)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" className="sv-btn is-sm" onClick={() => setOpenFor(p.id)}>
+              Moved schools
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
