@@ -648,26 +648,86 @@ export default function SchoolShortlistPanel({
 
   /* ---------- pieces of the table ---------- */
 
+  // Miss Lyndsay (30 Oct 2026): put the tour in from the list itself, without
+  // opening the school first. Saves the same way the open row does.
   function tourCell(row, prefix) {
     const date = row[prefix + "date"];
-    if (!date) return <span className="sv-st is-mute">–</span>;
     const status = row[prefix + "status"] || "offered";
     const clash = slotConflict[row.id + prefix];
+    const label = `${prefix === "tour2_" ? "Secondary" : "Primary"} tour at ${row.school?.name || "this school"}`;
     return (
-      <span className="sv-tour">
-        <span className="sv-st">
-          <i className={"sv-d " + (status === "confirmed" || status === "completed" ? "is-g" : status === "cancelled" ? "" : "is-a")} />
-          {shortTour(date, row[prefix + "start_time"])}
-        </span>
-        <small className={clash ? "is-warn" : ""}>{clash ? "Clashes with a busy time" : TOUR_STATUS_LABEL[status]}</small>
+      <span className="sv-tour sv-tour-edit" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <input
+          type="date"
+          className="sv-mini"
+          value={date || ""}
+          aria-label={`${label}: date`}
+          disabled={busy}
+          onChange={(e) => changeTour(row, prefix, "date", e.target.value)}
+        />
+        {date && (
+          <span className="sv-mini-row">
+            <input
+              type="time"
+              className="sv-mini"
+              value={row[prefix + "start_time"] || ""}
+              aria-label={`${label}: start time`}
+              disabled={busy}
+              onChange={(e) => changeTour(row, prefix, "start_time", e.target.value)}
+            />
+            <select
+              className={"sv-mini sv-tour-status is-" + status}
+              value={status}
+              aria-label={`${label}: status`}
+              disabled={busy}
+              onChange={(e) => changeTour(row, prefix, "status", e.target.value)}
+            >
+              {TOUR_STATUS_OPTIONS.map((x) => (
+                <option key={x} value={x}>
+                  {TOUR_STATUS_LABEL[x]}
+                </option>
+              ))}
+            </select>
+          </span>
+        )}
+        {clash && <small className="is-warn">Clashes with a busy time</small>}
       </span>
     );
   }
 
-  function feedbackCell(row) {
-    if (row.feedback_rating) return <span className="sv-st">{`★ ${row.feedback_rating} of 5`}</span>;
-    if (row.feedback_text) return <span className="sv-st"><span className="sv-clip">{row.feedback_text}</span></span>;
-    return <span className="sv-st is-mute">–</span>;
+  // What the family itself made of the school (30/10/2026: feedback is now a
+  // section inside the row, so the column shows their verdict instead).
+  const FAMILY_VIEW = { keen: ["Keen", "is-g"], maybe: ["Maybe", "is-a"], not_for_us: ["Not for us", ""] };
+  function familyViewCell(row) {
+    if (row.family_decision === "declined") {
+      return (
+        <span className="sv-st" title={row.family_decision_note || undefined}>
+          <i className="sv-d" />
+          Not going ahead
+        </span>
+      );
+    }
+    const view = FAMILY_VIEW[row.family_interest];
+    if (!view) {
+      const said = (row.feedback_text || "").trim();
+      return said ? (
+        <span className="sv-st" title={said}>
+          <span className="sv-clip">{said}</span>
+        </span>
+      ) : (
+        <span className="sv-st is-mute">Not said yet</span>
+      );
+    }
+    const note = (row.family_interest_note || row.feedback_text || "").trim();
+    return (
+      <span className="sv-tour" title={note || undefined}>
+        <span className="sv-st">
+          <i className={"sv-d " + view[1]} />
+          {view[0]}
+        </span>
+        {note && <small className="sv-clip">{note}</small>}
+      </span>
+    );
   }
 
   function availabilityCell(row, child) {
@@ -1513,7 +1573,7 @@ export default function SchoolShortlistPanel({
                 <span>Availability</span>
                 <span>Primary tour</span>
                 <span>Secondary tour</span>
-                <span>Feedback</span>
+                <span>Family&rsquo;s view</span>
                 <span>Next step</span>
               </div>
               {liveRows.map((row) => {
@@ -1544,7 +1604,7 @@ export default function SchoolShortlistPanel({
                       <div>{availabilityCell(row, child)}</div>
                       {tourCell(row, "tour_")}
                       {tourCell(row, "tour2_")}
-                      {feedbackCell(row)}
+                      {familyViewCell(row)}
                       <span className="sv-st sv-next">
                         <WhoTag who={nextWho} />
                         <span>

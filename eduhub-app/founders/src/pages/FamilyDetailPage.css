@@ -633,3 +633,15 @@
 .sv-move-row > span { min-width: 92px; color: var(--hh-muted, #6b565e); }
 .sv-move-row input, .sv-move-row select, .sv-move textarea { flex: 1; padding: 8px 10px; border: 1px solid rgba(83, 1, 38, 0.2); border-radius: 8px; font: inherit; }
 .sv-booklink { color: var(--hh-burgundy, #530126); font-weight: 600; text-decoration: underline; }
+
+/* Tours typed straight into the list (30/10/2026 request) */
+.sv-tour-edit { display: flex; flex-direction: column; gap: 4px; }
+.sv-mini-row { display: flex; gap: 4px; }
+.sv-mini {
+  font: inherit; font-size: 12.5px; padding: 4px 6px; min-width: 0; width: 100%;
+  border: 1px solid rgba(83, 1, 38, 0.18); border-radius: 7px; background: #fff; color: inherit;
+}
+.sv-mini:disabled { opacity: 0.6; }
+.sv-tour-status.is-confirmed, .sv-tour-status.is-completed { border-color: rgba(47, 107, 79, 0.45); color: #2f6b4f; }
+.sv-tour-status.is-offered { border-color: rgba(196, 96, 42, 0.45); color: #8f3b10; }
+.sv-tour-status.is-cancelled { opacity: 0.7; text-decoration: line-through; }
