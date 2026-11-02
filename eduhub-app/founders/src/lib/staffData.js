@@ -1,6 +1,7 @@
 import { supabase } from "./supabaseClient";
 import { displayNameForChild } from "./completeness";
 import { isExpiring } from "./workflow";
+import { arrivalDateOf, yearGroupsFor } from "./yearGroups";
 
 // All the fetching and writing this app does. The reads rely on the staff
 // read policies from eduhub_schema_addendum_2_staff.sql; the writes rely on
@@ -209,7 +210,7 @@ function staffName(staffRow) {
 // children (with the year group they're applying for), their owner, and the
 // next open task — everything the table shows, without a query per row.
 export async function listFamilies() {
-  const [families, parents, children, tasks, staff, photos] = await Promise.all([
+  const [families, parents, children, tasks, staff, photos, cutoff] = await Promise.all([
     // Most recently opened/edited family first (addendum 37 — "every time I
     // open a caseload or edit something in it, that should go up"); a
     // family nobody's touched yet (last_staff_activity_at is null) sorts
@@ -224,7 +225,7 @@ export async function listFamilies() {
     supabase.from("parents").select("id, family_id, relationship, full_name, user_id").then(unwrap),
     supabase
       .from("children")
-      .select("id, family_id, full_name, preferred_name, first_name, last_name, year_group_applying_for, created_at")
+      .select("id, family_id, full_name, preferred_name, first_name, last_name, year_group_applying_for, current_year_group, date_of_birth, created_at")
       .order("created_at")
       .then(unwrap),
     supabase.from("tasks").select("*").is("done_at", null).order("due_date", { nullsFirst: false }).then(unwrap),
@@ -238,6 +239,7 @@ export async function listFamilies() {
       .eq("document_type", "profile_photo")
       .then((r) => r.data || [])
       .catch(() => []),
+    getYearGroupCutoff().catch(() => ({ month: 8, day: 31 })),
   ]);
 
   const photoByParent = Object.fromEntries((photos || []).map((d) => [d.owner_id, d]));
@@ -259,6 +261,11 @@ export async function listFamilies() {
         const name = differs ? (c.full_name || "").trim() || displayNameForChild(c, i) : displayNameForChild(c, i);
         return c.year_group_applying_for ? `${name} (${c.year_group_applying_for})` : name;
       }),
+      arrivalDate: arrivalDateOf(family),
+      childYears: familyChildren.map((c, i) => ({
+        name: displayNameForChild(c, i),
+        ...yearGroupsFor(c, family, cutoff),
+      })),
       displayName: familyDisplayName(family, familyParents),
       photoDoc:
         ["Mother", "Father"]

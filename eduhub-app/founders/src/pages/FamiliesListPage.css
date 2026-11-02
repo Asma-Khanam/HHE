@@ -341,3 +341,7 @@
 .families-attn { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .families-next-task { font-size: 0.82rem; opacity: 0.75; }
 .families-next-task.is-overdue { opacity: 1; }
+
+/* Year group columns */
+.families-years { display: flex; flex-direction: column; gap: 2px; white-space: nowrap; }
+.families-years-name { color: var(--hh-muted, #6b565e); font-size: 12px; }

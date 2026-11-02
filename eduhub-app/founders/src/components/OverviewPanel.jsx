@@ -1,4 +1,7 @@
+import { useEffect, useState } from "react";
 import { displayNameForChild } from "../lib/completeness";
+import { getYearGroupCutoff } from "../lib/staffData";
+import { yearGroupsFor } from "../lib/yearGroups";
 import { packageLabel } from "../data/packages";
 import TourSchedulePanel from "./TourSchedulePanel";
 import NeedsAttentionPanel from "./NeedsAttentionPanel";
@@ -91,6 +94,10 @@ export default function OverviewPanel({
   tasks,
 }) {
   const [mother, father] = namedParents;
+  const [cutoff, setCutoff] = useState({ month: 8, day: 31 });
+  useEffect(() => {
+    getYearGroupCutoff().then(setCutoff).catch(() => {});
+  }, []);
   const parentSurnames = [surnameOf(mother?.full_name), surnameOf(father?.full_name)].filter(Boolean);
 
   // Entry year(s) and term(s) the parents chose on the form. The same for the
@@ -183,9 +190,9 @@ export default function OverviewPanel({
                     <span className="ov-sub">Date of birth</span>
                     <ReadLine value={dobLine(c.date_of_birth)} copy={dobPlain(c.date_of_birth)} label="Copy date of birth" />
                     <span className="ov-sub">Current year group</span>
-                    <ReadLine value={c.current_year_group} label="Copy current year group" />
+                    <ReadLine value={yearGroupsFor(c, family, cutoff).current} label="Copy current year group" />
                     <span className="ov-sub">Applying for</span>
-                    <ReadLine value={c.year_group_applying_for} label="Copy year group" />
+                    <ReadLine value={yearGroupsFor(c, family, cutoff).applying} label="Copy year group" />
                     {years && <span className="ov-same">{years}</span>}
                     <span className="ov-sub">Current school</span>
                     <ReadLine value={school} label="Copy school" />

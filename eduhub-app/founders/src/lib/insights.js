@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient";
-import { familyDisplayName } from "./staffData";
+import { familyDisplayName, getYearGroupCutoff } from "./staffData";
+import { arrivalDateOf, yearGroupsFor } from "./yearGroups";
 import { PIPELINE_STAGES, CLIENT_STAGES } from "./workflow";
 
 // Dashboard analytics (September 2026). One load of every table the charts
@@ -13,7 +14,7 @@ async function all(table, columns = "*") {
 }
 
 export async function loadInsightsData() {
-  const [families, parents, children, currentSchools, applications, schools, shortlist, placements, payments, history, staff, owedFeesRaw] =
+  const [families, parents, children, currentSchools, applications, schools, shortlist, placements, payments, history, staff, owedFeesRaw, cutoff] =
     await Promise.all([
       all("families"),
       all("parents", "id, family_id, relationship, full_name, user_id, nationality"),
@@ -41,8 +42,9 @@ export async function loadInsightsData() {
         .not("sent_to_family_at", "is", null)
         .then((r) => r.data || [])
         .catch(() => []),
+      getYearGroupCutoff().catch(() => ({ month: 8, day: 31 })),
     ]);
-  return { families, parents, children, currentSchools, applications, schools, shortlist, placements, payments, history, staff, owedFeesRaw };
+  return { families, parents, children, currentSchools, applications, schools, shortlist, placements, payments, history, staff, owedFeesRaw, cutoff };
 }
 
 // ---------------------------------------------------------------- helpers
@@ -200,7 +202,8 @@ export function computeInsights(raw, { range = "all", hideTest = true } = {}) {
   const fromSchools = tally(currentSchools.map((s) => s.school_name), { top: 8 });
   const curriculum = tally(currentSchools.map((s) => s.curriculum), { top: 6 });
   const reasons = tally(currentSchools.map((s) => s.reason_for_leaving), { top: 6 });
-  const yearGroups = tally(children.map((c) => c.year_group_applying_for), { top: 99 }).sort(
+  const famById = Object.fromEntries(families.map((f) => [f.id, f]));
+  const yearGroups = tally(children.map((c) => yearGroupsFor(c, famById[c.family_id], raw.cutoff).applying), { top: 99 }).sort(
     (a, b) => YEAR_ORDER(a.label) - YEAR_ORDER(b.label)
   );
   const feeRange = tally(families.map((f) => f.comfortable_fee_range), {
@@ -214,7 +217,7 @@ export function computeInsights(raw, { range = "all", hideTest = true } = {}) {
   // -- Arrival seasonality: which month families land in Dubai.
   const arrivals = Array.from({ length: 12 }, (_, m) => ({
     label: new Date(2026, m, 1).toLocaleDateString("en-GB", { month: "short" }),
-    value: families.filter((f) => f.dubai_available_from && new Date(f.dubai_available_from).getMonth() === m).length,
+    value: families.filter((f) => arrivalDateOf(f) && new Date(arrivalDateOf(f)).getMonth() === m).length,
   }));
 
   // -- School scorecard: demand vs success, per destination school.

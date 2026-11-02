@@ -4,6 +4,7 @@ import { listFamilies, listFamilyActionRows, shortId, friendlyError } from "../l
 import { computeFamilyActions } from "../lib/familyActions";
 import { PIPELINE_STAGES, CLIENT_STAGES, clientStageLabel, stageIndex, stageLabel, isOverdue } from "../lib/workflow";
 import { packageLabel } from "../data/packages";
+import { shortYear } from "../lib/yearGroups";
 import PersonAvatar from "../components/PersonAvatar";
 import "./FamiliesListPage.css";
 
@@ -27,6 +28,21 @@ export function StageDots({ stage }) {
 function wantsCostGuidanceFollowup(family) {
   const v = (family.cost_guidance_response || "").trim();
   return v !== "" && v !== "No thank you";
+}
+
+// One line per child ("Year 4"), with the name in front when there is more than one child.
+function YearCell({ kids, field }) {
+  if (!kids.length || !kids.some((k) => k[field])) return <span className="is-muted">—</span>;
+  return (
+    <div className="families-years">
+      {kids.map((k, i) => (
+        <div key={i} title={k[field] || ""}>
+          {kids.length > 1 && <span className="families-years-name">{k.name} · </span>}
+          {k[field] ? shortYear(k[field]) : <span className="is-muted">—</span>}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function FamiliesListPage() {
@@ -123,9 +139,6 @@ export default function FamiliesListPage() {
             </button>
           ))}
         </div>
-        <div className="families-stage-legend">
-          Progress: {PIPELINE_STAGES.map((s) => s.label).join(" → ")}
-        </div>
       </div>
 
 
@@ -150,9 +163,10 @@ export default function FamiliesListPage() {
               <tr>
                 <th>Family</th>
                 <th>Children</th>
-                <th>Destination</th>
+                <th>Arrival date</th>
+                <th>Current year</th>
+                <th>Applying for</th>
                 <th>Client stage</th>
-                <th>Pipeline stage</th>
                 <th>Needs attention</th>
                 <th>Owner</th>
                 <th>Status</th>
@@ -182,14 +196,23 @@ export default function FamiliesListPage() {
                     </div>
                   </td>
                   <td className="families-cell-children">
-                    {family.childLabels.length ? family.childLabels.join(", ") : <span className="is-muted">None yet</span>}
+                    {family.childYears.length ? family.childYears.map((c) => c.name).join(", ") : <span className="is-muted">None yet</span>}
                   </td>
-                  <td>{family.destination || <span className="is-muted">—</span>}</td>
+                  <td>
+                    {family.arrivalDate ? (
+                      new Date(family.arrivalDate + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+                    ) : (
+                      <span className="is-muted">—</span>
+                    )}
+                  </td>
+                  <td>
+                    <YearCell kids={family.childYears} field="current" />
+                  </td>
+                  <td>
+                    <YearCell kids={family.childYears} field="applying" />
+                  </td>
                   <td>
                     <span className="families-badge">{clientStageLabel(family.client_stage)}</span>
-                  </td>
-                  <td>
-                    <StageDots stage={family.pipeline_stage} />
                   </td>
                   <td className="families-cell-action">
                     <div className="families-attn">
