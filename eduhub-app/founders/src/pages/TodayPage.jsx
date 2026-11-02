@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getTodayData, getCurrentStaff, setTaskDone, listFamilyActionRows, friendlyError } from "../lib/staffData";
 import { computeFamilyActions } from "../lib/familyActions";
+import { taskPath, taskRow, taskWhere, taskState } from "../lib/taskLinks";
 import { daysUntil, isOverdue, isDueToday, noteKindLabel, relativeDay } from "../lib/workflow";
 import "./TodayPage.css";
 
@@ -46,6 +47,9 @@ export default function TodayPage() {
   const [error, setError] = useState("");
   const [busyTaskId, setBusyTaskId] = useState(null);
   const [actions, setActions] = useState({});
+  const [shortlistRows, setShortlistRows] = useState([]);
+  const [filter, setFilter] = useState("all");
+  const [closedGroups, setClosedGroups] = useState({});
 
   function load() {
     getCurrentStaff().then(setMe).catch(() => {});
@@ -53,7 +57,10 @@ export default function TodayPage() {
       .then(setData)
       .catch((err) => setError(friendlyError(err, "Couldn't load your dashboard.")));
     listFamilyActionRows()
-      .then(({ rows, suggestions }) => setActions(computeFamilyActions(rows, suggestions)))
+      .then(({ rows, suggestions }) => {
+        setShortlistRows(rows);
+        setActions(computeFamilyActions(rows, suggestions));
+      })
       .catch(() => {});
   }
 
@@ -91,14 +98,35 @@ export default function TodayPage() {
     return d !== null && d >= 0 && d <= 7;
   });
 
-  const myOpenTasks = open.filter((t) => t.assigned_to === me?.user_id);
-  const unassignedOpenTasks = open.filter((t) => !t.assigned_to);
-  const myTasks = [...myOpenTasks, ...unassignedOpenTasks]
-    .filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i)
-    .sort((a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999"));
-  const myTaskTotal = myTasks.length;
-  const myTaskOverdue = myTasks.filter((t) => isOverdue(t.due_date)).length;
-  const myTasksShown = myTasks.slice(0, 6);
+  // Every open task, in groups, in the page itself (no cap). Tabs say whose.
+  const byDate = (x, y) => (x.due_date || "9999").localeCompare(y.due_date || "9999");
+  const counts = {
+    all: open.length,
+    mine: open.filter((t) => t.assigned_to === me?.user_id).length,
+    unclaimed: open.filter((t) => !t.assigned_to).length,
+  };
+  const shown = open
+    .filter((t) => filter === "all" || (filter === "mine" && t.assigned_to === me?.user_id) || (filter === "unclaimed" && !t.assigned_to))
+    .sort(byDate);
+  const groupOf = (t) => {
+    if (isOverdue(t.due_date)) return "overdue";
+    if (isDueToday(t.due_date)) return "today";
+    const d = daysUntil(t.due_date);
+    return d !== null && d >= 0 && d <= 7 ? "week" : "later";
+  };
+  const GROUPS = [
+    { key: "overdue", label: "Overdue", bad: true },
+    { key: "today", label: "Today" },
+    { key: "week", label: "This week" },
+    { key: "later", label: "Later" },
+  ];
+  const groups = GROUPS.map((g) => ({ ...g, tasks: shown.filter((t) => groupOf(t) === g.key) })).filter((g) => g.tasks.length);
+  const overdueAll = open.filter((t) => isOverdue(t.due_date)).length;
+  const TABS = [
+    { key: "all", label: "Everyone\u2019s" },
+    { key: "mine", label: "Mine" },
+    { key: "unclaimed", label: "Waiting to be taken" },
+  ];
 
   // Families still being worked on need a consultant; placed / archived ones don't.
   const liveIds = new Set(data.families.filter((f) => f.client_stage === "live").map((f) => f.id));
@@ -150,55 +178,97 @@ export default function TodayPage() {
       )}
 
       <div className="today-main-grid">
-        <section className="today-card">
+        <section className="today-card today-tasks">
           <div className="today-card-head">
             <h2>
-              Your tasks <span className="today-count">{myTaskTotal}</span>
-              {myTaskOverdue > 0 && <span className="today-count is-bad">{myTaskOverdue} overdue</span>}
+              Tasks <span className="today-count">{counts.all}</span>
+              {overdueAll > 0 && <span className="today-count is-bad">{overdueAll} overdue</span>}
             </h2>
             <Link to="/staff/calendar" className="today-link-btn">
               Calendar ›
             </Link>
           </div>
-          {myTasksShown.length === 0 ? (
-            <p className="today-hint">All clear — nothing assigned or unclaimed.</p>
+
+          <div className="today-tabs" role="tablist" aria-label="Which tasks">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={filter === t.key}
+                className={"today-tab" + (filter === t.key ? " is-on" : "")}
+                onClick={() => setFilter(t.key)}
+              >
+                {t.label} <span className="today-tab-count">{counts[t.key]}</span>
+              </button>
+            ))}
+          </div>
+
+          {groups.length === 0 ? (
+            <p className="today-hint">All clear. Nothing here.</p>
           ) : (
-            <ul className="today-task-list">
-              {myTasksShown.map((task) => {
-                const overdueTask = isOverdue(task.due_date) && !task.done_at;
-                const todayTask = isDueToday(task.due_date) && !task.done_at;
-                return (
-                  <li key={task.id} className={"today-task" + (task.done_at ? " is-done" : "")}>
-                    <button
-                      type="button"
-                      className={"today-check" + (task.done_at ? " is-checked" : "")}
-                      onClick={() => handleToggleTask(task)}
-                      disabled={busyTaskId === task.id}
-                      aria-label={task.done_at ? "Mark not done" : "Mark done"}
-                    >
-                      {task.done_at ? "✓" : ""}
-                    </button>
-                    <div className="today-task-text">
-                      <div className="today-task-title">{task.title}</div>
-                      <div className="today-task-meta">
-                        {task.due_date ? shortDate(task.due_date) : "No date"}
-                        {" · "}
-                        {task.family_id ? (
-                          <Link className="today-task-family" to={`/staff/families/${task.family_id}`}>
-                            {task.familyName}
-                          </Link>
-                        ) : (
-                          task.familyName
-                        )}
-                        {!task.assigned_to && " · unclaimed"}
-                      </div>
-                    </div>
-                    {overdueTask && <span className="today-pill is-overdue">Overdue</span>}
-                    {!overdueTask && todayTask && <span className="today-pill is-today">Today</span>}
-                  </li>
-                );
-              })}
-            </ul>
+            groups.map((g) => {
+              const isClosed = !!closedGroups[g.key];
+              return (
+                <div key={g.key} className="today-group">
+                  <button
+                    type="button"
+                    className="today-group-head"
+                    aria-expanded={!isClosed}
+                    onClick={() => setClosedGroups((c) => ({ ...c, [g.key]: !c[g.key] }))}
+                  >
+                    <span className={"today-chev" + (isClosed ? " is-closed" : "")} aria-hidden="true">
+                      ▾
+                    </span>
+                    <span className="today-group-name">{g.label}</span>
+                    <span className={"today-count" + (g.bad ? " is-bad" : "")}>{g.tasks.length}</span>
+                  </button>
+                  {!isClosed && (
+                    <ul className="today-task-list">
+                      {g.tasks.map((task) => {
+                        const row = taskRow(task, shortlistRows);
+                        const state = taskState(task, row);
+                        const path = taskPath(task);
+                        const late = isOverdue(task.due_date);
+                        return (
+                          <li key={task.id} className={"today-task" + (late ? " is-late" : "")}>
+                            <button
+                              type="button"
+                              className="today-check"
+                              onClick={() => handleToggleTask(task)}
+                              disabled={busyTaskId === task.id}
+                              aria-label="Mark done"
+                              title="Mark done"
+                            />
+                            <div className="today-task-text">
+                              <div className="today-task-title">{task.title}</div>
+                              {state && <div className="today-task-state">{state}</div>}
+                              <div className="today-task-meta">
+                                <strong className="today-task-family-name">{task.familyName}</strong>
+                                {" · "}
+                                <span className={late ? "today-due-late" : ""}>{task.due_date ? `Due ${shortDate(task.due_date)}` : "No date"}</span>
+                                {" · "}
+                                {task.assigned_to
+                                  ? task.assigned_to === me?.user_id
+                                    ? "Yours"
+                                    : `With ${task.assigneeName}`
+                                  : "Waiting to be taken"}
+                                {path && <> · Opens {taskWhere(task, row)}</>}
+                              </div>
+                            </div>
+                            {path && (
+                              <Link to={path} className="today-open">
+                                Open →
+                              </Link>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              );
+            })
           )}
         </section>
 

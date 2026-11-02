@@ -1281,6 +1281,7 @@ export async function getTodayData() {
     ...t,
     familyName: t.family_id ? familyNames[t.family_id] || "Unknown family" : "No family",
     assigneeInitial: t.assigned_to ? staffName(staffById[t.assigned_to]).charAt(0).toUpperCase() : null,
+    assigneeName: t.assigned_to ? staffName(staffById[t.assigned_to]) : null,
   }));
 
   // Profile photos live in the documents table too (same polymorphic row, so
@@ -3028,7 +3029,7 @@ export async function resolveReplySuggestion(id, status) {
 // if either fails (or addendum 144 has not been run) the flags are simply fewer.
 export async function listFamilyActionRows(familyId) {
   const base =
-    "id, family_id, family_decision, enquiry_sent_at, enquiry_skipped_at, availability_status, tour_date, tour_status, tour2_date, tour2_status, feedback_text, school:schools(name)";
+    "id, family_id, school_id, family_decision, enquiry_sent_at, enquiry_skipped_at, availability_status, tour_date, tour_status, tour2_date, tour2_status, feedback_text, school:schools(name)";
   const shortlistQuery = (cols) => {
     let q = supabase.from("school_shortlist").select(cols);
     if (familyId) q = q.eq("family_id", familyId);

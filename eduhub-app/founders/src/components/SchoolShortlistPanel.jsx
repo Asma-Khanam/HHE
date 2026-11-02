@@ -151,6 +151,8 @@ export default function SchoolShortlistPanel({
     if (row) {
       setExpandedId(row.id);
       if (children[0]) setTab(children[0].id);
+      // From a Today task: bring the row into view once it has drawn.
+      setTimeout(() => document.getElementById("sv-row-" + row.id)?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusSchoolId, rows.length]);
@@ -1494,7 +1496,7 @@ export default function SchoolShortlistPanel({
                 const [nextLabel, nextTone, nextWho] = nextStep(row, child.id);
                 const kidsPlacedHere = placedHere(placed, children, row.school_id, row.school?.name);
                 return (
-                  <div key={row.id}>
+                  <div key={row.id} id={"sv-row-" + row.id}>
                     <div
                       className={"sv-tb" + (open ? " is-sel" : "")}
                       style={{ "--sv-cols": childCols }}
