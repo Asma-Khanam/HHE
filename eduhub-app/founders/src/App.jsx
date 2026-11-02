@@ -10,6 +10,7 @@ import FamiliesListPage from "./pages/FamiliesListPage";
 import FamilyDetailPage from "./pages/FamilyDetailPage";
 import CalendarPage from "./pages/CalendarPage";
 import ConsultationsPage from "./pages/ConsultationsPage";
+import ActivityPage from "./pages/ActivityPage";
 import AccountingPage from "./pages/AccountingPage";
 import EmailsPage from "./pages/EmailsPage";
 import TeamPage from "./pages/TeamPage";
@@ -45,6 +46,7 @@ function App() {
         <Route path="families/:familyId" element={<FamilyDetailPage />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="consultations" element={<ConsultationsPage />} />
+        <Route path="activity" element={<ActivityPage />} />
         <Route path="accounting" element={<AccountingPage />} />
         <Route path="emails" element={<EmailsPage />} />
         <Route path="team" element={<TeamPage />} />

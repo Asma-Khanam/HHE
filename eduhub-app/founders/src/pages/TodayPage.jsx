@@ -5,7 +5,7 @@ import { comingUpItems } from "../lib/comingUp";
 import TaskPanel from "../components/TaskPanel";
 import { computeFamilyActions, ACTION_HINT } from "../lib/familyActions";
 import { taskPath, taskRow, taskWhere, taskState } from "../lib/taskLinks";
-import { daysUntil, isOverdue, isDueToday, noteKindLabel, relativeDay } from "../lib/workflow";
+import { daysUntil, isOverdue, isDueToday } from "../lib/workflow";
 import "./TodayPage.css";
 
 const SECTION_KEY = "hh_today_section";
@@ -47,14 +47,6 @@ function shortDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
-// Trim a case-note body down to a single glanceable line — the full text is
-// still one click away on the family's page, this is just the "at a glance"
-// dashboard, not the case file itself.
-function snippet(text, max = 80) {
-  if (!text) return "";
-  const clean = text.trim().replace(/\s+/g, " ");
-  return clean.length > max ? clean.slice(0, max).trimEnd() + "…" : clean;
-}
 
 // Five stat tiles used to sit in a plain 4-column grid, which left an
 // orphaned 5th tile on its own row — the actual "alignment gap" the number
@@ -253,7 +245,6 @@ export default function TodayPage() {
   const liveIds = new Set(data.families.filter((f) => f.client_stage === "live").map((f) => f.id));
   const unowned = data.unownedFamilies.filter((f) => liveIds.has(f.id));
 
-  const activity = (data.recentActivity || []).slice(0, 5);
 
   return (
     <div className="today-page">
@@ -312,6 +303,9 @@ export default function TodayPage() {
               Tasks <span className="today-count">{counts.all}</span>
               {overdueAll > 0 && <span className="today-count is-bad">{overdueAll} overdue</span>}
             </h2>
+            <Link to="/staff/activity" className="today-link-btn">
+              Activity ›
+            </Link>
             <Link to="/staff/calendar" className="today-link-btn">
               Calendar ›
             </Link>
@@ -481,31 +475,6 @@ export default function TodayPage() {
 
       </div>
 
-      <section className="today-card">
-        <div className="today-card-head">
-          <h2>Recent activity</h2>
-        </div>
-        {activity.length === 0 ? (
-          <p className="today-hint">Nothing logged yet.</p>
-        ) : (
-          <ul className="today-activity-list">
-            {activity.map((note) => (
-              <li key={note.id} className="today-activity">
-                <div className="today-activity-avatar">{note.staffName.charAt(0).toUpperCase()}</div>
-                <div className="today-activity-text">
-                  <span className="today-activity-line">
-                    <strong>{note.staffName}</strong> · {noteKindLabel(note.kind)} ·{" "}
-                    {note.family_id ? <Link to={`/staff/families/${note.family_id}`}>{note.familyName}</Link> : note.familyName}
-                    {" — "}
-                    {snippet(note.body)}
-                  </span>
-                  <span className="today-activity-time">{relativeDay(note.created_at)}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
       {panel && (panel === "new" || panelTask) && (
         <TaskPanel
