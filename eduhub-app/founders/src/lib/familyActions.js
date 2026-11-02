@@ -9,7 +9,7 @@ const TABS = { visits: "School visits" };
 export const actionWhere = (a) => TABS[a.where] || a.where;
 
 // rows: school_shortlist rows with { school: { name } }; suggestions: unresolved school_reply_suggestions.
-// Returns { [familyId]: [{ key, where, label, schoolName }] }
+// Returns { [familyId]: [{ key, step, schoolId, where, label, schoolName }] }
 export function computeFamilyActions(rows, suggestions) {
   const today = dubaiToday();
   const sugByRow = new Set((suggestions || []).map((s) => s.shortlist_id));
@@ -25,25 +25,34 @@ export function computeFamilyActions(rows, suggestions) {
     ].filter((s) => s.date && s.status !== "cancelled");
 
     if (sugByRow.has(row.id)) {
-      add(row.family_id, { key: "reply-" + row.id, where: "visits", schoolName: name, label: `${name} replied: check what they said` });
+      add(row.family_id, { key: "reply-" + row.id, step: "reply", schoolId: row.school_id, where: "visits", schoolName: name, label: `${name} replied: check what they said` });
     }
     if (slots.some((s) => (s.status || "offered") === "offered")) {
-      add(row.family_id, { key: "offer-" + row.id, where: "visits", schoolName: name, label: `${name} offered a tour time: accept it or ask for another` });
+      add(row.family_id, { key: "offer-" + row.id, step: "offer", schoolId: row.school_id, where: "visits", schoolName: name, label: `${name} offered a tour time: accept it or ask for another` });
     }
     const unshared =
       (row.tour_date && row.tour_status === "confirmed" && row.tour_shared_at === null) ||
       (row.tour2_date && row.tour2_status === "confirmed" && row.tour2_shared_at === null);
     if (unshared) {
-      add(row.family_id, { key: "share-" + row.id, where: "visits", schoolName: name, label: `${name}: tour confirmed, send the schedule to the parent` });
+      add(row.family_id, { key: "share-" + row.id, step: "share", schoolId: row.school_id, where: "visits", schoolName: name, label: `${name}: tour confirmed, send the schedule to the parent` });
     }
     const toured = slots.some((s) => s.status === "completed" || (s.status === "confirmed" && s.date < today));
     if (toured && !(row.feedback_text || "").trim()) {
-      add(row.family_id, { key: "feedback-" + row.id, where: "visits", schoolName: name, label: `${name}: the tour has happened, get the family's feedback` });
+      add(row.family_id, { key: "feedback-" + row.id, step: "feedback", schoolId: row.school_id, where: "visits", schoolName: name, label: `${name}: the tour has happened, get the family's feedback` });
     }
     const emailed = row.enquiry_sent_at || row.enquiry_skipped_at;
     if (!emailed && (row.availability_status || "awaiting") === "awaiting" && slots.length === 0) {
-      add(row.family_id, { key: "enquiry-" + row.id, where: "visits", schoolName: name, label: `${name}: availability email not sent yet` });
+      add(row.family_id, { key: "enquiry-" + row.id, step: "enquiry", schoolId: row.school_id, where: "visits", schoolName: name, label: `${name}: availability email not sent yet` });
     }
   }
   return out;
 }
+
+// One plain line on what to do, for the Today list.
+export const ACTION_HINT = {
+  reply: "Open the school and read what they said, then accept or reply.",
+  offer: "Accept the time with the family, or ask the school for another.",
+  share: "Send the confirmed tour schedule to the parent.",
+  feedback: "Ask the family how the tour went and save it.",
+  enquiry: "Send the school the availability email.",
+};

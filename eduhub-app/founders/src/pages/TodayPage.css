@@ -707,3 +707,6 @@
 
 /* Payments and deadlines now live in the task list, so the page is one column. */
 .today-main-grid { grid-template-columns: minmax(0, 1fr); }
+
+/* School-visit actions: they clear themselves, so a soft dot instead of a tick box */
+.today-tasks .today-check.is-auto { border-style: dashed; border-color: rgba(83, 1, 38, 0.25); cursor: default; background: transparent; }

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getTodayData, getCurrentStaff, setTaskDone, updateTask, listFamilyActionRows, friendlyError } from "../lib/staffData";
 import TaskPanel from "../components/TaskPanel";
-import { computeFamilyActions } from "../lib/familyActions";
+import { computeFamilyActions, ACTION_HINT } from "../lib/familyActions";
 import { taskPath, taskRow, taskWhere, taskState } from "../lib/taskLinks";
 import { daysUntil, isOverdue, isDueToday, noteKindLabel, relativeDay } from "../lib/workflow";
 import "./TodayPage.css";
@@ -62,6 +62,7 @@ function snippet(text, max = 80) {
 // colored pill so tone reads at a glance instead of by reading words.
 
 export default function TodayPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [me, setMe] = useState(null);
   const [error, setError] = useState("");
@@ -143,7 +144,27 @@ export default function TodayPage() {
     .sort((a, b) => a.name.localeCompare(b.name));
   const panelTask = panel && panel !== "new" ? data.tasks.find((t) => t.id === panel && !t.done_at) || null : null;
 
-  const open = data.tasks.filter((t) => !t.done_at);
+  // What the school visits steps are waiting on us for. They are worked out live, so they
+  // finish themselves when the step is done (nothing to tick) and open the exact school.
+  const familyById = Object.fromEntries(data.families.map((f) => [f.id, f]));
+  const actionItems = Object.entries(actions).flatMap(([fid, list]) =>
+    familyById[fid] && !familyById[fid].archived_at && familyById[fid].client_stage === "live"
+      ? list.map((a) => ({
+          id: "act:" + a.key,
+          isAction: true,
+          family_id: fid,
+          familyName: data.familyNames[fid] || "Unknown family",
+          title: a.label,
+          state: ACTION_HINT[a.step] || "",
+          due_date: null,
+          assigned_to: familyById[fid].owner_staff_id || null,
+          link_tab: "visits",
+          link_school_id: a.schoolId,
+          link_step: a.step,
+        }))
+      : []
+  );
+  const open = [...data.tasks.filter((t) => !t.done_at), ...actionItems];
 
   // Every open task, in groups, in the page itself (no cap). Tabs say whose.
   const byDate = (x, y) => (x.due_date || "9999").localeCompare(y.due_date || "9999");
@@ -156,6 +177,7 @@ export default function TodayPage() {
     .filter((t) => filter === "all" || (filter === "mine" && t.assigned_to === me?.user_id) || (filter === "unclaimed" && !t.assigned_to))
     .sort(byDate);
   const groupOf = (t) => {
+    if (t.isAction) return "today";
     if (isOverdue(t.due_date)) return "overdue";
     if (isDueToday(t.due_date)) return "today";
     const d = daysUntil(t.due_date);
@@ -339,28 +361,33 @@ export default function TodayPage() {
                 <ul className="today-task-list">
                   {active.tasks.map((task) => {
                     const row = taskRow(task, shortlistRows);
-                    const state = taskState(task, row);
+                    const state = task.isAction ? task.state : taskState(task, row);
                     const path = taskPath(task);
                     const late = isOverdue(task.due_date);
                     return (
                       <li key={task.id} className="today-task">
-                        <button
-                          type="button"
-                          className="today-check"
-                          onClick={() => handleToggleTask(task)}
-                          disabled={busyTaskId === task.id}
-                          aria-label="Mark done"
-                          title="Mark done"
-                        />
+                        {task.isAction ? (
+                          <span className="today-check is-auto" title="Clears itself when the step is done" aria-hidden="true" />
+                        ) : (
+                          <button
+                            type="button"
+                            className="today-check"
+                            onClick={() => handleToggleTask(task)}
+                            disabled={busyTaskId === task.id}
+                            aria-label="Mark done"
+                            title="Mark done"
+                          />
+                        )}
                         <div
                           className="today-task-text is-clickable"
                           role="button"
                           tabIndex={0}
-                          onClick={() => setPanel(task.id)}
+                          onClick={() => (task.isAction ? navigate(path) : setPanel(task.id))}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              setPanel(task.id);
+                              if (task.isAction) navigate(path);
+                              else setPanel(task.id);
                             }
                           }}
                         >
@@ -369,13 +396,18 @@ export default function TodayPage() {
                           <div className="today-task-meta">
                             <span className="today-task-family-name">{task.familyName}</span>
                             {" · "}
-                            <span className={late ? "today-due-late" : ""}>{task.due_date ? `Due ${shortDate(task.due_date)}` : "No date"}</span>
-                            {" · "}
+                            {!task.isAction && (
+                              <>
+                                <span className={late ? "today-due-late" : ""}>{task.due_date ? `Due ${shortDate(task.due_date)}` : "No date"}</span>
+                                {" · "}
+                              </>
+                            )}
+                            {task.isAction && "Needs doing now · "}
                             {task.assigned_to
                               ? task.assigned_to === me?.user_id
                                 ? "Yours"
                                 : `With ${nameOf(task.assigned_to)}`
-                              : "Waiting to be taken"}
+                              : "No consultant yet"}
                           </div>
                         </div>
                         <div className="today-task-actions">
@@ -384,7 +416,7 @@ export default function TodayPage() {
                               Open →
                             </Link>
                           )}
-                          {!task.assigned_to && me && (
+                          {!task.assigned_to && me && !task.isAction && (
                             <button type="button" className="today-take" onClick={() => handleTake(task)}>
                               Take this
                             </button>
