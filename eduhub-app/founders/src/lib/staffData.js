@@ -1464,6 +1464,17 @@ export async function getSchoolDetail(schoolId) {
   // many schools.
   const shortlistIds = (shortlist || []).map((row) => row.id);
   const childIds = (children || []).map((c) => c.id);
+  // Addendum 149: who is (or was) placed at this school, for the simple
+  // school-level list, plus the cut-off the year groups are worked out from.
+  const [placements, cutoff] = await Promise.all([
+    familyIds.length
+      ? supabase.from("family_placements").select("*").in("family_id", familyIds).then(unwrap).catch(() => [])
+      : Promise.resolve([]),
+    getYearGroupCutoff().catch(() => ({ month: 8, day: 31 })),
+  ]);
+  const hereName = (school?.name || "").trim().toLowerCase();
+  const placementFor = (childId) =>
+    (placements || []).find((p) => p.child_id === childId && (p.school_name || "").trim().toLowerCase() === hereName) || null;
   const [childStatus, childApplications] = await Promise.all([
     listChildAvailabilityForShortlistIds(shortlistIds),
     childIds.length
@@ -1486,6 +1497,8 @@ export async function getSchoolDetail(schoolId) {
         ...child,
         availability_status: statusByChildId[child.id] || "awaiting",
         applications: applicationsByChild[child.id] || [],
+        years: yearGroupsFor(child, family, cutoff),
+        placement: placementFor(child.id),
       })),
     };
   });

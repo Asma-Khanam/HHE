@@ -326,3 +326,14 @@
 }
 
 .sd-emirate{max-width:220px}
+
+/* Simplified school-level list (30/10/2026 meeting) */
+.sd-simple-wrap { overflow-x: auto; }
+.sd-simple { width: 100%; border-collapse: collapse; font-size: 15px; }
+.sd-simple thead th {
+  text-align: left; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--hh-muted, #6b565e); font-weight: 600; padding: 0 12px 8px 0; white-space: nowrap;
+}
+.sd-simple td { padding: 12px 12px 12px 0; border-top: 1px solid rgba(83, 1, 38, 0.08); vertical-align: top; }
+.sd-simple-sub { display: block; font-size: 12px; color: var(--hh-muted, #6b565e); }
+.sd-simple-placed { font-weight: 600; color: #2f6b4f; }

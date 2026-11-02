@@ -1,15 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   getSchoolDetail,
   updateSchool,
   addToShortlist,
-  updateShortlistEntry,
-  updateShortlistTour,
   removeFromShortlist,
-  upsertChildAvailability,
   listFamilies,
-  createApplication,
   listStaff,
   listSchoolNotes,
   createSchoolNote,
@@ -26,32 +22,6 @@ import SchoolFeedbackPanel from "../components/SchoolFeedbackPanel";
 import "../components/panels.css";
 import "./FamilyDetailPage.css";
 import "./SchoolDetailPage.css";
-
-const AVAILABILITY_LABELS = {
-  awaiting: "Awaiting reply",
-  yes: "Yes",
-  no: "No",
-  waitlist: "Waitlist",
-  some_year_groups: "Some year groups",
-};
-
-// Short per-child chip labels -- same wording/colour convention as the
-// family-facing School shortlist panel (SchoolShortlistPanel.jsx), just
-// duplicated here rather than shared since that file doesn't export them.
-const CHILD_CHIP_LABEL = {
-  awaiting: "Awaiting",
-  yes: "Place",
-  no: "No place",
-  waitlist: "Waitlist",
-  some_year_groups: "Some yrs",
-};
-
-function childChipClass(value) {
-  if (value === "yes") return "is-yes";
-  if (value === "no") return "is-no";
-  if (value === "waitlist" || value === "some_year_groups") return "is-partial";
-  return "is-awaiting";
-}
 
 const TOUR_STATUS_LABEL = { offered: "Booked", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
 
@@ -71,25 +41,6 @@ function formatDateTime(dateStr, timeStr) {
   return `${d}, ${hour12}${m && m !== "00" ? ":" + m : ""}${suffix}`;
 }
 
-function daysSince(iso) {
-  if (!iso) return null;
-  return Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
-}
-
-// "Where it's up to" for one family at this school -- same precedence as
-// SchoolShortlistPanel's stageInfo (offer > applied > toured > tour booked
-// > awaiting reply), collapsed to a label only since this view doesn't
-// need the relative-time detail the family-facing panel shows.
-function familyStageLabel(row, applicationsForFamily) {
-  if (applicationsForFamily.some((a) => a.status === "offer" || a.status === "offer_accepted")) return "Offer received";
-  if (applicationsForFamily.some((a) => a.status !== "draft" && a.status !== "withdrawn")) return "Applied";
-  if (row.tour_status === "completed") return row.feedback_text || row.feedback_rating ? "Toured, feedback in" : "Toured, feedback pending";
-  if (row.tour_status === "cancelled") return "Tour cancelled";
-  if (row.tour_date) return "Tour booked";
-  if (row.availability_status !== "awaiting") return "Awaiting tour date";
-  return "Awaiting reply";
-}
-
 // One school's full record and every
 // family that has it shortlisted — the school-side view that complements
 // SchoolVisitsPanel on FamilyDetailPage (Phase 1 of the School visits
@@ -106,6 +57,28 @@ const FAMILY_FILTERS = [
   ["offered", "Offered", (e) => entryApps(e).some((a) => a.status === "offer" || a.status === "offer_accepted")],
   ["withdrew", "Withdrew", (e) => entryApps(e).some((a) => a.status === "withdrawn")],
 ];
+
+// Where this child's placement at this school stands, in a few words.
+function placementCell(entry, child) {
+  const p = child?.placement;
+  if (p && p.placement_status === "moved") {
+    return (
+      <span>
+        Left{p.ended_on ? ` ${formatDate(p.ended_on)}` : ""}
+        {p.moved_to_school ? ` → ${p.moved_to_school}` : ""}
+        {p.moved_reason ? <span className="sd-simple-sub">{p.moved_reason}</span> : null}
+      </span>
+    );
+  }
+  if (p) return <span className="sd-simple-placed">Placed here</span>;
+  const apps = (child?.applications || []).filter((a) => a.school_id === entry.school_id || !a.school_id);
+  if (apps.some((a) => a.status === "offer_accepted")) return "Offer accepted";
+  if (apps.some((a) => a.status === "offer")) return "Offer";
+  if (apps.some((a) => a.status === "rejected")) return "Declined by the school";
+  if (apps.some((a) => a.status === "withdrawn")) return "Withdrawn";
+  if (apps.some((a) => a.status && a.status !== "draft")) return "Applied";
+  return <span className="is-muted">Not placed</span>;
+}
 
 function SchoolNotesFeed({ schoolId }) {
   const [notes, setNotes] = useState(null);
@@ -323,7 +296,6 @@ function SchoolRecordView({ school, onEmirate }) {
 
 export default function SchoolDetailPage() {
   const { schoolId } = useParams();
-  const navigate = useNavigate();
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
   const [tab, setTab] = useState("record");
@@ -338,9 +310,6 @@ export default function SchoolDetailPage() {
 
   // Tour -> application handoff, mirroring the same action on the family's
   // own School visits tab (SchoolShortlistPanel.jsx) -- see handleReadyToApply.
-  const [decliningId, setDecliningId] = useState(null);
-  const [declineNote, setDeclineNote] = useState("");
-  const [applyingId, setApplyingId] = useState(null);
 
   function load() {
     return getSchoolDetail(schoolId)
@@ -450,34 +419,6 @@ export default function SchoolDetailPage() {
     }
   }
 
-  async function handleAvailabilityChange(entry, availability_status) {
-    try {
-      const updated = await updateShortlistEntry(entry.id, { availability_status });
-      setDetail((d) => ({
-        ...d,
-        shortlist: d.shortlist.map((s) => (s.id === entry.id ? { ...s, ...updated } : s)),
-      }));
-    } catch (err) {
-      setError(friendlyError(err, "Couldn't update that."));
-    }
-  }
-
-  async function handleChildAvailabilityChange(entry, childId, availability_status) {
-    try {
-      await upsertChildAvailability(entry.id, childId, availability_status);
-      setDetail((d) => ({
-        ...d,
-        shortlist: d.shortlist.map((s) =>
-          s.id === entry.id
-            ? { ...s, children: s.children.map((c) => (c.id === childId ? { ...c, availability_status } : c)) }
-            : s
-        ),
-      }));
-    } catch (err) {
-      setError(friendlyError(err, "Couldn't update that."));
-    }
-  }
-
   // Founder feedback (Sept 2026): "if I remove a school from a shortlist -
   // where does it go? It seems to disappear" -- it disappears because this
   // is a real, permanent delete with no undo, and there was no confirmation
@@ -495,80 +436,6 @@ export default function SchoolDetailPage() {
       setDetail((d) => ({ ...d, shortlist: d.shortlist.filter((s) => s.id !== entry.id) }));
     } catch (err) {
       setError(friendlyError(err, "Couldn't remove that."));
-    }
-  }
-
-  // Mirrors the family-page School visits tab's tour -> application handoff
-  // (SchoolShortlistPanel.jsx's handleReadyToApply), so the same "family
-  // wants to proceed" action exists from a school's own record too -- a
-  // founder working a specific school (scanning through everyone shortlisted
-  // for it) shouldn't have to go find the right family page first just to
-  // start an application once a tour is done.
-  async function handleReadyToApply(entry) {
-    setApplyingId(entry.id);
-    setError("");
-    try {
-      const childrenNeedingApplication = (entry.children || []).filter((c) => !(c.applications || []).length);
-      if (childrenNeedingApplication.length > 0) {
-        await Promise.all(
-          childrenNeedingApplication.map((c) => createApplication({ childId: c.id, schoolId, status: "draft" }))
-        );
-      }
-      if (entry.family_decision !== "proceeding") {
-        await updateShortlistTour(entry.id, {
-          family_decision: "proceeding",
-          family_decision_at: new Date().toISOString(),
-        });
-      }
-      navigate(`/staff/families/${entry.family_id}?tab=applications`);
-    } catch (err) {
-      setError(friendlyError(err, "Couldn't start that application."));
-      setApplyingId(null);
-    }
-  }
-
-  // The other half of that handoff: the family toured this school and
-  // decided not to apply. Recorded on the tour itself, same as the
-  // family-page version.
-  async function handleDeclineFamily(entry) {
-    setApplyingId(entry.id);
-    setError("");
-    try {
-      const updated = await updateShortlistTour(entry.id, {
-        family_decision: "declined",
-        family_decision_note: declineNote.trim() || null,
-        family_decision_at: new Date().toISOString(),
-      });
-      setDetail((d) => ({
-        ...d,
-        shortlist: d.shortlist.map((s) => (s.id === entry.id ? { ...s, ...updated } : s)),
-      }));
-      setDecliningId(null);
-      setDeclineNote("");
-    } catch (err) {
-      setError(friendlyError(err, "Couldn't record that."));
-    } finally {
-      setApplyingId(null);
-    }
-  }
-
-  async function handleUndoDecision(entry) {
-    setApplyingId(entry.id);
-    setError("");
-    try {
-      const updated = await updateShortlistTour(entry.id, {
-        family_decision: null,
-        family_decision_note: null,
-        family_decision_at: null,
-      });
-      setDetail((d) => ({
-        ...d,
-        shortlist: d.shortlist.map((s) => (s.id === entry.id ? { ...s, ...updated } : s)),
-      }));
-    } catch (err) {
-      setError(friendlyError(err, "Couldn't undo that."));
-    } finally {
-      setApplyingId(null);
     }
   }
 
@@ -1087,170 +954,64 @@ export default function SchoolDetailPage() {
         ) : shortlist.filter(FAMILY_FILTERS.find((f) => f[0] === famFilter)[2]).length === 0 ? (
           <p className="family-detail-hint">No families here yet.</p>
         ) : (
-          <ul className="panel-list schooldetail-shortlist-list">
-            {shortlist.filter(FAMILY_FILTERS.find((f) => f[0] === famFilter)[2]).map((entry) => {
-              const waitingDays = entry.availability_status === "awaiting" ? daysSince(entry.shortlisted_at) : null;
-              const stageLabel = familyStageLabel(entry, (entry.children || []).flatMap((c) => c.applications || []));
-              return (
-                <li key={entry.id} className="schooldetail-shortlist-card">
-                  <div className="schooldetail-shortlist-cardtop">
-                    <Link to={`/staff/families/${entry.family_id}?tab=applications&school=${schoolId}`} className="schooldetail-shortlist-family">
-                      {entry.familyName}
-                    </Link>
-                    <span className="schooldetail-shortlist-stage">{stageLabel}</span>
-                    <button type="button" className="panel-btn panel-btn-quiet" onClick={() => handleRemoveShortlistEntry(entry)}>
-                      Remove
-                    </button>
-                  </div>
-
-                  {entry.children && entry.children.length > 0 && (
-                    <div className="schooldetail-shortlist-children">
-                      {entry.children.map((child, index) => (
-                        <span key={child.id} className="schooldetail-child-chip-group">
-                          <span className="schooldetail-child-name">
-                            {displayNameForChild(child, index)}
-                            {child.year_group_applying_for ? ` · ${child.year_group_applying_for}` : ""}
-                          </span>
-                          <select
-                            className={"schooldetail-child-chip-select " + childChipClass(child.availability_status)}
-                            value={child.availability_status}
-                            onChange={(e) => handleChildAvailabilityChange(entry, child.id, e.target.value)}
-                          >
-                            {Object.entries(CHILD_CHIP_LABEL).map(([value, label]) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
-                            ))}
-                          </select>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="schooldetail-shortlist-bottom">
-                    <span className="schooldetail-shortlist-tour">
-                      {entry.tour_date
-                        ? `Tour: ${formatDateTime(entry.tour_date, entry.tour_start_time)}${
-                            entry.tour_status ? ` · ${TOUR_STATUS_LABEL[entry.tour_status]}` : ""
-                          }`
-                        : "No tour scheduled yet"}
-                      {entry.tour2_date && (
-                        <> · Secondary: {formatDateTime(entry.tour2_date, entry.tour2_start_time)}{entry.tour2_status ? ` · ${TOUR_STATUS_LABEL[entry.tour2_status]}` : ""}</>
-                      )}
-                    </span>
-                    <select
-                      className="panel-select"
-                      value={entry.availability_status}
-                      onChange={(e) => handleAvailabilityChange(entry, e.target.value)}
-                    >
-                      {Object.entries(AVAILABILITY_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="schooldetail-shortlist-meta">
-                      Shortlisted {formatDate(entry.shortlisted_at)}
-                      {entry.availability_replied_at && ` · replied ${formatDate(entry.availability_replied_at)}`}
-                      {waitingDays !== null && waitingDays >= 3 && (
-                        <span className="is-overdue"> · {waitingDays} days, no reply</span>
-                      )}
-                    </span>
-                  </div>
-
-                  {entry.tour_status === "completed" && (() => {
-                    const stillNeeded = (entry.children || []).filter((c) => !(c.applications || []).length).length;
-                    const busy = applyingId === entry.id;
-
-                    if (entry.family_decision === "declined") {
-                      return (
-                        <div className="schooldetail-ready-to-apply schooldetail-family-declined">
-                          <p className="schooldetail-family-declined-text">
-                            Family decided not to proceed with this school
-                            {entry.family_decision_note ? `: "${entry.family_decision_note}"` : "."}
-                          </p>
-                          <button
-                            type="button"
-                            className="panel-btn panel-btn-quiet"
-                            onClick={() => handleUndoDecision(entry)}
-                            disabled={busy}
-                          >
-                            Undo
-                          </button>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div className="schooldetail-ready-to-apply">
-                        <button
-                          type="button"
-                          className="panel-btn panel-btn-primary"
-                          onClick={() => handleReadyToApply(entry)}
-                          disabled={busy}
+          // Simplified after the 30/10/2026 meeting: one line per child with
+          // only what a consultant needs when looking at the school itself --
+          // name, year group, where their placement stands, the tour and the
+          // start date. Everything editable lives on the family's own page.
+          <div className="sd-simple-wrap">
+            <table className="sd-simple">
+              <thead>
+                <tr>
+                  <th>Child</th>
+                  <th>Year group</th>
+                  <th>Placement</th>
+                  <th>Tour</th>
+                  <th>Start date</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {shortlist.filter(FAMILY_FILTERS.find((f) => f[0] === famFilter)[2]).flatMap((entry) => {
+                  const kids = entry.children && entry.children.length ? entry.children : [null];
+                  return kids.map((child, index) => (
+                    <tr key={entry.id + ":" + (child?.id || "none")}>
+                      <td>
+                        <Link
+                          to={`/staff/families/${entry.family_id}?tab=visits&school=${schoolId}`}
+                          className="schooldetail-shortlist-family"
                         >
-                          {stillNeeded > 0 ? "Family wants to proceed → start application" : "View application →"}
-                        </button>
-                        {stillNeeded > 0 && (
+                          {child ? displayNameForChild(child, index) : entry.familyName}
+                        </Link>
+                        <span className="sd-simple-sub">{entry.familyName}</span>
+                      </td>
+                      <td>{child?.years?.applying || child?.year_group_applying_for || <span className="is-muted">—</span>}</td>
+                      <td>{placementCell(entry, child)}</td>
+                      <td>
+                        {entry.tour_date ? (
                           <>
-                            <p className="schooldetail-ready-to-apply-hint">
-                              Creates a draft application at this school for{" "}
-                              {stillNeeded > 1 ? "each child who doesn't have one yet" : "this child"}, and takes
-                              you to that family's Applications tab.
-                            </p>
-                            {decliningId === entry.id ? (
-                              <div className="schooldetail-decline-form">
-                                <input
-                                  type="text"
-                                  className="panel-input schooldetail-decline-input"
-                                  placeholder="Reason (optional)"
-                                  value={declineNote}
-                                  onChange={(e) => setDeclineNote(e.target.value)}
-                                />
-                                <div className="schooldetail-decline-actions">
-                                  <button
-                                    type="button"
-                                    className="panel-btn panel-btn-quiet"
-                                    onClick={() => handleDeclineFamily(entry)}
-                                    disabled={busy}
-                                  >
-                                    Confirm decline
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="panel-btn panel-btn-quiet"
-                                    onClick={() => {
-                                      setDecliningId(null);
-                                      setDeclineNote("");
-                                    }}
-                                    disabled={busy}
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                className="panel-btn panel-btn-quiet schooldetail-decline-trigger"
-                                onClick={() => {
-                                  setDecliningId(entry.id);
-                                  setDeclineNote("");
-                                }}
-                                disabled={busy}
-                              >
-                                Family isn't proceeding
-                              </button>
-                            )}
+                            {formatDateTime(entry.tour_date, entry.tour_start_time)}
+                            {entry.tour_status ? ` · ${TOUR_STATUS_LABEL[entry.tour_status]}` : ""}
                           </>
+                        ) : (
+                          <span className="is-muted">No tour yet</span>
                         )}
-                      </div>
-                    );
-                  })()}
-                </li>
-              );
-            })}
-          </ul>
+                      </td>
+                      <td>
+                        {child?.placement?.start_date ? formatDate(child.placement.start_date) : <span className="is-muted">—</span>}
+                      </td>
+                      <td>
+                        {index === 0 && (
+                          <button type="button" className="panel-btn panel-btn-quiet" onClick={() => handleRemoveShortlistEntry(entry)}>
+                            Remove
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ));
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {availableFamilies.length > 0 && (
