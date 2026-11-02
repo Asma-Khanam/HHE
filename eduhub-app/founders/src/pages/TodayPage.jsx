@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getTodayData, getCurrentStaff, setTaskDone, updateTask, listFamilyActionRows, friendlyError } from "../lib/staffData";
+import { getTodayData, getCurrentStaff, setTaskDone, updateTask, listFamilyActionRows, loadCalendarEvents, friendlyError } from "../lib/staffData";
+import { comingUpItems } from "../lib/comingUp";
 import TaskPanel from "../components/TaskPanel";
 import { computeFamilyActions, ACTION_HINT } from "../lib/familyActions";
 import { taskPath, taskRow, taskWhere, taskState } from "../lib/taskLinks";
@@ -69,6 +70,7 @@ export default function TodayPage() {
   const [busyTaskId, setBusyTaskId] = useState(null);
   const [actions, setActions] = useState({});
   const [shortlistRows, setShortlistRows] = useState([]);
+  const [events, setEvents] = useState([]);
   const [filter, setFilter] = useState("all");
   const [section, setSection] = useState(readSavedSection);
   const [panel, setPanel] = useState(null); // null, "new", or the id of the open task
@@ -86,6 +88,17 @@ export default function TodayPage() {
       })
       .catch(() => {});
   }
+
+  useEffect(() => {
+    // The next 7 days of tours, assessments, consultations and first days (read only).
+    const from = new Date();
+    from.setHours(0, 0, 0, 0);
+    const to = new Date(from);
+    to.setDate(to.getDate() + 8);
+    loadCalendarEvents({ from, to })
+      .then(setEvents)
+      .catch(() => {});
+  }, []);
 
   useEffect(load, []);
 
@@ -198,6 +211,10 @@ export default function TodayPage() {
   const payRows = [...data.payments].sort(
     (a, b) => (b.isOverdue ? 1 : 0) - (a.isOverdue ? 1 : 0) || (a.due_date || "9999").localeCompare(b.due_date || "9999")
   );
+  const upRows = comingUpItems(events, shortlistRows).filter((u) => {
+    const d = daysUntil(u.date);
+    return d !== null && d >= 0 && d <= 7;
+  });
   const allSections = [
     ...sections,
     {
@@ -205,6 +222,12 @@ export default function TodayPage() {
       label: "Payments owed",
       tasks: payRows,
       sub: data.overduePayments > 0 ? `${data.overduePayments} overdue` : "Money families owe",
+    },
+    {
+      key: "upcoming",
+      label: "Coming up",
+      tasks: upRows,
+      sub: "Tours, assessments and calls in the next 7 days",
     },
   ];
   // Opens on whatever was open last time; if that is empty now, the first section with something in it.
@@ -294,7 +317,7 @@ export default function TodayPage() {
             </Link>
           </div>
 
-          {activeKey !== "payments" && (
+          {activeKey !== "payments" && activeKey !== "upcoming" && (
           <div className="today-tabs" role="tablist" aria-label="Which tasks">
             {TABS.map((t) => (
               <button
@@ -333,6 +356,31 @@ export default function TodayPage() {
             <div className="today-section-list">
               {active.tasks.length === 0 ? (
                 <p className="today-hint">All clear. Nothing here.</p>
+              ) : activeKey === "upcoming" ? (
+                <ul className="today-task-list">
+                  {active.tasks.map((u) => (
+                    <li key={u.id} className="today-task">
+                      <div className="today-task-text">
+                        <div className="today-task-title">
+                          {u.when} · {u.title}
+                        </div>
+                        {u.state && <div className="today-task-state">{u.state}</div>}
+                        <div className="today-task-meta">
+                          <span className="today-task-family-name">{u.familyName || u.kind}</span>
+                          {" · "}
+                          {u.kind}
+                        </div>
+                      </div>
+                      <div className="today-task-actions">
+                        {u.path && (
+                          <Link to={u.path} className="today-open">
+                            Open →
+                          </Link>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               ) : activeKey === "payments" ? (
                 <ul className="today-task-list">
                   {active.tasks.map((p) => {
