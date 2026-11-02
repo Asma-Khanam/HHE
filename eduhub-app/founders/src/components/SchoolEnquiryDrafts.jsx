@@ -17,7 +17,7 @@ const shortDay = (iso) => new Date(iso).toLocaleDateString(undefined, { day: "nu
 // Stage 2 of the School Visits workflow: the system drafts the availability
 // email for every shortlisted school; a consultant reviews it and sends, edits
 // it, or skips that school. Nothing goes out without a click.
-export default function SchoolEnquiryDrafts({ familyId, family, familyName, familyChildren, blocked, composerCtx, refreshKey, onChanged }) {
+export default function SchoolEnquiryDrafts({ familyId, family, familyName, familyChildren, blocked, composerCtx, refreshKey, onChanged, focusSchoolId }) {
   const [rows, setRows] = useState([]);
   const [contacts, setContacts] = useState({});
   const [childStatus, setChildStatus] = useState([]);
@@ -75,6 +75,19 @@ export default function SchoolEnquiryDrafts({ familyId, family, familyName, fami
   );
 
   const todo = items.filter((i) => i.state === "todo");
+
+  // An "email this school" task from Today lands here: open that school's
+  // draft itself, so the consultant does not have to find it in the list.
+  const [focusDone, setFocusDone] = useState(null);
+  useEffect(() => {
+    if (!focusSchoolId || loading || focusDone === focusSchoolId) return;
+    const item = todo.find((i) => String(i.row.school_id) === String(focusSchoolId));
+    if (!item) return;
+    setFocusDone(focusSchoolId);
+    setExpanded(true);
+    open(item);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusSchoolId, loading, todo.length, focusDone]);
 
   function open(item) {
     const option = hasDates ? "option_1" : "option_2";

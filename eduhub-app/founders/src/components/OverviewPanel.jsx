@@ -83,6 +83,7 @@ export default function OverviewPanel({
   namedParents,
   familyChildren,
   onGoToVisits,
+  onGoToTab,
   onGoToApplications,
   applicationsByChild,
   onGoToMember,
@@ -204,7 +205,7 @@ export default function OverviewPanel({
 
       <div className="ov-twocol">
         <TourSchedulePanel familyId={family.id} onGoToVisits={onGoToVisits} />
-        <NeedsAttentionPanel familyId={family.id} tasks={tasks} onGoToVisits={onGoToVisits} />
+        <NeedsAttentionPanel familyId={family.id} tasks={tasks} onGoToVisits={onGoToVisits} onGoToTab={onGoToTab} />
       </div>
 
       <ApplicationProgressPanel

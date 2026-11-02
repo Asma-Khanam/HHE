@@ -6,7 +6,7 @@
 const dubaiToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
 const niceDay = (iso) => new Date(String(iso).slice(0, 10) + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" });
 
-const TABS = { visits: "School visits" };
+const TABS = { visits: "School visits", emails: "Emails", applications: "Applications" };
 export const actionWhere = (a) => TABS[a.where] || a.where;
 
 // rows: school_shortlist rows with { school: { name } }; suggestions: unresolved school_reply_suggestions.
@@ -43,7 +43,7 @@ export function computeFamilyActions(rows, suggestions, offers) {
     }
     const emailed = row.enquiry_sent_at || row.enquiry_skipped_at;
     if (!emailed && (row.availability_status || "awaiting") === "awaiting" && slots.length === 0) {
-      add(row.family_id, { key: "enquiry-" + row.id, step: "enquiry", schoolId: row.school_id, where: "visits", schoolName: name, label: `${name}: availability email not sent yet` });
+      add(row.family_id, { key: "enquiry-" + row.id, step: "enquiry", schoolId: row.school_id, where: "emails", schoolName: name, label: `${name}: availability email not sent yet` });
     }
   }
   // An open offer: the family has to say yes or no, by a date if the school gave one.

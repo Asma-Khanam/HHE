@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { listFamilyActionRows } from "../lib/staffData";
-import { computeFamilyActions } from "../lib/familyActions";
+import { computeFamilyActions, actionWhere } from "../lib/familyActions";
 import { isOverdue } from "../lib/workflow";
 import "./panels.css";
 import "./OverviewPanel.css";
@@ -12,7 +12,7 @@ function shortDate(iso) {
 // Everything for us to do on this family, in one list: what the schools and parent
 // are waiting on us for (from the School visits tab) plus the family's open tasks.
 // Things we are only waiting on (a school or the parent) are not listed.
-export default function NeedsAttentionPanel({ familyId, tasks, onGoToVisits }) {
+export default function NeedsAttentionPanel({ familyId, tasks, onGoToVisits, onGoToTab }) {
   const [items, setItems] = useState(null);
 
   useEffect(() => {
@@ -46,8 +46,12 @@ export default function NeedsAttentionPanel({ familyId, tasks, onGoToVisits }) {
         <ul className="ov-attn">
           {items.map((a) => (
             <li key={a.key}>
-              <button type="button" className="ov-attn-row" onClick={onGoToVisits}>
-                <span className="ov-attn-tag">School visits</span>
+              <button
+                type="button"
+                className="ov-attn-row"
+                onClick={() => (a.where && a.where !== "visits" && onGoToTab ? onGoToTab(a.where, a.schoolId) : onGoToVisits(a.schoolId))}
+              >
+                <span className="ov-attn-tag">{actionWhere(a)}</span>
                 <span>{a.label}</span>
               </button>
             </li>

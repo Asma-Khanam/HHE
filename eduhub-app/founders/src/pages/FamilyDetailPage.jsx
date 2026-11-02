@@ -527,6 +527,12 @@ export default function FamilyDetailPage() {
     setFocusSchoolId(schoolId || null);
     setActiveTab("visits");
   }
+  // An action that belongs to another tab (an unsent availability email is on
+  // Emails, an offer to answer is on Applications) opens there instead.
+  function goToTab(tab, schoolId) {
+    setFocusSchoolId(schoolId || null);
+    setActiveTab(tab);
+  }
   const [whatsNeededOpen, setWhatsNeededOpen] = useState(false);
 
   // Shared by the initial load and by DocumentVaultPanel (addendum 35) —
@@ -806,7 +812,8 @@ export default function FamilyDetailPage() {
           applicationsByChild={applicationsByChild}
           onFamilyRefresh={refreshFamily}
           tasks={tasks}
-          onGoToVisits={() => setActiveTab("visits")}
+          onGoToVisits={goToVisits}
+          onGoToTab={goToTab}
           onGoToApplications={() => setActiveTab("applications")}
           onGoToMember={(key) => {
             setActiveHouseholdKey(key);
@@ -1109,6 +1116,7 @@ export default function FamilyDetailPage() {
       {activeTab === "emails" && (
         <TabErrorBoundary>
         <SchoolEnquiryDrafts
+          focusSchoolId={focusSchoolId}
           familyId={family.id}
           family={family}
           familyName={displayName}

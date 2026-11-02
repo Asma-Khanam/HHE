@@ -164,7 +164,7 @@ export default function TodayPage() {
           due_date: a.dueDate || null,
           isActionOverdue: !!a.isOverdue,
           assigned_to: familyById[fid].owner_staff_id || null,
-          link_tab: "visits",
+          link_tab: a.where || "visits",
           link_school_id: a.schoolId,
           link_step: a.step,
         }))
