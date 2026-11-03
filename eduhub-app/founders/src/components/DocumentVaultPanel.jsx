@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { displayNameForChild, expectedChildDocTypes, expectedParentDocTypes } from "../lib/completeness";
-import { getSignedUrl, downloadDocument, cleanFileName, uploadDocument, deleteDocument } from "../lib/documents";
+import { getSignedUrl, downloadDocument, cleanFileName, uploadDocument, deleteDocument, labelFromSlug } from "../lib/documents";
 import { CHILD_DOCUMENT_TYPES, PARENT_DOCUMENT_TYPES, ACCEPTED_FILE_EXTENSIONS, ACCEPTED_FILES_MESSAGE, isAcceptedFile } from "../data/documentTypes";
 import "./panels.css";
 
@@ -44,6 +44,24 @@ function buildDocumentRows({ parents, children, documentsByOwner, accountHolderR
         docLabel: docType.staffLabel || docType.label,
         uploaded: matches.length > 0,
         docs: matches,
+      });
+    });
+    // Anything a family uploaded under their own label ("Other documents" on
+    // their form) matches no fixed slot, so it used to be invisible here even
+    // though the tab count included it. Show each as its own row.
+    const known = new Set(allTypes.map((t) => t.key));
+    const extraKeys = [...new Set(docs.map((d) => d.document_type))].filter((k) => k && k !== "profile_photo" && !known.has(k));
+    extraKeys.forEach((key) => {
+      rows.push({
+        key: `${ownerType}-${id}-${key}`,
+        ownerType,
+        ownerId: id,
+        docType: { key, label: labelFromSlug(key), multiple: true },
+        personName,
+        personTag,
+        docLabel: labelFromSlug(key),
+        uploaded: true,
+        docs: docs.filter((d) => d.document_type === key),
       });
     });
   }
