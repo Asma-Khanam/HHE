@@ -8,6 +8,7 @@
 // existed) say "Someone" rather than guessing.
 import { supabase } from "./supabaseClient";
 import { familyDisplayName } from "./staffData";
+import { CHILD_DOCUMENT_TYPES, PARENT_DOCUMENT_TYPES } from "../data/documentTypes";
 
 const soft = (q) => q.then((r) => (r.error ? [] : r.data || [])).catch(() => []);
 
@@ -64,6 +65,14 @@ export function tidyValue(v) {
   return t.replace(/_/g, " ");
 }
 
+// "cat4 results" (how the database names a document) -> "CAT4 results" (how the
+// family and the team name it).
+function docTitle(text) {
+  const t = String(text || "").toLowerCase();
+  const hit = [...CHILD_DOCUMENT_TYPES, ...PARENT_DOCUMENT_TYPES].find((d) => d.key.replace(/_/g, " ") === t);
+  return hit ? hit.label : text;
+}
+
 const PLACE_LABEL = {
   school_shortlist: "School visits",
   application_fees: "Applications",
@@ -82,7 +91,13 @@ function mergeAuditEntries(rows) {
   const groups = [];
   sorted.forEach((r) => {
     const g = groups.find(
-      (x) => !r.isAdd && !x.isAdd && x.who === r.who && x.table === r.table && x.recordId === r.recordId && new Date(r.at) - new Date(x.lastAt) < 90000
+      (x) =>
+        x.who === r.who &&
+        x.table === r.table &&
+        new Date(r.at) - new Date(x.lastAt) < 90000 &&
+        // edits to one record join together; the same kind of thing added
+        // twice in a row (two files, two schools) joins into "x2"
+        ((!r.isAdd && !x.isAdd && x.recordId === r.recordId) || (r.isAdd && x.isAdd && x.field === r.field && x.label === r.label))
     );
     if (g) {
       g.items.push(r);
@@ -90,7 +105,7 @@ function mergeAuditEntries(rows) {
     } else groups.push({ ...r, items: [r], lastAt: r.at });
   });
   return groups.map((g) => {
-    if (g.isAdd) return g;
+    if (g.isAdd) return g.items.length > 1 ? { ...g, title: `${g.title} ×${g.items.length}`, detail: [] } : g;
     // Same field changed twice in one save: keep the first old and the last new.
     const byField = [];
     g.items.forEach((it) => {
@@ -205,6 +220,8 @@ export async function loadActivity({ sinceDays = 30, limit = 400, familyId = nul
   const auditRows = [];
   audit.forEach((a) => {
     const added = a.field_name === "added" || a.field_name === "removed";
+    const isDoc = a.table_name === "documents";
+    const fieldLabel = isDoc && added ? docTitle(a.field_label) : a.field_label;
     auditRows.push({
       id: "audit:" + a.id,
       at: a.changed_at,
@@ -214,13 +231,13 @@ export async function loadActivity({ sinceDays = 30, limit = 400, familyId = nul
       table: a.table_name,
       recordId: a.record_id,
       field: a.field_name,
-      label: a.field_label,
+      label: fieldLabel,
       rawOld: a.old_value,
       rawNew: a.new_value,
       isAdd: added,
       fromFamily: a.changed_by_name === "The family",
-      title: added ? `${a.field_name} ${a.field_label || "a record"}` : `changed ${a.field_label || a.field_name}`,
-      detail: added ? [a.new_value || a.old_value || ""] : [],
+      title: added ? `${a.field_name} ${fieldLabel || "a record"}` : `changed ${a.field_label || a.field_name}`,
+      detail: added ? [isDoc ? docTitle(a.new_value || a.old_value || "") : a.new_value || a.old_value || ""] : [],
       isChange: false,
       familyId: a.family_id,
       familyName: familyName(a.family_id),

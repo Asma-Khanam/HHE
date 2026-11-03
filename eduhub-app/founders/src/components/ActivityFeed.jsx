@@ -39,7 +39,42 @@ const writeSeen = (iso) => {
   }
 };
 
-export default function ActivityFeed({ familyId = null }) {
+// "?tab=visits" in a link -> "visits". On a family's own page the link has to
+// switch the tab it is already on, so it is handed up instead of followed.
+const tabOf = (path) => (path && new URLSearchParams(path.split("?")[1] || "").get("tab")) || "overview";
+const firstName = (n) => String(n || "").split(" ")[0];
+
+// When every old value is "not set" the entry is just something being filled in
+// for the first time: show the new values on one line instead of one line each.
+function ChangeLines({ changes }) {
+  const filling = changes.every((c) => c.old === "not set");
+  if (filling) {
+    return (
+      <div className="activity-detail">
+        {changes.map((c, i) => (
+          <span key={i} className="activity-pair">
+            {c.label && <span className="activity-field">{c.label} </span>}
+            <span className="activity-new">{c.new}</span>
+          </span>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="activity-detail">
+      {changes.map((c, i) => (
+        <span key={i} className="activity-pair">
+          {c.label && <span className="activity-field">{c.label} </span>}
+          <span className="activity-old">{c.old}</span>
+          <span aria-hidden="true"> → </span>
+          <span className="activity-new">{c.new}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export default function ActivityFeed({ familyId = null, onGoToTab = null }) {
   const forFamily = !!familyId;
   const RANGES = forFamily
     ? [
@@ -114,6 +149,7 @@ export default function ActivityFeed({ familyId = null }) {
     return out;
   }, [shown]);
 
+  const place = (r) => r.where || ACTIVITY_KINDS.find((k) => k.key === r.kind)?.label || r.kind;
   const newRows = (rows || []).filter(isNew);
   const newOnMine = me?.user_id ? newRows.filter((r) => r.ownerStaffId === me.user_id).length : 0;
   const familyCount = (rows || []).filter((r) => r.fromFamily).length;
@@ -183,7 +219,7 @@ export default function ActivityFeed({ familyId = null }) {
             <h2>{g.label}</h2>
             <ul className="activity-list">
               {g.rows.map((r) => (
-                <li key={r.id} className={"activity-row" + (r.fromFamily ? " is-family" : "")}>
+                <li key={r.id} className="activity-row">
                   <span className="activity-time">
                     {isNew(r) && <span className="activity-newdot" title="New since you last looked" />}
                     {timeOf(r.at)}
@@ -193,8 +229,9 @@ export default function ActivityFeed({ familyId = null }) {
                   </span>
                   <div className="activity-text">
                     <div className="activity-line">
-                      {r.who ? <strong>{r.who}</strong> : <span className="activity-nobody" title="This change happened before we started recording who did it">Not recorded</span>}{" "}
+                      {r.who ? <strong>{forFamily ? firstName(r.who) : r.who}</strong> : <span className="activity-nobody" title="This change happened before we started recording who did it">Not recorded</span>}{" "}
                       {r.title}
+                      {r.fromFamily && <span className="activity-pill">Family</span>}
                       {!forFamily && r.familyName ? (
                         <>
                           {" · "}
@@ -204,16 +241,7 @@ export default function ActivityFeed({ familyId = null }) {
                     </div>
                     {r.context && <div className="activity-detail">{r.context}</div>}
                     {r.kind === "edit" && r.isChange && r.changes ? (
-                      <div className="activity-changes">
-                        {r.changes.map((c, i) => (
-                          <div key={i} className="activity-detail">
-                            {c.label && <span className="activity-field">{c.label}: </span>}
-                            <span className="activity-old">{c.old}</span>
-                            <span aria-hidden="true"> → </span>
-                            <span className="activity-new">{c.new}</span>
-                          </div>
-                        ))}
-                      </div>
+                      <ChangeLines changes={r.changes} />
                     ) : r.kind === "stage" ? (
                       <div className="activity-detail">
                         <span className="activity-old">{r.detail[0]}</span>
@@ -225,7 +253,13 @@ export default function ActivityFeed({ familyId = null }) {
                     )}
                   </div>
                   <span className="activity-kind">
-                    {forFamily && r.path ? <Link to={r.path}>{r.where || ACTIVITY_KINDS.find((k) => k.key === r.kind)?.label || r.kind} ›</Link> : r.where || ACTIVITY_KINDS.find((k) => k.key === r.kind)?.label || r.kind}
+                    {forFamily && r.path && onGoToTab ? (
+                      <button type="button" className="activity-open" onClick={() => onGoToTab(tabOf(r.path))}>
+                        {place(r)} ›
+                      </button>
+                    ) : (
+                      place(r)
+                    )}
                   </span>
                 </li>
               ))}

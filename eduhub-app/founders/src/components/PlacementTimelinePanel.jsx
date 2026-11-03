@@ -26,6 +26,23 @@ function fmt(d) {
   });
 }
 
+function shortWhen(at) {
+  const d = new Date(at);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString("en-GB", sameYear ? { day: "numeric", month: "short" } : { day: "numeric", month: "short", year: "numeric" });
+}
+
+// The step name without the school repeated in it ("Shortlisted Epsom" -> "Shortlisted").
+function stepOf(item) {
+  if (!item.school) return item.title;
+  const esc = item.school.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return item.title.replace(new RegExp("\\s*(—|-|at|on|for)?\\s*" + esc + "\\s*$"), "").trim() || item.title;
+}
+
+// How far a school got, for the pill on its card. Highest wins.
+const STAGE_RANK = { shortlist: 1, tour: 2, feedback: 2, application: 3, offer: 4, placed: 5 };
+const STAGE_PILL = { 1: "Shortlisted", 2: "Toured", 3: "Applied", 4: "Offer", 5: "Placed" };
+
 const TOUR_WORD = { booked: "booked", confirmed: "confirmed", completed: "done", cancelled: "cancelled" };
 
 // One story per family: every school they shortlisted, toured and applied to,
@@ -75,7 +92,7 @@ export default function PlacementTimelinePanel({ familyId, familyChildren = [], 
           kind: "tour",
           school,
           title: `School tour at ${school}`,
-          note: TOUR_WORD[status] ? `Tour ${TOUR_WORD[status]}` : "",
+          note: TOUR_WORD[status] || "",
           when: fmt(date),
         });
       });
@@ -157,6 +174,31 @@ export default function PlacementTimelinePanel({ familyId, familyChildren = [], 
 
   const shown = items.filter((i) => who === "all" || !i.child || i.child === who);
 
+  // One card per school (and per child, when there are several) with its steps
+  // in date order beneath, instead of one long list of every event. Search
+  // rounds stand between the cards as plain dividers.
+  const blocks = useMemo(() => {
+    const groups = new Map();
+    const out = [];
+    shown.forEach((i) => {
+      if (!i.school) {
+        out.push({ kind: "divider", at: i.at, item: i });
+        return;
+      }
+      const key = `${i.school}|${familyChildren.length > 1 ? i.child || "" : ""}`;
+      let g = groups.get(key);
+      if (!g) {
+        g = { kind: "school", at: i.at, school: i.school, childName: familyChildren.length > 1 ? i.childName : "", rank: 0, steps: [] };
+        groups.set(key, g);
+        out.push(g);
+      }
+      g.rank = Math.max(g.rank, STAGE_RANK[i.kind] || 0);
+      if (!g.childName && familyChildren.length > 1) g.childName = i.childName;
+      g.steps.push(i);
+    });
+    return out.sort((a, b) => a.at - b.at);
+  }, [shown, familyChildren.length]);
+
   return (
     <section className="panel ptl">
       <div className="panel-head">
@@ -185,21 +227,37 @@ export default function PlacementTimelinePanel({ familyId, familyChildren = [], 
       ) : shown.length === 0 ? (
         <p className="panel-hint">Nothing on the timeline yet. It fills in as schools are shortlisted and applications are made.</p>
       ) : (
-        <ol className="ptl-list">
-          {shown.map((i, n) => (
-            <li key={n} className={"ptl-item is-" + i.kind}>
-              <span className="ptl-dot" />
-              <div className="ptl-body">
-                <div className="ptl-title">
-                  {i.title}
-                  {i.childName && familyChildren.length > 1 && <span className="ptl-child">{i.childName}</span>}
-                </div>
-                {i.note && <div className="ptl-note">{i.note}</div>}
+        <div className="ptl2">
+          {blocks.map((b, n) =>
+            b.kind === "divider" ? (
+              <div key={n} className="ptl2-divider">
+                <span>{b.item.title}</span>
+                {b.item.childName && familyChildren.length > 1 && <span className="ptl-child">{b.item.childName}</span>}
+                {b.item.note && <span className="ptl2-divider-note">{b.item.note}</span>}
+                <span className="ptl2-divider-when">{shortWhen(b.item.at)}</span>
               </div>
-              <span className="ptl-when">{i.when}</span>
-            </li>
-          ))}
-        </ol>
+            ) : (
+              <div key={n} className={"ptl2-card" + (b.rank === 5 ? " is-placed" : "")}>
+                <div className="ptl2-head">
+                  <span className="ptl2-school">{b.school}</span>
+                  {b.childName && <span className="ptl-child">{b.childName}</span>}
+                  {STAGE_PILL[b.rank] && <span className={"ptl2-pill is-" + b.rank}>{STAGE_PILL[b.rank]}</span>}
+                </div>
+                <ul className="ptl2-steps">
+                  {b.steps.map((i, k) => (
+                    <li key={k}>
+                      <span className="ptl2-when">{shortWhen(i.at)}</span>
+                      <span className="ptl2-step">
+                        {stepOf(i)}
+                        {i.note && <span className="ptl2-note"> · {i.note}</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          )}
+        </div>
       )}
     </section>
   );

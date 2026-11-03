@@ -53,3 +53,27 @@
 .activity-row.is-family { background: rgba(212, 175, 55, 0.07); }
 .activity-kind a { color: var(--hh-burgundy, #530126); text-decoration: none; }
 .activity-kind a:hover { text-decoration: underline; }
+
+/* Calmer look (3 Nov): flat rows with hairlines instead of a boxed card, no avatar
+   circles, small quiet labels, and one-line changes. */
+.activity-feed .activity-avatar { display: none; }
+.activity-feed .activity-list { background: transparent; box-shadow: none; border-radius: 0; border-top: 1px solid rgba(83, 1, 38, 0.1); }
+.activity-feed .activity-row { padding: 10px 2px; gap: 14px; border-top: 1px solid rgba(83, 1, 38, 0.06); }
+.activity-feed .activity-row:first-child { border-top: 0; }
+.activity-feed .activity-row.is-family { background: transparent; }
+.activity-feed .activity-day { margin-bottom: 18px; }
+.activity-feed .activity-day h2 { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.activity-feed .activity-time { width: 52px; font-size: 12.5px; opacity: 0.8; }
+.activity-feed .activity-line { font-size: 14px; line-height: 1.45; }
+.activity-feed .activity-line strong { font-weight: 600; }
+.activity-feed .activity-detail { font-size: 13px; margin-top: 1px; line-height: 1.5; }
+.activity-feed .activity-pair { display: inline-block; margin-right: 14px; }
+.activity-feed .activity-field { color: var(--hh-muted, #6b565e); }
+.activity-feed .activity-kind { font-size: 12px; opacity: 0.75; padding-top: 2px; }
+.activity-pill { display: inline-block; margin-left: 8px; padding: 0 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #f6ecd0; color: #7a5a00; vertical-align: 1px; }
+.activity-open { border: 0; background: none; padding: 0; font: inherit; color: var(--hh-burgundy, #530126); cursor: pointer; }
+.activity-open:hover { text-decoration: underline; }
+.activity-feed.is-family .activity-filters { gap: 8px; margin-bottom: 14px; }
+.activity-feed .activity-chip { font-size: 13px; padding: 6px 12px; }
+.activity-feed .activity-filters .activity-chip { padding: 7px 12px; }
+.activity-feed .activity-filters input, .activity-feed .activity-filters select { padding: 7px 10px; font-size: 14px; }
