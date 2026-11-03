@@ -2378,20 +2378,22 @@ export async function linkCalendlyBooking(booking, familyId) {
   const when = booking.start_time
     ? new Date(booking.start_time).toLocaleString("en-GB", { timeZone: "Asia/Dubai", dateStyle: "full", timeStyle: "short" }) + " (Dubai time)"
     : "";
+  const verb = booking.added_by_hand ? "Meeting" : booking.status === "canceled" ? "Cancelled" : "Booked";
   const lines = [
-    `${booking.status === "canceled" ? "Cancelled" : "Booked"}: ${booking.event_name || "Calendly call"}`,
+    `${verb}: ${booking.event_name || "Calendly call"}`,
     when && `When: ${when}`,
     booking.host_name && `With: ${booking.host_name}`,
     booking.invitee_name && `Booked by: ${booking.invitee_name}${booking.invitee_email ? ` (${booking.invitee_email})` : ""}`,
     booking.invitee_phone && `Phone: ${booking.invitee_phone}`,
     ...(booking.answers || []).map((a) => `${a.question}: ${a.answer}`),
     booking.join_url && `Join link: ${booking.join_url}`,
+    booking.staff_note && `\nNotes:\n${booking.staff_note}`,
   ].filter(Boolean);
   await supabase.from("case_notes").upsert(
     {
       family_id: familyId,
       kind: "meeting",
-      subject: `${booking.status === "canceled" ? "Cancelled" : "Booked"}: ${booking.event_name || "Calendly call"}`,
+      subject: `${verb}: ${booking.event_name || "Calendly call"}`,
       body: lines.join("\n"),
       occurred_at: booking.start_time || new Date().toISOString(),
       external_ref: `calendly:${booking.invitee_uri}`,
@@ -2518,7 +2520,7 @@ export async function saveCalendlyBookingNote(bookingId, note) {
 // Calendly. Saved as a booking marked added_by_hand, linked to a family at once
 // when a parent's email matches, with the same Meetings note a Calendly booking
 // gets. Returns { booking, familyId, movedToPaidConsult }.
-export async function addConsultation({ name, email, phone, eventName, startIso, minutes, host, zoom, note }) {
+export async function addConsultation({ name, email, phone, eventName, startIso, minutes, host, zoom, note, familyId: pickedFamilyId }) {
   const zoomId = zoomIdFromUrl(zoom) || (/^\d{9,11}$/.test(String(zoom || "").trim()) ? String(zoom).trim() : "");
   const start = new Date(startIso);
   const booking = unwrap(
@@ -2541,10 +2543,11 @@ export async function addConsultation({ name, email, phone, eventName, startIso,
       .select("*")
       .single()
   );
-  let familyId = null;
+  // A family picked from the list wins; otherwise a parent's email may match.
+  let familyId = pickedFamilyId || null;
   let movedToPaidConsult = false;
   const mail = email?.trim();
-  if (mail) {
+  if (!familyId && mail) {
     const { data } = await supabase
       .from("parents")
       .select("family_id")

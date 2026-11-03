@@ -56,7 +56,7 @@ function paymentLabel(b) {
 const CALL_TYPES = [
   ["free", "Free sanity check (10 min)", "10 - Minute Sanity Check", 10],
   ["paid", "Paid consultation (30 min)", "30 - Minute consult with Heather", 30],
-  ["other", "Other call", "Call (added by hand)", 30],
+  ["other", "Other meeting or call", "Call (added by hand)", 30],
 ];
 
 // The page shows Dubai time everywhere, so the date box is Dubai time too.
@@ -67,7 +67,7 @@ function isoToDubaiLocal(iso) {
   return iso ? new Date(new Date(iso).getTime() + 4 * 3600 * 1000).toISOString().slice(0, 16) : "";
 }
 
-function ConsultForm({ initial, withExtras, submitLabel, busy, error, onSubmit, onCancel }) {
+function ConsultForm({ initial, families = [], withExtras, submitLabel, busy, error, onSubmit, onCancel }) {
   const [v, setV] = useState(initial);
   const set = (k) => (e) => setV((x) => ({ ...x, [k]: e.target.value }));
   const type = CALL_TYPES.find((t) => t[0] === v.type) || CALL_TYPES[0];
@@ -80,6 +80,26 @@ function ConsultForm({ initial, withExtras, submitLabel, busy, error, onSubmit, 
         if (ready && !busy) onSubmit({ ...v, eventName: type[2], minutes: type[3], startIso: dubaiLocalToIso(v.when) });
       }}
     >
+      {withExtras && (
+        <label className="consult-form-wide">
+          <span className="panel-field-label">Family (optional)</span>
+          <select
+            className="panel-select"
+            value={v.familyId || ""}
+            onChange={(e) => {
+              const f = families.find((x) => x.id === e.target.value);
+              setV((x) => ({ ...x, familyId: e.target.value, name: x.name || f?.displayName || "" }));
+            }}
+          >
+            <option value="">Not a family yet (a new enquiry)</option>
+            {families.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.displayName}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label>
         <span className="panel-field-label">Name</span>
         <input className="panel-input" value={v.name} onChange={set("name")} required />
@@ -135,7 +155,7 @@ function ConsultForm({ initial, withExtras, submitLabel, busy, error, onSubmit, 
   );
 }
 
-const EMPTY_CONSULT = { name: "", email: "", phone: "", type: "free", when: "", host: "", zoom: "", note: "" };
+const EMPTY_CONSULT = { familyId: "", name: "", email: "", phone: "", type: "free", when: "", host: "", zoom: "", note: "" };
 
 function BookingCard({ booking, families, summaries, onChanged }) {
   const [open, setOpen] = useState(false);
@@ -426,8 +446,8 @@ export default function ConsultationsPage() {
       setNotice(
         `Added ${v.name.trim()}. ` +
           (fam
-            ? `Linked to ${fam.displayName} automatically and saved on their Meetings tab.${r.movedToPaidConsult ? " They have been moved to Paid consult on the Caseload." : ""}`
-            : "Not linked to a family yet. Open it and use Link to a family once they have an account.")
+            ? `Saved on ${fam.displayName}'s Meetings tab.${r.movedToPaidConsult ? " They have been moved to Paid consult on the Caseload." : ""}`
+            : "Not on a family yet. Open it and use Link to a family once they have an account.")
       );
       setAddOpen(false);
       setFilter(new Date(r.booking.start_time).getTime() >= Date.now() ? "upcoming" : "past");
@@ -483,24 +503,28 @@ export default function ConsultationsPage() {
     <div className="consult-page">
       <h1 className="consult-title">Consultations</h1>
       <p className="consult-subtitle">
-        Every relocation consultation booked in Calendly appears here with the booker's details, and you can add a call that did not come through Calendly. {counts.upcoming} upcoming
+        Every consultation booked in Calendly appears here with the booker's details. Meetings that did not come through Calendly can be added by hand. {counts.upcoming} upcoming
         {counts.unlinked ? `, ${counts.unlinked} not linked to a family yet` : ""}.
       </p>
 
       <div>
         {!addOpen && (
           <button type="button" className="panel-btn panel-btn-primary" onClick={() => { setAddOpen(true); setNotice(""); }}>
-            Add a consultation
+            Add a meeting or call
           </button>
         )}
       </div>
       {addOpen && (
         <div className="consult-add">
-          <h2 className="consult-add-title">Add a consultation</h2>
+          <h2 className="consult-add-title">Add a meeting or call</h2>
+          <p className="consult-add-hint">
+            For a meeting that did not come through Calendly, such as one arranged by WhatsApp or email. Pick the family if they are already on the system, or leave it blank for a new enquiry. Add the Zoom link or paste your notes.
+          </p>
           <ConsultForm
             initial={EMPTY_CONSULT}
+            families={families}
             withExtras
-            submitLabel="Add consultation"
+            submitLabel="Add meeting"
             busy={adding}
             error={addError}
             onSubmit={handleAdd}

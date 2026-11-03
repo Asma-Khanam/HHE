@@ -69,3 +69,4 @@
 .consult-form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .consult-notice { margin: 0; padding: 10px 14px; border-radius: 10px; background: #e3f3ea; color: #1f6b43; font-size: 0.88rem; line-height: 1.45; }
 @media (max-width: 640px) { .consult-form { grid-template-columns: 1fr; } }
+.consult-add-hint { margin: -4px 0 12px; font-size: 0.85rem; color: rgba(42, 17, 25, 0.7); line-height: 1.45; }
