@@ -262,7 +262,7 @@ export default function DocumentVaultPanel({ parents, familyChildren, documentsB
             </div>
             <ul className="panel-list">
               {g.rows.map((row) => (
-                <li key={row.key} className={"doc-row" + (row.docs.length > 1 ? " is-multi" : "")}>
+                <li key={row.key} data-flash-doc={row.docs.map((d) => d.id).join(" ")} className={"doc-row" + (row.docs.length > 1 ? " is-multi" : "")}>
                   <span
                     className={"doc-row-status" + (row.uploaded ? " is-verified" : " is-missing")}
                     title={row.uploaded ? "Uploaded" : "Not uploaded yet"}

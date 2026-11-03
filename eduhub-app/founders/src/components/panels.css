@@ -1270,3 +1270,13 @@
 .doc-group-head { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding-bottom: 6px; border-bottom: 1px solid rgba(83, 1, 38, 0.1); }
 .doc-group-name { font-weight: 600; color: var(--hh-burgundy); }
 .doc-group-count { margin-left: auto; font-size: 0.8rem; opacity: 0.6; }
+
+/* "Look here": the glow an element gets for a few seconds after a link lands on it
+   (from Activity and History). An overlay, so the element's own look never flickers. */
+.hh-flash { position: relative; }
+.hh-flash::after {
+  content: ""; position: absolute; inset: -4px; border-radius: 12px; pointer-events: none; z-index: 2;
+  background: rgba(255, 226, 102, 0.4); box-shadow: 0 0 0 3px rgba(235, 190, 50, 0.95);
+  animation: hh-flash-fade 4.5s ease-out forwards;
+}
+@keyframes hh-flash-fade { 0%, 55% { opacity: 1; } 100% { opacity: 0; } }

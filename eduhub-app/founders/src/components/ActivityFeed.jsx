@@ -44,7 +44,7 @@ const writeSeen = (iso) => {
 // of followed.
 const linkParts = (path) => {
   const q = new URLSearchParams((path || "").split("?")[1] || "");
-  return { tab: q.get("tab") || "overview", school: q.get("school") || null };
+  return { tab: q.get("tab") || "overview", school: q.get("school") || null, hl: q.get("hl") || null };
 };
 const familyHome = (path) => (path || "").split("?")[0];
 const firstName = (n) => (n === "The family" ? n : String(n || "").split(" ")[0]);
@@ -210,9 +210,9 @@ export default function ActivityFeed({ familyId = null, onGoToTab = null }) {
     // Inside a family the link switches that page's tab; elsewhere it goes to
     // the family, on the tab and school the change belongs to.
     if (forFamily) {
-      const { tab, school } = linkParts(r.path);
+      const { tab, school, hl } = linkParts(r.path);
       return onGoToTab ? (
-        <button type="button" className="act-open" onClick={() => onGoToTab(tab, school)}>
+        <button type="button" className="act-open" onClick={() => onGoToTab(tab, school, hl)}>
           {label}
         </button>
       ) : null;
@@ -226,16 +226,6 @@ export default function ActivityFeed({ familyId = null, onGoToTab = null }) {
 
   return (
     <div className={forFamily ? "act is-family" : "act"}>
-      <div className="act-top">
-        <div className="act-ranges">
-          {RANGES.map((r) => (
-            <button key={r.key} type="button" className={"act-pill" + (days === r.key ? " is-on" : "")} onClick={() => setDays(r.key)}>
-              {r.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {!forFamily && newRows.length > 0 && (
         <div className="act-banner">
           <strong>{newRows.length} new</strong> since you last looked
@@ -253,6 +243,13 @@ export default function ActivityFeed({ familyId = null, onGoToTab = null }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <select value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="How far back">
+          {RANGES.map((r) => (
+            <option key={r.key} value={r.key}>
+              {r.label}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
           className={"act-pill" + (fromFamilies ? " is-on" : "")}

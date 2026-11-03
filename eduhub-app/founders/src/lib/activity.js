@@ -90,14 +90,10 @@ function mergeAuditEntries(rows) {
   const sorted = [...rows].sort((a, b) => String(a.at).localeCompare(String(b.at))); // oldest first
   const groups = [];
   sorted.forEach((r) => {
+    // Only edits to one record join together. Anything added is always its own
+    // entry, so nothing is ever hidden behind a count.
     const g = groups.find(
-      (x) =>
-        x.who === r.who &&
-        x.table === r.table &&
-        new Date(r.at) - new Date(x.lastAt) < 90000 &&
-        // edits to one record join together; the same kind of thing added
-        // twice in a row (two files, two schools) joins into "x2"
-        ((!r.isAdd && !x.isAdd && x.recordId === r.recordId) || (r.isAdd && x.isAdd && x.field === r.field && x.label === r.label))
+      (x) => !r.isAdd && !x.isAdd && x.who === r.who && x.table === r.table && x.recordId === r.recordId && new Date(r.at) - new Date(x.lastAt) < 90000
     );
     if (g) {
       g.items.push(r);
@@ -105,7 +101,7 @@ function mergeAuditEntries(rows) {
     } else groups.push({ ...r, items: [r], lastAt: r.at });
   });
   return groups.map((g) => {
-    if (g.isAdd) return g.items.length > 1 ? { ...g, title: `${g.title} ×${g.items.length}`, detail: [] } : g;
+    if (g.isAdd) return g;
     // Same field changed twice in one save: keep the first old and the last new.
     const byField = [];
     g.items.forEach((it) => {
@@ -186,6 +182,17 @@ export async function loadActivity({ sinceDays = 30, limit = 400, familyId = nul
       soft(supabase.from("children").select("id, family_id, full_name, preferred_name, first_name")),
     ]);
 
+  // So an entry can open the exact thing it is about: which file was added, and
+  // which school a fee belongs to.
+  const docIds = [...new Set(audit.filter((a) => a.table_name === "documents").map((a) => a.record_id))];
+  const feeIds = [...new Set(audit.filter((a) => a.table_name === "application_fees").map((a) => a.record_id))];
+  const [docInfo, feeInfo] = await Promise.all([
+    docIds.length ? soft(supabase.from("documents").select("id, original_filename").in("id", docIds)) : [],
+    feeIds.length ? soft(supabase.from("application_fees").select("id, application_id").in("id", feeIds)) : [],
+  ]);
+  const fileName = Object.fromEntries(docInfo.map((d) => [d.id, d.original_filename]));
+  const feeApp = Object.fromEntries(feeInfo.map((f) => [f.id, f.application_id]));
+
   const byId = (rows, key = "id") => Object.fromEntries(rows.map((r) => [r[key], r]));
   const parentsByFamily = parents.reduce((m, p) => ((m[p.family_id] = m[p.family_id] || []).push(p), m), {});
   const familyName = (id) => {
@@ -202,9 +209,9 @@ export async function loadActivity({ sinceDays = 30, limit = 400, familyId = nul
     return c ? c.preferred_name || c.first_name || c.full_name : "a child";
   };
   // A link to a family, optionally straight to one tab and one school's row.
-  const familyPath = (id, tab, school) => {
+  const familyPath = (id, tab, school, hl) => {
     if (!id) return null;
-    const q = [tab && `tab=${tab}`, school && `school=${school}`].filter(Boolean).join("&");
+    const q = [tab && `tab=${tab}`, school && `school=${school}`, hl && `hl=${encodeURIComponent(hl)}`].filter(Boolean).join("&");
     return `/staff/families/${id}${q ? `?${q}` : ""}`;
   };
 
@@ -242,11 +249,20 @@ export async function loadActivity({ sinceDays = 30, limit = 400, familyId = nul
       isAdd: added,
       fromFamily: a.changed_by_name === "The family",
       title: added ? `${a.field_name} ${fieldLabel || "a record"}` : `changed ${a.field_label || a.field_name}`,
-      detail: added ? [isDoc ? docTitle(a.new_value || a.old_value || "") : a.new_value || a.old_value || ""] : [],
+      detail: added ? [isDoc ? docTitle(a.new_value || a.old_value || "") : a.new_value || a.old_value || "", isDoc ? fileName[a.record_id] || "" : ""].filter(Boolean) : [],
       isChange: false,
       familyId: a.family_id,
       familyName: familyName(a.family_id),
-      path: familyPath(a.family_id, AUDIT_TAB[a.table_name] ?? "details"),
+      path: (() => {
+        const tab = AUDIT_TAB[a.table_name] ?? "details";
+        if (a.table_name === "documents") return familyPath(a.family_id, tab, null, `doc:${a.record_id}`);
+        if (a.table_name === "school_shortlist") return familyPath(a.family_id, tab, null, `sv-row-${a.record_id}`);
+        if (a.table_name === "application_fees") {
+          const sid = appById[feeApp[a.record_id]]?.school_id;
+          return familyPath(a.family_id, tab, sid, sid ? `app-row-school-${sid}` : null);
+        }
+        return familyPath(a.family_id, tab);
+      })(),
     });
   });
   mergeAuditEntries(auditRows).forEach((g) => {
@@ -268,7 +284,7 @@ export async function loadActivity({ sinceDays = 30, limit = 400, familyId = nul
       familyId: app ? childById[app.child_id]?.family_id : null,
       familyName: familyName(app ? childById[app.child_id]?.family_id : null),
       schoolId: app?.school_id || null,
-      path: app ? familyPath(childById[app.child_id]?.family_id, "applications", app.school_id) : null,
+      path: app ? familyPath(childById[app.child_id]?.family_id, "applications", app.school_id, `app-row-school-${app.school_id}`) : null,
       schoolName: school || "",
     });
   });

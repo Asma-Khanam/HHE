@@ -98,3 +98,15 @@
   .act-row { flex-wrap: wrap; }
   .act-open { margin-left: 42px; }
 }
+
+/* Less empty space (3 Nov): wider page, tighter header, everything on one filter row. */
+.activity-page { max-width: 1500px; padding: 18px 28px 48px; }
+.activity-header { margin-bottom: 10px; }
+.activity-header h1 { font-size: 26px; }
+.activity-sub { margin: 2px 0 0; font-size: 14px; }
+.activity-note { margin: 2px 0 0; font-size: 12.5px; max-width: none; }
+.act-filters { margin-bottom: 12px; }
+.act-day { margin-bottom: 16px; }
+.act-day h2 { margin-bottom: 6px; }
+.act-list { gap: 5px; }
+.act-row { padding: 9px 12px; }

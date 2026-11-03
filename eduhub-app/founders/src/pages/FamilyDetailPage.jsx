@@ -531,10 +531,40 @@ export default function FamilyDetailPage() {
   }
   // An action that belongs to another tab (an unsent availability email is on
   // Emails, an offer to answer is on Applications) opens there instead.
-  function goToTab(tab, schoolId) {
+  // `hl` says exactly what to light up on arrival: "doc:<id>" for a document row,
+  // otherwise the id of an element on the page (a school visit row, an application).
+  function goToTab(tab, schoolId, hl) {
     setFocusSchoolId(schoolId || null);
     setActiveTab(tab);
+    setFlash({ target: hl || null, n: Date.now() });
   }
+  const [flash, setFlash] = useState(() => ({ target: searchParams.get("hl"), n: 0 }));
+  // Scroll to the thing and glow for a few seconds, so nobody has to hunt for it.
+  // The tab's data may still be loading, so look for it for up to three seconds.
+  useEffect(() => {
+    if (!flash.target || !detail) return undefined;
+    const find = () =>
+      flash.target.startsWith("doc:")
+        ? document.querySelector(`[data-flash-doc~="${flash.target.slice(4)}"]`)
+        : document.getElementById(flash.target);
+    let tries = 0;
+    let off = null;
+    const timer = setInterval(() => {
+      const el = find();
+      if (!el && ++tries <= 20) return;
+      clearInterval(timer);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("hh-flash");
+      void el.offsetWidth; // restart the animation if it is already glowing
+      el.classList.add("hh-flash");
+      off = setTimeout(() => el.classList.remove("hh-flash"), 4500);
+    }, 150);
+    return () => {
+      clearInterval(timer);
+      if (off) clearTimeout(off);
+    };
+  }, [flash, detail, activeTab]);
   const [whatsNeededOpen, setWhatsNeededOpen] = useState(false);
 
   // Shared by the initial load and by DocumentVaultPanel (addendum 35) —
