@@ -41,6 +41,86 @@ const NOTE_LABEL = {
   whatsapp: "logged a WhatsApp message",
 };
 
+
+// ---- Reading the audit log like a person would -------------------------------
+// The audit log stores raw database values ("10:00:00", "true", an ISO
+// timestamp). Show them the way the rest of the app does, in Dubai time.
+const DUBAI = "Asia/Dubai";
+export function tidyValue(v) {
+  if (v === null || v === undefined || v === "") return "not set";
+  const t = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}T/.test(t)) {
+    const d = new Date(t);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleString("en-GB", { timeZone: DUBAI, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    }
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+    return new Date(t + "T00:00:00Z").toLocaleDateString("en-GB", { timeZone: "UTC", day: "numeric", month: "short" });
+  }
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(t)) return t.slice(0, 5);
+  if (t === "true") return "Yes";
+  if (t === "false") return "No";
+  return t.replace(/_/g, " ");
+}
+
+const PLACE_LABEL = {
+  school_shortlist: "School visits",
+  application_fees: "Applications",
+  documents: "Documents",
+  tasks: "Tasks",
+  parents: "Family details",
+  children: "Family details",
+  current_schools: "Family details",
+};
+
+// Several fields saved together (one tour edit touches date, start, status...)
+// arrive as several rows a second apart. Join those into one entry: same
+// person, same record, within 90 seconds of each other.
+function mergeAuditEntries(rows) {
+  const sorted = [...rows].sort((a, b) => String(a.at).localeCompare(String(b.at))); // oldest first
+  const groups = [];
+  sorted.forEach((r) => {
+    const g = groups.find(
+      (x) => !r.isAdd && !x.isAdd && x.who === r.who && x.table === r.table && x.recordId === r.recordId && new Date(r.at) - new Date(x.lastAt) < 90000
+    );
+    if (g) {
+      g.items.push(r);
+      g.lastAt = r.at;
+    } else groups.push({ ...r, items: [r], lastAt: r.at });
+  });
+  return groups.map((g) => {
+    if (g.isAdd) return g;
+    // Same field changed twice in one save: keep the first old and the last new.
+    const byField = [];
+    g.items.forEach((it) => {
+      const f = byField.find((x) => x.field === it.field);
+      if (f) f.new = it.rawNew;
+      else byField.push({ field: it.field, label: it.label, old: it.rawOld, new: it.rawNew });
+    });
+    const real = byField.filter((f) => tidyValue(f.old) !== tidyValue(f.new));
+    const changes = real.length ? real : byField;
+    const words = changes.map((c) => String(c.label || c.field).split(" "));
+    let prefix = [];
+    if (changes.length > 1) {
+      for (let i = 0; i < words[0].length; i++) {
+        if (words.every((w) => w[i] === words[0][i])) prefix.push(words[0][i]);
+        else break;
+      }
+    }
+    const single = changes.length === 1;
+    return {
+      ...g,
+      at: g.lastAt, // the whole save is dated by its last row
+      title: single ? `changed ${changes[0].label || changes[0].field}` : prefix.length ? `changed the ${prefix.join(" ")}` : `changed ${changes.length} details`,
+      changes: changes.map((c) => {
+        const rest = single ? "" : String(c.label || c.field).split(" ").slice(prefix.length).join(" ");
+        return { label: rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : "", old: tidyValue(c.old), new: tidyValue(c.new) };
+      }),
+    };
+  });
+}
+
 export async function loadActivity({ sinceDays = 30, limit = 400 } = {}) {
   const since = new Date();
   since.setDate(since.getDate() - sinceDays);
@@ -102,20 +182,33 @@ export async function loadActivity({ sinceDays = 30, limit = 400 } = {}) {
     children: "details",
     current_schools: "details",
   };
+  const auditRows = [];
   audit.forEach((a) => {
     const added = a.field_name === "added" || a.field_name === "removed";
-    push({
+    auditRows.push({
       id: "audit:" + a.id,
       at: a.changed_at,
       who: a.changed_by_name || who(a.changed_by),
       kind: "edit",
+      where: PLACE_LABEL[a.table_name] || "Family details",
+      table: a.table_name,
+      recordId: a.record_id,
+      field: a.field_name,
+      label: a.field_label,
+      rawOld: a.old_value,
+      rawNew: a.new_value,
+      isAdd: added,
       title: added ? `${a.field_name} ${a.field_label || "a record"}` : `changed ${a.field_label || a.field_name}`,
-      detail: added ? [a.new_value || a.old_value || ""] : [a.old_value || "(empty)", a.new_value || "(empty)"],
-      isChange: !added,
+      detail: added ? [a.new_value || a.old_value || ""] : [],
+      isChange: false,
       familyId: a.family_id,
       familyName: familyName(a.family_id),
       path: familyPath(a.family_id, AUDIT_TAB[a.table_name] ?? "details"),
     });
+  });
+  mergeAuditEntries(auditRows).forEach((g) => {
+    const { items: _items, lastAt: _lastAt, isAdd, ...row } = g;
+    push({ ...row, isChange: !isAdd });
   });
 
   appEvents.forEach((e) => {

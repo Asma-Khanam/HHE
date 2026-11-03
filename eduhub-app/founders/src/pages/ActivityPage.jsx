@@ -14,18 +14,20 @@ const RANGES = [
   { key: 90, label: "Last 3 months" },
 ];
 
+// Everything on this page is shown in Dubai time, like the rest of the app, so
+// the whole team reads the same clock whatever their computer is set to.
+const TZ = "Asia/Dubai";
+const dayKey = (d) => new Date(d).toLocaleDateString("en-CA", { timeZone: TZ });
+
 function dayLabel(iso) {
-  const d = new Date(iso);
-  const today = new Date();
   const yest = new Date();
   yest.setDate(yest.getDate() - 1);
-  const same = (a, b) => a.toDateString() === b.toDateString();
-  if (same(d, today)) return "Today";
-  if (same(d, yest)) return "Yesterday";
-  return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  if (dayKey(iso) === dayKey(new Date())) return "Today";
+  if (dayKey(iso) === dayKey(yest)) return "Yesterday";
+  return new Date(iso).toLocaleDateString("en-GB", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
 }
 
-const timeOf = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+const timeOf = (iso) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
 
 export default function ActivityPage() {
   const [rows, setRows] = useState(null);
@@ -101,7 +103,7 @@ export default function ActivityPage() {
           onChange={(e) => setSearch(e.target.value)}
         />
         <select value={person} onChange={(e) => setPerson(e.target.value)}>
-          <option value="all">Everyone</option>
+          <option value="all">All people</option>
           <option value="__none">Not recorded</option>
           {people.map((p) => (
             <option key={p} value={p}>
@@ -110,7 +112,7 @@ export default function ActivityPage() {
           ))}
         </select>
         <select value={kind} onChange={(e) => setKind(e.target.value)}>
-          <option value="all">Everything</option>
+          <option value="all">All types</option>
           {ACTIVITY_KINDS.map((k) => (
             <option key={k.key} value={k.key}>
               {k.label}
@@ -145,7 +147,18 @@ export default function ActivityPage() {
                         </>
                       ) : null}
                     </div>
-                    {(r.kind === "edit" && r.isChange) || r.kind === "stage" ? (
+                    {r.kind === "edit" && r.isChange && r.changes ? (
+                      <div className="activity-changes">
+                        {r.changes.map((c, i) => (
+                          <div key={i} className="activity-detail">
+                            {c.label && <span className="activity-field">{c.label}: </span>}
+                            <span className="activity-old">{c.old}</span>
+                            <span aria-hidden="true"> → </span>
+                            <span className="activity-new">{c.new}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : r.kind === "stage" ? (
                       <div className="activity-detail">
                         <span className="activity-old">{r.detail[0]}</span>
                         <span aria-hidden="true"> → </span>
@@ -155,7 +168,7 @@ export default function ActivityPage() {
                       (r.detail || []).filter(Boolean).length > 0 && <div className="activity-detail">{r.detail.filter(Boolean).join(" · ")}</div>
                     )}
                   </div>
-                  <span className="activity-kind">{ACTIVITY_KINDS.find((k) => k.key === r.kind)?.label || r.kind}</span>
+                  <span className="activity-kind">{r.where || ACTIVITY_KINDS.find((k) => k.key === r.kind)?.label || r.kind}</span>
                 </li>
               ))}
             </ul>

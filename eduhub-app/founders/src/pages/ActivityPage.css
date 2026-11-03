@@ -37,3 +37,9 @@
 }
 .activity-nobody { color: var(--hh-muted, #6b565e); font-style: italic; }
 .activity-note { margin: 6px 0 0; font-size: 13px; color: var(--hh-muted, #6b565e); max-width: 62ch; }
+
+.activity-line a { color: var(--hh-burgundy, #530126); font-weight: 500; text-decoration: underline; text-decoration-color: rgba(83, 1, 38, 0.3); text-underline-offset: 3px; }
+.activity-line a:hover { text-decoration-color: currentColor; }
+.activity-field { color: var(--hh-ink, #2a1119); }
+.activity-changes { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; }
+.activity-changes .activity-detail { margin-top: 0; }
