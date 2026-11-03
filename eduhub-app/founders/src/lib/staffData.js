@@ -2514,6 +2514,82 @@ export async function saveCalendlyBookingNote(bookingId, note) {
   );
 }
 
+// A consultation added by hand (addendum 151): a call that did not come through
+// Calendly. Saved as a booking marked added_by_hand, linked to a family at once
+// when a parent's email matches, with the same Meetings note a Calendly booking
+// gets. Returns { booking, familyId, movedToPaidConsult }.
+export async function addConsultation({ name, email, phone, eventName, startIso, minutes, host, zoom, note }) {
+  const zoomId = zoomIdFromUrl(zoom) || (/^\d{9,11}$/.test(String(zoom || "").trim()) ? String(zoom).trim() : "");
+  const start = new Date(startIso);
+  const booking = unwrap(
+    await supabase
+      .from("calendly_bookings")
+      .insert({
+        invitee_uri: `manual-${crypto.randomUUID()}`,
+        added_by_hand: true,
+        invitee_name: name.trim(),
+        invitee_email: email?.trim() || null,
+        invitee_phone: phone?.trim() || null,
+        event_name: eventName,
+        host_name: host?.trim() || null,
+        start_time: start.toISOString(),
+        end_time: new Date(start.getTime() + (minutes || 30) * 60000).toISOString(),
+        join_url: zoomId ? (zoomIdFromUrl(zoom) ? zoom.trim() : `https://zoom.us/j/${zoomId}`) : null,
+        zoom_meeting_id: zoomId || null,
+        staff_note: note?.trim() || null,
+      })
+      .select("*")
+      .single()
+  );
+  let familyId = null;
+  let movedToPaidConsult = false;
+  const mail = email?.trim();
+  if (mail) {
+    const { data } = await supabase
+      .from("parents")
+      .select("family_id")
+      .ilike("email", mail.replace(/[\\%_]/g, "\\$&"))
+      .not("family_id", "is", null)
+      .limit(1);
+    familyId = data?.[0]?.family_id || null;
+  }
+  if (familyId) {
+    const r = await linkCalendlyBooking(booking, familyId);
+    movedToPaidConsult = !!r?.movedToPaidConsult;
+    if (zoomId) await attachZoomToBooking({ ...booking, family_id: familyId }, zoomId);
+  }
+  return { booking, familyId, movedToPaidConsult };
+}
+
+// Edit the details of a consultation that was added by hand. The database only
+// lets staff do this to rows marked added_by_hand.
+export async function updateManualConsultation(id, { name, email, phone, eventName, startIso, minutes, host }) {
+  const start = new Date(startIso);
+  unwrap(
+    await supabase
+      .from("calendly_bookings")
+      .update({
+        invitee_name: name.trim(),
+        invitee_email: email?.trim() || null,
+        invitee_phone: phone?.trim() || null,
+        event_name: eventName,
+        host_name: host?.trim() || null,
+        start_time: start.toISOString(),
+        end_time: new Date(start.getTime() + (minutes || 30) * 60000).toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("added_by_hand", true)
+      .select("id")
+      .single()
+  );
+}
+
+export async function deleteManualConsultation(id) {
+  const { error } = await supabase.from("calendly_bookings").delete().eq("id", id).eq("added_by_hand", true);
+  if (error) throw error;
+}
+
 // ---------------------------------------------------------------------------
 // Accounting records (addendum 109). One per school payment HHE makes for a
 // family; staff-only. Amounts live here and never on the family-readable fee.

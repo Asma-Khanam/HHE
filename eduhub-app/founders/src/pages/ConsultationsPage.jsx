@@ -5,6 +5,9 @@ import {
   linkCalendlyBooking,
   saveCalendlyBookingNote,
   attachZoomToBooking,
+  addConsultation,
+  updateManualConsultation,
+  deleteManualConsultation,
   listFamilies,
   listZoomSummariesByMeeting,
   zoomIdFromUrl,
@@ -46,6 +49,94 @@ function paymentLabel(b) {
   return b.payment_paid ? `Paid${amount ? ` · ${amount}` : ""}` : `Not paid${amount ? ` · ${amount}` : ""}`;
 }
 
+
+// Calls added by hand (addendum 151). The type decides the event name, so a
+// paid consultation behaves exactly like a Calendly one (moves a free sanity
+// check family to Paid consult); "Other call" never changes the stage.
+const CALL_TYPES = [
+  ["free", "Free sanity check (10 min)", "10 - Minute Sanity Check", 10],
+  ["paid", "Paid consultation (30 min)", "30 - Minute consult with Heather", 30],
+  ["other", "Other call", "Call (added by hand)", 30],
+];
+
+// The page shows Dubai time everywhere, so the date box is Dubai time too.
+function dubaiLocalToIso(v) {
+  return new Date(`${v}:00+04:00`).toISOString();
+}
+function isoToDubaiLocal(iso) {
+  return iso ? new Date(new Date(iso).getTime() + 4 * 3600 * 1000).toISOString().slice(0, 16) : "";
+}
+
+function ConsultForm({ initial, withExtras, submitLabel, busy, error, onSubmit, onCancel }) {
+  const [v, setV] = useState(initial);
+  const set = (k) => (e) => setV((x) => ({ ...x, [k]: e.target.value }));
+  const type = CALL_TYPES.find((t) => t[0] === v.type) || CALL_TYPES[0];
+  const ready = v.name.trim() && v.when;
+  return (
+    <form
+      className="consult-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (ready && !busy) onSubmit({ ...v, eventName: type[2], minutes: type[3], startIso: dubaiLocalToIso(v.when) });
+      }}
+    >
+      <label>
+        <span className="panel-field-label">Name</span>
+        <input className="panel-input" value={v.name} onChange={set("name")} required />
+      </label>
+      <label>
+        <span className="panel-field-label">Email</span>
+        <input className="panel-input" type="email" value={v.email} onChange={set("email")} placeholder="Links them to their family if they have an account" />
+      </label>
+      <label>
+        <span className="panel-field-label">Phone</span>
+        <input className="panel-input" value={v.phone} onChange={set("phone")} />
+      </label>
+      <label>
+        <span className="panel-field-label">Type of call</span>
+        <select className="panel-select" value={v.type} onChange={set("type")}>
+          {CALL_TYPES.map((t) => (
+            <option key={t[0]} value={t[0]}>
+              {t[1]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span className="panel-field-label">Date and time (Dubai)</span>
+        <input className="panel-input" type="datetime-local" value={v.when} onChange={set("when")} required />
+      </label>
+      <label>
+        <span className="panel-field-label">Taken by</span>
+        <input className="panel-input" value={v.host} onChange={set("host")} placeholder="e.g. Heather" />
+      </label>
+      {withExtras && (
+        <>
+          <label className="consult-form-wide">
+            <span className="panel-field-label">Zoom link or meeting ID (optional)</span>
+            <input className="panel-input" value={v.zoom} onChange={set("zoom")} placeholder="https://zoom.us/j/1234567890 — the AI summary attaches itself after the call" />
+          </label>
+          <label className="consult-form-wide">
+            <span className="panel-field-label">Notes (optional)</span>
+            <textarea className="panel-input" rows={3} value={v.note} onChange={set("note")} placeholder="Outcome of the call, follow-ups… paste your own notes here if there is no Zoom summary" />
+          </label>
+        </>
+      )}
+      {error && <p className="consult-error consult-form-wide">{error}</p>}
+      <div className="consult-form-actions consult-form-wide">
+        <button type="submit" className="panel-btn panel-btn-primary" disabled={!ready || busy}>
+          {busy ? "Saving…" : submitLabel}
+        </button>
+        <button type="button" className="panel-btn" onClick={onCancel} disabled={busy}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+const EMPTY_CONSULT = { name: "", email: "", phone: "", type: "free", when: "", host: "", zoom: "", note: "" };
+
 function BookingCard({ booking, families, summaries, onChanged }) {
   const [open, setOpen] = useState(false);
   const [pick, setPick] = useState("");
@@ -53,6 +144,7 @@ function BookingCard({ booking, families, summaries, onChanged }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [moved, setMoved] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const family = families.find((f) => f.id === booking.family_id) || null;
   const pay = paymentLabel(booking);
@@ -102,6 +194,33 @@ function BookingCard({ booking, families, summaries, onChanged }) {
     }
   }
 
+  async function saveEdit(v) {
+    setBusy(true);
+    setError("");
+    try {
+      await updateManualConsultation(booking.id, v);
+      setEditing(false);
+      await onChanged();
+    } catch (e) {
+      setError(friendlyError(e, "Couldn't save the changes."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeManual() {
+    if (!window.confirm("Delete this consultation? This cannot be undone.")) return;
+    setBusy(true);
+    setError("");
+    try {
+      await deleteManualConsultation(booking.id);
+      await onChanged();
+    } catch (e) {
+      setError(friendlyError(e, "Couldn't delete it."));
+      setBusy(false);
+    }
+  }
+
   async function saveNote() {
     setBusy(true);
     setError("");
@@ -126,6 +245,7 @@ function BookingCard({ booking, families, summaries, onChanged }) {
           </div>
         </div>
         <div className="consult-card-tags">
+          {booking.added_by_hand && <span className="consult-tag consult-tag-grey">Added by hand</span>}
           {canceled && <span className="consult-tag consult-tag-red">{booking.rescheduled ? "Rescheduled" : "Cancelled"}</span>}
           {pay && (
             <span className={"consult-tag " + (booking.payment_paid ? "consult-tag-green" : "consult-tag-amber")}>{pay}</span>
@@ -141,6 +261,34 @@ function BookingCard({ booking, families, summaries, onChanged }) {
 
       {open && (
         <div className="consult-card-body">
+          {booking.added_by_hand && (
+            editing ? (
+              <ConsultForm
+                initial={{
+                  name: booking.invitee_name || "",
+                  email: booking.invitee_email || "",
+                  phone: booking.invitee_phone || "",
+                  type: (CALL_TYPES.find((t) => t[2] === booking.event_name) || CALL_TYPES[2])[0],
+                  when: isoToDubaiLocal(booking.start_time),
+                  host: booking.host_name || "",
+                }}
+                submitLabel="Save changes"
+                busy={busy}
+                error={error}
+                onSubmit={saveEdit}
+                onCancel={() => setEditing(false)}
+              />
+            ) : (
+              <div className="consult-form-actions">
+                <button type="button" className="panel-btn" onClick={() => setEditing(true)}>
+                  Edit details
+                </button>
+                <button type="button" className="panel-btn panel-btn-quiet" onClick={removeManual} disabled={busy}>
+                  Delete
+                </button>
+              </div>
+            )
+          )}
           <dl className="consult-details">
             <div>
               <dt>Email</dt>
@@ -264,6 +412,32 @@ export default function ConsultationsPage() {
   const [filter, setFilter] = useState("upcoming");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  async function handleAdd(v) {
+    setAdding(true);
+    setAddError("");
+    try {
+      const r = await addConsultation(v);
+      const fam = families.find((f) => f.id === r.familyId);
+      setNotice(
+        `Added ${v.name.trim()}. ` +
+          (fam
+            ? `Linked to ${fam.displayName} automatically and saved on their Meetings tab.${r.movedToPaidConsult ? " They have been moved to Paid consult on the Caseload." : ""}`
+            : "Not linked to a family yet. Open it and use Link to a family once they have an account.")
+      );
+      setAddOpen(false);
+      setFilter(new Date(r.booking.start_time).getTime() >= Date.now() ? "upcoming" : "past");
+      await load();
+    } catch (e) {
+      setAddError(friendlyError(e, "Couldn't add the consultation. Has addendum 151 been run?"));
+    } finally {
+      setAdding(false);
+    }
+  }
 
   async function load() {
     try {
@@ -309,9 +483,32 @@ export default function ConsultationsPage() {
     <div className="consult-page">
       <h1 className="consult-title">Consultations</h1>
       <p className="consult-subtitle">
-        Every relocation consultation booked in Calendly appears here with the booker's details. {counts.upcoming} upcoming
+        Every relocation consultation booked in Calendly appears here with the booker's details, and you can add a call that did not come through Calendly. {counts.upcoming} upcoming
         {counts.unlinked ? `, ${counts.unlinked} not linked to a family yet` : ""}.
       </p>
+
+      <div>
+        {!addOpen && (
+          <button type="button" className="panel-btn panel-btn-primary" onClick={() => { setAddOpen(true); setNotice(""); }}>
+            Add a consultation
+          </button>
+        )}
+      </div>
+      {addOpen && (
+        <div className="consult-add">
+          <h2 className="consult-add-title">Add a consultation</h2>
+          <ConsultForm
+            initial={EMPTY_CONSULT}
+            withExtras
+            submitLabel="Add consultation"
+            busy={adding}
+            error={addError}
+            onSubmit={handleAdd}
+            onCancel={() => { setAddOpen(false); setAddError(""); }}
+          />
+        </div>
+      )}
+      {notice && <p className="consult-notice">{notice}</p>}
 
       <div className="consult-filters" role="tablist">
         {FILTERS.map(([key, label]) => (

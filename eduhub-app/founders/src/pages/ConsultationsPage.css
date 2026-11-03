@@ -57,3 +57,15 @@
 .consult-zoom-hint { margin: 6px 0 0; font-size: 0.85rem; color: rgba(42, 17, 25, 0.7); line-height: 1.45; }
 .consult-zoom-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .consult-zoom-form .panel-input { flex: 1; min-width: 220px; }
+
+/* Adding / editing a consultation by hand (addendum 151) */
+.consult-add { background: #fff; border: 1px solid rgba(83, 1, 38, 0.1); border-radius: 12px; padding: 14px 16px 16px; }
+.consult-add-title { margin: 0 0 10px; font-size: 1.05rem; color: var(--hh-burgundy); }
+.consult-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.consult-add .consult-form { margin-top: 0; }
+.consult-form label { display: flex; flex-direction: column; gap: 4px; }
+.consult-form .panel-input, .consult-form .panel-select { width: 100%; }
+.consult-form-wide { grid-column: 1 / -1; }
+.consult-form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.consult-notice { margin: 0; padding: 10px 14px; border-radius: 10px; background: #e3f3ea; color: #1f6b43; font-size: 0.88rem; line-height: 1.45; }
+@media (max-width: 640px) { .consult-form { grid-template-columns: 1fr; } }
