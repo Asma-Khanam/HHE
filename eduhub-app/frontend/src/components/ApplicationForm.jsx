@@ -458,12 +458,6 @@ const QUALIFICATION_OPTIONS = [
   "Doctorate (PhD)",
   "Professional qualification (e.g. ACCA, CFA, law, medicine)",
 ];
-const MOVE_TYPE_OPTIONS = [
-  "New position",
-  "International transfer (same company)",
-  "Starting my own business",
-  "Not working / accompanying partner",
-];
 
 const FEE_RANGE_OPTIONS = [
   "Up to AED 30,000",
@@ -3222,13 +3216,7 @@ function ParentSection({
         onChange={(v) => onChange("occupation_designation", v)}
       />
       <FormField label="Company" value={parent.employer_name} onChange={(v) => onChange("employer_name", v)} />
-      <FormSelect
-        label="Is this a new position or an international transfer?"
-        value={parent.move_type}
-        onChange={(v) => onChange("move_type", v)}
-        options={MOVE_TYPE_OPTIONS}
-        placeholder="Select an option"
-      />
+      {/* "New position or international transfer?" removed from the form (Miss Lyndsay, 3 Nov 2026). Old answers stay in the database. */}
       </FormSection>
       </div>
 

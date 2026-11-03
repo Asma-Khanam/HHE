@@ -83,6 +83,9 @@ export const CHILD_DOCUMENT_TYPES = [
   {
     key: "psychology_report",
     label: "Please upload anything you are happy to share",
+    // What the consultant sees in the vault (the label above is the parent's wording).
+    staffLabel: "SEN documents (reports, assessments, plans)",
+    alwaysShow: true,
     expected: false,
     conditional: true,
     multiple: true,
@@ -107,6 +110,12 @@ export const CHILD_DOCUMENT_TYPES = [
     conditional: true,
     hint: "Once issued.",
   },
+  // Copied from the family app (they were missing here, so anything a family
+  // uploaded against them never showed in the vault). CAT4 always shows so the
+  // consultant can upload it too (Miss Lyndsay, 3 Nov 2026).
+  { key: "gcse_results", label: "GCSE results", expected: false, multiple: true },
+  { key: "cat4_results", label: "CAT4 results", alwaysShow: true, expected: false, multiple: true },
+  { key: "certificates", label: "Certificates", expected: false, multiple: true },
 ];
 
 export const PARENT_DOCUMENT_TYPES = [

@@ -31,7 +31,7 @@ function buildDocumentRows({ parents, children, documentsByOwner, accountHolderR
   function addPerson(ownerType, id, personName, personTag, expectedTypes, allTypes) {
     const docs = id ? documentsByOwner[`${ownerType}:${id}`] || [] : [];
     const expectedKeys = new Set(expectedTypes.map((t) => t.key));
-    const slots = allTypes.filter((t) => expectedKeys.has(t.key) || docs.some((d) => d.document_type === t.key));
+    const slots = allTypes.filter((t) => expectedKeys.has(t.key) || t.alwaysShow || docs.some((d) => d.document_type === t.key));
     slots.forEach((docType) => {
       const matches = docs.filter((d) => d.document_type === docType.key);
       rows.push({
@@ -41,7 +41,7 @@ function buildDocumentRows({ parents, children, documentsByOwner, accountHolderR
         docType,
         personName,
         personTag,
-        docLabel: docType.label,
+        docLabel: docType.staffLabel || docType.label,
         uploaded: matches.length > 0,
         docs: matches,
       });
