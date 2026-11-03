@@ -98,7 +98,12 @@ function mergeAuditEntries(rows) {
       if (f) f.new = it.rawNew;
       else byField.push({ field: it.field, label: it.label, old: it.rawOld, new: it.rawNew });
     });
-    const real = byField.filter((f) => tidyValue(f.old) !== tidyValue(f.new));
+    let real = byField.filter((f) => tidyValue(f.old) !== tidyValue(f.new));
+    // Marking a fee paid also flips who paid it. That is a side effect of the
+    // same click, so it stays in the log but is not shown as a second change.
+    if (g.table === "application_fees" && byField.some((f) => f.field === "status" || f.field === "paid_at")) {
+      real = real.filter((f) => f.field !== "hhe_paid_school_on_behalf" && f.field !== "paid_direct_by_family");
+    }
     const changes = real.length ? real : byField;
     const words = changes.map((c) => String(c.label || c.field).split(" "));
     let prefix = [];
@@ -121,29 +126,44 @@ function mergeAuditEntries(rows) {
   });
 }
 
-export async function loadActivity({ sinceDays = 30, limit = 400 } = {}) {
+// With familyId, only that family's history is read (the History tab on a family).
+export async function loadActivity({ sinceDays = 30, limit = 400, familyId = null } = {}) {
   const since = new Date();
   since.setDate(since.getDate() - sinceDays);
   const sinceIso = since.toISOString();
+  const scope = (q) => (familyId ? q.eq("family_id", familyId) : q);
+
+  // Application events belong to a child, not a family, so for one family
+  // find that family's applications first.
+  let appIds = null;
+  if (familyId) {
+    const kids = await soft(supabase.from("children").select("id").eq("family_id", familyId));
+    const apps = kids.length ? await soft(supabase.from("applications").select("id").in("child_id", kids.map((k) => k.id))) : [];
+    appIds = apps.map((a) => a.id);
+  }
 
   const [audit, appEvents, notes, stages, updates, schoolNotes, tasks, placements, families, parents, schools, staff, applications, children] =
     await Promise.all([
-      soft(supabase.from("record_audit_log").select("*").gte("changed_at", sinceIso).order("changed_at", { ascending: false }).limit(limit)),
-      soft(supabase.from("application_events").select("*").gte("created_at", sinceIso).order("created_at", { ascending: false }).limit(limit)),
+      soft(scope(supabase.from("record_audit_log").select("*").gte("changed_at", sinceIso)).order("changed_at", { ascending: false }).limit(limit)),
+      appIds && appIds.length === 0
+        ? Promise.resolve([])
+        : soft((appIds ? supabase.from("application_events").select("*").in("application_id", appIds) : supabase.from("application_events").select("*")).gte("created_at", sinceIso).order("created_at", { ascending: false }).limit(limit)),
       soft(
-        supabase
-          .from("case_notes")
-          .select("id, family_id, school_id, kind, body, subject, direction, occurred_at, created_at, created_by, author_id")
-          .gte("created_at", sinceIso)
+        scope(
+          supabase
+            .from("case_notes")
+            .select("id, family_id, school_id, kind, body, subject, direction, occurred_at, created_at, created_by, author_id")
+            .gte("created_at", sinceIso)
+        )
           .order("created_at", { ascending: false })
           .limit(limit)
       ),
-      soft(supabase.from("family_stage_history").select("*").gte("moved_at", sinceIso).order("moved_at", { ascending: false }).limit(limit)),
-      soft(supabase.from("family_school_updates").select("*").gte("created_at", sinceIso).order("created_at", { ascending: false }).limit(limit)),
-      soft(supabase.from("school_notes").select("*").gte("created_at", sinceIso).order("created_at", { ascending: false }).limit(limit)),
-      soft(supabase.from("tasks").select("*").or(`created_at.gte.${sinceIso},done_at.gte.${sinceIso},assigned_at.gte.${sinceIso}`).limit(limit)),
-      soft(supabase.from("family_placements").select("*").limit(limit)),
-      soft(supabase.from("families").select("id, archived_at")),
+      soft(scope(supabase.from("family_stage_history").select("*").gte("moved_at", sinceIso)).order("moved_at", { ascending: false }).limit(limit)),
+      soft(scope(supabase.from("family_school_updates").select("*").gte("created_at", sinceIso)).order("created_at", { ascending: false }).limit(limit)),
+      familyId ? Promise.resolve([]) : soft(supabase.from("school_notes").select("*").gte("created_at", sinceIso).order("created_at", { ascending: false }).limit(limit)),
+      soft(scope(supabase.from("tasks").select("*").or(`created_at.gte.${sinceIso},done_at.gte.${sinceIso},assigned_at.gte.${sinceIso}`)).limit(limit)),
+      soft(scope(supabase.from("family_placements").select("*")).limit(limit)),
+      soft(supabase.from("families").select("id, archived_at, owner_staff_id")),
       soft(supabase.from("parents").select("id, family_id, relationship, full_name")),
       soft(supabase.from("schools").select("id, name")),
       soft(supabase.from("staff").select("user_id, full_name, email")),
@@ -198,6 +218,7 @@ export async function loadActivity({ sinceDays = 30, limit = 400 } = {}) {
       rawOld: a.old_value,
       rawNew: a.new_value,
       isAdd: added,
+      fromFamily: a.changed_by_name === "The family",
       title: added ? `${a.field_name} ${a.field_label || "a record"}` : `changed ${a.field_label || a.field_name}`,
       detail: added ? [a.new_value || a.old_value || ""] : [],
       isChange: false,
@@ -216,6 +237,7 @@ export async function loadActivity({ sinceDays = 30, limit = 400 } = {}) {
     const school = app ? schoolById[app.school_id]?.name : null;
     push({
       id: "appev:" + e.id,
+      __type: e.event_type,
       at: e.created_at,
       who: who(e.created_by),
       kind: "application",
@@ -234,6 +256,7 @@ export async function loadActivity({ sinceDays = 30, limit = 400 } = {}) {
       at: n.created_at || n.occurred_at,
       who: who(n.created_by || n.author_id),
       kind: n.kind === "email" ? "email" : "note",
+      fromFamily: n.kind === "email" && n.direction !== "outgoing",
       title: n.kind === "email" ? (n.direction === "outgoing" ? "sent an email" : "received an email") : NOTE_LABEL[n.kind] || "added a note",
       detail: [n.subject || (n.body || "").trim().slice(0, 120)].filter(Boolean),
       familyId: n.family_id,
@@ -338,5 +361,23 @@ export async function loadActivity({ sinceDays = 30, limit = 400 } = {}) {
     }
   });
 
-  return out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  // A fee marked paid is written twice: once as an application event ("recorded
+  // an application fee as paid") and once as the field changes. Show it once,
+  // with the school and child from the event as the context line.
+  const feeEntries = out.filter((r) => r.table === "application_fees" && r.changes);
+  const dropped = new Set();
+  out.forEach((r) => {
+    if (!r.id.startsWith("appev:") || !(r.__type || "").startsWith("fee_")) return;
+    const m = feeEntries.find((f) => f.familyId === r.familyId && Math.abs(new Date(f.at) - new Date(r.at)) <= 120000);
+    if (m) {
+      m.context = r.detail[0] || "";
+      dropped.add(r.id);
+    }
+  });
+
+  const owners = Object.fromEntries(families.map((f) => [f.id, f.owner_staff_id]));
+  return out
+    .filter((r) => !dropped.has(r.id))
+    .map((r) => ({ ...r, ownerStaffId: owners[r.familyId] || null }))
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)));
 }

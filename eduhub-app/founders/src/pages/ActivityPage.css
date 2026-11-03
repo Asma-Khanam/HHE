@@ -43,3 +43,13 @@
 .activity-field { color: var(--hh-ink, #2a1119); }
 .activity-changes { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; }
 .activity-changes .activity-detail { margin-top: 0; }
+
+/* Activity feed (shared by the Activity page and a family's History tab) */
+.activity-feed .activity-range { justify-content: flex-end; margin-bottom: 12px; }
+.activity-feed.is-family .activity-range { justify-content: flex-start; }
+.activity-feed .activity-filters .activity-chip { padding: 9px 14px; }
+.activity-new-banner { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; background: #fbf1d9; color: #6b4a00; font-size: 14px; }
+.activity-newdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #c0392b; margin-right: 6px; vertical-align: middle; }
+.activity-row.is-family { background: rgba(212, 175, 55, 0.07); }
+.activity-kind a { color: var(--hh-burgundy, #530126); text-decoration: none; }
+.activity-kind a:hover { text-decoration: underline; }

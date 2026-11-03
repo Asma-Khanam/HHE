@@ -12,6 +12,7 @@ import SchoolShortlistPanel from "../components/SchoolShortlistPanel";
 import SchoolEnquiryDrafts from "../components/SchoolEnquiryDrafts";
 import TasksPanel from "../components/TasksPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
+import ActivityFeed from "../components/ActivityFeed";
 import PaymentsPanel from "../components/PaymentsPanel";
 import TabErrorBoundary from "../components/TabErrorBoundary";
 import PlacementTimelinePanel from "../components/PlacementTimelinePanel";
@@ -484,6 +485,7 @@ const FAMILY_DETAIL_TAB_KEYS = [
   "meetings",
   "accounting",
   "documents",
+  "history",
 ];
 
 export default function FamilyDetailPage() {
@@ -784,6 +786,7 @@ export default function FamilyDetailPage() {
           ["meetings", "Meetings"],
           ["accounting", "Accounting"],
           ["documents", "Documents"],
+          ["history", "History"],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -1166,6 +1169,8 @@ export default function FamilyDetailPage() {
       )}
 
       {activeTab === "meetings" && <MeetingsPanel familyId={family.id} notes={caseNotes} />}
+
+      {activeTab === "history" && <ActivityFeed familyId={family.id} />}
 
       {activeTab === "documents" && (
         <div className="family-detail-stack">
