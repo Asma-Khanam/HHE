@@ -86,3 +86,11 @@
 /* Placed here: the Placed step and its line turn green. */
 .ap2-where.is-placed .ap2-cm span:last-child { background: var(--sv-green); color: #fff; }
 .ap2-where.is-placed .sv-sb { color: var(--sv-green); font-weight: 600; }
+
+/* Closed applications: the band says "Greyed out", so grey them (they were not). */
+.sv-tb.is-closed .sv-nm,
+.sv-tb.is-closed .sv-sb,
+.sv-tb.is-closed .sv-st { color: var(--sv-mute); }
+.sv-tb.is-closed .sv-nm { font-weight: 500; }
+.sv-tb.is-closed { background: transparent; }
+.sv-tb.is-closed.is-sel { background: var(--sv-surface2); }

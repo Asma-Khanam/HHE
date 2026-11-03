@@ -1082,7 +1082,7 @@ export default function ApplicationsPanel({
                             <div className="sv-sb">{info.hint}</div>
                           </div>
                           {withChild && <span className="sv-st">{info.name}</span>}
-                          <span className="ap2-pill">{info.placedElsewhere ? "Closed" : info.isDeclined ? "Declined" : "Withdrawn"}</span>
+                          <span className="ap2-pill">{info.placedElsewhere ? "Placed elsewhere" : info.isDeclined ? "Declined" : "Withdrawn"}</span>
                           <span className="sv-st" onClick={(e) => e.stopPropagation()}>
                             <button type="button" className="sv-btn is-link" onClick={() => reopenApplication(child, application, info)}>
                               Reopen

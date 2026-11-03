@@ -1264,3 +1264,9 @@
 .panel-fold { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
 .panel-fold-chev { font-size: 0.85em; opacity: 0.6; width: 14px; }
 .panel-fold:hover .panel-fold-chev { opacity: 1; }
+
+/* Document vault grouped by person */
+.doc-group + .doc-group { margin-top: 18px; }
+.doc-group-head { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding-bottom: 6px; border-bottom: 1px solid rgba(83, 1, 38, 0.1); }
+.doc-group-name { font-weight: 600; color: var(--hh-burgundy); }
+.doc-group-count { margin-left: auto; font-size: 0.8rem; opacity: 0.6; }

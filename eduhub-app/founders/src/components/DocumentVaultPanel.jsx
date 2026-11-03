@@ -220,6 +220,20 @@ export default function DocumentVaultPanel({ parents, familyChildren, documentsB
   const rows = buildDocumentRows({ parents, children: familyChildren, documentsByOwner, accountHolderRole });
   const uploadedCount = rows.filter((r) => r.uploaded).length;
 
+  // One section per person, children first and then the parents, so a long
+  // vault reads as "this child's papers" rather than one long list.
+  const groups = [];
+  rows.forEach((row) => {
+    const key = `${row.ownerType}-${row.ownerId}`;
+    let g = groups.find((x) => x.key === key);
+    if (!g) {
+      g = { key, ownerType: row.ownerType, personName: row.personName, personTag: row.personTag, rows: [] };
+      groups.push(g);
+    }
+    g.rows.push(row);
+  });
+  groups.sort((x, y) => (x.ownerType === y.ownerType ? 0 : x.ownerType === "child" ? -1 : 1));
+
   return (
     <section className="panel">
       <div className="panel-head">
@@ -237,39 +251,46 @@ export default function DocumentVaultPanel({ parents, familyChildren, documentsB
       {rows.length === 0 ? (
         <p className="panel-hint">Nothing expected yet.</p>
       ) : (
-        <ul className="panel-list">
-          {rows.map((row) => (
-            <li key={row.key} className={"doc-row" + (row.docs.length > 1 ? " is-multi" : "")}>
-              <span
-                className={"doc-row-status" + (row.uploaded ? " is-verified" : " is-missing")}
-                title={row.uploaded ? "Uploaded" : "Not uploaded yet"}
-              >
-                {row.uploaded ? "✓" : "✕"}
+        groups.map((g) => (
+          <div key={g.key} className="doc-group">
+            <div className="doc-group-head">
+              <span className="doc-group-name">{g.personName}</span>
+              <span className="doc-row-tag doc-row-tag-muted">{g.personTag}</span>
+              <span className="doc-group-count">
+                {g.rows.filter((r) => r.uploaded).length} of {g.rows.length} uploaded
               </span>
+            </div>
+            <ul className="panel-list">
+              {g.rows.map((row) => (
+                <li key={row.key} className={"doc-row" + (row.docs.length > 1 ? " is-multi" : "")}>
+                  <span
+                    className={"doc-row-status" + (row.uploaded ? " is-verified" : " is-missing")}
+                    title={row.uploaded ? "Uploaded" : "Not uploaded yet"}
+                  >
+                    {row.uploaded ? "✓" : "✕"}
+                  </span>
 
-              <div className="doc-row-info">
-                <div className="doc-row-label">{row.docLabel}</div>
-                <div className="doc-row-tags">
-                  <span className="doc-row-tag">{row.personName}</span>
-                  <span className="doc-row-tag doc-row-tag-muted">{row.personTag}</span>
-                </div>
-                {row.uploaded ? (
-                  (row.docs.length > 1 ? [] : row.docs).map((doc) => (
-                    <div className="doc-row-meta" key={doc.id}>
-                      {doc.original_filename}
-                      {reportLabel(doc) ? ` · ${reportLabel(doc)}` : ""}
-                      {doc.created_at ? ` · uploaded ${formatDate(doc.created_at)}` : ""}
-                    </div>
-                  ))
-                ) : (
-                  <div className="doc-row-meta">Not on file yet.</div>
-                )}
-              </div>
+                  <div className="doc-row-info">
+                    <div className="doc-row-label">{row.docLabel}</div>
+                    {row.uploaded ? (
+                      (row.docs.length > 1 ? [] : row.docs).map((doc) => (
+                        <div className="doc-row-meta" key={doc.id}>
+                          {doc.original_filename}
+                          {reportLabel(doc) ? ` · ${reportLabel(doc)}` : ""}
+                          {doc.created_at ? ` · uploaded ${formatDate(doc.created_at)}` : ""}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="doc-row-meta">Not on file yet.</div>
+                    )}
+                  </div>
 
-              <VaultRowControls row={row} userId={userId} onChanged={onChanged} />
-            </li>
-          ))}
-        </ul>
+                  <VaultRowControls row={row} userId={userId} onChanged={onChanged} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
       )}
     </section>
   );
