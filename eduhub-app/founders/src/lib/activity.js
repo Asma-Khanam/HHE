@@ -201,7 +201,12 @@ export async function loadActivity({ sinceDays = 30, limit = 400, familyId = nul
     const c = childById[id];
     return c ? c.preferred_name || c.first_name || c.full_name : "a child";
   };
-  const familyPath = (id, tab) => (id ? `/staff/families/${id}${tab ? `?tab=${tab}` : ""}` : null);
+  // A link to a family, optionally straight to one tab and one school's row.
+  const familyPath = (id, tab, school) => {
+    if (!id) return null;
+    const q = [tab && `tab=${tab}`, school && `school=${school}`].filter(Boolean).join("&");
+    return `/staff/families/${id}${q ? `?${q}` : ""}`;
+  };
 
   const out = [];
   const push = (row) => row.at && out.push(row);
@@ -263,7 +268,8 @@ export async function loadActivity({ sinceDays = 30, limit = 400, familyId = nul
       familyId: app ? childById[app.child_id]?.family_id : null,
       familyName: familyName(app ? childById[app.child_id]?.family_id : null),
       schoolId: app?.school_id || null,
-      path: app ? familyPath(childById[app.child_id]?.family_id, "applications") : null,
+      path: app ? familyPath(childById[app.child_id]?.family_id, "applications", app.school_id) : null,
+      schoolName: school || "",
     });
   });
 
@@ -308,7 +314,8 @@ export async function loadActivity({ sinceDays = 30, limit = 400, familyId = nul
       familyId: u.family_id,
       familyName: familyName(u.family_id),
       schoolId: u.school_id,
-      path: familyPath(u.family_id, "visits"),
+      path: familyPath(u.family_id, "visits", u.school_id),
+      schoolName: schoolById[u.school_id]?.name || "",
     })
   );
 

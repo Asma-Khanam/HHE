@@ -1170,7 +1170,7 @@ export default function FamilyDetailPage() {
 
       {activeTab === "meetings" && <MeetingsPanel familyId={family.id} notes={caseNotes} />}
 
-      {activeTab === "history" && <ActivityFeed familyId={family.id} onGoToTab={(tab) => goToTab(tab)} />}
+      {activeTab === "history" && <ActivityFeed familyId={family.id} onGoToTab={(tab, schoolId) => goToTab(tab, schoolId)} />}
 
       {activeTab === "documents" && (
         <div className="family-detail-stack">
