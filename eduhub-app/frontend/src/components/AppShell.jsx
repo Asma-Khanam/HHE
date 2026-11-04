@@ -68,9 +68,22 @@ export default function AppShell() {
     load();
     const onVis = () => document.visibilityState === "visible" && load();
     document.addEventListener("visibilitychange", onVis);
+    // Live: a new notification lifts the badge straight away. The slow poll is
+    // a safety net in case the realtime connection drops.
+    const channel = supabase
+      .channel(`notif-badge-${familyId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "family_notifications", filter: `family_id=eq.${familyId}` },
+        () => load()
+      )
+      .subscribe();
+    const poll = setInterval(() => document.visibilityState === "visible" && load(), 60000);
     return () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVis);
+      clearInterval(poll);
+      supabase.removeChannel(channel);
     };
   }, [familyId, location.pathname]);
 

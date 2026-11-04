@@ -19,6 +19,8 @@ const KIND = {
   tour_reminder_hours: { chip: "Tour in 2 hours", tone: "info" },
   assessment_reminder_day: { chip: "Assessment tomorrow", tone: "info" },
   assessment_reminder_hours: { chip: "Assessment in 2 hours", tone: "info" },
+  invoice_sent: { chip: "Invoice", tone: "info" },
+  document_requested: { chip: "Document needed", tone: "warn" },
 };
 
 // "School update" notifications (addendum 138) are labelled by their stage.
@@ -34,7 +36,7 @@ const STAGE = {
   no_place: { chip: "No place available", tone: "warn" },
 };
 
-const LINK_LABEL = { Location: "Open in Maps", "Join link": "Join assessment" };
+const LINK_LABEL = { Location: "Open in Maps", "Join link": "Join assessment", "Pay now": "Pay now" };
 
 function ago(ts) {
   const diff = Date.now() - new Date(ts).getTime();
@@ -89,7 +91,7 @@ function Item({ n, isNew, open, onToggle }) {
           </span>
           <span className="notif-school">{school}</span>
           {when && n.kind !== "tour_cancelled" && <span className="notif-when">{when}</span>}
-          {n.kind === "school_update" && n.body && <span className="notif-when">{n.body}</span>}
+          {(n.kind === "school_update" || n.kind === "invoice_sent" || n.kind === "document_requested") && n.body && <span className="notif-when">{n.body}</span>}
           {n.kind === "tour_cancelled" && <span className="notif-when">Your consultant will arrange a new time</span>}
         </span>
         <span className="notif-chevron" aria-hidden="true"><IconChevronDown size={18} /></span>
@@ -145,6 +147,32 @@ export default function NotificationsPage() {
       });
     return () => {
       cancelled = true;
+    };
+  }, [familyId]);
+
+  // New or changed notifications arrive while the page is open.
+  useEffect(() => {
+    if (!familyId) return undefined;
+    const channel = supabase
+      .channel(`notif-page-${familyId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "family_notifications", filter: `family_id=eq.${familyId}` },
+        (payload) => {
+          const row = payload.new;
+          if (!row || !row.id) return;
+          setRows((cur) => {
+            if (!cur) return cur;
+            const rest = cur.filter((r) => r.id !== row.id);
+            return [row, ...rest].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          });
+          setOpen(row.id);
+          supabase.rpc("family_mark_notifications_read").then(() => {}, () => {});
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
     };
   }, [familyId]);
 
