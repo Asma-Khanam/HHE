@@ -166,8 +166,12 @@ export default function NotificationsPage() {
             const rest = cur.filter((r) => r.id !== row.id);
             return [row, ...rest].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
           });
-          setOpen(row.id);
-          supabase.rpc("family_mark_notifications_read").then(() => {}, () => {});
+          // Only a new or changed unread notification opens itself; the update that
+          // marks rows read must not collapse whatever the family has open.
+          if (!row.read_at) {
+            setOpen(row.id);
+            supabase.rpc("family_mark_notifications_read").then(() => {}, () => {});
+          }
         }
       )
       .subscribe();
