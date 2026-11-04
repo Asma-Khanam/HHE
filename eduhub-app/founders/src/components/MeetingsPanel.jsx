@@ -246,7 +246,14 @@ export default function MeetingsPanel({ familyId, notes: allNotes }) {
           </>
         )}
         {linkError && <div className="hh-form-banner hh-form-banner-error">{linkError}</div>}
-        {links.some((l) => !notes.some((n) => (n.external_ref || "").startsWith("zoom:"))) && (
+        {links.some(
+          (l) =>
+            !notes.some(
+              (n) =>
+                (n.external_ref || "").startsWith("zoom:") &&
+                (l.join_url ? (n.body || "").includes(l.join_url) : (n.created_at || "") >= (l.created_at || ""))
+            )
+        ) && (
           <p className="zoom-link-hint">
             Zoom sends the summary a few minutes after the call ends, and only for calls hosted on the HHE Zoom account with
             the AI meeting summary switched on.

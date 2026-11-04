@@ -79,8 +79,6 @@ export default function TourSlotReview({ familyId, familyChildren, blocked, hasV
       .sort((a, b) => Number(a.allNo) - Number(b.allNo) || a.name.localeCompare(b.name));
   }, [rows, childStatus, children, allSlots, blocked]);
 
-  const active = schools.filter((s) => !s.allNo);
-  const withSlots = active.filter((s) => s.slots.length > 0);
   const confirmedCount = allSlots.filter((s) => s.status === "confirmed").length;
   const conflictCount = allSlots.filter((s) => conflictFor(s, blocked, allSlots)).length;
   const ready = allSlots.length > 0 && confirmedCount === allSlots.length && conflictCount === 0;

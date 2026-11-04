@@ -268,12 +268,6 @@ const SCHOOL_FIELDS = [
   },
 ];
 
-const REFERENCE_STATUS_LABELS = {
-  not_requested: "Not requested",
-  requested: "Requested",
-  received: "Received",
-};
-
 function formatDate(iso) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });

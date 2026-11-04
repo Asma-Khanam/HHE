@@ -248,8 +248,6 @@ export default function RecordFieldsEditor({
   table,
   recordId,
   insertExtra,
-  familyId,
-  currentStaffName,
   onSaved,
   title,
 }) {

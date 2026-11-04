@@ -12,8 +12,6 @@ import "./ApplicationFeeStep.css";
 // ticked, not a separate line per child (Miss Lyndsay's "single payment
 // across multiple siblings" ask). The database fields are unchanged.
 
-const today = () => new Date().toISOString().slice(0, 10);
-
 function moneyText(fee) {
   if (fee.amount === null || fee.amount === undefined || fee.amount === "") return "No amount yet";
   return `${fee.currency || "AED"} ${Number(fee.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

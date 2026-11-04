@@ -252,7 +252,6 @@ export default function EmailsPage() {
   // Writing: null, or { ctx, initial } -- the composer takes over the right-hand pane.
   const [writing, setWriting] = useState(null);
   const [staffName, setStaffName] = useState("");
-  const [starting, setStarting] = useState(false);
   useEffect(() => {
     getCurrentStaff()
       .then((st) => setStaffName(st?.full_name || st?.email || ""))

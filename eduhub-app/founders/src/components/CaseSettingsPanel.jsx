@@ -168,19 +168,6 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
     }
   }
 
-  // Free-text fields save when you leave the box, not on every keystroke —
-  // no point writing to the database once per letter typed.
-  function textProps(key) {
-    return {
-      className: "panel-input",
-      value: values[key],
-      onChange: (e) => setValues((v) => ({ ...v, [key]: e.target.value })),
-      onBlur: (e) => {
-        if ((family[key] || "") !== e.target.value) save({ [key]: e.target.value });
-      },
-    };
-  }
-
   // Derived once per render.
   const allowance = allowanceFor(values.membership_type, rawOverride);
   const owner = (staff || []).find((m) => m.user_id === values.owner_staff_id);
@@ -242,7 +229,7 @@ function FieldSelect({ label, icon, value, display, muted, onChange, children })
   );
 }
 
-function FieldText({ label, icon, value, display, placeholder, muted, onChange, onCommit }) {
+function FieldText({ label, icon, value, display, placeholder, muted, onCommit }) {
   const [draft, setDraft] = useState(value || "");
   useEffect(() => { setDraft(value || ""); }, [value]);
   return (

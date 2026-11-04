@@ -21,13 +21,6 @@ function dueLabel(dueDate) {
   return `due in ${d} days`;
 }
 
-function statusLabel(payment) {
-  if (payment.status === "paid") return "paid";
-  if (payment.status === "waived") return "waived";
-  if (payment.status === "submitted") return "receipt uploaded — awaiting confirmation";
-  return dueLabel(payment.due_date);
-}
-
 // Per-family fees and deposits (addendums 9 + 11) — a founder adds what's
 // owed, the family uploads a receipt from their own dashboard once they've
 // paid (status flips to "submitted"), and a founder confirms or rejects it
@@ -42,7 +35,7 @@ export default function PaymentsPanel({ familyId, payments: initialPayments, mem
   function setPayments(update) {
     setPaymentsState((prev) => {
       const next = typeof update === "function" ? update(prev) : update;
-      try { onPaymentsChange && onPaymentsChange(next); } catch {}
+      try { if (onPaymentsChange) onPaymentsChange(next); } catch {}
       return next;
     });
   }
