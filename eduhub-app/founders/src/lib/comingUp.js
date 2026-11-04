@@ -7,8 +7,9 @@ const dayName = (iso) =>
 
 const isFirstDay = (e) => e.category === "other" && /^first day at/i.test(e.title || "");
 
-export function comingUpItems(events, shortlistRows) {
-  const today = new Date().toLocaleDateString("en-CA");
+// fromIso (optional) lets the "Your week" strip also show days earlier this week.
+export function comingUpItems(events, shortlistRows, fromIso) {
+  const today = fromIso || new Date().toLocaleDateString("en-CA");
   const rowById = Object.fromEntries((shortlistRows || []).map((r) => [r.id, r]));
   const out = [];
   for (const e of events || []) {

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { getTodayData, getCurrentStaff, setTaskDone, updateTask, listFamilyActionRows, loadCalendarEvents, friendlyError } from "../lib/staffData";
 import { comingUpItems } from "../lib/comingUp";
 import TaskPanel from "../components/TaskPanel";
+import TodayWeek, { weekDates } from "../components/TodayWeek";
 import { computeFamilyActions, ACTION_HINT } from "../lib/familyActions";
 import { taskPath, taskRow, taskWhere, taskState } from "../lib/taskLinks";
 import { daysUntil, isOverdue, isDueToday } from "../lib/workflow";
@@ -83,9 +84,10 @@ export default function TodayPage() {
 
   useEffect(() => {
     // The next 7 days of tours, assessments, consultations and first days (read only).
-    const from = new Date();
-    from.setHours(0, 0, 0, 0);
-    const to = new Date(from);
+    // From Monday of this week, so "Your week" can show what already happened too.
+    const from = new Date(weekDates()[0] + "T00:00:00");
+    const to = new Date();
+    to.setHours(0, 0, 0, 0);
     to.setDate(to.getDate() + 8);
     loadCalendarEvents({ from, to })
       .then(setEvents)
@@ -224,6 +226,10 @@ export default function TodayPage() {
     const d = daysUntil(u.date);
     return d !== null && d >= 0 && d <= 7;
   });
+  const week = weekDates();
+  const weekRows = [...comingUpItems(events, shortlistRows, week[0]), ...offerRows]
+    .filter((u) => u.date >= week[0] && u.date <= week[6])
+    .sort((a, b) => String(a.at).localeCompare(String(b.at)));
   const allSections = [
     ...sections,
     {
@@ -312,6 +318,13 @@ export default function TodayPage() {
           </div>
         </div>
       )}
+
+      <TodayWeek
+        days={week}
+        items={weekRows}
+        overdue={overdueAll}
+        paymentsOverdue={data.overduePayments || 0}
+      />
 
       <div className="today-main-grid">
         <section className="today-card today-tasks">
