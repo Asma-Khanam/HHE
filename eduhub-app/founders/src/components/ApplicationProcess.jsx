@@ -381,33 +381,68 @@ export default function ApplicationProcess({
   };
 
   // 4. Placed ---------------------------------------------------------------
-  const placed = a.status === "offer_accepted";
+  const accepted = a.status === "offer_accepted";
+  const held = accepted && !!a.placement_hold; // accepted, but the family is still applying elsewhere
+  const placed = accepted && !held;
   const start = placement?.start_date || "";
   const s4 = {
     key: "placed",
     label: "Placed",
     // Placed but no first day yet: keep this step open until the date is in.
-    state: declined ? "na" : placed ? (start ? "done" : "current") : state(3),
-    summary: placed
+    state: declined ? "na" : held ? "current" : placed ? (start ? "done" : "current") : state(3),
+    summary: held
+      ? "Placed, held · family still applying elsewhere"
+      : placed
       ? `🎓 Placed${start ? " · starts " + shortDate(start) : " · add the start date"}`
       : cur === 3
       ? `Did ${childName || "the family"} accept the offer?`
       : "",
     children: (
       <>
-        {!placed ? (
+        {accepted && (
+          <div className="ps-actions">
+            <button
+              type="button"
+              className={"panel-btn" + (placed ? " panel-btn-primary" : "")}
+              onClick={() => held && onPatch({ placement_hold: false }).then((ok) => ok && onLog("Placement confirmed"))}
+            >
+              Placed, confirmed
+            </button>
+            <button
+              type="button"
+              className={"panel-btn" + (held ? " panel-btn-primary" : "")}
+              onClick={() => placed && onPatch({ placement_hold: true }).then((ok) => ok && onLog("Placement held: family still applying elsewhere"))}
+            >
+              Placed, held
+            </button>
+          </div>
+        )}
+        {held && (
+          <p className="ps-hint">
+            Held: they have accepted this place but are still applying elsewhere, so the family stays live and{" "}
+            {childName ? `${childName}'s` : "the"} other schools stay open. Press "Placed, confirmed" when they stop looking.
+          </p>
+        )}
+        {!accepted ? (
           <>
             <p className="ps-hint">
-              Marking this placed closes {childName ? `${childName}'s` : "the"} other schools (they go grey, nothing is
-              deleted).
+              Confirmed closes {childName ? `${childName}'s` : "the"} other schools (they go grey, nothing is deleted).
+              Held keeps them open while the family is still applying.
             </p>
             <div className="ps-actions">
               <button
                 type="button"
                 className="panel-btn panel-btn-primary"
-                onClick={() => onStatus("offer_accepted", a.offer_accepted_on ? {} : { offer_accepted_on: today() })}
+                onClick={() => onStatus("offer_accepted", { placement_hold: false, ...(a.offer_accepted_on ? {} : { offer_accepted_on: today() }) })}
               >
-                Offer accepted, mark placed 🎓
+                Placed, confirmed 🎓
+              </button>
+              <button
+                type="button"
+                className="panel-btn"
+                onClick={() => onStatus("offer_accepted", { placement_hold: true, ...(a.offer_accepted_on ? {} : { offer_accepted_on: today() }) })}
+              >
+                Placed, held
               </button>
             </div>
           </>
@@ -521,7 +556,7 @@ export function applicationMiniSteps(a, fees = []) {
   const outcomeDone = a.status === "offer_accepted";
   const outcomeBad = a.status === "rejected";
   const outcomeCurrent = a.status === "under_review" || a.status === "waitlisted" || a.status === "offer";
-  const placedDone = a.status === "offer_accepted";
+  const placedDone = a.status === "offer_accepted" && !a.placement_hold;
 
   if (a.status === "rejected") {
     return [

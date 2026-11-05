@@ -38,7 +38,7 @@ export function placedByChild({ children = [], applicationsByChild = {}, placeme
   children.forEach((c) => {
     const startedAt = info[c.id]?.startedAt ? new Date(info[c.id].startedAt).getTime() : null;
     const accepted = (applicationsByChild[c.id] || []).find(
-      (a) => a.status === "offer_accepted" && inCurrentRound(a, info)
+      (a) => a.status === "offer_accepted" && !a.placement_hold && inCurrentRound(a, info)
     );
     const childPlacements = placements.filter(
       (p) => p.child_id === c.id && (startedAt == null || new Date(p.created_at).getTime() >= startedAt)
