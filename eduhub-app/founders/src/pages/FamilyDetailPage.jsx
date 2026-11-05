@@ -1106,6 +1106,7 @@ export default function FamilyDetailPage() {
         <div className="family-detail-stack">
           <ApplicationsPanel
             familyId={family.id}
+            familyName={displayName}
             familyChildren={children}
             applicationsByChild={applicationsByChild}
             onApplicationsChange={handleApplicationsChange}

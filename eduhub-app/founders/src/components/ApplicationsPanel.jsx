@@ -36,6 +36,7 @@ import AutosaveField from "./Autosave";
 import { placedByChild, closedForChild, shortDate, roundInfoByChild, inCurrentRound } from "../lib/placement";
 import { parseMeetingInvite, looksLikeInvite } from "../lib/meetingLink";
 import "./ApplicationsPanel.css";
+import AssessmentGuide from "./AssessmentGuide";
 import "./SchoolVisits.css";
 import "./ApplicationsRebuild.css";
 
@@ -304,6 +305,7 @@ function OpenApplySynced({ application, items, fees, isOpenApply }) {
 // wrong child, and is refused once money or an accepted offer is attached.
 export default function ApplicationsPanel({
   familyId,
+  familyName,
   familyChildren,
   applicationsByChild,
   onApplicationsChange,
@@ -917,7 +919,12 @@ export default function ApplicationsPanel({
           childName={name}
           portalUrl={info.portalUrl}
           placement={placementFor(child.id, schoolName)}
-          onPatch={(changes) => patch(child.id, application, changes)}
+          onPatch={(changes) =>
+            patch(child.id, application, changes).then((ok) => {
+              if (ok && "placement_hold" in changes) onProgressChange?.();
+              return ok;
+            })
+          }
           onStatus={(next, extra) => changeStatus(child.id, application, next, extra)}
           onMeetingLink={(v) => saveMeetingLink(child.id, application, v)}
           onStartDate={(v) => savePlacementDate(child, info.i, schoolName, v)}
@@ -1272,6 +1279,10 @@ export default function ApplicationsPanel({
       )}
 
       {renderAssessmentSuggestions()}
+
+      <div className="ag-launch">
+        <AssessmentGuide familyName={familyName} children={familyChildren} applicationsByChild={apps} />
+      </div>
 
       {renderTable(shownApps, !activeChild)}
 
