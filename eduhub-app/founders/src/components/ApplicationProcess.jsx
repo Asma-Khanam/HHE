@@ -478,7 +478,7 @@ export default function ApplicationProcess({
     summary: allPaid
       ? `Paid${paidWhen}${paidHow}`
       : feeRows.length
-      ? `${unpaid.length} unpaid${money(unpaid[0]) ? " · " + money(unpaid[0]) : ""}${unpaid[0]?.sent_to_family_at ? " · sent to family" : ""}`
+      ? `${unpaid.length} unpaid${money(unpaid[0]) ? " · " + money(unpaid[0]) : ""}${unpaid[0]?.sent_to_family_at ? " · sent to family" : unpaid.every((f) => f.hhe_paid_school_on_behalf) ? " · HHE paid, invoice the family" : ""}`
       : "No fee added yet",
     children: (
       <ApplicationFeeStep

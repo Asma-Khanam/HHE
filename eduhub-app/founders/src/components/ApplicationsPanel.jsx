@@ -674,13 +674,21 @@ export default function ApplicationsPanel({
   // The one thing to do next on a live application, and how urgent it is.
   function nextStepFor(application, info) {
     const a = application;
-    const unpaid = info.fees.some((f) => f.status !== "paid" && f.status !== "waived" && !f.paid_direct_by_family);
+    const openFees = info.fees.filter((f) => f.status !== "paid" && f.status !== "waived" && !f.paid_direct_by_family);
+    const unpaid = openFees.length > 0;
+    // If HHE has already paid the school, the next step is to get the money back
+    // from the family (invoice them), not to pay the school again.
+    const weStillOwe = openFees.some((f) => !f.hhe_paid_school_on_behalf);
+    const notInvoiced = openFees.some((f) => f.hhe_paid_school_on_behalf && !f.sent_to_family_at);
     switch (a.status) {
       case "draft":
         return ["Submit the application", "a", "us"];
       case "submitted":
       case "assessment_booked": {
-        if (unpaid) return ["Pay the application fee", "a", "us"];
+        if (unpaid) {
+          if (weStillOwe) return ["Pay the application fee", "a", "us"];
+          return notInvoiced ? ["Invoice the family", "a", "us"] : ["Waiting for the family to pay HHE", "", "family"];
+        }
         if (!a.assessment_date && !a.assessment_in_person && !a.assessment_video_requested) return ["Add assessment details", "a", "us"];
         if (a.assessment_date) {
           const online = !a.assessment_in_person && !a.assessment_video_requested;
