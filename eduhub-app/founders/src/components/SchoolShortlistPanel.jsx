@@ -25,7 +25,7 @@ import {
   setShortlistKeepOpen,
   listReplySuggestions,
   resolveReplySuggestion,
-  saveShortlistNote,
+  trimReplySuggestion,
   shareTourSchedule,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
@@ -533,9 +533,21 @@ export default function SchoolShortlistPanel({
   const slotText = (t) => `${longDay(t.date)}${t.start ? ", " + clock12(t.start) : ""}${t.end ? " to " + clock12(t.end) : ""}`;
 
   // Confirming a suggestion fills in the real fields. Availability goes on the
-  // children, offered tour times go into any empty tour slot (as "offered", so
-  // the clash check and Accept still apply), and assessment dates are added to
-  // the school's private note until the application's own assessment card exists.
+  // children and offered tour times go into any empty tour slot (as "offered", so
+  // the clash check and Accept still apply). Assessment dates in the same email are
+  // dealt with on the Applications tab, where the assessment belongs.
+  // This tab handles availability and tour times. If the same email also carries assessment dates,
+  // those stay waiting for the Applications tab; otherwise the suggestion is finished.
+  async function finishSuggestionPart(sug, status) {
+    if ((sug.assessment_dates || []).length) {
+      const updated = await trimReplySuggestion(sug.id, { availability: [], tour_slots: [] });
+      setSuggestions((l) => l.map((x) => (x.id === sug.id ? { ...x, ...updated } : x)));
+    } else {
+      await resolveReplySuggestion(sug.id, status);
+      setSuggestions((l) => l.filter((x) => x.id !== sug.id));
+    }
+  }
+
   async function acceptSuggestion(sug) {
     const row = rows.find((r) => r.id === sug.shortlist_id);
     if (!row) return;
@@ -560,16 +572,7 @@ export default function SchoolShortlistPanel({
         patch[p + "status"] = "offered";
       }
       if (Object.keys(patch).length) await patchRow(row, patch, { progress: true });
-      if ((sug.assessment_dates || []).length) {
-        const lines = sug.assessment_dates.map(
-          (a) => `Assessment${a.child_name ? " (" + a.child_name + ")" : ""}: ${longDay(a.date)}${a.time ? ", " + clock12(a.time) : ""}${a.how && a.how !== "unknown" ? ", " + a.how : ""} (from the school's email)`
-        );
-        const body = [notesById[row.id] || "", ...lines].filter(Boolean).join("\n");
-        await saveShortlistNote(row.id, body);
-        setNotesById((m) => ({ ...m, [row.id]: body }));
-      }
-      await resolveReplySuggestion(sug.id, "accepted");
-      setSuggestions((l) => l.filter((x) => x.id !== sug.id));
+      await finishSuggestionPart(sug, "accepted");
     } catch (err) {
       setError(friendlyError(err));
     } finally {
@@ -580,8 +583,7 @@ export default function SchoolShortlistPanel({
   async function dismissSuggestion(sug) {
     setBusy(true);
     try {
-      await resolveReplySuggestion(sug.id, "dismissed");
-      setSuggestions((l) => l.filter((x) => x.id !== sug.id));
+      await finishSuggestionPart(sug, "dismissed");
     } catch (err) {
       setError(friendlyError(err));
     } finally {
@@ -590,14 +592,14 @@ export default function SchoolShortlistPanel({
   }
 
   function renderSuggestion(row) {
-    const list = suggestions.filter((x) => x.shortlist_id === row.id);
+    const list = suggestions.filter((x) => x.shortlist_id === row.id && ((x.availability || []).length || (x.tour_slots || []).length));
     return list.map((sug) => (
       <div className="sv-new" key={sug.id}>
         <div className="sv-new-head">
           <b>New information from the school</b>
           <span className="sv-sub">Read from their email. Nothing changes until you confirm.</span>
         </div>
-        {sug.summary && <p style={{ margin: "6px 0" }}>{sug.summary}</p>}
+        {sug.summary && !(sug.assessment_dates || []).length && <p style={{ margin: "6px 0" }}>{sug.summary}</p>}
         <ul className="sv-new-list">
           {(sug.availability || []).map((a) => (
             <li key={a.child_id}>
@@ -607,14 +609,10 @@ export default function SchoolShortlistPanel({
           {(sug.tour_slots || []).map((t, i) => (
             <li key={"t" + i}>Tour offered: {slotText(t)}</li>
           ))}
-          {(sug.assessment_dates || []).map((a, i) => (
-            <li key={"a" + i}>
-              Assessment{a.child_name ? ` (${a.child_name})` : ""}: {longDay(a.date)}
-              {a.time ? `, ${clock12(a.time)}` : ""}
-              {a.how && a.how !== "unknown" ? `, ${a.how}` : ""}
-            </li>
-          ))}
         </ul>
+        {(sug.assessment_dates || []).length > 0 && (
+          <p className="sv-sub" style={{ margin: "0 0 8px" }}>The assessment dates in this email are on the Applications tab.</p>
+        )}
         <div className="sv-pills">
           <button type="button" className="sv-btn is-primary is-sm" onClick={() => acceptSuggestion(sug)} disabled={busy}>
             Confirm and fill in

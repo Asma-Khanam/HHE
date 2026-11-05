@@ -14,6 +14,9 @@ import {
   listSearchRounds,
   createPlacement,
   updatePlacementDate,
+  listReplySuggestions,
+  trimReplySuggestion,
+  resolveReplySuggestion,
 } from "../lib/staffData";
 import { displayNameForChild } from "../lib/completeness";
 import {
@@ -539,6 +542,104 @@ export default function ApplicationsPanel({
     } catch {
       // The stage itself already saved; a missing history entry isn't worth an error.
     }
+  }
+
+  // Assessment dates the school sent by email, waiting for a consultant (read from the same
+  // school replies the School visits tab uses; that tab takes availability and tour times).
+  const [replySugs, setReplySugs] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    listReplySuggestions(familyId)
+      .then((l) => alive && setReplySugs((l || []).filter((x) => (x.assessment_dates || []).length)))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [familyId]);
+
+  const dayText = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const clock = (t) => {
+    if (!t) return "";
+    const [h, m] = String(t).split(":");
+    const hh = Number(h);
+    return `${hh % 12 || 12}:${m} ${hh >= 12 ? "PM" : "AM"}`;
+  };
+  const childForDate = (d) =>
+    familyChildren.find((c) => c.id === d.child_id) ||
+    familyChildren.find((c) => [c.preferred_name, c.first_name].filter(Boolean).some((n) => String(d.child_name || "").toLowerCase().includes(String(n).toLowerCase()))) ||
+    (familyChildren.length === 1 ? familyChildren[0] : null);
+
+  async function finishAssessmentPart(sug, remaining, status) {
+    if ((sug.availability || []).length || (sug.tour_slots || []).length || remaining.length) {
+      const updated = await trimReplySuggestion(sug.id, { assessment_dates: remaining });
+      setReplySugs((l) => (remaining.length ? l.map((x) => (x.id === sug.id ? { ...x, ...updated } : x)) : l.filter((x) => x.id !== sug.id)));
+    } else {
+      await resolveReplySuggestion(sug.id, status);
+      setReplySugs((l) => l.filter((x) => x.id !== sug.id));
+    }
+  }
+
+  // "Use this date": fills the application's own assessment fields, exactly as typing it in would.
+  async function useAssessmentDate(sug, d) {
+    const child = childForDate(d);
+    const application = child && (apps[child.id] || []).find((a) => a.school_id === sug.school_id);
+    if (!child || !application) {
+      setError("Couldn't find this child's application at that school. Add the date on the application itself.");
+      return;
+    }
+    const fields = {
+      assessment_date: d.date,
+      assessment_time: d.time || null,
+      assessment_in_person: d.how === "at the school" || d.how === "in person",
+      assessment_video_requested: d.how === "video",
+    };
+    if (application.status === "submitted") await changeStatus(child.id, application, "assessment_booked", fields);
+    else if (!(await patch(child.id, application, fields))) return;
+    logEvent(application, `Assessment date set to ${dayText(d.date)}${d.time ? ", " + clock(d.time) : ""} (from the school's email)`, "assessment_booked");
+    const remaining = (sug.assessment_dates || []).filter((x) => childForDate(x)?.id !== child.id);
+    await finishAssessmentPart(sug, remaining, "accepted").catch((err) => setError(err.message || "Couldn't update that suggestion."));
+  }
+
+  async function dismissAssessmentSuggestion(sug) {
+    try {
+      await finishAssessmentPart(sug, [], "dismissed");
+    } catch (err) {
+      setError(err.message || "Couldn't dismiss that.");
+    }
+  }
+
+  function renderAssessmentSuggestions() {
+    const shown = replySugs.filter((sug) =>
+      activeChild ? (sug.assessment_dates || []).some((d) => childForDate(d)?.id === activeChild.id) : true
+    );
+    return shown.map((sug) => (
+      <div className="sv-new" key={sug.id}>
+        <div className="sv-new-head">
+          <b>Assessment dates from the school</b>
+          <span className="sv-sub">Read from their email. Nothing changes until you choose a date.</span>
+        </div>
+        <ul className="sv-new-list">
+          {(sug.assessment_dates || [])
+            .filter((d) => !activeChild || childForDate(d)?.id === activeChild.id)
+            .map((d, i) => (
+              <li key={i}>
+                {d.child_name ? `${d.child_name}: ` : ""}
+                {dayText(d.date)}
+                {d.time ? `, ${clock(d.time)}` : ""}
+                {d.how && d.how !== "unknown" ? `, ${d.how}` : ""}{" "}
+                <button type="button" className="sv-btn is-sm" onClick={() => useAssessmentDate(sug, d)}>
+                  Use this date
+                </button>
+              </li>
+            ))}
+        </ul>
+        <div className="sv-pills">
+          <button type="button" className="sv-btn is-sm" onClick={() => dismissAssessmentSuggestion(sug)}>
+            Not right, dismiss
+          </button>
+        </div>
+      </div>
+    ));
   }
 
   // One line in the activity log, stamped with the signed-in consultant.
@@ -1169,6 +1270,8 @@ export default function ApplicationsPanel({
           </span>
         </div>
       )}
+
+      {renderAssessmentSuggestions()}
 
       {renderTable(shownApps, !activeChild)}
 

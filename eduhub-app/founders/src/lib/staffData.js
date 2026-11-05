@@ -3177,6 +3177,12 @@ export async function shareTourSchedule(familyId) {
   return data || 0;
 }
 
+// Keep only the parts of a school reply that have not been dealt with yet. Visits take the
+// availability and tour times; Applications takes the assessment dates.
+export async function trimReplySuggestion(id, parts) {
+  return unwrap(await supabase.from("school_reply_suggestions").update(parts).eq("id", id).select().single());
+}
+
 export async function resolveReplySuggestion(id, status) {
   const {
     data: { user },
