@@ -450,11 +450,18 @@ export default function ApplicationsPanel({
     });
     const owner = Object.entries(appsRef.current).find(([, list]) => list.some((a) => String(a.school_id) === String(highlightSchoolId)));
     if (owner) setTab(owner[0]);
-    const el = document.getElementById(`app-row-school-${highlightSchoolId}`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Land exactly on the assessment dates to choose from if there are any, else on the school's row.
+    const target = () =>
+      document.querySelector(`[id^="assess-dates-"].is-flash`) || document.getElementById(`app-row-school-${highlightSchoolId}`);
+    const scroll = () => target()?.scrollIntoView({ behavior: "smooth", block: "center" });
+    scroll();
+    const again = setTimeout(scroll, 500); // the card opens a moment after this runs
     setHighlightActive(true);
     const timer = setTimeout(() => setHighlightActive(false), 2500);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(again);
+    };
   }, [highlightSchoolId]);
 
   const [schoolId, setSchoolId] = useState("");
@@ -581,14 +588,33 @@ export default function ApplicationsPanel({
     }
   }
 
-  // "Use this date": fills the application's own assessment fields, exactly as typing it in would.
-  async function useAssessmentDate(sug, d) {
-    const child = childForDate(d);
-    const application = child && (apps[child.id] || []).find((a) => a.school_id === sug.school_id);
-    if (!child || !application) {
-      setError("Couldn't find this child's application at that school. Add the date on the application itself.");
-      return;
+  // The same date is often in several emails from the school: show each one once.
+  const sugsForSchool = (application) => replySugs.filter((sug) => String(sug.school_id) === String(application.school_id));
+  const pendingDates = (child, application) => {
+    const seen = new Set();
+    const out = [];
+    sugsForSchool(application).forEach((sug) =>
+      (sug.assessment_dates || []).forEach((d) => {
+        if (childForDate(d)?.id !== child.id) return;
+        const key = [d.date, d.time || "", d.how || ""].join("|");
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push({ key, d });
+      })
+    );
+    return out.sort((x, y) => String(x.d.date).localeCompare(String(y.d.date)));
+  };
+
+  // Take the child's dates off every email at this school (chosen or dismissed).
+  async function clearChildDates(child, application, status) {
+    for (const sug of sugsForSchool(application)) {
+      const remaining = (sug.assessment_dates || []).filter((x) => childForDate(x)?.id !== child.id);
+      if (remaining.length !== (sug.assessment_dates || []).length) await finishAssessmentPart(sug, remaining, status);
     }
+  }
+
+  // "Use this date": fills the application's own assessment fields, exactly as typing it in would.
+  async function useAssessmentDate(child, application, d) {
     const fields = {
       assessment_date: d.date,
       assessment_time: d.time || null,
@@ -598,78 +624,75 @@ export default function ApplicationsPanel({
     if (application.status === "submitted") await changeStatus(child.id, application, "assessment_booked", fields);
     else if (!(await patch(child.id, application, fields))) return;
     logEvent(application, `Assessment date set to ${dayText(d.date)}${d.time ? ", " + clock(d.time) : ""} (from the school's email)`, "assessment_booked");
-    const remaining = (sug.assessment_dates || []).filter((x) => childForDate(x)?.id !== child.id);
-    await finishAssessmentPart(sug, remaining, "accepted").catch((err) => setError(err.message || "Couldn't update that suggestion."));
+    await clearChildDates(child, application, "accepted").catch((err) => setError(err.message || "Couldn't update that suggestion."));
   }
 
-  async function dismissAssessmentSuggestion(sug) {
+  async function dismissAssessmentDates(child, application) {
     try {
-      await finishAssessmentPart(sug, [], "dismissed");
+      await clearChildDates(child, application, "dismissed");
     } catch (err) {
       setError(err.message || "Couldn't dismiss that.");
     }
   }
 
-  // The suggestion's dates that belong to this child at this school.
-  const datesFor = (sug, child, application) =>
-    String(sug.school_id) === String(application.school_id)
-      ? (sug.assessment_dates || []).filter((d) => childForDate(d)?.id === child.id)
-      : [];
-
-  // A date with no application to put it on (no matching school or child) still needs somewhere to show.
-  const hasHome = (sug, d) => {
-    const child = childForDate(d);
-    return !!child && (apps[child.id] || []).some((a) => String(a.school_id) === String(sug.school_id));
-  };
-
-  function suggestionBox(sug, dates) {
+  // Shown at the top of the school's own application card, so it is obvious which school and child it is for.
+  function assessmentSuggestionsFor(child, application, name) {
+    const list = pendingDates(child, application);
+    if (!list.length) return null;
+    const highlighted = highlightActive && String(highlightSchoolId) === String(application.school_id);
     return (
-      <div className="sv-new" key={sug.id}>
+      <div className={"sv-new ag-sug" + (highlighted ? " is-flash" : "")} id={`assess-dates-${application.id}`}>
         <div className="sv-new-head">
-          <b>Assessment dates from the school</b>
-          <span className="sv-sub">Read from their email. Nothing changes until you choose a date.</span>
+          <b>
+            {application.schoolName} sent assessment dates for {name}
+          </b>
+          <span className="sv-sub">Read from their email. Pick the one that was agreed. Nothing changes until you do.</span>
         </div>
         <ul className="sv-new-list">
-          {dates.map((d, i) => (
-            <li key={i}>
-              {d.child_name ? `${d.child_name}: ` : ""}
+          {list.map(({ key, d }) => (
+            <li key={key}>
               {dayText(d.date)}
               {d.time ? `, ${clock(d.time)}` : ""}
               {d.how && d.how !== "unknown" ? `, ${d.how}` : ""}{" "}
-              <button type="button" className="sv-btn is-sm" onClick={() => useAssessmentDate(sug, d)}>
+              <button type="button" className="sv-btn is-sm" onClick={() => useAssessmentDate(child, application, d)}>
                 Use this date
               </button>
             </li>
           ))}
         </ul>
         <div className="sv-pills">
-          <button type="button" className="sv-btn is-sm" onClick={() => dismissAssessmentSuggestion(sug)}>
-            Not right, dismiss
+          <button type="button" className="sv-btn is-sm" onClick={() => dismissAssessmentDates(child, application)}>
+            None of these, dismiss
           </button>
         </div>
       </div>
     );
   }
 
-  // Inside one application's Assessment step.
-  function assessmentSuggestionsFor(child, application) {
-    const boxes = replySugs
-      .map((sug) => ({ sug, dates: datesFor(sug, child, application) }))
-      .filter((x) => x.dates.length);
-    return boxes.length ? boxes.map((x) => suggestionBox(x.sug, x.dates)) : null;
-  }
-
-  // Only dates that no application card can show.
+  // Dates for a school this child has no application with: they can't go on a card, so say so.
   function renderAssessmentSuggestions() {
-    return replySugs
-      .map((sug) => ({
-        sug,
-        dates: (sug.assessment_dates || []).filter(
-          (d) => !hasHome(sug, d) && (!activeChild || childForDate(d)?.id === activeChild.id)
-        ),
-      }))
-      .filter((x) => x.dates.length)
-      .map((x) => suggestionBox(x.sug, x.dates));
+    const homeless = replySugs.filter((sug) =>
+      (sug.assessment_dates || []).some((d) => {
+        const child = childForDate(d);
+        return (!activeChild || child?.id === activeChild.id) && !(child && (apps[child.id] || []).some((a) => String(a.school_id) === String(sug.school_id)));
+      })
+    );
+    return homeless.map((sug) => {
+      const school = schools.find((x) => String(x.id) === String(sug.school_id))?.name;
+      return (
+        <div className="sv-new" key={sug.id}>
+          <div className="sv-new-head">
+            <b>{school ? `${school} sent assessment dates` : "A school sent assessment dates"}</b>
+            <span className="sv-sub">There is no application for this child at that school yet. Add it, and the dates will appear on it.</span>
+          </div>
+          <div className="sv-pills">
+            <button type="button" className="sv-btn is-sm" onClick={() => finishAssessmentPart(sug, [], "dismissed")}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      );
+    });
   }
 
   // One line in the activity log, stamped with the signed-in consultant.
@@ -811,6 +834,10 @@ export default function ApplicationsPanel({
     // from the family (invoice them), not to pay the school again.
     const weStillOwe = openFees.some((f) => !f.hhe_paid_school_on_behalf);
     const notInvoiced = openFees.some((f) => f.hhe_paid_school_on_behalf && !f.sent_to_family_at);
+    const child = familyChildren.find((c) => c.id === a.child_id);
+    if (child && !a.assessment_date && ["submitted", "assessment_booked"].includes(a.status) && pendingDates(child, a).length) {
+      return ["Choose the assessment date the school emailed", "a", "us"];
+    }
     switch (a.status) {
       case "draft":
         return ["Submit the application", "a", "us"];
@@ -942,11 +969,12 @@ export default function ApplicationsPanel({
           </p>
         )}
 
+        {assessmentSuggestionsFor(child, application, name)}
+
         <ApplicationProcess
           application={application}
           childName={name}
           portalUrl={info.portalUrl}
-          assessmentExtra={assessmentSuggestionsFor(child, application)}
           placement={placementFor(child.id, schoolName)}
           onPatch={(changes) =>
             patch(child.id, application, changes).then((ok) => {

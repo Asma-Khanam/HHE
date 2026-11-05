@@ -3156,7 +3156,17 @@ export async function listReplySuggestions(familyId) {
     .eq("family_id", familyId)
     .eq("status", "new")
     .order("created_at");
-  return error ? [] : data || [];
+  const rows = error ? [] : data || [];
+  // The school can be missing on the suggestion itself; its shortlist row still knows it.
+  const lacking = rows.filter((r) => !r.school_id && r.shortlist_id);
+  if (lacking.length) {
+    const { data: sl } = await supabase.from("school_shortlist").select("id, school_id").in("id", lacking.map((r) => r.shortlist_id));
+    const byId = Object.fromEntries((sl || []).map((x) => [x.id, x.school_id]));
+    rows.forEach((r) => {
+      if (!r.school_id && byId[r.shortlist_id]) r.school_id = byId[r.shortlist_id];
+    });
+  }
+  return rows;
 }
 
 // Addendum 146: has the school opened an email we sent? Best effort (null = unknown / not run yet).
@@ -3208,7 +3218,7 @@ export async function listFamilyActionRows(familyId) {
     if (familyId) q = q.eq("family_id", familyId);
     return q;
   };
-  let suggQ = supabase.from("school_reply_suggestions").select("id, family_id, shortlist_id").eq("status", "new");
+  let suggQ = supabase.from("school_reply_suggestions").select("id, family_id, shortlist_id, school_id, availability, tour_slots, assessment_dates").eq("status", "new");
   if (familyId) suggQ = suggQ.eq("family_id", familyId);
   // Miss Lyndsay (30 Oct 2026): a place offered needs a decision by a date,
   // so an open offer is something for us to do, with its deadline.

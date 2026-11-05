@@ -13,7 +13,12 @@ export const actionWhere = (a) => TABS[a.where] || a.where;
 // Returns { [familyId]: [{ key, step, schoolId, where, label, schoolName }] }
 export function computeFamilyActions(rows, suggestions, offers) {
   const today = dubaiToday();
-  const sugByRow = new Set((suggestions || []).map((s) => s.shortlist_id));
+  // Availability and tour times are dealt with on School visits; assessment dates on Applications.
+  const sugByRow = new Set((suggestions || []).filter((s) => (s.availability || []).length || (s.tour_slots || []).length || !(s.assessment_dates || []).length).map((s) => s.shortlist_id));
+  const assessBySchool = new Map();
+  (suggestions || []).forEach((s) => {
+    if ((s.assessment_dates || []).length && s.school_id) assessBySchool.set(s.family_id + "|" + s.school_id, s);
+  });
   const out = {};
   const add = (familyId, item) => (out[familyId] = out[familyId] || []).push(item);
 
@@ -46,6 +51,11 @@ export function computeFamilyActions(rows, suggestions, offers) {
       add(row.family_id, { key: "enquiry-" + row.id, step: "enquiry", schoolId: row.school_id, where: "emails", schoolName: name, label: `${name}: availability email not sent yet` });
     }
   }
+  for (const [k, sug] of assessBySchool) {
+    const row = (rows || []).find((r) => r.family_id === sug.family_id && String(r.school_id) === String(sug.school_id));
+    const name = row?.school?.name || "A school";
+    add(sug.family_id, { key: "assess-" + k, step: "assessment_dates", schoolId: sug.school_id, where: "applications", schoolName: name, label: `${name} sent assessment dates: choose the right one` });
+  }
   // An open offer: the family has to say yes or no, by a date if the school gave one.
   for (const o of offers || []) {
     const familyId = o.child?.family_id;
@@ -77,5 +87,6 @@ export const ACTION_HINT = {
   share: "Send the confirmed tour schedule to the parent.",
   feedback: "Ask the family how the tour went and save it.",
   enquiry: "Send the school the availability email.",
+  assessment_dates: "Open the school's application and press Use this date on the right one.",
   offer_place: "Check with the family, then accept or decline the place.",
 };
