@@ -610,30 +610,37 @@ export default function ApplicationsPanel({
     }
   }
 
-  function renderAssessmentSuggestions() {
-    const shown = replySugs.filter((sug) =>
-      activeChild ? (sug.assessment_dates || []).some((d) => childForDate(d)?.id === activeChild.id) : true
-    );
-    return shown.map((sug) => (
+  // The suggestion's dates that belong to this child at this school.
+  const datesFor = (sug, child, application) =>
+    String(sug.school_id) === String(application.school_id)
+      ? (sug.assessment_dates || []).filter((d) => childForDate(d)?.id === child.id)
+      : [];
+
+  // A date with no application to put it on (no matching school or child) still needs somewhere to show.
+  const hasHome = (sug, d) => {
+    const child = childForDate(d);
+    return !!child && (apps[child.id] || []).some((a) => String(a.school_id) === String(sug.school_id));
+  };
+
+  function suggestionBox(sug, dates) {
+    return (
       <div className="sv-new" key={sug.id}>
         <div className="sv-new-head">
           <b>Assessment dates from the school</b>
           <span className="sv-sub">Read from their email. Nothing changes until you choose a date.</span>
         </div>
         <ul className="sv-new-list">
-          {(sug.assessment_dates || [])
-            .filter((d) => !activeChild || childForDate(d)?.id === activeChild.id)
-            .map((d, i) => (
-              <li key={i}>
-                {d.child_name ? `${d.child_name}: ` : ""}
-                {dayText(d.date)}
-                {d.time ? `, ${clock(d.time)}` : ""}
-                {d.how && d.how !== "unknown" ? `, ${d.how}` : ""}{" "}
-                <button type="button" className="sv-btn is-sm" onClick={() => useAssessmentDate(sug, d)}>
-                  Use this date
-                </button>
-              </li>
-            ))}
+          {dates.map((d, i) => (
+            <li key={i}>
+              {d.child_name ? `${d.child_name}: ` : ""}
+              {dayText(d.date)}
+              {d.time ? `, ${clock(d.time)}` : ""}
+              {d.how && d.how !== "unknown" ? `, ${d.how}` : ""}{" "}
+              <button type="button" className="sv-btn is-sm" onClick={() => useAssessmentDate(sug, d)}>
+                Use this date
+              </button>
+            </li>
+          ))}
         </ul>
         <div className="sv-pills">
           <button type="button" className="sv-btn is-sm" onClick={() => dismissAssessmentSuggestion(sug)}>
@@ -641,7 +648,28 @@ export default function ApplicationsPanel({
           </button>
         </div>
       </div>
-    ));
+    );
+  }
+
+  // Inside one application's Assessment step.
+  function assessmentSuggestionsFor(child, application) {
+    const boxes = replySugs
+      .map((sug) => ({ sug, dates: datesFor(sug, child, application) }))
+      .filter((x) => x.dates.length);
+    return boxes.length ? boxes.map((x) => suggestionBox(x.sug, x.dates)) : null;
+  }
+
+  // Only dates that no application card can show.
+  function renderAssessmentSuggestions() {
+    return replySugs
+      .map((sug) => ({
+        sug,
+        dates: (sug.assessment_dates || []).filter(
+          (d) => !hasHome(sug, d) && (!activeChild || childForDate(d)?.id === activeChild.id)
+        ),
+      }))
+      .filter((x) => x.dates.length)
+      .map((x) => suggestionBox(x.sug, x.dates));
   }
 
   // One line in the activity log, stamped with the signed-in consultant.
@@ -918,6 +946,7 @@ export default function ApplicationsPanel({
           application={application}
           childName={name}
           portalUrl={info.portalUrl}
+          assessmentExtra={assessmentSuggestionsFor(child, application)}
           placement={placementFor(child.id, schoolName)}
           onPatch={(changes) =>
             patch(child.id, application, changes).then((ok) => {

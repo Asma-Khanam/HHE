@@ -45,6 +45,7 @@ export default function ApplicationProcess({
   fees = [], // this application's application_fees rows
   familyId = null, // the family's id (invoice files are kept under it)
   onFeesChange = () => {}, // (updater) => void
+  assessmentExtra = null, // dates the school emailed, shown inside the Assessment step
   aside = null, // shown beside the open stage card (the OpenApply box)
   readOnly = false, // closed application: readable, not editable
 }) {
@@ -139,11 +140,14 @@ export default function ApplicationProcess({
         ? `Booked · ${assessWhen}${a.assessment_in_person ? " · in person" : ""}`
         : videoNote
         ? `Booked · ${videoNote}`
+        : assessmentExtra
+        ? "Dates from the school's email"
         : cur === 1
         ? "Not booked yet"
         : "",
     children: (
       <>
+        {assessmentExtra}
         <p className="apx-family-sees">The family sees these as soon as they save. No need to press Update family.</p>
         <div className="ps-grid">
           <label className="ps-field">
