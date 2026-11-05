@@ -351,17 +351,17 @@ function FeeRow({
     return names;
   }, [currentChildName, siblings, coverSib]);
 
-  const paid = fee.status === "paid";
+  const paid = fee.status === "paid" || mode === "direct";
 
   // Status tags (right side of the snapshot)
   const tags = [];
-  if (paid) {
+  if (mode === "direct") {
+    tags.push({ cls: "afs-tag-green", text: "Paid · family paid the school directly" });
+  } else if (fee.status === "paid") {
     tags.push({ cls: "afs-tag-green", text: `Settled${fee.paid_at ? " · " + shortDate(String(fee.paid_at).slice(0, 10)) : ""}` });
   } else if (mode === "hhe") {
     tags.push({ cls: "afs-tag-blue", text: "HHE paid the school" });
     tags.push({ cls: "afs-tag-amber", text: `Family owes HHE ${moneyText(fee)}` });
-  } else if (mode === "direct") {
-    tags.push({ cls: "afs-tag-grey", text: "Family paid school directly" });
   } else {
     tags.push({ cls: "afs-tag-grey", text: "Who paid?" });
   }
