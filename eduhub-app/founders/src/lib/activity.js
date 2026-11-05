@@ -238,6 +238,7 @@ export async function loadActivity({ sinceDays = 30, limit = 400, familyId = nul
       id: "audit:" + a.id,
       at: a.changed_at,
       who: a.changed_by_name || who(a.changed_by),
+      source: a.change_source || null,
       kind: "edit",
       where: PLACE_LABEL[a.table_name] || "Family details",
       table: a.table_name,

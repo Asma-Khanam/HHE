@@ -26,7 +26,7 @@ export default function ActivityPage() {
           <p className="activity-sub">Everything the team has changed, added or marked, newest first.</p>
           {hasUnrecorded && (
             <p className="activity-note">
-              Who did it is only recorded from 2 November 2026, when this trail was added. Anything finished before that says “Not recorded”.
+              Who did it is only recorded from 2 November 2026, when this trail was added. Before that it says “Not recorded”. After it, a change with no name was made by the system (OpenApply sync, a payment, the family’s app or a scheduled job) and says so.
             </p>
           )}
         </div>

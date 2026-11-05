@@ -122,6 +122,26 @@ function Changes({ changes, tokens }) {
   );
 }
 
+// A change with no staff name behind it. Say where it really came from, so the trail is still useful.
+const TRAIL_STARTED = "2026-11-02";
+function unknownWho(r) {
+  const text = [r.title, ...(Array.isArray(r.detail) ? r.detail : [r.detail])].join(" ").toLowerCase();
+  if (String(r.at || "") < TRAIL_STARTED)
+    return { label: "Not recorded", hint: "Made before 2 November 2026, when we started recording who did things." };
+  if (r.source === "server")
+    return { label: text.includes("synced") || text.includes("openapply") ? "OpenApply sync" : "Our server (sync, payment or email)", hint: "Made by our server, not a person: an OpenApply sync, a payment coming in, or an email being filed." };
+  if (r.source === "schedule")
+    return { label: "Scheduled job or database edit", hint: "Made by a scheduled job, or by someone editing the database directly (not through the website)." };
+  if (r.source && r.source !== "staff" && r.source !== "family")
+    return { label: r.source, hint: "The source this change was stamped with." };
+  if (text.includes("synced") || text.includes("openapply"))
+    return { label: "OpenApply sync", hint: "Brought in automatically from OpenApply. No staff member pressed anything." };
+  return {
+    label: "Automatic, no staff login",
+    hint: "Made without a staff login: the family's own app, a payment, a scheduled job or an import. The record itself shows what changed.",
+  };
+}
+
 export default function ActivityFeed({ familyId = null, onGoToTab = null }) {
   const forFamily = !!familyId;
   const RANGES = forFamily
@@ -305,8 +325,8 @@ export default function ActivityFeed({ familyId = null, onGoToTab = null }) {
                           <Hl text={forFamily ? firstName(r.who) : r.who} tokens={tokens} />
                         </span>
                       ) : (
-                        <span className="act-who is-none" title="This change happened before we started recording who did it">
-                          Not recorded
+                        <span className="act-who is-none" title={unknownWho(r).hint}>
+                          {unknownWho(r).label}
                         </span>
                       )}{" "}
                       <Hl text={r.title} tokens={tokens} />
