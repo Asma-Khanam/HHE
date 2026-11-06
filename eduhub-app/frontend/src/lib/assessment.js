@@ -1,5 +1,6 @@
 import { parseDay, formatTime } from "./tourDetails";
 import { meetingPlatform } from "./meetingLink";
+import { buildIcs, downloadIcs, fileSlug } from "./calendarFile";
 
 // Assessment details the consultant saved on an application (addendum 64,
 // time / meeting ID / passcode from addendum 80), in one shape for the
@@ -55,36 +56,17 @@ export function assessmentText(a) {
 
 export function downloadAssessmentIcs(a) {
   if (!a.date) return;
-  const d = a.date.replace(/-/g, "");
-  const esc = (s) => String(s).replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/[,;]/g, "\\$&");
-  let start = `DTSTART;VALUE=DATE:${d}`;
-  let end = null;
-  if (a.time) {
-    const [h, m] = a.time.split(":").map(Number);
-    start = `DTSTART:${d}T${String(h).padStart(2, "0")}${String(m).padStart(2, "0")}00`;
-    const eh = h + 1;
-    end = `DTEND:${d}T${String(eh).padStart(2, "0")}${String(m).padStart(2, "0")}00`;
-  }
-  const lines = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//Heather Harries//Assessments//EN",
-    "BEGIN:VEVENT",
-    `UID:${a.key}@heatherharries`,
-    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
-    start,
-    end,
-    `SUMMARY:${esc(`Assessment: ${a.school.name || "School"}${a.childName ? ` (${a.childName})` : ""}`)}`,
-    a.link ? `LOCATION:${esc(a.link)}` : a.school.address ? `LOCATION:${esc(a.school.address)}` : null,
-    a.link ? `URL:${a.link}` : null,
-    `DESCRIPTION:${esc(assessmentText(a))}`,
-    "END:VEVENT",
-    "END:VCALENDAR",
-  ].filter(Boolean);
-  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar" });
-  const el = document.createElement("a");
-  el.href = URL.createObjectURL(blob);
-  el.download = `${(a.school.name || "school").replace(/[^a-z0-9]+/gi, "-")}-assessment.ics`;
-  el.click();
-  URL.revokeObjectURL(el.href);
+  const school = a.school.name || "School";
+  downloadIcs(
+    `${fileSlug(school)}-assessment.ics`,
+    buildIcs({
+      uid: a.key,
+      title: `Assessment: ${school}${a.childName ? ` (${a.childName})` : ""}`,
+      date: a.date,
+      start: a.time,
+      location: a.link || a.school.address,
+      url: a.link || null,
+      description: assessmentText(a),
+    })
+  );
 }

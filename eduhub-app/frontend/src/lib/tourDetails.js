@@ -3,6 +3,8 @@
 // the school's own defaults second. Used by the Dashboard's "Your next
 // school tour" card and by Your schools.
 
+import { buildIcs, downloadIcs, fileSlug } from "./calendarFile";
+
 export const DEFAULT_ARRIVAL = "Please arrive 10 minutes early";
 export const DEFAULT_BRING = "Passport/Emirates ID";
 
@@ -89,28 +91,17 @@ export function tourDetailsText(tour) {
 // Outlook calendars alike -- with the full tour details in the event notes.
 export function downloadTourIcs(tour) {
   const school = tour.row?.school || {};
-  const d = tour.date.replace(/-/g, "");
-  const t = (x) => x.replace(/:/g, "").slice(0, 6).padEnd(6, "0");
-  const esc = (s) => String(s).replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/[,;]/g, "\\$&");
-  const lines = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//Heather Harries//School tours//EN",
-    "BEGIN:VEVENT",
-    `UID:${tour.key}@heatherharries`,
-    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
-    tour.start ? `DTSTART:${d}T${t(tour.start)}` : `DTSTART;VALUE=DATE:${d}`,
-    tour.start && tour.end ? `DTEND:${d}T${t(tour.end)}` : null,
-    `SUMMARY:${esc(`School tour: ${school.name || "School"}`)}`,
-    school.address ? `LOCATION:${esc(school.address)}` : null,
-    `DESCRIPTION:${esc(tourDetailsText(tour))}`,
-    "END:VEVENT",
-    "END:VCALENDAR",
-  ].filter(Boolean);
-  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `${(school.name || "school").replace(/[^a-z0-9]+/gi, "-")}-tour.ics`;
-  a.click();
-  URL.revokeObjectURL(a.href);
+  const hhmm = (x) => (x ? String(x).slice(0, 5) : null);
+  downloadIcs(
+    `${fileSlug(school.name)}-tour.ics`,
+    buildIcs({
+      uid: tour.key,
+      title: `School tour: ${school.name || "School"}`,
+      date: tour.date,
+      start: hhmm(tour.start),
+      end: hhmm(tour.end),
+      location: school.address,
+      description: tourDetailsText(tour),
+    })
+  );
 }

@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useApplicationData } from "../context/ApplicationDataContext";
 import { PageError, PageLoading } from "../components/StatePanels";
 import { IconBell, IconChevronDown } from "../components/icons";
+import { buildIcs, downloadIcs, fileSlug, timesFromText } from "../lib/calendarFile";
 import "./NotificationsPage.css";
 
 // Inbox: tours and assessments the consultant has booked or changed, with
@@ -21,6 +22,7 @@ const KIND = {
   assessment_reminder_hours: { chip: "Assessment in 2 hours", tone: "info" },
   invoice_sent: { chip: "Invoice", tone: "info" },
   document_requested: { chip: "Document needed", tone: "warn" },
+  family_update: { chip: "From your consultant", tone: "good" },
 };
 
 // "School update" notifications (addendum 138) are labelled by their stage.
@@ -60,6 +62,29 @@ function tileParts(n) {
 // School - Al Barsha"); the chip already says that, so drop the prefix.
 const TITLE_PREFIX = /^(tour (booked|updated|cancelled|scheduled)|assessment (booked|updated|scheduled))\s*[:\-–]\s*/i;
 
+// A booked or changed tour or assessment (and its reminders) can go straight into the family's calendar.
+const CALENDAR_KINDS = /^(tour|assessment)_(scheduled|updated|reminder_day|reminder_hours)$/;
+
+function addToCalendar(n, school, details) {
+  const isTour = n.kind.startsWith("tour");
+  const { start, end } = timesFromText(n.event_time);
+  const join = details.find((d) => d.label === "Join link")?.value;
+  const text = details.map((d) => `${d.label}: ${d.value}`).join("\n");
+  downloadIcs(
+    `${fileSlug(school)}-${isTour ? "tour" : "assessment"}.ics`,
+    buildIcs({
+      uid: `notif-${n.id}`,
+      title: `${isTour ? "School tour" : "Assessment"}: ${school}`,
+      date: n.event_date,
+      start,
+      end,
+      location: /^https?:\/\//i.test(join || "") ? join : school,
+      url: /^https?:\/\//i.test(join || "") ? join : null,
+      description: [n.event_time && `When: ${n.event_time}`, text].filter(Boolean).join("\n"),
+    })
+  );
+}
+
 const isUrl = (v) => /^https?:\/\//i.test(String(v || ""));
 
 function Item({ n, isNew, open, onToggle }) {
@@ -96,6 +121,14 @@ function Item({ n, isNew, open, onToggle }) {
         </span>
         <span className="notif-chevron" aria-hidden="true"><IconChevronDown size={18} /></span>
       </button>
+      {open && n.kind === "family_update" && n.body && <div className="notif-letter">{n.body}</div>}
+      {open && n.event_date && CALENDAR_KINDS.test(n.kind || "") && (
+        <div className="notif-actions">
+          <button type="button" className="notif-btn" onClick={() => addToCalendar(n, school, details)}>
+            Add to my calendar
+          </button>
+        </div>
+      )}
       {open && details.length > 0 && (
         <dl className="notif-details">
           {details.map((d, i) => (

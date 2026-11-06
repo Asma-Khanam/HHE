@@ -71,3 +71,8 @@
   .notif-head { padding: 16px 18px; }
   .notif-details { margin: 0 18px 18px; }
 }
+
+/* A written update from the consultant: kept as they wrote it, line breaks and all. */
+.notif-letter { white-space: pre-line; font-size: 0.95rem; line-height: 1.55; padding: 4px 16px 16px 16px; color: var(--hh-text, inherit); }
+
+.notif-actions { padding: 0 16px 12px; }
