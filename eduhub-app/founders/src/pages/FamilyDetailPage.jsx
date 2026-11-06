@@ -1120,7 +1120,6 @@ export default function FamilyDetailPage() {
             highlightSchoolId={focusSchoolId}
             onProgressChange={refreshStages}
             onGoToVisits={goToVisits}
-            onGoToEmails={() => setActiveTab("emails")}
             staff={staff}
           />
 

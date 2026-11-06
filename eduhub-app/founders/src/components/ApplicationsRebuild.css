@@ -102,3 +102,22 @@
   0%, 60% { box-shadow: 0 0 0 4px rgba(201, 162, 74, 0.75); background: #fff6d6; }
   100% { box-shadow: 0 0 0 0 rgba(201, 162, 74, 0); }
 }
+
+/* Placed, held: bright so nobody mistakes it for a finished placement. */
+.ap2-held { display: inline-block; margin: 0 8px 4px 0; padding: 2px 10px; border-radius: 999px; background: #ffc928; color: #4a3200; font-size: 12px; font-weight: 800; letter-spacing: 0.01em; box-shadow: 0 0 0 2px rgba(255, 140, 0, 0.35); }
+
+/* Notes column on each application row. */
+.ap2-notecell { align-self: stretch; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ap2-notecell.is-closed { opacity: 0.7; font-size: 13px; white-space: pre-wrap; }
+.ap2-note-in { width: 100%; resize: vertical; min-height: 44px; border: 1px solid transparent; background: rgba(255, 255, 255, 0.55); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; color: inherit; }
+.ap2-note-in:hover { border-color: rgba(0, 0, 0, 0.15); }
+.ap2-note-in:focus { outline: none; border-color: var(--sv-accent, #6b1d2a); background: #fff; }
+.ap2-note-state { font-size: 11px; opacity: 0.6; }
+
+/* Portal login and activity log: one tidy column, no boxes inside boxes. */
+.ap2-row-body .ap-portal-box { border: 0; background: transparent; padding: 0; gap: 10px; }
+.ap2-row-body .ap-portal-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) auto auto; gap: 8px 10px; align-items: center; }
+.ap2-row-body .ap-portal-row.ap-portal-muted { display: block; }
+.ap2-row-body .ap-portal-label { width: auto; }
+.ap2-row-body .ap-portal-code { justify-self: start; max-width: 100%; }
+.ap2-row-body .ap-portal-url { margin-bottom: 4px; }

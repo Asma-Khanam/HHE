@@ -48,6 +48,34 @@ function formatShortDate(iso) {
 
 const ALIAS_DOMAIN = "applications.heatherharries.com";
 
+// A small note box that lives on the row itself: saves when you click away.
+function NoteCell({ value, onSave }) {
+  const [text, setText] = useState(value || "");
+  const [state, setState] = useState("");
+  async function commit() {
+    const clean = text.trim();
+    if (clean === (value || "").trim()) return;
+    setState("Saving…");
+    const ok = await onSave(clean);
+    setState(ok === false ? "Not saved" : "Saved");
+    setTimeout(() => setState(""), 1500);
+  }
+  return (
+    <>
+      <textarea
+        className="ap2-note-in"
+        rows={2}
+        value={text}
+        placeholder="Add a note or feedback"
+        aria-label="Notes and feedback"
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+      />
+      {state && <span className="ap2-note-state">{state}</span>}
+    </>
+  );
+}
+
 // Portal login + activity log for one application, shown when a consultant
 // opens the application. Login details are the parent's application alias
 // and password (the same ones shown on the Application email panel); nothing
@@ -81,7 +109,7 @@ function PortalAndLog({ application, school, parents, events, onEventAdded, onPo
     <div className="ap-portal">
       {(!part || part === "login") && (
       <div className="ap-portal-box">
-        <div className="ap-portal-title">Portal login</div>
+        {!part && <div className="ap-portal-title">Portal login</div>}
         {school ? (
           <div className="ap-portal-url">
             <AutosaveField
@@ -147,7 +175,7 @@ function PortalAndLog({ application, school, parents, events, onEventAdded, onPo
 
       {(!part || part === "log") && (
       <div className="ap-portal-box">
-        <div className="ap-portal-title">Activity log</div>
+        {!part && <div className="ap-portal-title">Activity log</div>}
         <div className="ap-log-add">
           <input
             className="panel-input"
@@ -314,7 +342,6 @@ export default function ApplicationsPanel({
   parents = [],
   onProgressChange,
   onGoToVisits,
-  onGoToEmails,
   staff = [],
 }) {
   // Who did what, for the activity log (founders: many consultants).
@@ -834,6 +861,7 @@ export default function ApplicationsPanel({
     // from the family (invoice them), not to pay the school again.
     const weStillOwe = openFees.some((f) => !f.hhe_paid_school_on_behalf);
     const notInvoiced = openFees.some((f) => f.hhe_paid_school_on_behalf && !f.sent_to_family_at);
+    if (isHeld(a)) return ["Held: confirm once the family decides", "a", "family"];
     const child = familyChildren.find((c) => c.id === a.child_id);
     if (child && !a.assessment_date && ["submitted", "assessment_booked"].includes(a.status) && pendingDates(child, a).length) {
       return ["Choose the assessment date the school emailed", "a", "us"];
@@ -880,10 +908,13 @@ export default function ApplicationsPanel({
     return [terms.join(" or "), years.join(" or ")].filter(Boolean).join(", ");
   }
 
+  const isHeld = (a) => a.status === "offer_accepted" && !!a.placement_hold;
+
   function chevrons(application, info) {
     const flow = applicationMiniSteps(application, info.fees);
     return (
       <div className={"ap2-where" + (info.isPlacedHere ? " is-placed" : "")}>
+        {isHeld(application) && <span className="ap2-held">Placed, held · still applying elsewhere</span>}
         <div className="ap2-cm" role="img" aria-label={flow.map((s) => `${s.label}: ${s.state}`).join(", ")}>
           {flow.map((s) => (
             <span key={s.key} className={"is-" + s.state}>
@@ -935,6 +966,7 @@ export default function ApplicationsPanel({
         <div className="ap2-head">
           <div>
             <span className="ap2-title">{application.schoolName}</span>
+            {isHeld(application) && <span className="ap2-held">Placed, held</span>}
             <span className="ap2-sub">
               {name}
               {child.year_group_applying_for ? ` · ${child.year_group_applying_for}` : ""}
@@ -1018,22 +1050,6 @@ export default function ApplicationsPanel({
               <PortalAndLog {...portalProps} part="log" />
             </div>
           </details>
-          <details className="ap2-row">
-            <summary>
-              <span>Emails with this school</span>
-              <span>Open the Emails tab</span>
-            </summary>
-            <div className="ap2-row-body">
-              <p className="ps-hint" style={{ margin: "0 0 10px" }}>
-                Every email with {application.schoolName} is kept on the Emails tab, and the family&apos;s application email is below the applications.
-              </p>
-              {onGoToEmails && (
-                <button type="button" className="sv-btn is-sm" onClick={() => onGoToEmails(application.school_id)}>
-                  Open the Emails tab
-                </button>
-              )}
-            </div>
-          </details>
         </div>
 
         <div className="ap2-foot">
@@ -1051,18 +1067,6 @@ export default function ApplicationsPanel({
                 waitlisted: "waitlisted",
               }[application.status] || "applied"
             }
-          />
-          <AutosaveField
-            collapsible
-            multiline
-            rows={2}
-            label="Team notes"
-            placeholder="Anything the team should know. The family can't see this."
-            value={application.notes}
-            onSave={async (v) => {
-              const ok = await patch(child.id, application, { notes: v });
-              if (!ok) throw new Error("check the message above, then Retry");
-            }}
           />
           <div className="ap2-foot-row">
             <div className="sv-pills">
@@ -1163,8 +1167,8 @@ export default function ApplicationsPanel({
 
   /* ---------- the table ---------- */
 
-  const overviewCols = "minmax(0,1.8fr) minmax(0,0.9fr) minmax(0,2.8fr) minmax(0,1.5fr)";
-  const childCols = "minmax(0,1.9fr) minmax(0,3fr) minmax(0,1.5fr)";
+  const overviewCols = "minmax(0,1.6fr) minmax(0,0.8fr) minmax(0,2.5fr) minmax(0,1.4fr) minmax(0,1.8fr)";
+  const childCols = "minmax(0,1.6fr) minmax(0,2.6fr) minmax(0,1.4fr) minmax(0,1.9fr)";
 
   function renderTable(list, withChild) {
     const cols = withChild ? overviewCols : childCols;
@@ -1195,6 +1199,7 @@ export default function ApplicationsPanel({
                 {withChild && <span>Child</span>}
                 <span>Where it is</span>
                 <span>Next step</span>
+                <span>Notes</span>
               </div>
               {live.map(({ child, application, info }) => {
                 const open = isExpanded(application);
@@ -1224,6 +1229,13 @@ export default function ApplicationsPanel({
                           {nextLabel}
                         </span>
                       </span>
+                      <span className="sv-st ap2-notecell" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                        <NoteCell
+                          key={application.id + ":" + (application.notes || "")}
+                          value={application.notes}
+                          onSave={(v) => patch(child.id, application, { notes: v })}
+                        />
+                      </span>
                     </div>
                     {open && renderLiveDetail(child, application, info)}
                   </div>
@@ -1236,6 +1248,7 @@ export default function ApplicationsPanel({
                     {withChild && <span />}
                     <span />
                     <span className="sv-sub" style={{ textAlign: "right" }}>Greyed out, kept for the record</span>
+                    <span />
                   </div>
                   {closed.map(({ child, application, info }) => {
                     const open = isExpanded(application);
@@ -1269,6 +1282,7 @@ export default function ApplicationsPanel({
                               Delete
                             </button>
                           </span>
+                          <span className="sv-st ap2-notecell is-closed">{application.notes || ""}</span>
                         </div>
                         {open && renderClosedDetail(child, application, info)}
                       </div>
