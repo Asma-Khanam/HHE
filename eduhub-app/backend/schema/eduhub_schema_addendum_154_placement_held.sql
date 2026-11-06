@@ -2,7 +2,8 @@
 -- but keep applying elsewhere. A held placement is still "Offer accepted"
 -- on the application, but it does NOT make the child placed: the family stays
 -- Live and the other schools stay open. "Confirmed" (placement_hold = false)
--- behaves exactly as before.
+-- behaves exactly as before. A held child's saved start date does not count as placed either.
+-- Safe to re-run (run it again if you already ran an earlier copy of 154).
 
 alter table public.applications
   add column if not exists placement_hold boolean not null default false;
@@ -43,8 +44,12 @@ begin
            (
              exists (select 1 from public.applications a
                      where a.child_id = cur.child_id and a.round_number = cur.rn and a.status = 'offer_accepted' and not a.placement_hold)
-             or exists (select 1 from public.family_placements p
-                        where p.child_id = cur.child_id and (cur.started is null or p.created_at >= cur.started))
+             -- a saved start date counts as placed, unless the child's accepted place is held
+             or (exists (select 1 from public.family_placements p
+                         where p.child_id = cur.child_id and (cur.started is null or p.created_at >= cur.started))
+                 and not exists (select 1 from public.applications a
+                                 where a.child_id = cur.child_id and a.round_number = cur.rn
+                                   and a.status = 'offer_accepted' and a.placement_hold))
            ) as placed
     from cur
   )

@@ -40,6 +40,12 @@ export function placedByChild({ children = [], applicationsByChild = {}, placeme
     const accepted = (applicationsByChild[c.id] || []).find(
       (a) => a.status === "offer_accepted" && !a.placement_hold && inCurrentRound(a, info)
     );
+    // Accepted but held: the family is still applying elsewhere, so a saved start date
+    // must not make the child count as placed either.
+    const heldHere = (applicationsByChild[c.id] || []).some(
+      (a) => a.status === "offer_accepted" && a.placement_hold && inCurrentRound(a, info)
+    );
+    if (heldHere && !accepted) return;
     const childPlacements = placements.filter(
       (p) => p.child_id === c.id && (startedAt == null || new Date(p.created_at).getTime() >= startedAt)
     );

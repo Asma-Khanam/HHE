@@ -17,7 +17,8 @@ export function currentRoundApps(applications) {
 export function placedByChild(applications) {
   const out = {};
   currentRoundApps(applications).forEach((a) => {
-    if (a.status === "offer_accepted") out[a.child_id] = a.school_id;
+    // A held place (still applying elsewhere) does not close the child's other schools.
+    if (a.status === "offer_accepted" && !a.placement_hold) out[a.child_id] = a.school_id;
   });
   return out;
 }
