@@ -436,3 +436,6 @@
 .cv-owed-body { display: flex; flex-direction: column; gap: 4px; }
 .cv-owed-amount { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--hh-font-heading); font-size: 1.5rem; color: var(--hh-burgundy); font-weight: 700; }
 .cv-owed-sub, .cv-owed-none { margin: 0; font-size: 0.86rem; opacity: 0.7; }
+
+/* Placed, held: accepted a place but still applying elsewhere. */
+.cv-held { margin: 0 0 12px; padding: 9px 14px; border-radius: 10px; background: #fff6d6; border: 1px solid #e6c97a; color: #5a4310; font-size: 13px; }

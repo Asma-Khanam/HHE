@@ -793,6 +793,11 @@ export default function FamilyDetailPage() {
         staff={staff}
         childIds={children.map((c) => c.id)}
         onFamilyChange={handleFamilyFieldChange}
+        heldPlaces={children.flatMap((c) =>
+          (applicationsByChild?.[c.id] || [])
+            .filter((a) => a.status === "offer_accepted" && a.placement_hold)
+            .map((a) => `${c.preferred_name || c.first_name || "Child"} at ${a.schoolName || "a school"}`)
+        )}
         entryLine={(() => {
           const uniq = (key) => [...new Set(children.flatMap((c) => (Array.isArray(c[key]) ? c[key] : [])).filter(Boolean))];
           return [uniq("academic_years_of_entry").sort().join(", "), uniq("terms").join(", ")].filter(Boolean).join(" · ");

@@ -14,7 +14,7 @@ import { CaseIcon } from "./icons";
 // (Available-in-Dubai dates are the one exception -- the family sets those
 // themselves on their own dashboard's "Your move" card; shown and editable
 // here too, same as origin/destination already were.)
-export default function CaseSettingsPanel({ family, staff, childIds = [], onFamilyChange, entryLine = "" }) {
+export default function CaseSettingsPanel({ family, staff, childIds = [], onFamilyChange, entryLine = "", heldPlaces = [] }) {
   const [values, setValues] = useState({
     pipeline_stage: family.pipeline_stage || "enquiry",
     client_stage: family.client_stage || "",
@@ -190,6 +190,7 @@ export default function CaseSettingsPanel({ family, staff, childIds = [], onFami
       history={history}
       fmtMonth={fmtMonth} fmtDay={fmtDay} tagRatio={tagRatio}
       entryLine={entryLine}
+      heldPlaces={heldPlaces}
     />
   );
 }
@@ -285,6 +286,7 @@ function CaseCardBody({
   history,
   fmtMonth, fmtDay, tagRatio,
   entryLine,
+  heldPlaces = [],
 }) {
   const [adjustOpen, setAdjustOpen] = useState(false);
   const toursRatio = usage && allowance?.tours > 0 ? tagRatio(usage.toursUsed, allowance.tours) : null;
@@ -323,6 +325,12 @@ function CaseCardBody({
           </div>
         </div>
       </div>
+
+      {heldPlaces.length > 0 && (
+        <div className="cv-held" title="Set on the Applications tab, under Placed">
+          <b>Placed, held:</b> {heldPlaces.join(" · ")}. Still applying elsewhere, so the family stays live and their other schools stay open.
+        </div>
+      )}
 
       {error && <div className="cv-error">{error}</div>}
 
