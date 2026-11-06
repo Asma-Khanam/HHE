@@ -326,12 +326,6 @@ function CaseCardBody({
         </div>
       </div>
 
-      {heldPlaces.length > 0 && (
-        <div className="cv-held" title="Set on the Applications tab, under Placed">
-          <b>Placed, held:</b> {heldPlaces.join(" · ")}. Still applying elsewhere, so the family stays live and their other schools stay open.
-        </div>
-      )}
-
       {error && <div className="cv-error">{error}</div>}
 
       <div className="cv-grid">
@@ -529,8 +523,18 @@ function CaseCardBody({
         <div className="cv-journey">
           <span className="cv-journey-label">Journey</span>
           {history.map((h, i) => (
-            <span key={h.id} className={"cv-journey-step" + (i === history.length - 1 ? " is-current" : "")}>
-              <strong>{clientStageLabel(h.to_stage)}</strong>
+            <span
+              key={h.id}
+              className={"cv-journey-step" + (i === history.length - 1 ? " is-current" : "") + (i === history.length - 1 && heldPlaces.length ? " is-held" : "")}
+              title={i === history.length - 1 && heldPlaces.length ? `Placed, held: ${heldPlaces.join(" · ")}. Still applying elsewhere, so the family is still live.` : undefined}
+            >
+              <strong>
+                {i === history.length - 1 && heldPlaces.length
+                  ? h.to_stage === "placed"
+                    ? "Placed, held"
+                    : `${clientStageLabel(h.to_stage)} · placed, held`
+                  : clientStageLabel(h.to_stage)}
+              </strong>
               <span className="cv-journey-date">
                 {i === 0 ? "came in " : ""}
                 {new Date(h.moved_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}

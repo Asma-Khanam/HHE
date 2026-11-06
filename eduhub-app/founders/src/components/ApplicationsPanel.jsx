@@ -914,7 +914,6 @@ export default function ApplicationsPanel({
     const flow = applicationMiniSteps(application, info.fees);
     return (
       <div className={"ap2-where" + (info.isPlacedHere ? " is-placed" : "")}>
-        {isHeld(application) && <span className="ap2-held">Placed, held · still applying elsewhere</span>}
         <div className="ap2-cm" role="img" aria-label={flow.map((s) => `${s.label}: ${s.state}`).join(", ")}>
           {flow.map((s) => (
             <span key={s.key} className={"is-" + s.state}>
@@ -966,7 +965,6 @@ export default function ApplicationsPanel({
         <div className="ap2-head">
           <div>
             <span className="ap2-title">{application.schoolName}</span>
-            {isHeld(application) && <span className="ap2-held">Placed, held</span>}
             <span className="ap2-sub">
               {name}
               {child.year_group_applying_for ? ` · ${child.year_group_applying_for}` : ""}

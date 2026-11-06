@@ -577,6 +577,8 @@ export function applicationMiniSteps(a, fees = []) {
       state: assessmentDone ? "done" : cur === 1 && (a.assessment_date || a.assessment_link || a.assessment_video_requested) ? "current" : applied ? "todo" : "todo",
     },
     { key: "4", label: "Outcome", state: outcomeDone ? "done" : outcomeBad ? "bad" : outcomeCurrent ? "current" : "todo" },
-    { key: "5", label: "Placed", state: placedDone ? "done" : "todo" },
+    a.status === "offer_accepted" && a.placement_hold
+      ? { key: "5", label: "Placed, held", state: "held" } // accepted, still applying elsewhere
+      : { key: "5", label: "Placed", state: placedDone ? "done" : "todo" },
   ];
 }
