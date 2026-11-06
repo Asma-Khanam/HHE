@@ -978,8 +978,49 @@ export default function ApplicationsPanel({
                 Open school portal
               </a>
             )}
+          </div>
+        </div>
+
+        <div className="ap2-bar">
+          <UpdateFamilyButton
+            familyId={familyId}
+            schoolId={application.school_id}
+            childId={child.id}
+            suggested={
+              {
+                submitted: "applied",
+                assessment_booked: "assessment",
+                under_review: "assessment",
+                offer: "offer",
+                offer_accepted: "placed",
+                waitlisted: "waitlisted",
+              }[application.status] || "applied"
+            }
+          />
+          <div className="ap2-bar-tools">
+            {application.status !== "offer_accepted" && (
+              <label className="ap2-flag">
+                <input
+                  type="checkbox"
+                  checked={!!application.needs_attention}
+                  onChange={(e) => patch(child.id, application, { needs_attention: e.target.checked })}
+                />
+                Needs attention
+              </label>
+            )}
+            {onGoToVisits && (
+              <button type="button" className="sv-btn is-sm is-quiet" onClick={() => onGoToVisits(application.school_id)}>
+                ← School visit
+              </button>
+            )}
             <button type="button" className="sv-btn is-sm is-quiet" onClick={() => changeStatus(child.id, application, "withdrawn")}>
               Withdraw
+            </button>
+            <button type="button" className="sv-btn is-sm is-quiet" onClick={() => setConfirmDelete({ child, application, name })}>
+              Delete
+            </button>
+            <button type="button" className="sv-btn is-sm is-quiet" onClick={() => toggleExpanded(application)}>
+              Close
             </button>
           </div>
         </div>
@@ -1029,70 +1070,25 @@ export default function ApplicationsPanel({
           }
         />
 
-        <div className="sv-blk ap2-rows">
-          <details className="ap2-row">
+        <div className="ap2-mini">
+          <details className="ap2-mini-card">
             <summary>
-              <span>Portal login</span>
-              <span>Link, email and password · Show</span>
+              <span className="ap2-mini-name">Portal login</span>
+              <span className="ap2-mini-hint">Link, email, password</span>
             </summary>
             <div className="ap2-row-body">
               <PortalAndLog {...portalProps} part="login" />
             </div>
           </details>
-          <details className="ap2-row">
+          <details className="ap2-mini-card">
             <summary>
-              <span>Activity log</span>
-              <span>{logSummary} · Show</span>
+              <span className="ap2-mini-name">Activity log{events.length ? ` (${events.length})` : ""}</span>
+              <span className="ap2-mini-hint">{logSummary}</span>
             </summary>
             <div className="ap2-row-body">
               <PortalAndLog {...portalProps} part="log" />
             </div>
           </details>
-        </div>
-
-        <div className="ap2-foot">
-          <UpdateFamilyButton
-            familyId={familyId}
-            schoolId={application.school_id}
-            childId={child.id}
-            suggested={
-              {
-                submitted: "applied",
-                assessment_booked: "assessment",
-                under_review: "assessment",
-                offer: "offer",
-                offer_accepted: "placed",
-                waitlisted: "waitlisted",
-              }[application.status] || "applied"
-            }
-          />
-          <div className="ap2-foot-row">
-            <div className="sv-pills">
-              {application.status !== "offer_accepted" && (
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={!!application.needs_attention}
-                    onChange={(e) => patch(child.id, application, { needs_attention: e.target.checked })}
-                  />
-                  Flag as needing attention
-                </label>
-              )}
-              {onGoToVisits && (
-                <button type="button" className="sv-btn is-link" onClick={() => onGoToVisits(application.school_id)}>
-                  ← School visit
-                </button>
-              )}
-            </div>
-            <div className="sv-pills" style={{ gap: 4 }}>
-              <button type="button" className="sv-btn is-sm is-quiet" onClick={() => setConfirmDelete({ child, application, name })}>
-                Delete
-              </button>
-              <button type="button" className="sv-btn is-sm is-quiet" onClick={() => toggleExpanded(application)}>
-                Close
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     );

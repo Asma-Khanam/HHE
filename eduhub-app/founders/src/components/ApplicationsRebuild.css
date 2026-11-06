@@ -121,3 +121,27 @@
 .ap2-row-body .ap-portal-label { width: auto; }
 .ap2-row-body .ap-portal-code { justify-self: start; max-width: 100%; }
 .ap2-row-body .ap-portal-url { margin-bottom: 4px; }
+
+
+/* ---------- one action bar + compact portal / log cards ---------- */
+.ap2-bar { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin: -6px 0 18px; padding: 8px 0 14px; border-bottom: 1px solid var(--sv-line2); }
+.ap2-bar .uf { display: contents; margin: 0; }
+.ap2-bar .uf-bar { display: contents; }
+.ap2-bar .uf-btn { min-height: 36px; font-size: 14px; padding: 0 16px; border-radius: 10px; }
+.ap2-bar .uf-last { font-size: 12.5px; opacity: 1; color: var(--sv-faint); }
+.ap2-bar .uf-pop { order: 99; flex: 1 0 100%; }
+.ap2-bar-tools { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ap2-flag { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; margin-right: 6px; cursor: pointer; }
+
+.ap2-mini { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; margin-top: 16px; }
+.ap2-mini-card { border: 1px solid var(--sv-line2); border-radius: 10px; background: var(--sv-card, #faf3e3); padding: 0 14px; min-width: 0; }
+.ap2-mini-card[open] { grid-column: 1 / -1; }
+.ap2-mini-card > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 14px; min-width: 0;
+}
+.ap2-mini-card > summary::-webkit-details-marker { display: none; }
+.ap2-mini-card > summary::after { content: "\203A"; margin-left: auto; color: var(--sv-faint); font-size: 18px; line-height: 1; transition: transform .15s; }
+.ap2-mini-card[open] > summary::after { transform: rotate(90deg); }
+.ap2-mini-name { font-weight: 600; color: var(--hh-burgundy); white-space: nowrap; }
+.ap2-mini-hint { color: var(--sv-faint); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+@media (max-width: 760px) { .ap2-mini { grid-template-columns: minmax(0, 1fr); } .ap2-bar-tools { margin-left: 0; } }
