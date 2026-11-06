@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import DocumentScanner from "./DocumentScanner";
 import { uploadDocument, deleteDocument, getSignedUrl, downloadDocument, cleanFileName, updateDocumentLabels } from "../lib/documents";
 import { ACCEPTED_FILE_EXTENSIONS, ACCEPTED_FILES_MESSAGE, isAcceptedFile } from "../data/documentTypes";
 
@@ -46,6 +47,8 @@ export default function DocumentUploadRow({
   // everything else keeps the same plain file row it always had.
   const labeled = docType.key === "school_reports";
   const inputRef = useRef(null);
+  const scanRef = useRef(null);
+  const [scanFile, setScanFile] = useState(null); // first photo, while the scan sheet is open
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [labelBusyId, setLabelBusyId] = useState(null);
@@ -64,6 +67,11 @@ export default function DocumentUploadRow({
   async function handleFile(e) {
     const file = e.target.files?.[0];
     e.target.value = "";
+    if (file) await submitFile(file);
+  }
+
+  // Everything below is shared by "Upload" and "Scan": same checks, same save.
+  async function submitFile(file) {
     if (!file) return;
     if (!acceptCheck(file)) {
       setError(acceptMessage);
@@ -132,6 +140,13 @@ export default function DocumentUploadRow({
   }
 
   const files = multiple ? existingList || [] : existing ? [existing] : [];
+
+  // Scan is for phones and tablets (a camera to hand). It makes a PDF where the slot takes PDFs, else one photo.
+  const canScan =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(pointer: coarse)").matches &&
+    (acceptCheck(new File([], "scan.pdf", { type: "application/pdf" })) || acceptCheck(new File([], "scan.jpg", { type: "image/jpeg" })));
+  const scanImageOnly = !acceptCheck(new File([], "scan.pdf", { type: "application/pdf" }));
 
   // A predictable "Person_Document type[_2]" name for the actual saved
   // file, no matter what the family's device happened to name it on
@@ -235,6 +250,37 @@ export default function DocumentUploadRow({
           </button>
         )}
         <input ref={inputRef} type="file" accept={acceptExtensions} hidden onChange={handleFile} />
+        {canScan && (multiple || files.length === 0) && (
+          <>
+            <button type="button" className="doc-row-btn" onClick={() => scanRef.current?.click()} disabled={busy}>
+              Scan
+            </button>
+            <input
+              ref={scanRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) setScanFile(f);
+              }}
+            />
+          </>
+        )}
+        {scanFile && (
+          <DocumentScanner
+            label={docType.label}
+            firstFile={scanFile}
+            imageOnly={scanImageOnly}
+            onCancel={() => setScanFile(null)}
+            onDone={(file) => {
+              setScanFile(null);
+              submitFile(file);
+            }}
+          />
+        )}
       </div>
     </div>
   );
