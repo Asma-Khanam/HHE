@@ -8,13 +8,15 @@ import {
   markWhatsAppRead,
   prettyPhone,
 } from "../lib/whatsapp";
+import WhatsAppThread, { TYPE_LABEL, dayKey, timeOf } from "../components/WhatsAppThread";
 import "./WhatsAppPage.css";
+
+const DUBAI = "Asia/Dubai";
 
 // The WhatsApp tab: the team's WhatsApp Business conversations with families,
 // laid out like WhatsApp (conversation list on the left, the chat on the
 // right) and kept up to date by the server, the way the Emails tab is.
 
-const DUBAI = "Asia/Dubai";
 const FILTERS = [
   { key: "all", label: "All" },
   { key: "unread", label: "Unread" },
@@ -22,21 +24,6 @@ const FILTERS = [
   { key: "unfiled", label: "Not filed" },
 ];
 
-const TYPE_LABEL = { image: "Photo", document: "Document", audio: "Voice message", video: "Video", sticker: "Sticker", location: "Location", contacts: "Contact" };
-
-function dayKey(iso) {
-  return new Date(iso).toLocaleDateString("en-CA", { timeZone: DUBAI });
-}
-function timeOf(iso) {
-  return new Date(iso).toLocaleTimeString("en-GB", { timeZone: DUBAI, hour: "2-digit", minute: "2-digit" });
-}
-function dayLabel(iso) {
-  const k = dayKey(iso);
-  const now = new Date();
-  if (k === dayKey(now.toISOString())) return "Today";
-  if (k === dayKey(new Date(now.getTime() - 86400000).toISOString())) return "Yesterday";
-  return new Date(iso).toLocaleDateString("en-GB", { timeZone: DUBAI, day: "numeric", month: "short", year: "numeric" });
-}
 function listTime(iso) {
   const k = dayKey(iso);
   const now = new Date();
@@ -49,16 +36,6 @@ function previewOf(c) {
   const text = [t, c.last_body].filter(Boolean).join(": ");
   return (c.last_direction === "out" ? "You: " : "") + (text || "Message");
 }
-function Ticks({ status }) {
-  if (!status) return null;
-  const two = status === "delivered" || status === "read";
-  return (
-    <span className={"wa-ticks" + (status === "read" ? " is-read" : "") + (status === "failed" ? " is-failed" : "")} aria-label={status}>
-      {status === "failed" ? "!" : two ? "✓✓" : "✓"}
-    </span>
-  );
-}
-
 export default function WhatsAppPage() {
   const [convs, setConvs] = useState([]);
   const [families, setFamilies] = useState([]);
@@ -151,8 +128,6 @@ export default function WhatsAppPage() {
     }
   }
 
-  let lastDay = "";
-
   return (
     <div className="wap">
       <div className="wap-head">
@@ -243,37 +218,7 @@ export default function WhatsAppPage() {
                 )}
               </header>
 
-              <div className="wap-thread">
-                {msgs.map((m) => {
-                  const d = dayKey(m.sent_at);
-                  const sep = d !== lastDay;
-                  lastDay = d;
-                  const media = m.msg_type && m.msg_type !== "text";
-                  return (
-                    <div key={m.id}>
-                      {sep && (
-                        <div className="wap-day">
-                          <span>{dayLabel(m.sent_at)}</span>
-                        </div>
-                      )}
-                      <div className={"wap-msg " + (m.direction === "out" ? "is-out" : "is-in")}>
-                        {media && (
-                          <div className="wap-media">
-                            {TYPE_LABEL[m.msg_type] || "Attachment"}
-                            {m.media_name ? `: ${m.media_name}` : ""}
-                          </div>
-                        )}
-                        {m.body && <div className="wap-text">{m.body}</div>}
-                        <div className="wap-meta">
-                          {timeOf(m.sent_at)}
-                          {m.direction === "out" && <Ticks status={m.status} />}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div ref={bottom} />
-              </div>
+              <WhatsAppThread messages={msgs} endRef={bottom} />
 
               <footer className="wap-foot">To reply, use the WhatsApp Business app. Your reply shows up here automatically.</footer>
             </>

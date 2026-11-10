@@ -1,0 +1,2 @@
+.wapl-nums { margin-top: 0; }
+.wapl-box { display: flex; flex-direction: column; height: min(62vh, 560px); min-height: 320px; background: #efe9e4; border: 1px solid var(--hh-track); border-radius: 12px; overflow: hidden; }

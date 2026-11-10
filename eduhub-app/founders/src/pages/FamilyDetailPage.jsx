@@ -22,6 +22,7 @@ import RecordFieldsEditor from "../components/RecordFieldsEditor";
 import OverviewPanel from "../components/OverviewPanel";
 import ArchiveFamilyControl from "../components/ArchiveFamilyControl";
 import EmailsPanel from "../components/EmailsPanel";
+import WhatsAppPanel from "../components/WhatsAppPanel";
 import MeetingsPanel from "../components/MeetingsPanel";
 import { AddressIcon, BudgetIcon, HouseholdIcon } from "../components/icons";
 import {
@@ -476,6 +477,7 @@ const FAMILY_DETAIL_TAB_KEYS = [
   "applications",
   "timeline",
   "emails",
+  "whatsapp",
   "meetings",
   "accounting",
   "documents",
@@ -812,6 +814,7 @@ export default function FamilyDetailPage() {
           ["applications", "Applications"],
           ["timeline", "Placement timeline"],
           ["emails", "Emails"],
+          ["whatsapp", "WhatsApp"],
           ["meetings", "Meetings"],
           ["accounting", "Accounting"],
           ["documents", "Documents"],
@@ -1143,6 +1146,12 @@ export default function FamilyDetailPage() {
             schoolCatalog={schoolCatalog}
           />
         </div>
+      )}
+
+      {activeTab === "whatsapp" && (
+        <TabErrorBoundary>
+          <WhatsAppPanel familyId={family.id} />
+        </TabErrorBoundary>
       )}
 
       {activeTab === "emails" && (

@@ -58,3 +58,20 @@ export function prettyPhone(digits) {
   if (d.startsWith("971") && d.length === 12) return `+971 ${d.slice(3, 5)} ${d.slice(5, 8)} ${d.slice(8)}`;
   return `+${d}`;
 }
+
+// Everything filed to one family, oldest first (a family can have two numbers: mother and father).
+export async function listWhatsAppForFamily(familyId) {
+  return unwrap(
+    await supabase.from("whatsapp_messages").select("*").eq("family_id", familyId).order("sent_at", { ascending: true }).limit(1500)
+  );
+}
+
+export async function markFamilyWhatsAppRead(familyId) {
+  const { error } = await supabase
+    .from("whatsapp_messages")
+    .update({ read_at: new Date().toISOString() })
+    .eq("family_id", familyId)
+    .eq("direction", "in")
+    .is("read_at", null);
+  if (error) throw error;
+}
