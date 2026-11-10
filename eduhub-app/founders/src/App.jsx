@@ -13,6 +13,7 @@ import ConsultationsPage from "./pages/ConsultationsPage";
 import ActivityPage from "./pages/ActivityPage";
 import AccountingPage from "./pages/AccountingPage";
 import EmailsPage from "./pages/EmailsPage";
+import WhatsAppPage from "./pages/WhatsAppPage";
 import TeamPage from "./pages/TeamPage";
 import SchoolsPage from "./pages/SchoolsPage";
 import SchoolDetailPage from "./pages/SchoolDetailPage";
@@ -49,6 +50,7 @@ function App() {
         <Route path="activity" element={<ActivityPage />} />
         <Route path="accounting" element={<AccountingPage />} />
         <Route path="emails" element={<EmailsPage />} />
+        <Route path="whatsapp" element={<WhatsAppPage />} />
         <Route path="team" element={<TeamPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="schools" element={<SchoolsPage />} />

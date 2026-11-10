@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { countUnreadEmails } from "../lib/staffData";
+import { countUnreadWhatsApp } from "../lib/whatsapp";
 import logoWhite from "../assets/brand/relocate-logo-white.png";
 import Harri from "./Harri";
 import "./StaffShell.css";
@@ -16,19 +17,29 @@ import "./StaffShell.css";
 export default function StaffShell() {
   const [me, setMe] = useState(null);
   const [unreadEmails, setUnreadEmails] = useState(0);
+  const [unreadWa, setUnreadWa] = useState(0);
 
   useEffect(() => {
     let live = true;
     const refresh = () => countUnreadEmails().then((n) => live && setUnreadEmails(n)).catch(() => {});
+    const refreshWa = () => countUnreadWhatsApp().then((n) => live && setUnreadWa(n)).catch(() => {});
     refresh();
-    const timer = setInterval(refresh, 60000);
+    refreshWa();
+    const timer = setInterval(() => {
+      refresh();
+      refreshWa();
+    }, 60000);
     window.addEventListener("focus", refresh);
+    window.addEventListener("focus", refreshWa);
     window.addEventListener("emails-read", refresh);
+    window.addEventListener("whatsapp-read", refreshWa);
     return () => {
       live = false;
       clearInterval(timer);
       window.removeEventListener("focus", refresh);
+      window.removeEventListener("focus", refreshWa);
       window.removeEventListener("emails-read", refresh);
+      window.removeEventListener("whatsapp-read", refreshWa);
     };
   }, []);
 
@@ -87,6 +98,14 @@ export default function StaffShell() {
             {unreadEmails > 0 && (
               <span className="staff-nav-badge" aria-label={`${unreadEmails} unread`}>
                 {unreadEmails > 99 ? "99+" : unreadEmails}
+              </span>
+            )}
+          </NavLink>
+          <NavLink to="/staff/whatsapp" className={({ isActive }) => "staff-nav-item" + (isActive ? " is-active" : "")}>
+            WhatsApp
+            {unreadWa > 0 && (
+              <span className="staff-nav-badge" aria-label={`${unreadWa} unread`}>
+                {unreadWa > 99 ? "99+" : unreadWa}
               </span>
             )}
           </NavLink>
