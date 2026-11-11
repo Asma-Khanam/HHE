@@ -992,10 +992,27 @@ export default function SchoolDetailPage() {
 
       {tab === "families" && (
       <section className="family-detail-card">
-        <h2>
-          Shortlisted families
-          {shortlist.length > 0 && <span className="family-detail-card-count">{shortlist.length}</span>}
-        </h2>
+        <div className="sd-fam-head">
+          <h2>
+            Shortlisted families
+            {shortlist.length > 0 && <span className="family-detail-card-count">{shortlist.length}</span>}
+          </h2>
+          {availableFamilies.length > 0 && (
+            <form className="sd-fam-add" onSubmit={handleAddFamily}>
+              <select className="panel-select" value={addFamilyId} onChange={(e) => setAddFamilyId(e.target.value)} aria-label="Add a family to this shortlist">
+                <option value="">Add a family…</option>
+                {availableFamilies.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.displayName}
+                  </option>
+                ))}
+              </select>
+              <button type="submit" className="panel-btn panel-btn-primary" disabled={!addFamilyId || addingFamily}>
+                {addingFamily ? "Adding…" : "+ Add"}
+              </button>
+            </form>
+          )}
+        </div>
         {shortlist.length > 0 && (
           <div className="family-detail-tabs household-tabs sd-subtabs" role="tablist">
             {FAMILY_FILTERS.map(([key, label, test]) => (
@@ -1038,17 +1055,30 @@ export default function SchoolDetailPage() {
                   const test = FAMILY_FILTERS.find((f) => f[0] === famFilter)[2];
                   const kids = kidsOf(entry).map((c, i) => ({ c, i })).filter(({ c }) => test(entry, c));
                   return kids.map(({ c: child, i: kidNo }, index) => (
-                    <tr key={entry.id + ":" + (child?.id || "none")}>
+                    <tr key={entry.id + ":" + (child?.id || "none")} className={index > 0 ? "is-sibling" : "is-first"}>
                       <td>
-                        <Link
-                          to={`/staff/families/${entry.family_id}?tab=visits&school=${schoolId}`}
-                          className="schooldetail-shortlist-family"
-                        >
-                          {child ? displayNameForChild(child, kidNo) : entry.familyName}
-                        </Link>
-                        <span className="sd-simple-sub">{entry.familyName}</span>
+                        <div className="sd-who">
+                          <span className="sd-av" aria-hidden="true">
+                            {(child ? displayNameForChild(child, kidNo) : entry.familyName || "?").trim().charAt(0).toUpperCase()}
+                          </span>
+                          <div>
+                            <Link
+                              to={`/staff/families/${entry.family_id}?tab=visits&school=${schoolId}`}
+                              className="schooldetail-shortlist-family"
+                            >
+                              {child ? displayNameForChild(child, kidNo) : entry.familyName}
+                            </Link>
+                            <span className="sd-simple-sub">{entry.familyName}</span>
+                          </div>
+                        </div>
                       </td>
-                      <td>{child?.years?.applying || child?.year_group_applying_for || <span className="is-muted">—</span>}</td>
+                      <td>
+                        {child?.years?.applying || child?.year_group_applying_for ? (
+                          <span className="sd-year">{child?.years?.applying || child?.year_group_applying_for}</span>
+                        ) : (
+                          <span className="is-muted">—</span>
+                        )}
+                      </td>
                       <td>{placementCell(entry, child)}</td>
                       <td>
                         {entry.tour_date ? (
@@ -1093,21 +1123,6 @@ export default function SchoolDetailPage() {
           </div>
         )}
 
-        {availableFamilies.length > 0 && (
-          <form className="school-year-group-add" onSubmit={handleAddFamily}>
-            <select className="panel-select" value={addFamilyId} onChange={(e) => setAddFamilyId(e.target.value)}>
-              <option value="">Add a family to this shortlist…</option>
-              {availableFamilies.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.displayName}
-                </option>
-              ))}
-            </select>
-            <button type="submit" className="panel-btn" disabled={!addFamilyId || addingFamily}>
-              {addingFamily ? "Adding…" : "Add"}
-            </button>
-          </form>
-        )}
       </section>
       )}
 
