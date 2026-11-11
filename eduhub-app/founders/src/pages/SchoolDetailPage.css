@@ -337,3 +337,20 @@
 .sd-simple td { padding: 12px 12px 12px 0; border-top: 1px solid rgba(83, 1, 38, 0.08); vertical-align: top; }
 .sd-simple-sub { display: block; font-size: 12px; color: var(--hh-muted, #6b565e); }
 .sd-simple-placed { font-weight: 600; color: #2f6b4f; }
+
+/* Status tags and the remove icon on the Shortlisted families list */
+.sd-simple tbody tr:hover td { background: rgba(83, 1, 38, 0.025); }
+.sd-simple td:last-child { text-align: right; padding-right: 4px; }
+.schooldetail-shortlist-family { font-weight: 700; color: var(--hh-burgundy, #530126); text-decoration: none; }
+.schooldetail-shortlist-family:hover { text-decoration: underline; }
+.sd-pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; line-height: 1.6; white-space: nowrap; }
+.sd-pill-sm { margin-left: 8px; font-size: 11.5px; padding: 0 8px; }
+.sd-pill.is-green { background: #e3f1ea; color: #25603f; }
+.sd-pill.is-amber { background: #fbf0d4; color: #7a5a06; }
+.sd-pill.is-blue { background: #e6edf8; color: #2c4a83; }
+.sd-pill.is-red { background: #fbe4e4; color: #9b1c1c; }
+.sd-pill.is-grey { background: #eeeaec; color: #5f5057; }
+.sd-pill.is-none { background: transparent; color: var(--hh-muted, #6b565e); font-weight: 500; padding-left: 0; }
+.sd-trash { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: #c62828; cursor: pointer; }
+.sd-trash:hover { background: #fbe4e4; color: #9b1c1c; }
+.sd-trash:focus-visible { outline: 2px solid #c62828; outline-offset: 2px; }

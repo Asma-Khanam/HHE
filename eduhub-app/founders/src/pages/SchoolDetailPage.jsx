@@ -47,37 +47,51 @@ function formatDateTime(dateStr, timeStr) {
 // tracker; see eduhub_schema_addendum_36_school_visits_tracker.sql).
 // Where each family sits with this school, for the Shortlisted families
 // sub-tabs. A family can be in more than one (visited AND applied).
-function entryApps(entry) {
-  return (entry.children || []).flatMap((c) => c.applications || []);
+function kidsOf(entry) {
+  return entry.children && entry.children.length ? entry.children : [null];
 }
+// This child's applications at this school.
+function childApps(entry, child) {
+  return (child?.applications || []).filter((a) => a.school_id === entry.school_id || !a.school_id);
+}
+const isPlaced = (child) => !!child?.placement && child.placement.placement_status !== "moved";
+const hasApp = (entry, child, ...statuses) => childApps(entry, child).some((a) => statuses.includes(a.status));
+const hasToured = (entry) => entry.tour_status === "completed" || entry.tour2_status === "completed";
+
+// The Shortlisted families sub-tabs. Each one asks about a child at this
+// school, so a family with one child placed and another still applying shows
+// up in both Placed and Applied. An offer that has become a placement moves
+// from Offered to Placed.
 const FAMILY_FILTERS = [
   ["all", "Suggested", () => true],
-  ["visited", "Visited", (e) => e.tour_status === "completed" || e.tour2_status === "completed"],
-  ["applied", "Applied", (e) => entryApps(e).some((a) => a.status && a.status !== "draft")],
-  ["offered", "Offered", (e) => entryApps(e).some((a) => a.status === "offer" || a.status === "offer_accepted")],
-  ["withdrew", "Withdrew", (e) => entryApps(e).some((a) => a.status === "withdrawn")],
+  ["toured", "Toured", (e) => hasToured(e)],
+  ["applied", "Applied", (e, c) => childApps(e, c).some((a) => a.status && a.status !== "draft")],
+  ["offered", "Offered", (e, c) => !isPlaced(c) && hasApp(e, c, "offer", "offer_accepted")],
+  ["placed", "Placed", (e, c) => isPlaced(c)],
+  ["withdrew", "Withdrawn", (e, c) => hasApp(e, c, "withdrawn")],
 ];
+const countFor = (list, test) => list.filter((e) => kidsOf(e).some((c) => test(e, c))).length;
 
-// Where this child's placement at this school stands, in a few words.
+// Where this child's placement at this school stands, as a coloured tag.
 function placementCell(entry, child) {
   const p = child?.placement;
   if (p && p.placement_status === "moved") {
     return (
       <span>
-        Left{p.ended_on ? ` ${formatDate(p.ended_on)}` : ""}
-        {p.moved_to_school ? ` → ${p.moved_to_school}` : ""}
-        {p.moved_reason ? <span className="sd-simple-sub">{p.moved_reason}</span> : null}
+        <span className="sd-pill is-grey">Left</span>
+        <span className="sd-simple-sub">
+          {[p.ended_on ? formatDate(p.ended_on) : "", p.moved_to_school ? `→ ${p.moved_to_school}` : "", p.moved_reason].filter(Boolean).join(" · ")}
+        </span>
       </span>
     );
   }
-  if (p) return <span className="sd-simple-placed">Placed here</span>;
-  const apps = (child?.applications || []).filter((a) => a.school_id === entry.school_id || !a.school_id);
-  if (apps.some((a) => a.status === "offer_accepted")) return "Offer accepted";
-  if (apps.some((a) => a.status === "offer")) return "Offer";
-  if (apps.some((a) => a.status === "rejected")) return "Declined by the school";
-  if (apps.some((a) => a.status === "withdrawn")) return "Withdrawn";
-  if (apps.some((a) => a.status && a.status !== "draft")) return "Applied";
-  return <span className="is-muted">Not placed</span>;
+  if (p) return <span className="sd-pill is-green">Placed here</span>;
+  if (hasApp(entry, child, "offer_accepted")) return <span className="sd-pill is-amber">Offer accepted</span>;
+  if (hasApp(entry, child, "offer")) return <span className="sd-pill is-amber">Offer</span>;
+  if (hasApp(entry, child, "rejected")) return <span className="sd-pill is-red">Declined by the school</span>;
+  if (hasApp(entry, child, "withdrawn")) return <span className="sd-pill is-grey">Withdrawn</span>;
+  if (childApps(entry, child).some((a) => a.status && a.status !== "draft")) return <span className="sd-pill is-blue">Applied</span>;
+  return <span className="sd-pill is-none">Not placed</span>;
 }
 
 function SchoolNotesFeed({ schoolId }) {
@@ -993,14 +1007,14 @@ export default function SchoolDetailPage() {
                 className={"family-detail-tab" + (famFilter === key ? " is-active" : "")}
                 onClick={() => setFamFilter(key)}
               >
-                {label} ({shortlist.filter(test).length})
+                {label} ({countFor(shortlist, test)})
               </button>
             ))}
           </div>
         )}
         {shortlist.length === 0 ? (
           <p className="family-detail-hint">No family has shortlisted this school yet.</p>
-        ) : shortlist.filter(FAMILY_FILTERS.find((f) => f[0] === famFilter)[2]).length === 0 ? (
+        ) : countFor(shortlist, FAMILY_FILTERS.find((f) => f[0] === famFilter)[2]) === 0 ? (
           <p className="family-detail-hint">No families here yet.</p>
         ) : (
           // Simplified after the 30/10/2026 meeting: one line per child with
@@ -1020,16 +1034,17 @@ export default function SchoolDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {shortlist.filter(FAMILY_FILTERS.find((f) => f[0] === famFilter)[2]).flatMap((entry) => {
-                  const kids = entry.children && entry.children.length ? entry.children : [null];
-                  return kids.map((child, index) => (
+                {shortlist.flatMap((entry) => {
+                  const test = FAMILY_FILTERS.find((f) => f[0] === famFilter)[2];
+                  const kids = kidsOf(entry).map((c, i) => ({ c, i })).filter(({ c }) => test(entry, c));
+                  return kids.map(({ c: child, i: kidNo }, index) => (
                     <tr key={entry.id + ":" + (child?.id || "none")}>
                       <td>
                         <Link
                           to={`/staff/families/${entry.family_id}?tab=visits&school=${schoolId}`}
                           className="schooldetail-shortlist-family"
                         >
-                          {child ? displayNameForChild(child, index) : entry.familyName}
+                          {child ? displayNameForChild(child, kidNo) : entry.familyName}
                         </Link>
                         <span className="sd-simple-sub">{entry.familyName}</span>
                       </td>
@@ -1039,7 +1054,11 @@ export default function SchoolDetailPage() {
                         {entry.tour_date ? (
                           <>
                             {formatDateTime(entry.tour_date, entry.tour_start_time)}
-                            {entry.tour_status ? ` · ${TOUR_STATUS_LABEL[entry.tour_status]}` : ""}
+                            {entry.tour_status && (
+                              <span className={"sd-pill sd-pill-sm " + (entry.tour_status === "completed" ? "is-green" : entry.tour_status === "cancelled" ? "is-grey" : "is-blue")}>
+                                {entry.tour_status === "completed" ? "Toured" : TOUR_STATUS_LABEL[entry.tour_status]}
+                              </span>
+                            )}
                           </>
                         ) : (
                           <span className="is-muted">No tour yet</span>
@@ -1050,8 +1069,19 @@ export default function SchoolDetailPage() {
                       </td>
                       <td>
                         {index === 0 && (
-                          <button type="button" className="panel-btn panel-btn-quiet" onClick={() => handleRemoveShortlistEntry(entry)}>
-                            Remove
+                          <button
+                            type="button"
+                            className="sd-trash"
+                            title="Remove from this school's shortlist"
+                            aria-label={`Remove ${entry.familyName || "this family"} from this school's shortlist`}
+                            onClick={() => handleRemoveShortlistEntry(entry)}
+                          >
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M3 6h18" />
+                              <path d="M8 6V4h8v2" />
+                              <path d="M6 6l1 14h10l1-14" />
+                              <path d="M10 10v6M14 10v6" />
+                            </svg>
                           </button>
                         )}
                       </td>
