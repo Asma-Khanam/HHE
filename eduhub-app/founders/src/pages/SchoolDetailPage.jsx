@@ -284,6 +284,10 @@ function SchoolRecordView({ school, onEmirate }) {
           </SvRow>
           <SvRow label="Application fee">{school.application_fee != null ? `${school.fee_currency || "AED"} ${school.application_fee}` : ""}</SvRow>
           <SvRow label="Deposit">{school.deposit_amount != null ? `${school.fee_currency || "AED"} ${school.deposit_amount}` : ""}</SvRow>
+          <SvRow label="Tuition per year">
+            {school.tuition_from != null ? `${school.fee_currency || "AED"} ${school.tuition_from}${school.tuition_to != null && school.tuition_to !== school.tuition_from ? ` – ${school.tuition_to}` : ""}` : ""}
+          </SvRow>
+          <SvRow label="Transport per year">{school.transport_per_year != null ? `${school.fee_currency || "AED"} ${school.transport_per_year}` : ""}</SvRow>
         </div>
       </div>
       <div className="sd-card sd-wide">
@@ -375,6 +379,9 @@ export default function SchoolDetailPage() {
       fee_currency: school.fee_currency || "AED",
       application_fee: school.application_fee ?? "",
       deposit_amount: school.deposit_amount ?? "",
+      tuition_from: school.tuition_from ?? "",
+      tuition_to: school.tuition_to ?? "",
+      transport_per_year: school.transport_per_year ?? "",
       documents_required: school.documents_required || "",
     });
     setEditing(true);
@@ -400,6 +407,9 @@ export default function SchoolDetailPage() {
         ...draft,
         application_fee: draft.application_fee === "" ? null : Number(draft.application_fee),
         deposit_amount: draft.deposit_amount === "" ? null : Number(draft.deposit_amount),
+        tuition_from: draft.tuition_from === "" ? null : Number(draft.tuition_from),
+        tuition_to: draft.tuition_to === "" ? null : Number(draft.tuition_to),
+        transport_per_year: draft.transport_per_year === "" ? null : Number(draft.transport_per_year),
         // Empty = not set. The platform column only accepts openapply / other / null.
         application_platform: draft.application_platform || null,
         openapply_login_url: (draft.openapply_login_url || "").trim() || null,
@@ -825,6 +835,45 @@ export default function SchoolDetailPage() {
                   className="panel-input"
                   value={draft.deposit_amount}
                   onChange={(e) => setDraft((d) => ({ ...d, deposit_amount: e.target.value }))}
+                />
+              </div>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-tuition-from">
+                  Tuition per year, lowest
+                </label>
+                <input
+                  id="sch-tuition-from"
+                  type="number"
+                  step="0.01"
+                  className="panel-input"
+                  value={draft.tuition_from}
+                  onChange={(e) => setDraft((d) => ({ ...d, tuition_from: e.target.value }))}
+                />
+              </div>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-tuition-to">
+                  Tuition per year, highest
+                </label>
+                <input
+                  id="sch-tuition-to"
+                  type="number"
+                  step="0.01"
+                  className="panel-input"
+                  value={draft.tuition_to}
+                  onChange={(e) => setDraft((d) => ({ ...d, tuition_to: e.target.value }))}
+                />
+              </div>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-transport">
+                  Transport per year
+                </label>
+                <input
+                  id="sch-transport"
+                  type="number"
+                  step="0.01"
+                  className="panel-input"
+                  value={draft.transport_per_year}
+                  onChange={(e) => setDraft((d) => ({ ...d, transport_per_year: e.target.value }))}
                 />
               </div>
               <div className="rec-field rec-field-wide">

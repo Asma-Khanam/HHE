@@ -6,6 +6,7 @@ import FamilyBlockedTimes from "./FamilyBlockedTimes";
 import EmailComposer from "./EmailComposer";
 import { tourScheduleEmail, enquiryEmail, tourConfirmEmail, tourChangeEmail } from "../lib/visitEmails";
 import AutosaveField from "./Autosave";
+import { commuteEstimate, firstYearCost, getFamilyLivingArea } from "../lib/travelCost";
 import {
   listShortlistForFamily,
   listSchools,
@@ -66,6 +67,52 @@ const PREFIXES = [
 // Tour / After the tour / School and notes. Everything the old tab did is
 // still here; the two interim cards (parent's unavailable times and the
 // tour slot review) now live inside it.
+// Shortlist row: "~25 min from Dubai Marina · ≈ AED 58,500 first year".
+function TravelCostChips({ school, livingArea }) {
+  const trip = commuteEstimate(livingArea, school);
+  const cost = firstYearCost(school);
+  if (!trip && !cost) return null;
+  return (
+    <>
+      {trip && (
+        <span title={`Estimate: about ${trip.km} km by road at school-run speed. Not a live route.`}> · ~{trip.minutes} min from {trip.from}</span>
+      )}
+      {cost && (
+        <span title={`${cost.parts.join(" + ")}${cost.missing.length ? ` (not added yet: ${cost.missing.join(", ")})` : ""}`}> · ≈ {cost.label} first year</span>
+      )}
+    </>
+  );
+}
+
+// School tab: the same numbers spelled out.
+function TravelCostRows({ school, livingArea }) {
+  const trip = commuteEstimate(livingArea, school);
+  const cost = firstYearCost(school);
+  return (
+    <>
+      <dt>Travel</dt>
+      <dd>
+        {trip
+          ? `About ${trip.minutes} min at school-run time from ${trip.from} (≈ ${trip.km} km, an estimate)`
+          : livingArea
+            ? "Can't estimate yet. Add the school's area, or check the family's living area."
+            : "Add where the family is thinking of living to see travel time."}
+      </dd>
+      <dt>First-year cost</dt>
+      <dd>
+        {cost ? (
+          <>
+            ≈ {cost.label} ({cost.parts.join(" + ")})
+            {cost.missing.length > 0 && <span className="sd-empty"> · not added: {cost.missing.join(", ")}</span>}
+          </>
+        ) : (
+          <span className="sd-empty">Add tuition on the school record</span>
+        )}
+      </dd>
+    </>
+  );
+}
+
 export default function SchoolShortlistPanel({
   familyId,
   familyChildren,
@@ -77,6 +124,14 @@ export default function SchoolShortlistPanel({
   visit,
 }) {
   const [rows, setRows] = useState([]);
+  const [livingArea, setLivingArea] = useState("");
+  useEffect(() => {
+    let live = true;
+    getFamilyLivingArea(familyId).then((a) => live && setLivingArea(a)).catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [familyId]);
   const [childStatus, setChildStatus] = useState([]);
   const [otherFeedback, setOtherFeedback] = useState({});
   const [notesById, setNotesById] = useState({});
@@ -965,6 +1020,7 @@ export default function SchoolShortlistPanel({
                     <dd>{school.address}</dd>
                   </>
                 )}
+                <TravelCostRows school={school} livingArea={livingArea} />
                 {process && (
                   <>
                     <dt>Admissions process</dt>
@@ -1555,6 +1611,7 @@ export default function SchoolShortlistPanel({
                         <div className="sv-sb">
                           {row.priority === "primary" ? "★ Primary choice" : row.priority === "secondary" ? "Backup choice" : row.school?.area || ""}
                           {kidsPlacedHere.length > 0 && ` · 🎓 Placed: ${kidsPlacedHere.map(childName).join(", ")}`}
+                          <TravelCostChips school={row.school} livingArea={livingArea} />
                         </div>
                       </div>
                       <div>{availabilityCell(row, child)}</div>

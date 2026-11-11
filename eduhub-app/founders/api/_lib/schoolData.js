@@ -18,9 +18,11 @@ export const FIELDS = {
   address: "The school's full street address.",
   application_fee: "The non-refundable application or registration fee, as a number in AED only (not tuition).",
   deposit_amount: "The enrolment or seat deposit, as a number in AED only.",
+  tuition_from: "The lowest annual tuition across all year groups, as a number in AED only.",
+  tuition_to: "The highest annual tuition across all year groups, as a number in AED only.",
   curriculum: "The curriculum or curricula offered, for example British, IB, American.",
 };
-const NUMERIC = new Set(["application_fee", "deposit_amount"]);
+const NUMERIC = new Set(["application_fee", "deposit_amount", "tuition_from", "tuition_to"]);
 
 const TOOL = {
   name: "record_school_details",
@@ -64,7 +66,7 @@ function isPublicHttpUrl(raw) {
 
 const bareHost = (u) => new URL(u).hostname.toLowerCase().replace(/^www\./, "");
 
-async function getPage(pageUrl, ms = 6000) {
+async function getPage(pageUrl, ms = 5000) {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), ms);
   try {
@@ -150,7 +152,7 @@ function valid(field, v, pagesSeen) {
 
 async function claude(pagesText, school) {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 30000);
+  const timer = setTimeout(() => ctl.abort(), 17000);
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

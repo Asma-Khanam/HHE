@@ -19,9 +19,11 @@ export const FIELD_LABEL = {
   address: "Address",
   application_fee: "Application fee (AED)",
   deposit_amount: "Deposit (AED)",
+  tuition_from: "Tuition per year, lowest (AED)",
+  tuition_to: "Tuition per year, highest (AED)",
   curriculum: "Curriculum",
 };
-const NUMERIC = new Set(["application_fee", "deposit_amount"]);
+const NUMERIC = new Set(["application_fee", "deposit_amount", "tuition_from", "tuition_to"]);
 
 export async function listSchoolDataOverview() {
   const [schools, checks, pending] = await Promise.all([
