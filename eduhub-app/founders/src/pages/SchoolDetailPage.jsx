@@ -70,7 +70,8 @@ const FAMILY_FILTERS = [
   ["placed", "Placed", (e, c) => isPlaced(c)],
   ["withdrew", "Withdrawn", (e, c) => hasApp(e, c, "withdrawn")],
 ];
-const countFor = (list, test) => list.filter((e) => kidsOf(e).some((c) => test(e, c))).length;
+// Counts the rows you see (one per child), not families.
+const countFor = (list, test) => list.reduce((n, e) => n + kidsOf(e).filter((c) => test(e, c)).length, 0);
 
 // Where this child's placement at this school stands, as a coloured tag.
 function placementCell(entry, child) {
