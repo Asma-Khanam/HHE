@@ -1,4 +1,5 @@
 import { getEmailInsight, insightEnabled } from "./_lib/emailInsight.js";
+import { checkSchool } from "./_lib/schoolData.js";
 
 // POST /api/email-insight  { noteId }  -- Authorization: Bearer <staff session>
 // The "Summarise with Claude" button on the Emails tab. Reads and writes the
@@ -14,6 +15,19 @@ export default async function handler(req, res) {
   const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   const noteId = req.body?.noteId;
   if (!url || !anon) return res.status(500).json({ error: "Server not configured" });
+
+  // School data keeper (School data tab): { schoolId } reads that school's website.
+  const schoolId = req.body?.schoolId;
+  if (schoolId) {
+    if (!token) return res.status(400).json({ error: "Missing sign-in" });
+    try {
+      return res.status(200).json(await checkSchool({ url, anon, token, schoolId }));
+    } catch (err) {
+      console.error("school check error", err?.message);
+      return res.status(502).json({ error: String(err?.message || "Couldn't check that school").slice(0, 200) });
+    }
+  }
+
   if (!token || !noteId) return res.status(400).json({ error: "Missing sign-in or email" });
 
   const headers = { apikey: anon, Authorization: `Bearer ${token}`, "Content-Type": "application/json" };

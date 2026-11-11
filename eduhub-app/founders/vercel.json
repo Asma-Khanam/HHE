@@ -9,6 +9,9 @@
   "functions": {
     "api/*.js": {
       "maxDuration": 30
+    },
+    "api/email-insight.js": {
+      "maxDuration": 60
     }
   }
 }

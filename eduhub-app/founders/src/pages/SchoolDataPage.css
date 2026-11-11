@@ -1,0 +1,23 @@
+.sdp { display: flex; flex-direction: column; gap: 14px; }
+.sdp-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.sdp-head h1 { margin: 0 0 4px; }
+.sdp-sub { margin: 0; max-width: 62ch; color: var(--hh-muted, #6b5a60); font-size: 0.9rem; }
+.sdp-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.sdp-empty { color: var(--hh-muted, #6b5a60); margin: 12px 0; }
+.sdp-list { display: flex; flex-direction: column; gap: 12px; }
+.sdp-card { border: 1px solid var(--hh-track); border-radius: 12px; background: #fff; overflow: hidden; }
+.sdp-card-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-bottom: 1px solid #f3ecee; }
+.sdp-card-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sdp-name { font-weight: 700; color: var(--hh-burgundy); text-decoration: none; }
+.sdp-name:hover { text-decoration: underline; }
+.sdp-meta { font-size: 0.8rem; color: var(--hh-muted, #6b5a60); }
+.sdp-card-actions, .sdp-sug-actions { display: flex; gap: 8px; align-items: center; }
+.sdp-sug { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 10px 14px; border-top: 1px solid #f7f1f3; }
+.sdp-sug:first-of-type { border-top: 0; }
+.sdp-sug-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sdp-change { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; font-size: 0.92rem; word-break: break-word; }
+.sdp-old { color: var(--hh-muted, #6b5a60); text-decoration: line-through; }
+.sdp-new { font-weight: 600; }
+.sdp-evidence { font-size: 0.8rem; color: var(--hh-muted, #6b5a60); font-style: italic; }
+.sdp-src { font-size: 0.8rem; color: var(--hh-burgundy); }
+@media (max-width: 700px) { .sdp-sug { flex-direction: column; } }
