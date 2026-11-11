@@ -3,6 +3,7 @@ import { downloadDocument, cleanFileName, getSignedUrl } from "../lib/documents"
 import { CHILD_DOCUMENT_TYPES, PARENT_DOCUMENT_TYPES } from "../data/documentTypes";
 import { IconDocument } from "./icons";
 import "./DocumentSearchCard.css";
+import { openFile } from "../lib/openFile";
 
 // Every document SLOT across the whole family, flattened into one list —
 // one row per uploaded file, plus one row for any REQUIRED slot that's
@@ -111,7 +112,7 @@ export default function DocumentSearchCard({ mother, father, children, documents
     setError("");
     try {
       const url = await getSignedUrl(doc.file_url);
-      window.open(url, "_blank", "noopener,noreferrer");
+      openFile(url, { name: doc.file_name || doc.label });
     } catch (err) {
       setError(err.message || "Couldn't open file.");
     }

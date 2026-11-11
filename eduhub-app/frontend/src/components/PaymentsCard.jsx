@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { openBillingDocument, toBillingItem } from "../lib/billingDocument";
 import { submitPaymentProof, getReceiptUrl } from "../lib/payments";
 import "./PaymentsCard.css";
+import { openFile } from "../lib/openFile";
 
 function formatMoney(amount, currency) {
   if (amount === null || amount === undefined || amount === "") return "";
@@ -71,7 +72,7 @@ export default function PaymentsCard({ userId, payments, billTo }) {
     setError("");
     try {
       const url = await getReceiptUrl(payment.receipt_path);
-      window.open(url, "_blank", "noopener,noreferrer");
+      openFile(url, { name: "Receipt" });
     } catch (err) {
       setError(err.message || "Couldn't open that file.");
     }

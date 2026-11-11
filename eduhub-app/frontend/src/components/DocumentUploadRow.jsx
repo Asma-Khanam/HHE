@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import DocumentScanner from "./DocumentScanner";
 import { uploadDocument, deleteDocument, getSignedUrl, downloadDocument, cleanFileName, updateDocumentLabels } from "../lib/documents";
 import { ACCEPTED_FILE_EXTENSIONS, ACCEPTED_FILES_MESSAGE, isAcceptedFile } from "../data/documentTypes";
+import { openFile } from "../lib/openFile";
 
 // DU-04 (September 2026 change request) — the two labels shown next to each
 // school report so staff can tell them apart "at a glance" without opening
@@ -133,7 +134,7 @@ export default function DocumentUploadRow({
     setError("");
     try {
       const url = await getSignedUrl(doc.file_url);
-      window.open(url, "_blank", "noopener,noreferrer");
+      openFile(url, { name: doc.file_name });
     } catch (err) {
       setError(err.message || "Couldn't open file.");
     }

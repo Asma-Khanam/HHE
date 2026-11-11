@@ -16,6 +16,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import RequireAuth from "./components/RequireAuth";
 import AppShell from "./components/AppShell";
 import { ApplicationDataProvider, useApplicationData } from "./context/ApplicationDataContext";
+import FileViewer from "./components/FileViewer";
 
 // Where /app lands you.
 //
@@ -38,6 +39,7 @@ function AppLanding() {
 
 function App() {
   return (
+    <>
     <Routes>
       <Route path="/" element={<Navigate to="/signup" replace />} />
       <Route path="/signup" element={<SignUp />} />
@@ -72,6 +74,8 @@ function App() {
         <Route path="overview" element={<Navigate to="/app/dashboard" replace />} />
       </Route>
     </Routes>
+    <FileViewer />
+    </>
   );
 }
 

@@ -1,0 +1,10 @@
+.fv { position: fixed; inset: 0; z-index: 10000; display: flex; flex-direction: column; background: #fff; }
+.fv-bar { display: flex; align-items: center; gap: 8px; padding: calc(env(safe-area-inset-top, 0px) + 8px) 12px 8px; border-bottom: 1px solid rgba(83, 1, 38, 0.12); background: #fbf7f8; }
+.fv-title { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #530126; }
+.fv-btn { border: 1px solid rgba(83, 1, 38, 0.25); background: #fff; color: #530126; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 0.9rem; font-weight: 600; }
+.fv-btn.is-close { background: #530126; border-color: #530126; color: #fff; }
+.fv-body { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; display: flex; align-items: flex-start; justify-content: center; padding-bottom: env(safe-area-inset-bottom, 0px); }
+.fv-frame { width: 100%; height: 100%; border: 0; }
+.fv-img { max-width: 100%; height: auto; }
+.fv-msg { margin: 32px 20px; text-align: center; color: #6b565e; }
+.fv-msg.is-error { color: #9b1c1c; }

@@ -1,3 +1,5 @@
+import { isNativeApp } from "./native.js";
+import { openHtml } from "./openFile.js";
 // Invoices and receipts for every payment (October 2026).
 //
 // Nothing is stored: the document is built on the spot from the payment row
@@ -123,6 +125,11 @@ export function buildBillingDocument({ kind, item, billTo }) {
 // the browser doesn't block the pop-up.
 export function openBillingDocument({ kind, item, billTo }) {
   const html = buildBillingDocument({ kind, item, billTo });
+  if (isNativeApp) {
+    // The app's web view ignores pop-ups, so show it in the in-app viewer.
+    openHtml(html, { name: kind === "receipt" ? "Receipt" : "Invoice" });
+    return;
+  }
   const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
   const w = window.open(url, "_blank");
   if (!w) throw new Error("Your browser blocked the pop-up. Allow pop-ups for this site and try again.");

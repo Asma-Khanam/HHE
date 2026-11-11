@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { uploadDocument, deleteDocument, getSignedUrl, downloadDocument, cleanFileName, slugifyLabel, labelFromSlug } from "../lib/documents";
+import { openFile } from "../lib/openFile";
 
 // Founder feedback (Sept 2026): "let parents add extra documents per
 // student — GCSE results, CAT4, certificates, and an 'other' option with
@@ -56,7 +57,7 @@ export default function OtherDocumentsBlock({ userId, ownerType, ownerId, docume
 
   async function handleView(doc) {
     try {
-      window.open(await getSignedUrl(doc.file_url), "_blank", "noopener,noreferrer");
+      openFile(await getSignedUrl(doc.file_url), { name: doc.file_name || doc.label });
     } catch (err) {
       setError(err.message || "Couldn't open that file.");
     }

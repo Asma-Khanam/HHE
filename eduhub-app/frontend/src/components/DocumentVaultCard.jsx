@@ -3,6 +3,7 @@ import { downloadDocument, cleanFileName, getSignedUrl } from "../lib/documents"
 import { CHILD_DOCUMENT_TYPES, PARENT_DOCUMENT_TYPES } from "../data/documentTypes";
 import { IconDocument, IconCheckCircle } from "./icons";
 import "./DocumentVaultCard.css";
+import { openFile } from "../lib/openFile";
 
 // Every document that's actually been uploaded, across the whole family,
 // flattened into one list — styled after the "Document Vault" panel from
@@ -53,7 +54,7 @@ export default function DocumentVaultCard({ mother, father, children, documentsB
     setError("");
     try {
       const url = await getSignedUrl(doc.file_url);
-      window.open(url, "_blank", "noopener,noreferrer");
+      openFile(url, { name: doc.file_name || doc.label });
     } catch (err) {
       setError(err.message || "Couldn't open file.");
     }

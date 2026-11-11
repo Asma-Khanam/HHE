@@ -2,6 +2,7 @@ import { useState } from "react";
 import { openBillingDocument, toBillingItem } from "../lib/billingDocument";
 import { getSignedUrl } from "../lib/documents";
 import "./ApplicationFeesCard.css";
+import { openFile } from "../lib/openFile";
 
 function money(amount, currency) {
   if (amount === null || amount === undefined || amount === "") return "";
@@ -20,7 +21,7 @@ export default function ApplicationFeesCard({ fees = [], loadError = "", billTo 
 
   async function openInvoice(path) {
     try {
-      window.open(await getSignedUrl(path), "_blank", "noopener");
+      openFile(await getSignedUrl(path), { name: "Invoice" });
     } catch {
       setError("Couldn't open the invoice.");
     }
