@@ -50,6 +50,7 @@ import {
   SaveBadge,
   WhoTag,
 } from "./SchoolVisitsParts";
+import SuggestedSchools from "./SuggestedSchools";
 import "./panels.css";
 import "./SchoolShortlistPanel.css";
 import "./SchoolVisits.css";
@@ -122,7 +123,7 @@ export default function SchoolShortlistPanel({
   onProgressChange,
   focusSchoolId,
   visit,
-  reloadSignal,
+  currentSchools,
 }) {
   const [rows, setRows] = useState([]);
   const [livingArea, setLivingArea] = useState("");
@@ -197,11 +198,6 @@ export default function SchoolShortlistPanel({
       setLoading(false);
     }
   }
-
-  useEffect(() => {
-    if (reloadSignal) load(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reloadSignal]);
 
   useEffect(() => {
     load();
@@ -368,6 +364,31 @@ export default function SchoolShortlistPanel({
       setAddingSchoolId("");
       setShowAdd(false);
       await load();
+      onProgressChange?.();
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Add from the Suggested schools list in the window. Same follow-up as the dropdown: the
+  // enquiry prompt opens, and the shortlist records that it came from a suggestion.
+  async function handleAcceptSuggestion(item) {
+    setBusy(true);
+    setError("");
+    try {
+      const anyChildPlaced = children.some((c) => placed[c.id]);
+      const added = await addToShortlist({
+        familyId,
+        schoolId: item.school.id,
+        keepOpen: anyChildPlaced,
+        addedVia: "suggested",
+        suggestionScore: item.score,
+      });
+      if (visit && added?.id) setEnquiryPrompt(added.id);
+      setShowAdd(false);
+      await load(true);
       onProgressChange?.();
     } catch (err) {
       setError(friendlyError(err));
@@ -1731,8 +1752,20 @@ export default function SchoolShortlistPanel({
 
       {showAdd && (
         <div className="sv-modal-back" onClick={() => !busy && setShowAdd(false)}>
-          <form className="sv-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} onSubmit={handleAdd}>
+          <form className={"sv-modal" + (visit?.family ? " is-wide" : "")} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} onSubmit={handleAdd}>
             <h3>Shortlist a school</h3>
+            {visit?.family && (
+              <>
+                <SuggestedSchools
+                  family={visit.family}
+                  familyChildren={children}
+                  currentSchools={currentSchools}
+                  onAccept={handleAcceptSuggestion}
+                  busy={busy}
+                />
+                <div className="sg-divider">or choose any school</div>
+              </>
+            )}
             {addableSchools.length === 0 ? (
               <p className="sv-hint" style={{ margin: 0 }}>Every school in the list is already on this family's shortlist.</p>
             ) : (
