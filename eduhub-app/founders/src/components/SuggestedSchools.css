@@ -29,3 +29,8 @@
 .sugg-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
 .sugg-tab { padding: 6px 14px; border: 1px solid #d5d9e1; border-radius: 999px; background: #fff; font: inherit; font-size: 13px; cursor: pointer; }
 .sugg-tab.is-active { background: #4a0f2b; border-color: #4a0f2b; color: #fff; }
+
+.sugg-held { margin-top: 14px; padding: 12px; background: #fbf6e9; border: 1px solid #efe1b8; border-radius: 10px; }
+.sugg-held-head { margin-bottom: 8px; font-size: 14px; }
+.sugg-row.is-held { background: #fff; }
+.sugg-heldmeta { margin-top: 4px; font-size: 12px; font-weight: 600; color: #92400e; }

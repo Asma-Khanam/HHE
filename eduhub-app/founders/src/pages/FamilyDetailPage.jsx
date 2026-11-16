@@ -1115,7 +1115,6 @@ export default function FamilyDetailPage() {
       {activeTab === "visits" && (
         <div className="family-detail-stack">
           <SuggestedSchools
-            key={`sugg-${suggestKey}`}
             family={family}
             familyChildren={children}
             currentSchools={currentSchools}
@@ -1125,7 +1124,7 @@ export default function FamilyDetailPage() {
             }}
           />
           <SchoolShortlistPanel
-            key={`short-${suggestKey}`}
+            reloadSignal={suggestKey}
             familyId={family.id}
             familyChildren={children}
             applicationsByChild={applicationsByChild}

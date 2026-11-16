@@ -195,7 +195,7 @@ export function suggestForChild({ family, child, currentSchool, schools = [], sk
     (a, b) =>
       (b.score ?? -1) - (a.score ?? -1) || b.signals - a.signals || a.school.name.localeCompare(b.school.name)
   );
-  return { items: out, missingFamily };
+  return { items: out, missingFamily, ranked: possible > 0 };
 }
 
 // Schools that work for every child, with the average of their scores. A school that is

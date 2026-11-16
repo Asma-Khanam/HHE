@@ -1663,14 +1663,20 @@ export async function listFeedbackForSchool(schoolId) {
   }));
 }
 
-export async function addToShortlist({ familyId, schoolId, keepOpen }) {
-  return unwrap(
-    await supabase
+export async function addToShortlist({ familyId, schoolId, keepOpen, addedVia, suggestionScore }) {
+  const base = { family_id: familyId, school_id: schoolId, ...(keepOpen ? { keep_open: true } : {}) };
+  if (addedVia === "suggested") {
+    // Addendum 163 records that it came from the Suggested schools card. If that hasn't been run
+    // yet, the school is still added, just without the note.
+    const withVia = await supabase
       .from("school_shortlist")
-      .insert({ family_id: familyId, school_id: schoolId, ...(keepOpen ? { keep_open: true } : {}) })
+      .insert({ ...base, added_via: "suggested", suggestion_score: suggestionScore ?? null })
       .select()
-      .single()
-  );
+      .single();
+    if (!withVia.error) return withVia.data;
+    if (!/added_via|suggestion_score/.test(withVia.error.message || "")) throw withVia.error;
+  }
+  return unwrap(await supabase.from("school_shortlist").insert(base).select().single());
 }
 
 export async function updateShortlistEntry(shortlistId, patch) {

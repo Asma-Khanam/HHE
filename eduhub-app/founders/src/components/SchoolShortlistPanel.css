@@ -1226,3 +1226,6 @@ fieldset.svt-closed-detail {
 /* Withdraw: same size as Delete school, gold instead of red. */
 .svt-withdraw-btn { color:#7a5a12; border-color:#d8c48a; background:#fff; }
 .svt-withdraw-btn:hover { background:#fbf8ef; }
+
+.sv-via { color: #6b7280; }
+.sv-via.is-suggested { color: #4a0f2b; font-weight: 600; }

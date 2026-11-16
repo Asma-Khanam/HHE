@@ -5,6 +5,7 @@ import {
   listShortlistForFamily,
   addToShortlist,
   listSuggestionDecisions,
+  listStaff,
   setSuggestionDecision,
   clearSuggestionDecision,
   friendlyError,
@@ -31,8 +32,13 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
   const [rejecting, setRejecting] = useState(null);
   const [reason, setReason] = useState("");
   const [open, setOpen] = useState(true);
-  const [showHeld, setShowHeld] = useState(false);
   const [tab, setTab] = useState(kids.length > 1 ? TOGETHER : kids[0]?.id || TOGETHER);
+  const [staffByUser, setStaffByUser] = useState({});
+  useEffect(() => {
+    listStaff()
+      .then((rows) => setStaffByUser(Object.fromEntries((rows || []).map((s) => [s.user_id, s.full_name || s.email]))))
+      .catch(() => {});
+  }, []);
 
   async function load() {
     try {
@@ -85,43 +91,65 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
   const scopeChildId = activeChild ? activeChild.id : null;
   const items = activeChild ? perChild.find((r) => r.child.id === activeChild.id)?.items || [] : together;
   const missingFamily = perChild[0]?.missingFamily || [];
+  const ranked = activeChild ? !!perChild.find((r) => r.child.id === activeChild.id)?.ranked : perChild.some((r) => r.ranked);
 
   const isHeld = (item) => (activeChild ? decidedFor(item.school.id, activeChild.id, "held") : decidedAnywhere(item.school.id, "held"));
   const active = items.filter((i) => !isHeld(i));
   const held = items.filter(isHeld);
   const shown = active.slice(0, SHOW);
 
+  // Everything below updates the lists in place, with no reload of the schools, so the card
+  // doesn't flash or jump when you press a button.
+  const sameScope = (d, schoolId) => d.school_id === schoolId && (d.child_id || null) === (scopeChildId || null);
   async function run(schoolId, fn) {
     setBusyId(schoolId);
     setError("");
     try {
       await fn();
-      await load();
     } catch (err) {
       setError(friendlyError(err, "That didn't save. Try again."));
     } finally {
       setBusyId(null);
     }
   }
-  const accept = (s) =>
-    run(s.id, async () => {
-      await addToShortlist({ familyId: family.id, schoolId: s.id });
+  const putDecision = (row) => setDecisions((ds) => [...ds.filter((d) => !sameScope(d, row.school_id)), row]);
+  const accept = (item) =>
+    run(item.school.id, async () => {
+      await addToShortlist({ familyId: family.id, schoolId: item.school.id, addedVia: "suggested", suggestionScore: item.score });
+      setShortlistIds((ids) => new Set([...ids, item.school.id]));
       onShortlistChanged?.();
     });
-  const hold = (s) => run(s.id, () => setSuggestionDecision({ familyId: family.id, schoolId: s.id, childId: scopeChildId, decision: "held" }));
-  const unhold = (s) => run(s.id, () => clearSuggestionDecision(family.id, s.id, scopeChildId));
-  const reject = (s) =>
-    run(s.id, async () => {
-      await setSuggestionDecision({ familyId: family.id, schoolId: s.id, childId: scopeChildId, decision: "rejected", reason: reason.trim() });
+  const hold = (item) =>
+    run(item.school.id, async () => {
+      putDecision(await setSuggestionDecision({ familyId: family.id, schoolId: item.school.id, childId: scopeChildId, decision: "held" }));
+    });
+  const unhold = (item) =>
+    run(item.school.id, async () => {
+      await clearSuggestionDecision(family.id, item.school.id, scopeChildId);
+      setDecisions((ds) => ds.filter((d) => !sameScope(d, item.school.id)));
+    });
+  const reject = (item) =>
+    run(item.school.id, async () => {
+      putDecision(
+        await setSuggestionDecision({ familyId: family.id, schoolId: item.school.id, childId: scopeChildId, decision: "rejected", reason: reason.trim() })
+      );
       setRejecting(null);
       setReason("");
     });
+
+  const heldInfo = (item) => {
+    const d = decisions.find((x) => x.school_id === item.school.id && x.decision === "held" && (!activeChild || !x.child_id || x.child_id === activeChild.id));
+    if (!d) return "";
+    const who = staffByUser[d.decided_by];
+    const when = d.decided_at ? new Date(d.decided_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
+    return `On hold${who ? ` by ${who}` : ""}${when ? ` · ${when}` : ""}`;
+  };
 
   function renderRow(item, heldRow) {
     const s = item.school;
     const busy = busyId === s.id;
     return (
-      <li className="sugg-row" key={s.id}>
+      <li className={"sugg-row" + (heldRow ? " is-held" : "")} key={s.id}>
         <div className="sugg-main">
           <div className="sugg-head">
             <Link to={`/staff/schools/${s.id}`} className="sugg-name">
@@ -153,6 +181,7 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
             {item.basedOn.length > 0 ? `Based on ${item.basedOn.join(", ")}.` : "Nothing to score on yet."}
             {item.missing.length > 0 && ` Missing on the school: ${item.missing.join(", ")}.`}
           </div>
+          {heldRow && <div className="sugg-heldmeta">{heldInfo(item)}</div>}
           {rejecting === s.id && (
             <div className="sugg-reject">
               <input
@@ -166,7 +195,7 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
               />
-              <button type="button" className="panel-btn panel-btn-primary" disabled={busy} onClick={() => reject(s)}>
+              <button type="button" className="panel-btn panel-btn-primary" disabled={busy} onClick={() => reject(item)}>
                 Reject
               </button>
               <button type="button" className="panel-btn" onClick={() => { setRejecting(null); setReason(""); }}>
@@ -177,18 +206,18 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
         </div>
         <div className="sugg-actions">
           {heldRow ? (
-            <button type="button" className="panel-btn" disabled={busy} onClick={() => unhold(s)}>
+            <button type="button" className="panel-btn" disabled={busy} onClick={() => unhold(item)}>
               Back to list
             </button>
           ) : (
-            <button type="button" className="panel-btn" disabled={busy} onClick={() => hold(s)}>
+            <button type="button" className="panel-btn" disabled={busy} onClick={() => hold(item)}>
               Hold
             </button>
           )}
           <button type="button" className="panel-btn" disabled={busy} onClick={() => { setRejecting(s.id); setReason(""); }}>
             Reject
           </button>
-          <button type="button" className="panel-btn panel-btn-primary" disabled={busy} onClick={() => accept(s)}>
+          <button type="button" className="panel-btn panel-btn-primary" disabled={busy} onClick={() => accept(item)}>
             Accept
           </button>
         </div>
@@ -232,14 +261,20 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
             Accept adds the school to the shortlist. Nothing is added until you click.
           </p>
           {missingFamily.length > 0 && <p className="sugg-missing">Add to the family record for better matches: {missingFamily.join(", ")}.</p>}
-          {schools !== null && active.length === 0 && <p className="sugg-empty">No new suggestions on this tab right now.</p>}
-          <ul className="sugg-list">{shown.map((item) => renderRow(item, false))}</ul>
+          {schools !== null && !ranked && (
+            <p className="sugg-empty">
+              Nothing to rank with yet. Fill in the missing details above on the family record and the best 5 will show here.
+            </p>
+          )}
+          {schools !== null && ranked && active.length === 0 && <p className="sugg-empty">No new suggestions on this tab right now.</p>}
+          {ranked && <ul className="sugg-list">{shown.map((item) => renderRow(item, false))}</ul>}
           {held.length > 0 && (
             <div className="sugg-held">
-              <button type="button" className="sugg-more" onClick={() => setShowHeld((v) => !v)}>
-                {showHeld ? "Hide" : "Show"} on hold ({held.length})
-              </button>
-              {showHeld && <ul className="sugg-list">{held.map((item) => renderRow(item, true))}</ul>}
+              <div className="sugg-held-head">
+                <strong>On hold</strong>
+                <span className="sugg-sub"> · {held.length} parked for later, not in the top 5</span>
+              </div>
+              <ul className="sugg-list">{held.map((item) => renderRow(item, true))}</ul>
             </div>
           )}
         </div>

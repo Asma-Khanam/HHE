@@ -122,6 +122,7 @@ export default function SchoolShortlistPanel({
   onProgressChange,
   focusSchoolId,
   visit,
+  reloadSignal,
 }) {
   const [rows, setRows] = useState([]);
   const [livingArea, setLivingArea] = useState("");
@@ -158,8 +159,10 @@ export default function SchoolShortlistPanel({
   const children = familyChildren || [];
   const blocked = visit?.blocked || [];
 
-  async function load() {
-    setLoading(true);
+  // quiet: refresh in place without swapping the panel for "Loading…" (used when the Suggested
+  // schools card adds a school, so the page doesn't jump).
+  async function load(quiet) {
+    if (!quiet) setLoading(true);
     setError("");
     try {
       const [shortlist, schools] = await Promise.all([listShortlistForFamily(familyId), listSchools()]);
@@ -194,6 +197,11 @@ export default function SchoolShortlistPanel({
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (reloadSignal) load(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadSignal]);
 
   useEffect(() => {
     load();
@@ -1612,6 +1620,13 @@ export default function SchoolShortlistPanel({
                           {row.priority === "primary" ? "★ Primary choice" : row.priority === "secondary" ? "Backup choice" : row.school?.area || ""}
                           {kidsPlacedHere.length > 0 && ` · 🎓 Placed: ${kidsPlacedHere.map(childName).join(", ")}`}
                           <TravelCostChips school={row.school} livingArea={livingArea} />
+                          {row.added_via === "suggested" ? (
+                            <span className="sv-via is-suggested" title="Accepted from the Suggested schools card">
+                              {" · "}Suggested{row.suggestion_score != null ? ` (${row.suggestion_score}% fit)` : ""}
+                            </span>
+                          ) : (
+                            <span className="sv-via" title="Chosen by a consultant"> · Chosen by consultant</span>
+                          )}
                         </div>
                       </div>
                       <div>{availabilityCell(row, child)}</div>
