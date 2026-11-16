@@ -3023,6 +3023,30 @@ export async function syncEmailsNow(onState = () => {}) {
   return "slow";
 }
 
+// A quiet sync start, used while someone has the Emails page open so new mail
+// arrives within a few minutes instead of waiting for the 30-minute schedule.
+// It never waits for the result, and it will not start more than one every few minutes.
+export async function kickEmailSync(minGapMs = 90 * 1000) {
+  try {
+    const last = Number(localStorage.getItem("hh.emailSyncKick") || 0);
+    if (Date.now() - last < minGapMs) return false;
+    localStorage.setItem("hh.emailSyncKick", String(Date.now()));
+  } catch {
+    /* private window: carry on without the gap check */
+  }
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return false;
+    const res = await fetch("/api/sync-emails", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 // Delete / Archive / Spam / Restore on the Emails tab: moves the email in Titan and here.
 export async function moveEmailTo(kind, id, to) {
   const { data: { session } } = await supabase.auth.getSession();

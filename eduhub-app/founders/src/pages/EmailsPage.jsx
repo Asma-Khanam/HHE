@@ -17,6 +17,7 @@ import {
   markUnmatchedRead,
   listAllEmails,
   syncEmailsNow,
+  kickEmailSync,
   listFamilyChoices,
   listUnmatchedEmails,
   updateCaseNote,
@@ -328,6 +329,16 @@ export default function EmailsPage() {
     }, 60000);
     return () => clearInterval(t);
   }, [load]);
+  // While this page is open, ask for a Titan sync when it opens and then every 5 minutes, so
+  // replies that arrive in Titan show up here within a few minutes (the schedule alone is 30).
+  useEffect(() => {
+    const go = () => {
+      if (document.visibilityState === "visible") kickEmailSync();
+    };
+    go();
+    const t = setInterval(go, 2 * 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
   const [failures, setFailures] = useState([]);
   const [showFailures, setShowFailures] = useState(false);
   const [syncState, setSyncState] = useState("");
