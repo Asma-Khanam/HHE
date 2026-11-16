@@ -263,11 +263,12 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
           {missingFamily.length > 0 && <p className="sugg-missing">Add to the family record for better matches: {missingFamily.join(", ")}.</p>}
           {schools !== null && !ranked && (
             <p className="sugg-empty">
-              Nothing to rank with yet. Fill in the missing details above on the family record and the best 5 will show here.
+              Not ranked yet, because the family record has nothing to rank on. These are the schools with the most complete records.
+              Fill in the missing details above and they'll be ordered for this family.
             </p>
           )}
-          {schools !== null && ranked && active.length === 0 && <p className="sugg-empty">No new suggestions on this tab right now.</p>}
-          {ranked && <ul className="sugg-list">{shown.map((item) => renderRow(item, false))}</ul>}
+          {schools !== null && active.length === 0 && <p className="sugg-empty">No new suggestions on this tab right now.</p>}
+          <ul className="sugg-list">{shown.map((item) => renderRow(item, false))}</ul>
           {held.length > 0 && (
             <div className="sugg-held">
               <div className="sugg-held-head">

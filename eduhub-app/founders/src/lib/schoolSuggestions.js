@@ -180,9 +180,14 @@ export function suggestForChild({ family, child, currentSchool, schools = [], sk
       if (pPoints === W.priorities) reasons.push("Fits what they ranked highest");
     }
 
+    // How much of this school's own record is filled in. Used only to order schools when the
+    // family has nothing to rank on, so the five shown are the ones with the most to go on.
+    const completeness = [from !== null, !!(school.area || school.latitude), !!school.curriculum, !!school.inclusion_level].filter(Boolean).length;
+
     out.push({
       school,
       score: possible ? Math.round((points / possible) * 100) : null,
+      completeness,
       signals: basedOn.length,
       reasons,
       cautions,
@@ -193,7 +198,7 @@ export function suggestForChild({ family, child, currentSchool, schools = [], sk
 
   out.sort(
     (a, b) =>
-      (b.score ?? -1) - (a.score ?? -1) || b.signals - a.signals || a.school.name.localeCompare(b.school.name)
+      (b.score ?? -1) - (a.score ?? -1) || b.signals - a.signals || b.completeness - a.completeness || a.school.name.localeCompare(b.school.name)
   );
   return { items: out, missingFamily, ranked: possible > 0 };
 }
@@ -213,12 +218,13 @@ export function suggestTogether(perChild) {
       school: item.school,
       score: scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null,
       signals: Math.min(...all.map((x) => x.signals)),
+      completeness: Math.min(...all.map((x) => x.completeness)),
       reasons: [...new Set(all.flatMap((x) => x.reasons))],
       cautions: [...new Set(all.flatMap((x) => x.cautions))],
       basedOn: [...new Set(all.flatMap((x) => x.basedOn))],
       missing: [...new Set(all.flatMap((x) => x.missing))],
     });
   }
-  out.sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || b.signals - a.signals || a.school.name.localeCompare(b.school.name));
+  out.sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || b.signals - a.signals || b.completeness - a.completeness || a.school.name.localeCompare(b.school.name));
   return out;
 }
