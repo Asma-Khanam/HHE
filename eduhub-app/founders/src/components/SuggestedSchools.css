@@ -26,3 +26,6 @@
   .sugg-actions { width: 100%; }
   .sugg-actions .panel-btn { flex: 1; }
 }
+.sugg-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.sugg-tab { padding: 6px 14px; border: 1px solid #d5d9e1; border-radius: 999px; background: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+.sugg-tab.is-active { background: #4a0f2b; border-color: #4a0f2b; color: #fff; }

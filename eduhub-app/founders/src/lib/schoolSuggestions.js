@@ -1,5 +1,4 @@
-import { commuteEstimate } from "./travelCost";
-import { yearGroupsFor } from "./yearGroups";
+import { commuteEstimate, findArea } from "./travelCost";
 
 // Suggested schools for a family, worked out from what is already on their
 // record: fee range, where they plan to live, each child's SEN answers, their
@@ -46,157 +45,180 @@ export const childHasSen = (child) => {
 
 const INCLUSION_POINTS = { extensive: 10, moderate: 7, limited: 2, none: 0 };
 
-export function suggestSchools({ family, children = [], currentSchools = [], schools = [], skipIds = new Set(), cutoff }) {
+// Emirate the family is looking in: any emirate named in "where they plan to live",
+// otherwise Dubai (the Relocate service is for Dubai). A school with no emirate recorded
+// is kept, so a missing record never hides a school.
+const EMIRATE_NAMES = ["Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain", "Dubai"];
+export function targetEmirate(area) {
+  const t = String(area || "").toLowerCase();
+  return EMIRATE_NAMES.find((e) => t.includes(e.toLowerCase())) || "Dubai";
+}
+
+// One child's suggestions. Each signal has a weight. The score is the points a school earns
+// out of the weights that apply to THIS family (fee range known, area known, curriculum known,
+// SEN, priorities), so a school with missing records scores lower, never higher: a school
+// with only its curriculum known can't reach 100%.
+export function suggestForChild({ family, child, currentSchool, schools = [], skipIds = new Set() }) {
   const fee = parseFeeRange(family?.comfortable_fee_range);
   const area = family?.preferred_living_area || "";
-  const priorities = Array.isArray(family?.school_priorities) ? family.school_priorities : [];
-  const senKids = children.filter(childHasSen);
+  const emirate = targetEmirate(area);
+  const top = (Array.isArray(family?.school_priorities) ? family.school_priorities : []).slice(0, 3);
+  const hasSen = childHasSen(child);
+  const wanted = new Set(curriculumKey(currentSchool?.curriculum));
 
-  const wanted = new Set();
-  for (const cs of currentSchools) for (const k of curriculumKey(cs?.curriculum)) wanted.add(k);
+  // Weights that apply to this child at all.
+  const W = {
+    fee: fee ? 30 : 0,
+    travel: findArea(area) ? 25 : 0,
+    curriculum: wanted.size ? 20 : 0,
+    inclusion: hasSen ? 10 : 0,
+  };
+  const prioParts = top.filter((p) => /SEN and learning support|Value for money|Proximity to home/i.test(p));
+  W.priorities = prioParts.length * 5;
+  const possible = Object.values(W).reduce((a, b) => a + b, 0);
 
-  const yearLabels = children
-    .map((c) => yearGroupsFor(c, family, cutoff).applying)
-    .filter(Boolean);
+  const missingFamily = [
+    !fee ? "comfortable fee range" : null,
+    !area ? "where they plan to live" : null,
+    !wanted.size ? "current school's curriculum" : null,
+  ].filter(Boolean);
 
   const out = [];
   for (const school of schools) {
     if (skipIds.has(school.id)) continue;
-    if (school.emirate === "Outside UAE") continue;
+    if (school.emirate && school.emirate !== emirate) continue;
+    if (hasSen && school.inclusion_level === "none") continue;
 
     const reasons = [];
     const cautions = [];
     const basedOn = [];
     const missing = [];
     let points = 0;
-    let possible = 0;
 
-    // --- Hard filter: SEN support ------------------------------------------
-    if (senKids.length && school.inclusion_level === "none") continue;
-
-    // --- Fees (30) ----------------------------------------------------------
+    // Fees (30)
     const from = num(school.tuition_from);
     const to = num(school.tuition_to) ?? from;
-    if (fee && from !== null) {
-      possible += 30;
-      basedOn.push("fees");
-      if (from > fee.hi) continue; // even the cheapest year group is over their ceiling
-      if (to <= fee.hi && to >= fee.lo * 0.6) {
-        points += 30;
-        reasons.push(`Fees (AED ${aed(from)}${to !== from ? `–${aed(to)}` : ""}) sit inside their range`);
-      } else if (to <= fee.hi) {
-        points += 24;
-        reasons.push(`Fees (AED ${aed(from)}${to !== from ? `–${aed(to)}` : ""}) are below their range`);
-      } else {
-        points += 16;
-        cautions.push(`Upper year groups (AED ${aed(to)}) go above their range`);
+    if (W.fee) {
+      if (from === null) missing.push("school fees");
+      else {
+        basedOn.push("fees");
+        if (from > fee.hi) continue; // cheapest year group is already over their ceiling
+        const label = `AED ${aed(from)}${to !== from ? `–${aed(to)}` : ""}`;
+        if (to <= fee.hi && to >= fee.lo * 0.6) {
+          points += 30;
+          reasons.push(`Fees (${label}) sit inside their range`);
+        } else if (to <= fee.hi) {
+          points += 24;
+          reasons.push(`Fees (${label}) are below their range`);
+        } else {
+          points += 16;
+          cautions.push(`Upper year groups (AED ${aed(to)}) go above their range`);
+        }
       }
-    } else {
-      if (!fee) missing.push("family fee range");
-      else missing.push("school fees");
     }
 
-    // --- Travel (25) --------------------------------------------------------
-    const trip = commuteEstimate(area, school);
-    if (trip) {
-      possible += 25;
-      basedOn.push("travel");
-      if (trip.minutes <= 20) {
-        points += 25;
-        reasons.push(`About ${trip.minutes} min from ${trip.from}`);
-      } else if (trip.minutes <= 30) {
-        points += 18;
-        reasons.push(`About ${trip.minutes} min from ${trip.from}`);
-      } else if (trip.minutes <= 45) {
-        points += 8;
-        cautions.push(`${trip.minutes} min from ${trip.from} at school-run speed`);
-      } else {
-        cautions.push(`Long school run: about ${trip.minutes} min from ${trip.from}`);
+    // Travel (25)
+    const trip = W.travel ? commuteEstimate(area, school) : null;
+    if (W.travel) {
+      if (!trip) missing.push("school area");
+      else {
+        basedOn.push("travel");
+        if (trip.minutes <= 20) {
+          points += 25;
+          reasons.push(`About ${trip.minutes} min from ${trip.from}`);
+        } else if (trip.minutes <= 30) {
+          points += 18;
+          reasons.push(`About ${trip.minutes} min from ${trip.from}`);
+        } else if (trip.minutes <= 45) {
+          points += 8;
+          cautions.push(`${trip.minutes} min from ${trip.from} at school-run speed`);
+        } else {
+          cautions.push(`Long school run: about ${trip.minutes} min from ${trip.from}`);
+        }
       }
-    } else {
-      missing.push(area ? "school area" : "where they plan to live");
     }
 
-    // --- Curriculum (20) ----------------------------------------------------
-    const have = curriculumKey(school.curriculum);
-    if (wanted.size && have.length) {
-      possible += 20;
-      basedOn.push("curriculum");
-      const hit = have.find((k) => wanted.has(k));
-      if (hit) {
-        points += 20;
-        reasons.push(`${school.curriculum} matches their child's current curriculum`);
-      } else {
-        points += 4;
-        cautions.push(`${school.curriculum} is a different curriculum from their current school`);
+    // Curriculum (20)
+    if (W.curriculum) {
+      const have = curriculumKey(school.curriculum);
+      if (!have.length) missing.push("school curriculum");
+      else {
+        basedOn.push("curriculum");
+        if (have.some((k) => wanted.has(k))) {
+          points += 20;
+          reasons.push(`${school.curriculum} matches their current curriculum`);
+        } else {
+          points += 4;
+          cautions.push(`${school.curriculum} is a different curriculum from their current school`);
+        }
       }
-    } else {
-      missing.push(wanted.size ? "school curriculum" : "child's current curriculum");
     }
 
-    // --- Inclusion (10), only when a child has SEN ---------------------------
-    if (senKids.length) {
-      if (school.inclusion_level) {
-        possible += 10;
+    // Inclusion (10), only when this child has SEN
+    if (W.inclusion) {
+      if (!school.inclusion_level) missing.push("school inclusion level");
+      else {
         basedOn.push("inclusion");
         points += INCLUSION_POINTS[school.inclusion_level] ?? 0;
-        if (school.inclusion_level === "extensive" || school.inclusion_level === "moderate") {
+        if (["extensive", "moderate"].includes(school.inclusion_level)) {
           reasons.push(`${school.inclusion_level[0].toUpperCase()}${school.inclusion_level.slice(1)} inclusion support`);
         } else {
           cautions.push("Only limited inclusion support");
         }
-      } else {
-        missing.push("school inclusion level");
       }
     }
 
-    // --- Priorities (15) ----------------------------------------------------
-    const top = priorities.slice(0, 3);
-    if (top.length) {
-      let p = 0;
-      let counted = 0;
-      for (const pr of top) {
-        if (/SEN and learning support/i.test(pr) && school.inclusion_level) {
-          counted += 5;
-          if (["moderate", "extensive"].includes(school.inclusion_level)) p += 5;
-        } else if (/Value for money/i.test(pr) && from !== null && fee) {
-          counted += 5;
-          if (to <= fee.lo + (fee.hi - fee.lo) * 0.6) p += 5;
-        } else if (/Proximity to home/i.test(pr) && trip) {
-          counted += 5;
-          if (trip.minutes <= 25) p += 5;
-        }
-      }
-      if (counted) {
-        possible += counted;
-        points += p;
-        basedOn.push("their top priorities");
-        if (p === counted) reasons.push("Fits what they ranked highest");
-      }
+    // Priorities (5 each for the top three that can be checked)
+    let pPoints = 0;
+    for (const pr of prioParts) {
+      if (/SEN and learning support/i.test(pr) && school.inclusion_level && ["moderate", "extensive"].includes(school.inclusion_level)) pPoints += 5;
+      else if (/Value for money/i.test(pr) && from !== null && fee && to <= fee.lo + (fee.hi - fee.lo) * 0.6) pPoints += 5;
+      else if (/Proximity to home/i.test(pr) && trip && trip.minutes <= 25) pPoints += 5;
+    }
+    if (W.priorities) {
+      points += pPoints;
+      if (pPoints === W.priorities) reasons.push("Fits what they ranked highest");
     }
 
-    if (!possible) {
-      // Nothing to score on: show it low down with everything missing.
-      out.push({ school, score: null, reasons, cautions, basedOn, missing });
-      continue;
-    }
-    out.push({ school, score: Math.round((points / possible) * 100), reasons, cautions, basedOn, missing });
+    out.push({
+      school,
+      score: possible ? Math.round((points / possible) * 100) : null,
+      signals: basedOn.length,
+      reasons,
+      cautions,
+      basedOn,
+      missing,
+    });
   }
 
-  out.sort((a, b) => {
-    if (a.score === null && b.score === null) return a.school.name.localeCompare(b.school.name);
-    if (a.score === null) return 1;
-    if (b.score === null) return -1;
-    return b.score - a.score || a.school.name.localeCompare(b.school.name);
-  });
+  out.sort(
+    (a, b) =>
+      (b.score ?? -1) - (a.score ?? -1) || b.signals - a.signals || a.school.name.localeCompare(b.school.name)
+  );
+  return { items: out, missingFamily };
+}
 
-  return {
-    suggestions: out,
-    yearLabels,
-    familyMissing: [
-      !fee ? "comfortable fee range" : null,
-      !area ? "where they plan to live" : null,
-      !wanted.size ? "current school's curriculum" : null,
-    ].filter(Boolean),
-  };
+// Schools that work for every child, with the average of their scores. A school that is
+// ruled out for any one child (SEN, fees, emirate) can't be a "together" school.
+export function suggestTogether(perChild) {
+  if (perChild.length < 2) return [];
+  const maps = perChild.map((r) => new Map(r.items.map((i) => [i.school.id, i])));
+  const first = perChild[0].items;
+  const out = [];
+  for (const item of first) {
+    const all = maps.map((m) => m.get(item.school.id));
+    if (all.some((x) => !x)) continue;
+    const scores = all.map((x) => x.score).filter((s) => s !== null);
+    out.push({
+      school: item.school,
+      score: scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null,
+      signals: Math.min(...all.map((x) => x.signals)),
+      reasons: [...new Set(all.flatMap((x) => x.reasons))],
+      cautions: [...new Set(all.flatMap((x) => x.cautions))],
+      basedOn: [...new Set(all.flatMap((x) => x.basedOn))],
+      missing: [...new Set(all.flatMap((x) => x.missing))],
+    });
+  }
+  out.sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || b.signals - a.signals || a.school.name.localeCompare(b.school.name));
+  return out;
 }

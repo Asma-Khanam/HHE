@@ -3301,20 +3301,22 @@ export async function listSuggestionDecisions(familyId) {
   return unwrap(await supabase.from("school_suggestion_decisions").select("*").eq("family_id", familyId)) || [];
 }
 
-// decision: 'accepted' | 'rejected' | 'held'. The database stamps who and when.
-export async function setSuggestionDecision({ familyId, schoolId, decision, reason }) {
+// decision: 'accepted' | 'rejected' | 'held'. childId empty = the whole family (the Together
+// tab); set = just that child (addendum 162). One decision per school per scope, so this replaces
+// any earlier one. The database stamps who and when.
+export async function setSuggestionDecision({ familyId, schoolId, childId, decision, reason }) {
+  await clearSuggestionDecision(familyId, schoolId, childId);
   return unwrap(
     await supabase
       .from("school_suggestion_decisions")
-      .upsert(
-        { family_id: familyId, school_id: schoolId, decision, reason: reason || null },
-        { onConflict: "family_id,school_id" }
-      )
+      .insert({ family_id: familyId, school_id: schoolId, child_id: childId || null, decision, reason: reason || null })
       .select()
       .single()
   );
 }
 
-export async function clearSuggestionDecision(familyId, schoolId) {
-  return unwrap(await supabase.from("school_suggestion_decisions").delete().eq("family_id", familyId).eq("school_id", schoolId));
+export async function clearSuggestionDecision(familyId, schoolId, childId) {
+  let q = supabase.from("school_suggestion_decisions").delete().eq("family_id", familyId).eq("school_id", schoolId);
+  q = childId ? q.eq("child_id", childId) : q.is("child_id", null);
+  return unwrap(await q);
 }
