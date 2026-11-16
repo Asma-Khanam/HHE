@@ -9,6 +9,7 @@ import ApplicationEmailPanel from "../components/ApplicationEmailPanel";
 import PersonAvatar, { findProfilePhoto } from "../components/PersonAvatar";
 import ApplicationsPanel from "../components/ApplicationsPanel";
 import SchoolShortlistPanel from "../components/SchoolShortlistPanel";
+import SuggestedSchools from "../components/SuggestedSchools";
 import SchoolEnquiryDrafts from "../components/SchoolEnquiryDrafts";
 import TasksPanel from "../components/TasksPanel";
 import DocumentVaultPanel from "../components/DocumentVaultPanel";
@@ -529,6 +530,7 @@ export default function FamilyDetailPage() {
   // tour slot review watches so it reloads when the shortlist below changes.
   const [blockedTimes, setBlockedTimes] = useState([]);
   const [reviewKey, setReviewKey] = useState(0);
+  const [suggestKey, setSuggestKey] = useState(0);
   function goToApplications(schoolId) {
     setFocusSchoolId(schoolId || null);
     setActiveTab("applications");
@@ -1112,7 +1114,18 @@ export default function FamilyDetailPage() {
 
       {activeTab === "visits" && (
         <div className="family-detail-stack">
+          <SuggestedSchools
+            key={`sugg-${suggestKey}`}
+            family={family}
+            familyChildren={children}
+            currentSchools={currentSchools}
+            onShortlistChanged={() => {
+              setSuggestKey((k) => k + 1);
+              refreshStages();
+            }}
+          />
           <SchoolShortlistPanel
+            key={`short-${suggestKey}`}
             familyId={family.id}
             familyChildren={children}
             applicationsByChild={applicationsByChild}

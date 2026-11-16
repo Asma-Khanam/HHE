@@ -3292,3 +3292,29 @@ export async function listFamilyActionRows(familyId) {
   ]);
   return { rows, suggestions, offers };
 }
+
+// ---------------------------------------------------------------------------
+// Suggested schools (addendum 161): what staff decided for each suggestion.
+// ---------------------------------------------------------------------------
+
+export async function listSuggestionDecisions(familyId) {
+  return unwrap(await supabase.from("school_suggestion_decisions").select("*").eq("family_id", familyId)) || [];
+}
+
+// decision: 'accepted' | 'rejected' | 'held'. The database stamps who and when.
+export async function setSuggestionDecision({ familyId, schoolId, decision, reason }) {
+  return unwrap(
+    await supabase
+      .from("school_suggestion_decisions")
+      .upsert(
+        { family_id: familyId, school_id: schoolId, decision, reason: reason || null },
+        { onConflict: "family_id,school_id" }
+      )
+      .select()
+      .single()
+  );
+}
+
+export async function clearSuggestionDecision(familyId, schoolId) {
+  return unwrap(await supabase.from("school_suggestion_decisions").delete().eq("family_id", familyId).eq("school_id", schoolId));
+}

@@ -16,6 +16,7 @@ import { relativeDay } from "../lib/workflow";
 import { displayNameForChild } from "../lib/completeness";
 import GenericDocumentsPanel from "../components/GenericDocumentsPanel";
 import AutosaveField from "../components/Autosave";
+import SchoolAcademicsPanel from "../components/SchoolAcademicsPanel";
 import { EMIRATE_CHOICES } from "../data/emirates";
 import SchoolContactsPanel from "../components/SchoolContactsPanel";
 import SchoolFeedbackPanel from "../components/SchoolFeedbackPanel";
@@ -955,10 +956,16 @@ export default function SchoolDetailPage() {
       )}
 
       {tab === "record" && (
-        <SchoolContactsPanel
-          school={school}
-          onSchoolChange={(patch) => setDetail((d) => ({ ...d, school: { ...d.school, ...patch } }))}
-        />
+        <>
+          <SchoolContactsPanel
+            school={school}
+            onSchoolChange={(patch) => setDetail((d) => ({ ...d, school: { ...d.school, ...patch } }))}
+          />
+          <SchoolAcademicsPanel
+            school={school}
+            onSchoolChange={(patch) => setDetail((d) => ({ ...d, school: { ...d.school, ...patch } }))}
+          />
+        </>
       )}
 
       {tab === "notes" && (

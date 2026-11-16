@@ -23,6 +23,7 @@
 //   --commit             write to Supabase (otherwise a dry run)
 //   --keep-unmatched     also keep emails that match no family in "Untracked emails"
 //                        (off by default so newsletters etc. don't flood that list)
+//   --no-skip-known      download every email in the window, even ones already filed (slower)
 //   --folders a,b        mailbox names to read (default: Inbox and Sent, found automatically)
 //
 // How an email is matched to a family, in this order:
@@ -215,7 +216,29 @@ for (const box of chosen) {
     const uids = await client.search({ since: SINCE }, { uid: true });
     console.log(`  ${box.path}: ${uids.length} emails`);
     if (!uids.length) continue;
-    for await (const m of client.fetch(uids.join(","), { source: true, internalDate: true }, { uid: true })) {
+    // Quick first pass: read only the Message-ID of each email, and download the full email only when
+    // the site does not already have it filed in this same folder. A run used to download every email
+    // from the last few days every time, which is what made the sync slow. If this pass fails for any
+    // reason, every email is downloaded as before.
+    let want = uids;
+    if (!has("--no-skip-known")) {
+      try {
+        const fresh = [];
+        for await (const m of client.fetch(uids.join(","), { envelope: true }, { uid: true })) {
+          const k = plain(m.envelope?.messageId);
+          const known = k ? existingByMsg.get(k) : null;
+          const filed = known?.some((ex) => ex.table === "case_notes" && (!FOLDERS_ON || ex.folder === box.mbox));
+          if (!filed) fresh.push(m.uid);
+        }
+        want = fresh;
+        console.log(`  ${box.path}: ${uids.length - fresh.length} already filed, ${fresh.length} to read`);
+      } catch (e) {
+        console.warn(`  ${box.path}: quick check failed (${e.message}), reading everything`);
+        want = uids;
+      }
+    }
+    if (!want.length) continue;
+    for await (const m of client.fetch(want.join(","), { source: true, internalDate: true }, { uid: true })) {
       try {
         const parsed = await simpleParser(m.source);
         items.push({ folder: box.path, mbox: box.mbox, sent: box.sent, parsed, date: parsed.date || m.internalDate || new Date() });

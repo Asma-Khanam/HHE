@@ -1,0 +1,28 @@
+.sugg-card { background: #fff; border: 1px solid #e3e6ec; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+.sugg-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; background: none; border: 0; font: inherit; text-align: left; cursor: pointer; }
+.sugg-sub { color: #6b7280; font-size: 13px; }
+.sugg-body { padding: 0 16px 14px; }
+.sugg-intro, .sugg-missing, .sugg-empty { margin: 0 0 10px; font-size: 13px; color: #6b7280; }
+.sugg-missing { color: #92400e; }
+.sugg-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.sugg-row { display: flex; gap: 14px; justify-content: space-between; align-items: flex-start; padding: 12px; border: 1px solid #eceff4; border-radius: 10px; }
+.sugg-main { min-width: 0; flex: 1; }
+.sugg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.sugg-name { font-weight: 600; color: inherit; text-decoration: none; }
+.sugg-name:hover { text-decoration: underline; }
+.sugg-score { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #e7f6ec; color: #166534; }
+.sugg-chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #f1f3f7; color: #4b5563; }
+.sugg-reasons, .sugg-cautions { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+.sugg-reasons { color: #1f2937; }
+.sugg-cautions { color: #92400e; }
+.sugg-meta { margin-top: 6px; font-size: 12px; color: #6b7280; }
+.sugg-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.sugg-reject { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sugg-reject input { flex: 1; min-width: 180px; padding: 6px 8px; border: 1px solid #d5d9e1; border-radius: 8px; font: inherit; }
+.sugg-more { background: none; border: 0; color: #4f46e5; font: inherit; font-size: 13px; cursor: pointer; padding: 8px 0 0; }
+.sugg-held { margin-top: 6px; }
+@media (max-width: 780px) {
+  .sugg-row { flex-direction: column; }
+  .sugg-actions { width: 100%; }
+  .sugg-actions .panel-btn { flex: 1; }
+}

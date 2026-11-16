@@ -17,7 +17,6 @@ import WhatsAppPage from "./pages/WhatsAppPage";
 import TeamPage from "./pages/TeamPage";
 import SchoolsPage from "./pages/SchoolsPage";
 import SchoolDetailPage from "./pages/SchoolDetailPage";
-import SchoolDataPage from "./pages/SchoolDataPage";
 import SettingsPage from "./pages/SettingsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import RequireStaff from "./components/RequireStaff";
@@ -55,7 +54,6 @@ function App() {
         <Route path="team" element={<TeamPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="schools" element={<SchoolsPage />} />
-        <Route path="school-data" element={<SchoolDataPage />} />
         <Route path="schools/:schoolId" element={<SchoolDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
