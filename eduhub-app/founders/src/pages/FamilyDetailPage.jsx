@@ -58,6 +58,18 @@ import {
 } from "../data/formOptions";
 import "./FamilyDetailPage.css";
 
+// Age in whole years from a date of birth, for the "children" line in the
+// header so a consultant on a phone sees ages without opening the family.
+function ageInYears(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  if (now < new Date(now.getFullYear(), d.getMonth(), d.getDate())) age -= 1;
+  return age >= 0 ? age : null;
+}
+
 // ---------------------------------------------------------------------------
 // The full field list, in the same order and with the same wording the family
 // sees on their own form (frontend/src/components/ApplicationForm.jsx). Kept
@@ -787,6 +799,20 @@ export default function FamilyDetailPage() {
               <span className="family-detail-card-flag is-warn">Wants cost guidance — follow up</span>
             )}
           </div>
+          {children.length > 0 && (
+            <div className="family-detail-kids">
+              {children.map((c, i) => {
+                const age = ageInYears(c.date_of_birth);
+                const name = c.preferred_name || c.first_name || (c.full_name || "").split(" ")[0] || `Child ${i + 1}`;
+                return (
+                  <span key={c.id} className="family-detail-kid">
+                    {name}
+                    {age !== null && <b>{age}</b>}
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

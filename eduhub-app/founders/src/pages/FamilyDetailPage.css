@@ -96,6 +96,17 @@
   opacity: 0.7;
 }
 
+.family-detail-kids { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.family-detail-kid {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 3px 4px 3px 11px; border-radius: 999px;
+  background: rgba(184, 154, 90, 0.16); color: var(--hh-ink); font-size: 0.82rem; font-weight: 500;
+}
+.family-detail-kid b {
+  min-width: 24px; padding: 1px 7px; border-radius: 999px; text-align: center;
+  background: var(--hh-burgundy); color: #fff; font-size: 0.76rem; font-weight: 600;
+}
+
 .family-detail-meta code {
   background: rgba(83, 1, 38, 0.06);
   padding: 2px 8px;

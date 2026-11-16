@@ -1,0 +1,75 @@
+/* Phone layout for the consultant website (16 Nov 2026).
+   Loaded last (see main.jsx) so these rules win over each page's own CSS.
+   Everything sits inside a max-width query, so the desktop layout is untouched.
+   The sidebar/top bar part lives in components/StaffShell.css. */
+
+@media (max-width: 780px) {
+  html, body { overflow-x: hidden; -webkit-text-size-adjust: 100%; }
+
+  /* Typing in a field smaller than 16px makes iPhones zoom the page in. */
+  input, select, textarea { font-size: 16px !important; max-width: 100%; }
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea, .panel-btn, button { min-height: 40px; }
+
+  /* Headings and page headers */
+  .families-page-header h1, .today-header h1, h1 { font-size: 1.35rem; }
+  .families-page-header { gap: 12px; }
+  .families-page-header > *, .family-detail-topbar { max-width: 100%; }
+  .family-detail-topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+  .family-detail-header { gap: 12px; margin-bottom: 18px; align-items: flex-start; }
+  .family-detail-avatar { width: 44px; height: 44px; font-size: 1.1rem; }
+  .family-detail-header-text { min-width: 0; }
+  .family-detail-header-text h1 { font-size: 1.25rem; overflow-wrap: anywhere; }
+
+  /* Tab bars scroll sideways instead of wrapping off the screen */
+  .family-detail-tabs { display: flex; width: 100%; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; margin-bottom: 16px; }
+  .family-detail-tabs::-webkit-scrollbar { display: none; }
+  .family-detail-tab { flex: 0 0 auto; white-space: nowrap; min-height: 40px; }
+
+  /* Wide tables scroll inside their own box, with the first column pinned */
+  .families-table-wrap, .sv-scroll, .tw-scroll, [class*="-table-wrap"], [class*="-scroll"] { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .families-table { min-width: 780px; }
+  .families-table thead th:first-child, .families-table tbody td:first-child { position: sticky; left: 0; z-index: 2; background: var(--hh-white); box-shadow: 1px 0 0 rgba(83, 1, 38, 0.08); }
+  .sv-tbl { min-width: 760px; }
+
+  /* Cards and grids drop to one column */
+  .family-detail-grid, .today-main-grid, .sv-side, .sv-cols2, .rec-grid, .fu-grid, .sa-hero-body,
+  .ov-people, .ov-kids, .ov-family-row, .ov-progress, .ap-grid, .tw-row, .consult-details div,
+  .sv-kv, .zoom-link-row, .sc-donut, .ag-card dl {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .ov-tour { grid-template-columns: minmax(0, 1fr) !important; gap: 4px; }
+  .sv-g3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .today-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .family-detail-card, .person-card, .panel-card { padding-left: 14px; padding-right: 14px; }
+  .sv-stats { padding: 16px; gap: 14px 28px; }
+
+  /* Rows of fields and buttons wrap instead of overflowing */
+  .panel-row, .panel-actions, .sv-modal-actions, .ap-confirm-actions, .afs-confirm-actions { flex-wrap: wrap; }
+  .panel-input, .panel-select, .sv-confirm input, .consult-zoom-form .panel-input, .ap-decision-extra .ap-field { min-width: 0 !important; max-width: 100%; }
+  .panel-btn { min-height: 44px; }
+
+  /* Popups fit the screen and scroll inside */
+  .sv-modal-back, .cal-modal-backdrop, .ap-confirm, .afs-confirm { padding: 10px; align-items: flex-end; }
+  .sv-modal, .cal-modal, .ap-confirm-box, .afs-confirm-box { width: 100% !important; max-width: 100% !important; max-height: 90vh; max-height: 90dvh; overflow-y: auto; padding: 18px 16px; border-radius: 16px 16px 12px 12px; }
+
+  /* Today page task panel takes the whole screen */
+  .tp { width: 100vw; }
+  .tp-top { padding: 16px 16px 6px; }
+  .tp-body { padding: 8px 16px 20px; }
+
+  /* Email composer */
+  .email-composer, .ec-card, .ec-modal { width: 100% !important; max-width: 100% !important; }
+
+  /* Harri (the robot) shrinks and stays out of the way of buttons */
+  .harri-launcher { right: 10px; bottom: 10px; transform-origin: bottom right; scale: 0.7; }
+  .harri-greet { right: 10px; bottom: 84px; max-width: min(250px, calc(100vw - 20px)); }
+
+  /* Long words and ids never push the page wider than the screen */
+  .staff-main { overflow-wrap: anywhere; }
+  .staff-main code { word-break: break-all; }
+}
+
+@media (max-width: 480px) {
+  .staff-main { padding: 14px 12px 90px; }
+  .sv-g3, .today-stats { grid-template-columns: minmax(0, 1fr); }
+}

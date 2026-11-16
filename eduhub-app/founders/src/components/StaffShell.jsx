@@ -1,6 +1,6 @@
 import StaffAvatar from "./StaffAvatar";
 import { useEffect, useState } from "react";
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { countUnreadEmails } from "../lib/staffData";
 import { countUnreadWhatsApp } from "../lib/whatsapp";
@@ -18,6 +18,13 @@ export default function StaffShell() {
   const [me, setMe] = useState(null);
   const [unreadEmails, setUnreadEmails] = useState(0);
   const [unreadWa, setUnreadWa] = useState(0);
+  // Phone only: the sidebar becomes a slide-out menu opened from the top bar.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     let live = true;
@@ -65,7 +72,26 @@ export default function StaffShell() {
 
   return (
     <div className="staff-shell">
-      <aside className="staff-sidebar">
+      <header className="staff-topbar">
+        <button
+          type="button"
+          className="staff-menu-btn"
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          <span aria-hidden="true" />
+        </button>
+        <img src={logoWhite} alt="" className="staff-topbar-logo" />
+        <span className="staff-topbar-title">Heather Harries Relocate</span>
+        {unreadEmails + unreadWa > 0 && (
+          <span className="staff-nav-badge staff-topbar-badge" aria-label={`${unreadEmails + unreadWa} unread`}>
+            {unreadEmails + unreadWa > 99 ? "99+" : unreadEmails + unreadWa}
+          </span>
+        )}
+      </header>
+      {menuOpen && <div className="staff-menu-scrim" onClick={() => setMenuOpen(false)} />}
+      <aside className={"staff-sidebar" + (menuOpen ? " is-open" : "")}>
         <div className="staff-sidebar-brand">
           <img src={logoWhite} alt="" className="staff-sidebar-logo" />
           <div>

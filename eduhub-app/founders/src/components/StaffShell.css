@@ -188,43 +188,79 @@
   overflow-x: auto;
 }
 
-/* ---- mobile: collapse sidebar to a top strip ---- */
+/* ---- phone: top bar with a menu button, sidebar slides in from the left ---- */
+.staff-topbar,
+.staff-menu-scrim { display: none; }
+
 @media (max-width: 780px) {
-  .staff-sidebar {
-    position: static;
-    width: auto;
-    height: auto;
-    max-height: none;
-    flex-direction: row;
+  .staff-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 12px 14px;
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+    gap: 10px;
+    height: 54px;
+    padding: 0 12px;
     background: var(--hh-burgundy);
+    color: var(--hh-white);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
   }
-  .staff-sidebar-brand {
-    padding: 0;
-    margin: 0;
-    border-bottom: none;
-  }
-  .staff-sidebar-logo { width: 28px; height: 28px; }
-  .staff-sidebar-nav {
-    flex-direction: row;
-    flex: none;
-    overflow-y: visible;
-    overflow-x: auto;
-  }
-  .staff-nav-item { padding: 8px 12px; }
-  .staff-nav-item::before { display: none; }
-  .staff-sidebar-footer {
-    margin: 0 0 0 auto;
-    padding: 6px 10px;
-    background: transparent;
+  .staff-topbar-logo { width: 28px; height: 28px; object-fit: contain; }
+  .staff-topbar-title { font-family: var(--hh-font-heading); font-weight: 600; font-size: 0.95rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .staff-topbar-badge { margin-left: 0; }
+  .staff-menu-btn {
+    width: 44px;
+    height: 44px;
+    margin-left: -6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
     border: none;
+    border-radius: 10px;
+    cursor: pointer;
   }
+  .staff-menu-btn span,
+  .staff-menu-btn span::before,
+  .staff-menu-btn span::after {
+    display: block;
+    width: 22px;
+    height: 2px;
+    border-radius: 2px;
+    background: #fff;
+    content: "";
+    position: relative;
+  }
+  .staff-menu-btn span::before { position: absolute; top: -7px; }
+  .staff-menu-btn span::after { position: absolute; top: 7px; }
+
+  .staff-menu-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    background: rgba(42, 17, 25, 0.45);
+  }
+  .staff-sidebar {
+    top: 0;
+    left: 0;
+    width: min(290px, 84vw);
+    height: 100vh;
+    height: 100dvh;
+    z-index: 40;
+    transform: translateX(-102%);
+    transition: transform 200ms ease;
+    box-shadow: none;
+    padding: 18px 14px 14px;
+    overflow-y: auto;
+  }
+  .staff-sidebar.is-open { transform: translateX(0); box-shadow: 8px 0 30px rgba(0, 0, 0, 0.3); }
+  .staff-nav-item { padding: 12px 14px 12px 18px; min-height: 44px; }
   .staff-main {
     margin-left: 0;
-    padding: 20px;
+    padding: 16px 14px 90px;
+    overflow-x: auto;
   }
 }
 
@@ -247,4 +283,4 @@ a.staff-sidebar-name:hover { text-decoration:underline; }
 
 /* Team sits at the bottom of the menu; Settings follows it, both just above the profile. */
 .staff-nav-bottom { margin-top: auto; }
-@media (max-width: 800px) { .staff-nav-bottom { margin-top: 0; } }
+@media (max-width: 780px) { .staff-nav-bottom { margin-top: 0; } }
