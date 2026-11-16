@@ -18,7 +18,7 @@
   .family-detail-header { gap: 12px; margin-bottom: 18px; align-items: flex-start; }
   .family-detail-avatar { width: 44px; height: 44px; font-size: 1.1rem; }
   .family-detail-header-text { min-width: 0; }
-  .family-detail-header-text h1 { font-size: 1.25rem; overflow-wrap: anywhere; }
+  .family-detail-header-text h1 { font-size: 1.25rem; overflow-wrap: break-word; }
 
   /* Tab bars scroll sideways instead of wrapping off the screen */
   .family-detail-tabs { display: flex; width: 100%; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; margin-bottom: 16px; }
@@ -61,15 +61,47 @@
   .email-composer, .ec-card, .ec-modal { width: 100% !important; max-width: 100% !important; }
 
   /* Harri (the robot) shrinks and stays out of the way of buttons */
-  .harri-launcher { right: 10px; bottom: 10px; transform-origin: bottom right; scale: 0.7; }
-  .harri-greet { right: 10px; bottom: 84px; max-width: min(250px, calc(100vw - 20px)); }
+  .harri-launcher { transform-origin: bottom right; }
 
-  /* Long words and ids never push the page wider than the screen */
-  .staff-main { overflow-wrap: anywhere; }
-  .staff-main code { word-break: break-all; }
+  /* Long words wrap, but never letter by letter (overflow-wrap: anywhere
+     squashed table columns and labels to one character wide). */
+  .staff-main h1, .staff-main h2, .staff-main h3, .staff-main p { overflow-wrap: break-word; }
+  .cv-progress-label { overflow-wrap: normal; }
+
+  /* Caseload: the pinned family column keeps a readable width */
+  .families-table thead th:first-child, .families-table tbody td:first-child { min-width: 150px; max-width: 170px; white-space: normal; overflow-wrap: normal; }
+  .families-table td, .families-table th { padding-left: 12px; padding-right: 12px; }
+
+  /* Family page header: compact, ages visible straight away */
+  .family-detail-header { flex-wrap: wrap; row-gap: 8px; }
+  .family-detail-header-text { flex: 1 1 0; }
+  .family-detail-meta { gap: 4px 10px; font-size: 0.78rem; }
+  .family-detail-kids { gap: 6px; margin-top: 10px; }
+  .hh-link-btn { margin-bottom: 8px; }
+  .family-detail-topbar .afc-btn, .family-detail-topbar button { font-size: 0.82rem; padding: 7px 14px; min-height: 36px; }
+
+  /* Case card: one tidy stack, journey strip scrolls sideways */
+  .case-v2 { padding: 14px 12px; border-radius: 14px; }
+  .cv-top { flex-wrap: wrap; gap: 8px 10px; margin-bottom: 12px; }
+  .cv-top-spacer { display: none; }
+  .cv-start { order: 3; flex: 1 1 100%; margin-right: 0; border-radius: 12px; flex-wrap: wrap; align-items: baseline; row-gap: 2px; }
+  .cv-start-value { font-size: 0.88rem; }
+  .cv-saved { margin-left: auto; }
+  .cv-progress { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; scrollbar-width: none; }
+  .cv-progress::-webkit-scrollbar { display: none; }
+  .cv-progress-bar, .cv-progress-labels { min-width: 520px; }
+  .cv-progress-label { font-size: 0.68rem; }
+  .cv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .cv-journey { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .cv-journey-step { flex: 0 0 auto; }
+
+  /* Harri: small, no speech bubble covering the page */
+  .harri-launcher { right: 8px; bottom: 8px; scale: 0.5; }
+  .harri-greet { display: none; }
 }
 
 @media (max-width: 480px) {
   .staff-main { padding: 14px 12px 90px; }
+  .cv-grid { grid-template-columns: minmax(0, 1fr); }
   .sv-g3, .today-stats { grid-template-columns: minmax(0, 1fr); }
 }
