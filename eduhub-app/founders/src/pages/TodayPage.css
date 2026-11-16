@@ -710,3 +710,20 @@
 
 /* School-visit actions: they clear themselves, so a soft dot instead of a tick box */
 .today-tasks .today-check.is-auto { border-style: dashed; border-color: rgba(83, 1, 38, 0.25); cursor: default; background: transparent; }
+
+
+/* Done tab: a green circle with a tick, and who finished it */
+.today-tasks .today-check.is-done {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--hh-good);
+  border-color: var(--hh-good);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  box-shadow: 0 0 0 3px rgba(47, 107, 79, 0.15);
+}
+.today-tasks .today-check.is-done:hover { background: #245640; border-color: #245640; }
+.today-task.is-done .today-task-title { opacity: 0.7; text-decoration: line-through; text-decoration-color: rgba(42, 17, 25, 0.35); }
+.today-done-by { color: var(--hh-good); font-weight: 600; }

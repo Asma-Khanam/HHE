@@ -648,6 +648,33 @@ export async function setTaskDone(taskId, done) {
   );
 }
 
+// School-step items on the Today list are worked out live, so a tick on one is
+// remembered here (addendum 155): who did it and when, shown on the Done tab.
+export async function listActionDone() {
+  const { data, error } = await supabase
+    .from("action_done")
+    .select("action_key, family_id, title, done_at, done_by")
+    .order("done_at", { ascending: false })
+    .limit(300);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function markActionDone({ key, familyId, title }) {
+  return unwrap(
+    await supabase
+      .from("action_done")
+      .upsert({ action_key: key, family_id: familyId, title }, { onConflict: "action_key" })
+      .select()
+      .single()
+  );
+}
+
+export async function unmarkActionDone(key) {
+  const { error } = await supabase.from("action_done").delete().eq("action_key", key);
+  if (error) throw error;
+}
+
 export async function deleteTask(taskId) {
   const { error } = await supabase.from("tasks").delete().eq("id", taskId);
   if (error) throw error;

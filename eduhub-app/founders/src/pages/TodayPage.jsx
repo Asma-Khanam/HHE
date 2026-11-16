@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getTodayData, getCurrentStaff, setTaskDone, updateTask, listFamilyActionRows, loadCalendarEvents, friendlyError } from "../lib/staffData";
+import { getTodayData, getCurrentStaff, setTaskDone, updateTask, listActionDone, markActionDone, unmarkActionDone, listFamilyActionRows, loadCalendarEvents, friendlyError } from "../lib/staffData";
 import { comingUpItems } from "../lib/comingUp";
 import TaskPanel from "../components/TaskPanel";
 import TodayWeek, { weekDates } from "../components/TodayWeek";
@@ -62,6 +62,7 @@ export default function TodayPage() {
   const [error, setError] = useState("");
   const [busyTaskId, setBusyTaskId] = useState(null);
   const [actions, setActions] = useState({});
+  const [doneMap, setDoneMap] = useState({}); // school-step items ticked as done, by key
   const [shortlistRows, setShortlistRows] = useState([]);
   const [events, setEvents] = useState([]);
   const [filter, setFilter] = useState("all");
@@ -79,6 +80,10 @@ export default function TodayPage() {
         setShortlistRows(rows);
         setActions(computeFamilyActions(rows, suggestions, offers));
       })
+      .catch(() => {});
+    // Before addendum 155 is run this table is missing; the page just shows no done school steps.
+    listActionDone()
+      .then((rows) => setDoneMap(Object.fromEntries(rows.map((r) => [r.action_key, r]))))
       .catch(() => {});
   }
 
@@ -105,16 +110,57 @@ export default function TodayPage() {
   async function handleToggleTask(task) {
     setBusyTaskId(task.id);
     const wasDone = !!task.done_at;
-    if (!wasDone) setToast(`Done. It is off the list and kept on ${task.familyName}\u2019s page.`);
+    if (!wasDone) setToast("Done. It is now on the Done tab.");
     setData((d) => ({
       ...d,
-      tasks: d.tasks.map((t) => (t.id === task.id ? { ...t, done_at: wasDone ? null : new Date().toISOString() } : t)),
+      tasks: d.tasks.map((t) =>
+        t.id === task.id ? { ...t, done_at: wasDone ? null : new Date().toISOString(), done_by: wasDone ? null : me?.user_id || null } : t
+      ),
     }));
     try {
       await setTaskDone(task.id, !wasDone);
     } catch (err) {
       setError(friendlyError(err, "Couldn't update that task."));
       setData((d) => ({ ...d, tasks: d.tasks.map((t) => (t.id === task.id ? task : t)) }));
+    } finally {
+      setBusyTaskId(null);
+    }
+  }
+
+  // Tick / untick one of the live school-step items (they have no row of their own, so addendum 155 keeps the tick).
+  async function handleActionDone(item) {
+    const key = item.id.slice(4);
+    setBusyTaskId(item.id);
+    setToast("Done. It is now on the Done tab.");
+    setDoneMap((m) => ({
+      ...m,
+      [key]: { action_key: key, family_id: item.family_id, title: item.title, done_at: new Date().toISOString(), done_by: me?.user_id || null },
+    }));
+    try {
+      await markActionDone({ key, familyId: item.family_id, title: item.title });
+    } catch (err) {
+      setError(friendlyError(err, "Couldn't mark that done. Has addendum 155 been run in Supabase?"));
+      setDoneMap((m) => {
+        const next = { ...m };
+        delete next[key];
+        return next;
+      });
+    } finally {
+      setBusyTaskId(null);
+    }
+  }
+  async function handleActionUndo(row) {
+    setBusyTaskId("act:" + row.action_key);
+    setDoneMap((m) => {
+      const next = { ...m };
+      delete next[row.action_key];
+      return next;
+    });
+    try {
+      await unmarkActionDone(row.action_key);
+    } catch (err) {
+      setError(friendlyError(err, "Couldn't undo that."));
+      setDoneMap((m) => ({ ...m, [row.action_key]: row }));
     } finally {
       setBusyTaskId(null);
     }
@@ -172,7 +218,7 @@ export default function TodayPage() {
         }))
       : []
   );
-  const open = [...data.tasks.filter((t) => !t.done_at), ...actionItems];
+  const open = [...data.tasks.filter((t) => !t.done_at), ...actionItems.filter((a) => !doneMap[a.id.slice(4)])];
 
   // Every open task, in groups, in the page itself (no cap). Tabs say whose.
   const byDate = (x, y) => (x.due_date || "9999").localeCompare(y.due_date || "9999");
@@ -230,6 +276,25 @@ export default function TodayPage() {
   const weekRows = [...comingUpItems(events, shortlistRows, week[0]), ...offerRows]
     .filter((u) => u.date >= week[0] && u.date <= week[6])
     .sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  // Everything ticked off, newest first: real tasks and ticked school steps, with who did it.
+  const doneRows = [
+    ...data.tasks
+      .filter((t) => t.done_at)
+      .map((t) => ({ id: t.id, title: t.title, state: "", familyName: t.familyName, done_at: t.done_at, done_by: t.done_by, task: t })),
+    ...Object.values(doneMap).map((r) => ({
+      id: "act:" + r.action_key,
+      title: r.title || "School step",
+      state: "",
+      familyName: data.familyNames[r.family_id] || "Unknown family",
+      done_at: r.done_at,
+      done_by: r.done_by,
+      actionRow: r,
+    })),
+  ]
+    .sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)))
+    .slice(0, 300);
+  const doneWhen = (iso) =>
+    new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const allSections = [
     ...sections,
     {
@@ -243,6 +308,12 @@ export default function TodayPage() {
       label: "Coming up",
       tasks: upRows,
       sub: "Tours, assessments and calls in the next 7 days",
+    },
+    {
+      key: "done",
+      label: "Done",
+      tasks: doneRows,
+      sub: "Ticked off, and by who",
     },
   ];
   // Opens on whatever was open last time; if that is empty now, the first section with something in it.
@@ -341,7 +412,7 @@ export default function TodayPage() {
             </Link>
           </div>
 
-          {activeKey !== "payments" && activeKey !== "upcoming" && (
+          {activeKey !== "payments" && activeKey !== "upcoming" && activeKey !== "done" && (
           <div className="today-tabs" role="tablist" aria-label="Which tasks">
             {TABS.map((t) => (
               <button
@@ -405,6 +476,34 @@ export default function TodayPage() {
                     </li>
                   ))}
                 </ul>
+              ) : activeKey === "done" ? (
+                <ul className="today-task-list">
+                  {active.tasks.map((d) => (
+                    <li key={d.id} className="today-task is-done">
+                      <button
+                        type="button"
+                        className="today-check is-done"
+                        onClick={() => (d.task ? handleToggleTask(d.task) : handleActionUndo(d.actionRow))}
+                        disabled={busyTaskId === d.id}
+                        aria-label="Mark not done"
+                        title="Click to undo"
+                      >
+                        ✓
+                      </button>
+                      <div className="today-task-text">
+                        <div className="today-task-title">{d.title}</div>
+                        <div className="today-task-meta">
+                          <span className="today-task-family-name">{d.familyName}</span>
+                          {" · "}
+                          <span className="today-done-by">
+                            Done by {nameOf(d.done_by) || "someone"}
+                            {d.done_at ? ` · ${doneWhen(d.done_at)}` : ""}
+                          </span>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               ) : activeKey === "payments" ? (
                 <ul className="today-task-list">
                   {active.tasks.map((p) => {
@@ -439,7 +538,14 @@ export default function TodayPage() {
                     return (
                       <li key={task.id} className="today-task">
                         {task.isAction ? (
-                          <span className="today-check is-auto" title="Clears itself when the step is done" aria-hidden="true" />
+                          <button
+                            type="button"
+                            className="today-check"
+                            onClick={() => handleActionDone(task)}
+                            disabled={busyTaskId === task.id}
+                            aria-label="Mark done"
+                            title="Mark done. It clears itself too once the step is done."
+                          />
                         ) : (
                           <button
                             type="button"
@@ -525,9 +631,9 @@ export default function TodayPage() {
             setToast("Task added.");
           }}
           onDone={(t) => {
-            mergeTask({ id: t.id, done_at: new Date().toISOString() });
+            mergeTask({ id: t.id, done_at: new Date().toISOString(), done_by: me?.user_id || null });
             setPanel(null);
-            setToast(`Done. It is off the list and kept on ${t.familyName}\u2019s page.`);
+            setToast("Done. It is now on the Done tab.");
           }}
         />
       )}
