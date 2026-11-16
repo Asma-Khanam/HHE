@@ -566,9 +566,26 @@ export default function CalendarPage() {
 }
 
 // ---- Month -------------------------------------------------------------------
+function isPhone() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 780px)").matches;
+}
+
 function MonthView({ days, anchor, today, byDay, onOpen, onCreate, onOpenWeek }) {
   const MAX = 3;
+  // Phone: a day tap selects it and its events list underneath the grid.
+  const [pickedKey, setPickedKey] = useState(null);
+  const monthKeys = days.filter((d) => d.getMonth() === anchor.getMonth()).map(toDateKey);
+  const todayKey = toDateKey(today);
+  const selectedKey =
+    pickedKey && monthKeys.includes(pickedKey)
+      ? pickedKey
+      : monthKeys.includes(todayKey)
+        ? todayKey
+        : monthKeys[0];
+  const selectedDay = days.find((d) => toDateKey(d) === selectedKey) || today;
+  const selectedList = byDay[selectedKey] || [];
   return (
+    <>
     <div className="cal-month">
       {WEEKDAYS.map((w) => (
         <div key={w} className="cal-weekday">
@@ -584,8 +601,10 @@ function MonthView({ days, anchor, today, byDay, onOpen, onCreate, onOpenWeek })
         return (
           <div
             key={key}
-            className={"cal-cell" + (inMonth ? "" : " is-outside") + (weekend ? " is-weekend" : "")}
-            onClick={() => onCreate(day)}
+            className={
+              "cal-cell" + (inMonth ? "" : " is-outside") + (weekend ? " is-weekend" : "") + (key === selectedKey ? " is-picked" : "")
+            }
+            onClick={() => (isPhone() ? setPickedKey(key) : onCreate(day))}
           >
             <button
               type="button"
@@ -598,6 +617,14 @@ function MonthView({ days, anchor, today, byDay, onOpen, onCreate, onOpenWeek })
             >
               {day.getDate() === 1 ? day.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : day.getDate()}
             </button>
+            {list.length > 0 && (
+              <div className="cal-dots" aria-label={`${list.length} events`}>
+                {list.slice(0, 4).map((ev) => (
+                  <span key={ev.key} className={"cal-dot " + tone(ev)} />
+                ))}
+                {list.length > 4 && <span className="cal-dots-more">+{list.length - 4}</span>}
+              </div>
+            )}
             <div className="cal-pills">
               {list.slice(0, list.length > MAX ? MAX - 1 : MAX).map((ev) => (
                 <Pill key={ev.key} ev={ev} onOpen={onOpen} />
@@ -619,6 +646,44 @@ function MonthView({ days, anchor, today, byDay, onOpen, onCreate, onOpenWeek })
         );
       })}
     </div>
+    <div className="cal-agenda">
+      <div className="cal-agenda-head">
+        <h2>{selectedDay.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</h2>
+        <div className="cal-agenda-actions">
+          <button type="button" className="cal-agenda-btn" onClick={() => onCreate(selectedDay)}>
+            + Add
+          </button>
+          <button type="button" className="cal-agenda-btn" onClick={() => onOpenWeek(selectedDay)}>
+            Week
+          </button>
+        </div>
+      </div>
+      {selectedList.length === 0 ? (
+        <p className="cal-agenda-empty">Nothing on this day.</p>
+      ) : (
+        <ul className="cal-agenda-list">
+          {selectedList.map((ev) => {
+            const who = whoLine(ev);
+            return (
+              <li key={ev.key}>
+                <button
+                  type="button"
+                  className={"cal-agenda-row " + tone(ev) + (isStruck(ev) ? " is-struck" : "")}
+                  onClick={() => onOpen(ev)}
+                >
+                  <span className="cal-agenda-time">{ev.start ? time12(ev.start) : "All day"}</span>
+                  <span className="cal-agenda-main">
+                    <b>{ev.schoolName || ev.title}</b>
+                    {who && <small>{who}</small>}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+    </>
   );
 }
 
