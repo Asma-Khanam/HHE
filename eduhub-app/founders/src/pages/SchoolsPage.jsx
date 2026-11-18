@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listSchoolsWithStats, createSchool, friendlyError } from "../lib/staffData";
 import SchoolAnalytics from "../components/SchoolAnalytics";
+import SchoolDataTable from "../components/SchoolDataTable";
 import "../components/panels.css";
 import "./FamiliesListPage.css";
 import "./AccountingPage.css";
@@ -35,10 +36,12 @@ export default function SchoolsPage() {
     setTab(key);
     try { sessionStorage.setItem("schools-emirate-tab", key); } catch { /* ignore */ }
   }
-  const [view, setView] = useState(() => (window.location.hash === "#analytics" ? "analytics" : "list"));
+  const [view, setView] = useState(() =>
+    window.location.hash === "#analytics" ? "analytics" : window.location.hash === "#fill" ? "fill" : "list"
+  );
   function switchView(next) {
     setView(next);
-    window.history.replaceState(null, "", next === "analytics" ? "#analytics" : window.location.pathname);
+    window.history.replaceState(null, "", next === "analytics" ? "#analytics" : next === "fill" ? "#fill" : window.location.pathname);
   }
 
   function load() {
@@ -129,6 +132,15 @@ export default function SchoolsPage() {
             >
               Analytics
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "fill"}
+              className={view === "fill" ? "is-on" : ""}
+              onClick={() => switchView("fill")}
+            >
+              Fill in details
+            </button>
           </div>
           {view === "list" && (
             <>
@@ -148,6 +160,14 @@ export default function SchoolsPage() {
       </div>
 
       {view === "analytics" && <SchoolAnalytics />}
+
+      {view === "fill" && schools && (
+        <SchoolDataTable
+          schools={schools}
+          onSchoolChange={(id, patch) => setSchools((list) => list.map((s) => (s.id === id ? { ...s, ...patch } : s)))}
+        />
+      )}
+      {view === "fill" && error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
       {view === "list" && schools && schools.length > 0 && (
         <div className="acct-pills" role="tablist" aria-label="Emirate">

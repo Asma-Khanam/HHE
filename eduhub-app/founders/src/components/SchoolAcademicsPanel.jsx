@@ -2,6 +2,7 @@ import { useState } from "react";
 import AutosaveField from "./Autosave";
 import { updateSchool, friendlyError } from "../lib/staffData";
 import { YEAR_GROUPS } from "../data/formOptions";
+import { STAGE_PRESETS } from "../lib/schoolStages";
 
 // What a school teaches and how it supports different needs. This is the data the
 // AI school shortlist matches families against (addendum 160). Lists are typed as
@@ -27,12 +28,7 @@ function toList(text) {
       return true;
     });
 }
-// Quick fills for the usual shapes of school. The two selects below can still be set by hand.
-const PRESETS = [
-  ["Primary", YEAR_GROUPS[0], "Year 6 / Grade 5"],
-  ["Secondary", "Year 7 / Grade 6", "Year 13 / Grade 12"],
-  ["All-through", YEAR_GROUPS[0], "Year 13 / Grade 12"],
-];
+const PRESETS = STAGE_PRESETS;
 const asText = (list) => (Array.isArray(list) ? list.join(", ") : "");
 
 export default function SchoolAcademicsPanel({ school, onSchoolChange }) {

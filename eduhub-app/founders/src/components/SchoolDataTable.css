@@ -1,0 +1,26 @@
+.sdt { display: flex; flex-direction: column; gap: 12px; }
+.sdt-bar { display: flex; flex-wrap: wrap; gap: 10px 16px; justify-content: space-between; align-items: center; }
+.sdt-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sdt-chip { border: 1px solid #d9cfd3; background: #fff; border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 13px; cursor: pointer; color: inherit; }
+.sdt-chip span { margin-left: 4px; opacity: 0.6; font-weight: 600; }
+.sdt-chip.is-on { background: var(--hh-burgundy, #530126); border-color: var(--hh-burgundy, #530126); color: #fff; }
+.sdt-chip.is-on span { opacity: 0.85; }
+.sdt-hint { margin: 0; font-size: 13px; color: #6b7280; }
+.sdt-wrap { overflow-x: auto; background: #fff; border: 1px solid #e6dfe2; border-radius: 12px; }
+.sdt-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.sdt-table th { position: sticky; top: 0; background: #faf3e3; text-align: left; font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #6b7280; font-weight: 600; padding: 10px 8px; border-bottom: 1px solid #e6dfe2; white-space: nowrap; }
+.sdt-table td { padding: 6px 8px; border-bottom: 1px solid #f0eaec; vertical-align: middle; }
+.sdt-table tr:last-child td { border-bottom: 0; }
+.sdt-name { min-width: 200px; font-weight: 600; }
+.sdt-name a { color: inherit; text-decoration: none; }
+.sdt-name a:hover { text-decoration: underline; }
+.sdt-in { width: 100%; min-width: 110px; height: 34px; padding: 0 8px; border: 1px solid #e3dadf; border-radius: 8px; background: #fff; font: inherit; font-size: 13.5px; }
+.sdt-in:focus { outline: 2px solid rgba(83, 1, 38, 0.35); border-color: transparent; }
+.sdt-in.is-empty, .sdt-in:placeholder-shown { background: #fffaf0; border-style: dashed; }
+.sdt-num { min-width: 96px; text-align: right; }
+.sdt-status { white-space: nowrap; font-size: 12.5px; text-align: right; min-width: 70px; }
+.sdt-saving { color: #6b7280; }
+.sdt-err { color: #b91c1c; font-weight: 600; }
+.sdt-done { color: #166534; font-weight: 700; }
+.sdt-left { color: #92400e; }
+.sdt-empty { margin: 0; padding: 18px; text-align: center; color: #6b7280; }
