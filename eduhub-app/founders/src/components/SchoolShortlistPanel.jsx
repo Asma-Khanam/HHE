@@ -51,6 +51,7 @@ import {
   WhoTag,
 } from "./SchoolVisitsParts";
 import SuggestedSchools from "./SuggestedSchools";
+import SchoolComparison from "./SchoolComparison";
 import "./panels.css";
 import "./SchoolShortlistPanel.css";
 import "./SchoolVisits.css";
@@ -143,6 +144,7 @@ export default function SchoolShortlistPanel({
   const [busy, setBusy] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [tab, setTab] = useState("overview");
+  const [showCompare, setShowCompare] = useState(false);
   const [itab, setItab] = useState("tour");
   // One inline question at a time: { rowId, type: proceed | decline | withdraw | delete }.
   const [ask, setAsk] = useState(null);
@@ -1743,12 +1745,30 @@ export default function SchoolShortlistPanel({
             </button>
           ))}
         </div>
-        <button type="button" className="sv-btn is-primary" style={{ marginBottom: 8 }} onClick={() => setShowAdd(true)}>
-          + Shortlist a school
-        </button>
+        <div className="sv-pills" style={{ marginBottom: 8 }}>
+          {liveRows.length >= 2 && (
+            <button type="button" className="sv-btn" onClick={() => setShowCompare(true)}>
+              Compare schools
+            </button>
+          )}
+          <button type="button" className="sv-btn is-primary" onClick={() => setShowAdd(true)}>
+            + Shortlist a school
+          </button>
+        </div>
       </div>
 
       {loading ? <p className="sv-hint">Loading…</p> : activeChild ? renderChild(activeChild) : renderOverview()}
+
+      {showCompare && (
+        <SchoolComparison
+          rows={liveRows}
+          familyChildren={children}
+          childName={childName}
+          availOf={availOf}
+          livingArea={livingArea}
+          onClose={() => setShowCompare(false)}
+        />
+      )}
 
       {showAdd && (
         <div className="sv-modal-back" onClick={() => !busy && setShowAdd(false)}>
