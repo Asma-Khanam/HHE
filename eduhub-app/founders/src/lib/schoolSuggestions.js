@@ -1,4 +1,6 @@
 import { commuteEstimate, findArea } from "./travelCost";
+import { YEAR_GROUPS } from "../data/formOptions";
+import { yearGroupsFor, shortYear } from "./yearGroups";
 
 // Suggested schools for a family, worked out from what is already on their
 // record: fee range, where they plan to live, each child's SEN answers, their
@@ -58,13 +60,17 @@ export function targetEmirate(area) {
 // out of the weights that apply to THIS family (fee range known, area known, curriculum known,
 // SEN, priorities), so a school with missing records scores lower, never higher: a school
 // with only its curriculum known can't reach 100%.
-export function suggestForChild({ family, child, currentSchool, schools = [], skipIds = new Set() }) {
+export function suggestForChild({ family, child, currentSchool, schools = [], skipIds = new Set(), cutoff }) {
   const fee = parseFeeRange(family?.comfortable_fee_range);
   const area = family?.preferred_living_area || "";
   const emirate = targetEmirate(area);
   const top = (Array.isArray(family?.school_priorities) ? family.school_priorities : []).slice(0, 3);
   const hasSen = childHasSen(child);
   const wanted = new Set(curriculumKey(currentSchool?.curriculum));
+  // The year group this child is joining. A school that doesn't take it is left out; a school with
+  // no year groups recorded is kept and shows what's missing (addendum 164).
+  const applying = yearGroupsFor(child, family, cutoff).applying;
+  const yearIdx = YEAR_GROUPS.indexOf(applying);
 
   // Weights that apply to this child at all.
   const W = {
@@ -89,11 +95,19 @@ export function suggestForChild({ family, child, currentSchool, schools = [], sk
     if (school.emirate && school.emirate !== emirate) continue;
     if (hasSen && school.inclusion_level === "none") continue;
 
+    // Year groups (hard filter). Not scored: it either fits or the school is out.
+    const lo = YEAR_GROUPS.indexOf(school.lowest_year_group);
+    const hi = YEAR_GROUPS.indexOf(school.highest_year_group);
+    const hasRange = yearIdx >= 0 && lo >= 0 && hi >= 0;
+    if (hasRange && (yearIdx < lo || yearIdx > hi)) continue;
+
     const reasons = [];
     const cautions = [];
     const basedOn = [];
     const missing = [];
     let points = 0;
+    if (hasRange) reasons.push(`Takes ${shortYear(applying)}`);
+    else if (yearIdx >= 0) missing.push("year groups taken");
 
     // Fees (30)
     const from = num(school.tuition_from);

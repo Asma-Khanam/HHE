@@ -5,6 +5,7 @@ import {
   listShortlistForFamily,
   listSuggestionDecisions,
   listStaff,
+  getYearGroupCutoff,
   setSuggestionDecision,
   clearSuggestionDecision,
   friendlyError,
@@ -31,6 +32,7 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
   const [reason, setReason] = useState("");
   const [tab, setTab] = useState(kids.length > 1 ? TOGETHER : kids[0]?.id || TOGETHER);
   const [staffByUser, setStaffByUser] = useState({});
+  const [cutoff, setCutoff] = useState({ month: 8, day: 31 });
 
   useEffect(() => {
     let live = true;
@@ -40,10 +42,12 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
       // Addendum 161/162 not run yet: show suggestions without the memory of past decisions.
       listSuggestionDecisions(family.id).catch(() => []),
       listStaff().catch(() => []),
+      getYearGroupCutoff().catch(() => null),
     ])
-      .then(([all, shortlist, dec, staff]) => {
+      .then(([all, shortlist, dec, staff, cut]) => {
         if (!live) return;
         setSchools(all);
+        if (cut) setCutoff(cut);
         setShortlistIds(new Set(shortlist.map((r) => r.school_id)));
         setDecisions(dec);
         setStaffByUser(Object.fromEntries((staff || []).map((s) => [s.user_id, s.full_name || s.email])));
@@ -68,10 +72,10 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
     return kids.map((child) => {
       const skip = new Set(shortlistIds);
       for (const s of schools) if (decidedFor(s.id, child.id, "rejected")) skip.add(s.id);
-      return { child, ...suggestForChild({ family, child, currentSchool: currentFor(child), schools, skipIds: skip }) };
+      return { child, ...suggestForChild({ family, child, currentSchool: currentFor(child), schools, skipIds: skip, cutoff }) };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schools, shortlistIds, decisions, family, familyChildren, currentSchools]);
+  }, [schools, shortlistIds, decisions, family, familyChildren, currentSchools, cutoff]);
 
   const together = useMemo(
     () => suggestTogether(perChild).filter((i) => !decidedAnywhere(i.school.id, "rejected")),

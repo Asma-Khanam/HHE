@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AutosaveField from "./Autosave";
 import { updateSchool, friendlyError } from "../lib/staffData";
+import { YEAR_GROUPS } from "../data/formOptions";
 
 // What a school teaches and how it supports different needs. This is the data the
 // AI school shortlist matches families against (addendum 160). Lists are typed as
@@ -26,6 +27,12 @@ function toList(text) {
       return true;
     });
 }
+// Quick fills for the usual shapes of school. The two selects below can still be set by hand.
+const PRESETS = [
+  ["Primary", YEAR_GROUPS[0], "Year 6 / Grade 5"],
+  ["Secondary", "Year 7 / Grade 6", "Year 13 / Grade 12"],
+  ["All-through", YEAR_GROUPS[0], "Year 13 / Grade 12"],
+];
 const asText = (list) => (Array.isArray(list) ? list.join(", ") : "");
 
 export default function SchoolAcademicsPanel({ school, onSchoolChange }) {
@@ -54,6 +61,50 @@ export default function SchoolAcademicsPanel({ school, onSchoolChange }) {
       </p>
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <span className="rec-field-label">Year groups taken</span>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            <select
+              className="panel-select"
+              aria-label="Youngest year group"
+              value={school.lowest_year_group || ""}
+              onChange={(e) => save({ lowest_year_group: e.target.value || null })}
+            >
+              <option value="">Youngest: not recorded</option>
+              {YEAR_GROUPS.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+            <span aria-hidden="true">to</span>
+            <select
+              className="panel-select"
+              aria-label="Oldest year group"
+              value={school.highest_year_group || ""}
+              onChange={(e) => save({ highest_year_group: e.target.value || null })}
+            >
+              <option value="">Oldest: not recorded</option>
+              {YEAR_GROUPS.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+            {PRESETS.map(([label, from, to]) => (
+              <button
+                key={label}
+                type="button"
+                className="panel-btn"
+                onClick={() => save({ lowest_year_group: from, highest_year_group: to })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <AutosaveField
           label="Exam boards"
           value={asText(school.exam_boards)}
