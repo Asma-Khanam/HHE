@@ -6,7 +6,7 @@ import { stageOf } from "./schoolStages";
 // school's own website and KHDA inspection reports (addendum 166). A fact counts as verified
 // when it has a source link AND it hasn't been changed since someone checked it.
 
-export const SOURCE_LABEL = { school_website: "School website", khda: "KHDA report" };
+export const SOURCE_LABEL = { school_website: "School website", khda: "KHDA" };
 
 const lc = (v) => String(v ?? "").trim().toLowerCase();
 const n = (v) => (v === null || v === undefined || v === "" ? "" : String(Number(v)));

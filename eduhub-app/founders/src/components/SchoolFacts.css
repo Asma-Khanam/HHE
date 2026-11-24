@@ -132,3 +132,15 @@ button.sf-badge { cursor: pointer; }
 .sgap-chip.is-key { border: 1px solid rgba(83, 1, 38, 0.35); color: var(--hh-burgundy); font-weight: 600; }
 .sgap-chip.is-key:hover { background: #f7f1f3; }
 @media (max-width: 700px) { .sgap-label { min-width: 0; width: 100%; } }
+
+/* KHDA rating, shown neatly once it's recorded */
+.sf-khda-show { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 16px 18px; border-radius: 12px; background: var(--hh-cream); }
+.sf-khda-rating { font-size: 17px; font-weight: 600; padding: 10px 18px; border-radius: 12px; white-space: nowrap; background: var(--hh-white); color: var(--hh-burgundy); border: 1px solid rgba(83, 1, 38, 0.15); }
+.sf-khda-rating.is-outstanding { background: var(--hh-burgundy); color: var(--hh-white); border-color: var(--hh-burgundy); }
+.sf-khda-rating.is-very_good { background: var(--hh-burgundy-light); color: var(--hh-white); border-color: var(--hh-burgundy-light); }
+.sf-khda-rating.is-good { background: var(--hh-gold); color: var(--hh-white); border-color: var(--hh-gold); }
+.sf-khda-rating.is-acceptable { background: #f6efdd; color: #8a6d1a; border-color: #e6d7ae; }
+.sf-khda-meta { flex: 1 1 220px; display: flex; flex-direction: column; gap: 2px; font-size: 14px; min-width: 0; }
+.sf-khda-meta strong { color: var(--hh-burgundy); font-size: 15px; }
+.sf-khda-meta span { opacity: 0.7; }
+.sf-khda-meta a { color: var(--hh-burgundy); font-weight: 600; font-size: 13.5px; }

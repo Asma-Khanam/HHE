@@ -18,8 +18,7 @@ import { displayNameForChild } from "../lib/completeness";
 import GenericDocumentsPanel from "../components/GenericDocumentsPanel";
 import AutosaveField from "../components/Autosave";
 import SchoolFactsTab from "../components/SchoolFactsTab";
-import SchoolGapsBox from "../components/SchoolGapsBox";
-import { schoolGaps, sourcesBySchool } from "../lib/schoolFacts";
+import { sourcesBySchool } from "../lib/schoolFacts";
 import { EMIRATE_CHOICES } from "../data/emirates";
 import SchoolContactsPanel from "../components/SchoolContactsPanel";
 import SchoolFeedbackPanel from "../components/SchoolFeedbackPanel";
@@ -577,8 +576,6 @@ export default function SchoolDetailPage() {
       )}
 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
-
-      <SchoolGapsBox gaps={schoolGaps(school, srcForSchool)} onGo={goTo} />
 
       <div className="family-detail-tabs" role="tablist">
         {[

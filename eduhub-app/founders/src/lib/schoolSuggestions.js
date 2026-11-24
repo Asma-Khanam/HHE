@@ -34,7 +34,7 @@ export function parseFeeRange(text) {
   return null;
 }
 
-const curriculumKey = (text) => {
+export const curriculumKey = (text) => {
   const t = String(text || "").toLowerCase();
   const keys = [];
   if (/british|national curriculum|\buk\b/.test(t)) keys.push("british");

@@ -163,7 +163,7 @@ export default function SchoolDataTable({ schools, onSchoolChange }) {
               <th>Year groups</th>
               <th>Inclusion</th>
               <th>KHDA rating</th>
-              <th>KHDA report link</th>
+              <th>KHDA link</th>
               <th>Sources</th>
               <th aria-label="Status" />
             </tr>

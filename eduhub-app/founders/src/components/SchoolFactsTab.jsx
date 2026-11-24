@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AutosaveField from "./Autosave";
 import { updateSchool, setFactSource, clearFactSource, friendlyError } from "../lib/staffData";
 import { YEAR_GROUPS } from "../data/formOptions";
@@ -13,6 +13,7 @@ import {
   khdaVerified,
   khdaText,
 } from "../lib/schoolFacts";
+import { loadKhda, matchKhda } from "../lib/khda";
 import "./SchoolFacts.css";
 
 // The "Facts and sources" tab on a school. Everything Suggested schools matches a family
@@ -172,7 +173,7 @@ function SourceRow({ school, fact, row, state, onSet, onClear, onGo }) {
             )}
             {isLink(school.khda_report_url) && (
               <button type="button" className="sf-btn" disabled={busy} onClick={() => save("khda", school.khda_report_url)}>
-                From the KHDA report
+                From KHDA
               </button>
             )}
             <button type="button" className="sf-text-btn" onClick={() => setPasting(true)}>
@@ -192,7 +193,7 @@ function SourceRow({ school, fact, row, state, onSet, onClear, onGo }) {
         >
           <select className="sf-input sf-paste-kind" value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Where it came from">
             <option value="school_website">School website</option>
-            <option value="khda">KHDA report</option>
+            <option value="khda">KHDA</option>
           </select>
           <input className="sf-input" type="url" autoFocus placeholder="https://..." value={url} onChange={(e) => setUrl(e.target.value)} />
           <button type="submit" className="sf-btn is-main" disabled={busy || !isLink(url)}>
@@ -209,6 +210,18 @@ function SourceRow({ school, fact, row, state, onSet, onClear, onGo }) {
 
 export default function SchoolFactsTab({ school, sources, onSchoolChange, onSourcesChange, onGo }) {
   const [error, setError] = useState("");
+  const [editKhda, setEditKhda] = useState(false);
+  // KHDA's own record for this school, so it's clear which KHDA school the rating came from.
+  const [khdaRow, setKhdaRow] = useState(null);
+  useEffect(() => {
+    let live = true;
+    loadKhda()
+      .then((k) => live && setKhdaRow(matchKhda(school, k)))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [school]);
   const dubai = isDubai(school);
   const khdaApplies = dubai || !school.emirate;
 
@@ -260,7 +273,7 @@ export default function SchoolFactsTab({ school, sources, onSchoolChange, onSour
         <div className="sf-hero-text">
           <span className="sf-eyebrow">Used for suggested schools</span>
           <h2>Facts and where they come from</h2>
-          <p>Suggestions only count a fact once it has been checked on the school's own website or its KHDA report.</p>
+          <p>Suggestions only count facts that come from the school's own website or from KHDA.</p>
         </div>
         <div className="sf-meter" aria-label={`${checked} of ${total} facts checked`}>
           <div className="sf-meter-num">
@@ -304,9 +317,9 @@ export default function SchoolFactsTab({ school, sources, onSchoolChange, onSour
                 <span>{khdaText(school).replace(/^KHDA /, "") || "Not filled in yet"}</span>
                 {khdaVerified(school) && (
                   <span className="sf-src-meta">
-                    KHDA report ·{" "}
+                    KHDA ·{" "}
                     <a href={school.khda_report_url} target="_blank" rel="noreferrer">
-                      open report ↗
+                      open source ↗
                     </a>
                   </span>
                 )}
@@ -314,7 +327,7 @@ export default function SchoolFactsTab({ school, sources, onSchoolChange, onSour
               <div className="sf-src-act">
                 {!khdaVerified(school) && (
                   <button type="button" className="sf-btn is-quiet" onClick={() => onGo({ tab: "facts", id: school.khda_rating ? "sf-khda-link" : "sf-khda" })}>
-                    {school.khda_rating ? "Add the report link" : "Fill this in"}
+                    {school.khda_rating ? "Add a KHDA link" : "Fill this in"}
                   </button>
                 )}
               </div>
@@ -378,11 +391,35 @@ export default function SchoolFactsTab({ school, sources, onSchoolChange, onSour
             badge={
               school.khda_rating ? (
                 <span className={"sf-badge " + (khdaVerified(school) ? "is-verified" : "is-none")}>
-                  {khdaVerified(school) ? "✓ KHDA report" : "Needs the report link"}
+                  {khdaVerified(school) ? "✓ KHDA" : "Needs a KHDA link"}
                 </span>
               ) : null
             }
           >
+            {school.khda_rating && !editKhda ? (
+              <div className="sf-khda-show">
+                <span className={"sf-khda-rating is-" + school.khda_rating}>{khdaText(school).replace(/^KHDA /, "")}</span>
+                <div className="sf-khda-meta">
+                  <strong>Latest KHDA inspection rating</strong>
+                  {khdaRow && (
+                    <span>
+                      KHDA lists this school as {khdaRow.n}
+                      {khdaRow.a ? `, ${khdaRow.a}` : ""}
+                    </span>
+                  )}
+                  {isLink(school.khda_report_url) && (
+                    <a href={school.khda_report_url} target="_blank" rel="noreferrer">
+                      View the KHDA source ↗
+                    </a>
+                  )}
+                </div>
+                <button type="button" className="sf-text-btn" onClick={() => setEditKhda(true)}>
+                  Change
+                </button>
+              </div>
+            ) : (
+            <>
+            <p className="sf-hint">Filled in automatically by Fill from KHDA on the Schools page. A rating with no KHDA link isn't used by Suggested schools.</p>
             <div className="sf-field" id="sf-khda">
               <span className="sf-label">Overall rating</span>
               <Pills label="KHDA overall rating" choices={KHDA_RATINGS} value={school.khda_rating || null} onPick={(v) => save({ khda_rating: v })} />
@@ -398,7 +435,7 @@ export default function SchoolFactsTab({ school, sources, onSchoolChange, onSour
               </div>
               <div className="sf-field sf-grow" id="sf-khda-link">
                 <AutosaveField
-                  label="Report link"
+                  label="KHDA link"
                   value={school.khda_report_url || ""}
                   placeholder="https://web.khda.gov.ae/..."
                   onSave={(v) => save({ khda_report_url: (v || "").trim() || null })}
@@ -407,6 +444,13 @@ export default function SchoolFactsTab({ school, sources, onSchoolChange, onSour
             </div>
             {school.khda_report_url && !isLink(school.khda_report_url) && (
               <p className="sf-warn">This doesn't look like a web link, so the rating isn't used yet.</p>
+            )}
+            {school.khda_rating && (
+              <button type="button" className="sf-text-btn" onClick={() => setEditKhda(false)}>
+                Done
+              </button>
+            )}
+            </>
             )}
             {!school.emirate && <p className="sf-hint">Only Dubai schools have KHDA inspections. Set the emirate on the School record if this isn't one.</p>}
           </Card>
