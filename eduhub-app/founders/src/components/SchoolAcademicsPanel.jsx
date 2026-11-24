@@ -16,6 +16,17 @@ const LEVELS = [
   ["extensive", "Extensive (specialist team)"],
 ];
 
+// KHDA overall inspection ratings (Dubai), addendum 165.
+const KHDA_RATINGS = [
+  ["", "Not recorded"],
+  ["outstanding", "Outstanding"],
+  ["very_good", "Very good"],
+  ["good", "Good"],
+  ["acceptable", "Acceptable"],
+  ["weak", "Weak"],
+  ["very_weak", "Very weak"],
+];
+
 function toList(text) {
   const seen = new Set();
   return String(text || "")
@@ -154,6 +165,36 @@ export default function SchoolAcademicsPanel({ school, onSchoolChange }) {
           value={school.inclusion_notes || ""}
           placeholder="Learning support team, KHDA inclusion rating, extra fees, waiting list for support"
           onSave={(v) => save({ inclusion_notes: v })}
+        />
+        <div>
+          <span className="rec-field-label">KHDA inspection (Dubai schools)</span>
+          <p className="family-detail-hint" style={{ margin: "2px 0 8px" }}>
+            Copy the rating from the school's published KHDA report and paste the report link. Suggested schools only uses a rating that has a link.
+          </p>
+          <select
+            className="panel-select"
+            aria-label="KHDA rating"
+            value={school.khda_rating || ""}
+            onChange={(e) => save({ khda_rating: e.target.value || null })}
+          >
+            {KHDA_RATINGS.map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </div>
+        <AutosaveField
+          label="KHDA inspection year"
+          value={school.khda_inspection_year || ""}
+          placeholder="e.g. 2024-25"
+          onSave={(v) => save({ khda_inspection_year: v.trim() || null })}
+        />
+        <AutosaveField
+          label="KHDA report link"
+          value={school.khda_report_url || ""}
+          placeholder="https://..."
+          onSave={(v) => save({ khda_report_url: v.trim() || null })}
         />
       </div>
     </section>
