@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { commuteEstimate, firstYearCost } from "../lib/travelCost";
 import { stageOf } from "../lib/schoolStages";
+import { khdaText } from "../lib/schoolFacts";
 import { AVAILABILITY_OPTIONS, shortTour } from "./SchoolVisitsParts";
 import "./SchoolComparison.css";
 
@@ -50,6 +51,7 @@ export default function SchoolComparison({ rows, familyChildren, childName, avai
         ["Area", (c) => c.school.area],
         ["Year groups taken", (c) => years(c.school)],
         ["Exam boards", (c) => (c.school.exam_boards || []).join(", ") || null],
+        ["KHDA rating", (c) => khdaText(c.school).replace(/^KHDA /, "") || null],
       ],
     },
     {

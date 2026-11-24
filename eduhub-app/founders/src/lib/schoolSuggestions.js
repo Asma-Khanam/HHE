@@ -1,6 +1,7 @@
 import { commuteEstimate, findArea } from "./travelCost";
 import { YEAR_GROUPS } from "../data/formOptions";
 import { yearGroupsFor, shortYear } from "./yearGroups";
+import { factState, khdaVerified, KHDA_LABEL } from "./schoolFacts";
 
 // Suggested schools for a family, worked out from what is already on their
 // record: fee range, where they plan to live, each child's SEN answers, their
@@ -11,6 +12,13 @@ import { yearGroupsFor, shortYear } from "./yearGroups";
 // Hard filters take a school out. Points rank what is left (out of 100, but
 // only the signals the record actually has count, so the score is shown with
 // "based on" and "missing" chips rather than as a verdict).
+//
+// Verified sources only (meeting 19/11/2026, addenda 165 and 166): a school fact earns points
+// and shows as a reason only when it has been checked against the school's own website or a
+// KHDA report, and hasn't changed since. A fact that is recorded but not checked is listed as
+// "not checked yet" and earns nothing. Hard filters (year groups, fees over budget, no SEN
+// support, other emirate) still use what is recorded: they only remove schools, they never
+// recommend one.
 
 const num = (v) => (v === null || v === undefined || v === "" ? null : Number(v));
 const aed = (n) => Math.round(n).toLocaleString("en-GB");
@@ -46,6 +54,8 @@ export const childHasSen = (child) => {
 };
 
 const INCLUSION_POINTS = { extensive: 10, moderate: 7, limited: 2, none: 0 };
+// KHDA overall rating (Dubai only), counted only with a link to the published report.
+const KHDA_POINTS = { outstanding: 15, very_good: 12, good: 8, acceptable: 4, weak: 0, very_weak: 0 };
 
 // Emirate the family is looking in: any emirate named in "where they plan to live",
 // otherwise Dubai (the Relocate service is for Dubai). A school with no emirate recorded
@@ -60,7 +70,7 @@ export function targetEmirate(area) {
 // out of the weights that apply to THIS family (fee range known, area known, curriculum known,
 // SEN, priorities), so a school with missing records scores lower, never higher: a school
 // with only its curriculum known can't reach 100%.
-export function suggestForChild({ family, child, currentSchool, schools = [], skipIds = new Set(), cutoff }) {
+export function suggestForChild({ family, child, currentSchool, schools = [], skipIds = new Set(), cutoff, sources }) {
   const fee = parseFeeRange(family?.comfortable_fee_range);
   const area = family?.preferred_living_area || "";
   const emirate = targetEmirate(area);
@@ -78,6 +88,7 @@ export function suggestForChild({ family, child, currentSchool, schools = [], sk
     travel: findArea(area) ? 25 : 0,
     curriculum: wanted.size ? 20 : 0,
     inclusion: hasSen ? 10 : 0,
+    khda: emirate === "Dubai" ? 15 : 0,
   };
   const prioParts = top.filter((p) => /SEN and learning support|Value for money|Proximity to home/i.test(p));
   W.priorities = prioParts.length * 5;
@@ -105,18 +116,24 @@ export function suggestForChild({ family, child, currentSchool, schools = [], sk
     const cautions = [];
     const basedOn = [];
     const missing = [];
+    const unchecked = [];
     let points = 0;
-    if (hasRange) reasons.push(`Takes ${shortYear(applying)}`);
-    else if (yearIdx >= 0) missing.push("year groups taken");
+    const src = sources?.get(school.id);
+    const checked = (key) => factState(school, src, key) === "verified";
+    if (hasRange) {
+      if (checked("year_groups")) reasons.push(`Takes ${shortYear(applying)}`);
+      else unchecked.push("year groups");
+    } else if (yearIdx >= 0) missing.push("year groups taken");
 
     // Fees (30)
     const from = num(school.tuition_from);
     const to = num(school.tuition_to) ?? from;
     if (W.fee) {
       if (from === null) missing.push("school fees");
+      else if (from > fee.hi) continue; // cheapest year group is already over their ceiling
+      else if (!checked("fees")) unchecked.push("fees");
       else {
         basedOn.push("fees");
-        if (from > fee.hi) continue; // cheapest year group is already over their ceiling
         const label = `AED ${aed(from)}${to !== from ? `–${aed(to)}` : ""}`;
         if (to <= fee.hi && to >= fee.lo * 0.6) {
           points += 30;
@@ -135,6 +152,7 @@ export function suggestForChild({ family, child, currentSchool, schools = [], sk
     const trip = W.travel ? commuteEstimate(area, school) : null;
     if (W.travel) {
       if (!trip) missing.push("school area");
+      else if (!checked("location")) unchecked.push("area");
       else {
         basedOn.push("travel");
         if (trip.minutes <= 20) {
@@ -156,6 +174,7 @@ export function suggestForChild({ family, child, currentSchool, schools = [], sk
     if (W.curriculum) {
       const have = curriculumKey(school.curriculum);
       if (!have.length) missing.push("school curriculum");
+      else if (!checked("curriculum")) unchecked.push("curriculum");
       else {
         basedOn.push("curriculum");
         if (have.some((k) => wanted.has(k))) {
@@ -171,6 +190,7 @@ export function suggestForChild({ family, child, currentSchool, schools = [], sk
     // Inclusion (10), only when this child has SEN
     if (W.inclusion) {
       if (!school.inclusion_level) missing.push("school inclusion level");
+      else if (!checked("inclusion")) unchecked.push("inclusion");
       else {
         basedOn.push("inclusion");
         points += INCLUSION_POINTS[school.inclusion_level] ?? 0;
@@ -182,12 +202,25 @@ export function suggestForChild({ family, child, currentSchool, schools = [], sk
       }
     }
 
-    // Priorities (5 each for the top three that can be checked)
+    // KHDA rating (15), Dubai families only, and only with the report link
+    if (W.khda) {
+      if (!school.khda_rating) missing.push("KHDA rating");
+      else if (!khdaVerified(school)) unchecked.push("KHDA rating (no report link)");
+      else {
+        basedOn.push("KHDA");
+        points += KHDA_POINTS[school.khda_rating] ?? 0;
+        const text = `KHDA ${KHDA_LABEL[school.khda_rating]}${school.khda_inspection_year ? `, ${school.khda_inspection_year}` : ""}`;
+        if (["outstanding", "very_good", "good"].includes(school.khda_rating)) reasons.push(text);
+        else cautions.push(`Rated ${text}`);
+      }
+    }
+
+    // Priorities (5 each for the top three that can be checked), from checked facts only
     let pPoints = 0;
     for (const pr of prioParts) {
-      if (/SEN and learning support/i.test(pr) && school.inclusion_level && ["moderate", "extensive"].includes(school.inclusion_level)) pPoints += 5;
-      else if (/Value for money/i.test(pr) && from !== null && fee && to <= fee.lo + (fee.hi - fee.lo) * 0.6) pPoints += 5;
-      else if (/Proximity to home/i.test(pr) && trip && trip.minutes <= 25) pPoints += 5;
+      if (/SEN and learning support/i.test(pr) && checked("inclusion") && ["moderate", "extensive"].includes(school.inclusion_level)) pPoints += 5;
+      else if (/Value for money/i.test(pr) && checked("fees") && fee && to <= fee.lo + (fee.hi - fee.lo) * 0.6) pPoints += 5;
+      else if (/Proximity to home/i.test(pr) && checked("location") && trip && trip.minutes <= 25) pPoints += 5;
     }
     if (W.priorities) {
       points += pPoints;
@@ -196,7 +229,7 @@ export function suggestForChild({ family, child, currentSchool, schools = [], sk
 
     // How much of this school's own record is filled in. Used only to order schools when the
     // family has nothing to rank on, so the five shown are the ones with the most to go on.
-    const completeness = [from !== null, !!(school.area || school.latitude), !!school.curriculum, !!school.inclusion_level].filter(Boolean).length;
+    const completeness = [from !== null, !!(school.area || school.latitude), !!school.curriculum, !!school.inclusion_level, khdaVerified(school)].filter(Boolean).length;
 
     out.push({
       school,
@@ -207,6 +240,7 @@ export function suggestForChild({ family, child, currentSchool, schools = [], sk
       cautions,
       basedOn,
       missing,
+      unchecked,
     });
   }
 
@@ -237,6 +271,7 @@ export function suggestTogether(perChild) {
       cautions: [...new Set(all.flatMap((x) => x.cautions))],
       basedOn: [...new Set(all.flatMap((x) => x.basedOn))],
       missing: [...new Set(all.flatMap((x) => x.missing))],
+      unchecked: [...new Set(all.flatMap((x) => x.unchecked))],
     });
   }
   out.sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || b.signals - a.signals || b.completeness - a.completeness || a.school.name.localeCompare(b.school.name));

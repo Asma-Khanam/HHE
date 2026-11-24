@@ -8,9 +8,11 @@ import {
   getYearGroupCutoff,
   setSuggestionDecision,
   clearSuggestionDecision,
+  listFactSources,
   friendlyError,
 } from "../lib/staffData";
 import { suggestForChild, suggestTogether } from "../lib/schoolSuggestions";
+import { sourcesBySchool } from "../lib/schoolFacts";
 import { displayNameForChild } from "../lib/completeness";
 import "./SuggestedSchools.css";
 
@@ -33,6 +35,8 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
   const [tab, setTab] = useState(kids.length > 1 ? TOGETHER : kids[0]?.id || TOGETHER);
   const [staffByUser, setStaffByUser] = useState({});
   const [cutoff, setCutoff] = useState({ month: 8, day: 31 });
+  // Where each school fact came from (addendum 166). Only checked facts earn points.
+  const [sources, setSources] = useState(() => new Map());
 
   useEffect(() => {
     let live = true;
@@ -43,9 +47,11 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
       listSuggestionDecisions(family.id).catch(() => []),
       listStaff().catch(() => []),
       getYearGroupCutoff().catch(() => null),
+      listFactSources().catch(() => []),
     ])
-      .then(([all, shortlist, dec, staff, cut]) => {
+      .then(([all, shortlist, dec, staff, cut, src]) => {
         if (!live) return;
+        setSources(sourcesBySchool(src));
         setSchools(all);
         if (cut) setCutoff(cut);
         setShortlistIds(new Set(shortlist.map((r) => r.school_id)));
@@ -72,10 +78,10 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
     return kids.map((child) => {
       const skip = new Set(shortlistIds);
       for (const s of schools) if (decidedFor(s.id, child.id, "rejected")) skip.add(s.id);
-      return { child, ...suggestForChild({ family, child, currentSchool: currentFor(child), schools, skipIds: skip, cutoff }) };
+      return { child, ...suggestForChild({ family, child, currentSchool: currentFor(child), schools, skipIds: skip, cutoff, sources }) };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schools, shortlistIds, decisions, family, familyChildren, currentSchools, cutoff]);
+  }, [schools, shortlistIds, decisions, family, familyChildren, currentSchools, cutoff, sources]);
 
   const together = useMemo(
     () => suggestTogether(perChild).filter((i) => !decidedAnywhere(i.school.id, "rejected")),
@@ -144,7 +150,11 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
         <div
           className={"sg-fit" + (score === null ? " is-none" : score >= 70 ? " is-high" : score >= 40 ? " is-mid" : " is-low")}
           style={{ "--p": score === null ? 0 : score }}
-          title={score === null ? "Not ranked yet" : "Points earned out of what could be checked for this family. Missing school records lower it."}
+          title={
+            score === null
+              ? "Not ranked yet"
+              : "Points earned out of what could be checked for this family. Only facts checked against the school website or KHDA report count."
+          }
         >
           <span>{score === null ? "–" : `${score}%`}</span>
         </div>
@@ -160,6 +170,11 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
             {s.curriculum && <span className="sg-chip">{s.curriculum}</span>}
             {s.area && <span className="sg-chip">{s.area}</span>}
             {item.missing.length > 0 && <span className="sg-chip is-missing">Missing: {item.missing.join(", ")}</span>}
+            {item.unchecked?.length > 0 && (
+              <Link to={`/staff/schools/${s.id}?tab=facts`} target="_blank" rel="noreferrer" className="sg-chip is-unchecked" title="Recorded but not checked against the school website or KHDA report yet, so it doesn't count">
+                Not checked yet: {item.unchecked.join(", ")}
+              </Link>
+            )}
           </div>
           {(item.reasons.length > 0 || item.cautions.length > 0) && (
             <ul className="sg-why">
@@ -231,6 +246,7 @@ export default function SuggestedSchools({ family, familyChildren, currentSchool
         <div>
           <h4>Suggested for this family</h4>
           <p className="sg-sub">{schools === null ? "Loading…" : `Top ${Math.min(SHOW, active.length)} of ${active.length}${ranked ? ", best fit first" : ""}`}</p>
+          <p className="sg-basis">Ranked only on facts from school websites and KHDA inspection reports.</p>
         </div>
         {kids.length > 1 && (
           <div className="sg-seg" role="tablist" aria-label="Suggestions for">

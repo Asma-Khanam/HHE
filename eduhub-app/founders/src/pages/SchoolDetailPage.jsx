@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   getSchoolDetail,
   updateSchool,
@@ -10,13 +10,16 @@ import {
   listSchoolNotes,
   createSchoolNote,
   updateSchoolNote,
+  listFactSources,
   friendlyError,
 } from "../lib/staffData";
 import { relativeDay } from "../lib/workflow";
 import { displayNameForChild } from "../lib/completeness";
 import GenericDocumentsPanel from "../components/GenericDocumentsPanel";
 import AutosaveField from "../components/Autosave";
-import SchoolAcademicsPanel from "../components/SchoolAcademicsPanel";
+import SchoolFactsTab from "../components/SchoolFactsTab";
+import SchoolGapsBox from "../components/SchoolGapsBox";
+import { schoolGaps, sourcesBySchool } from "../lib/schoolFacts";
 import { EMIRATE_CHOICES } from "../data/emirates";
 import SchoolContactsPanel from "../components/SchoolContactsPanel";
 import SchoolFeedbackPanel from "../components/SchoolFeedbackPanel";
@@ -264,6 +267,7 @@ function SchoolRecordView({ school, onEmirate }) {
             <span className="sd-label">Emirate</span>
             <span className="sd-value">
               <select
+                id="sch-emirate"
                 className="panel-select sd-emirate"
                 value={school.emirate || ""}
                 onChange={(e) => onEmirate(e.target.value)}
@@ -318,7 +322,10 @@ export default function SchoolDetailPage() {
   const { schoolId } = useParams();
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState("record");
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => searchParams.get("tab") || "record");
+  // Where each fact came from (addendum 166). Empty if that addendum hasn't been run yet.
+  const [factSources, setFactSources] = useState([]);
   const [famFilter, setFamFilter] = useState("all");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(null);
@@ -341,6 +348,9 @@ export default function SchoolDetailPage() {
     setDetail(null);
     setError("");
     load();
+    listFactSources(schoolId)
+      .then(setFactSources)
+      .catch(() => setFactSources([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolId]);
 
@@ -366,6 +376,7 @@ export default function SchoolDetailPage() {
   if (!detail) return <div className="family-detail-page">Loading…</div>;
 
   const { school, shortlist, stats } = detail;
+  const srcForSchool = sourcesBySchool(factSources).get(school.id) || {};
 
   function startEdit() {
     setDraft({
@@ -412,6 +423,26 @@ export default function SchoolDetailPage() {
       setError(friendlyError(err, "Couldn't save that."));
       return false;
     }
+  }
+
+  // Open the exact field a "Still to fill in" chip points at: switch tab, open the edit form if the
+  // field lives there, then scroll to it, put the cursor in it and give it the "look here" glow.
+  function goTo(item) {
+    if (!item) return;
+    setTab(item.tab);
+    if (item.edit && !editing) startEdit();
+    setTimeout(() => {
+      const el = document.getElementById(item.id);
+      if (!el) return;
+      const input = el.matches("input, select, textarea") ? el : el.querySelector("input, select, textarea");
+      const box = el.closest(".rec-field, .sf-field, .sd-row, .sf-src-row") || el;
+      box.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (input) input.focus({ preventScroll: true });
+      box.classList.remove("hh-flash");
+      void box.offsetWidth;
+      box.classList.add("hh-flash");
+      setTimeout(() => box.classList.remove("hh-flash"), 4500);
+    }, 120);
   }
 
   async function saveRecord(e) {
@@ -547,9 +578,12 @@ export default function SchoolDetailPage() {
 
       {error && <div className="hh-form-banner hh-form-banner-error">{error}</div>}
 
+      <SchoolGapsBox gaps={schoolGaps(school, srcForSchool)} onGo={goTo} />
+
       <div className="family-detail-tabs" role="tablist">
         {[
           ["record", "School record"],
+          ["facts", "Facts and sources"],
           ["notes", "Notes"],
           ["documents", "Documents"],
           ["families", "Shortlisted families" + (shortlist.length ? ` (${shortlist.length})` : "")],
@@ -956,16 +990,20 @@ export default function SchoolDetailPage() {
       )}
 
       {tab === "record" && (
-        <>
-          <SchoolContactsPanel
-            school={school}
-            onSchoolChange={(patch) => setDetail((d) => ({ ...d, school: { ...d.school, ...patch } }))}
-          />
-          <SchoolAcademicsPanel
-            school={school}
-            onSchoolChange={(patch) => setDetail((d) => ({ ...d, school: { ...d.school, ...patch } }))}
-          />
-        </>
+        <SchoolContactsPanel
+          school={school}
+          onSchoolChange={(patch) => setDetail((d) => ({ ...d, school: { ...d.school, ...patch } }))}
+        />
+      )}
+
+      {tab === "facts" && (
+        <SchoolFactsTab
+          school={school}
+          sources={srcForSchool}
+          onSchoolChange={(patch) => setDetail((d) => ({ ...d, school: { ...d.school, ...patch } }))}
+          onSourcesChange={setFactSources}
+          onGo={goTo}
+        />
       )}
 
       {tab === "notes" && (

@@ -424,6 +424,32 @@ export async function updateSchool(schoolId, patch) {
   return unwrap(await supabase.from("schools").update(patch).eq("id", schoolId).select().single());
 }
 
+// Where each school fact came from: school website or KHDA report (addendum 166).
+// No schoolId = every school (Suggested schools and the Fill in details table).
+export async function listFactSources(schoolId) {
+  let q = supabase.from("school_fact_sources").select("*");
+  if (schoolId) q = q.eq("school_id", schoolId);
+  return unwrap(await q) || [];
+}
+
+// The database stamps who checked it and when.
+export async function setFactSource({ schoolId, fact, source, sourceUrl, checkedValue }) {
+  return unwrap(
+    await supabase
+      .from("school_fact_sources")
+      .upsert(
+        { school_id: schoolId, fact, source, source_url: sourceUrl, checked_value: checkedValue },
+        { onConflict: "school_id,fact" }
+      )
+      .select()
+      .single()
+  );
+}
+
+export async function clearFactSource(schoolId, fact) {
+  unwrap(await supabase.from("school_fact_sources").delete().eq("school_id", schoolId).eq("fact", fact));
+}
+
 export async function createApplication({ childId, schoolId, fit, status, keepOpen }) {
   const { data, error } = await supabase
     .from("applications")

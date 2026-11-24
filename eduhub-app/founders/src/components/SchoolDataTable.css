@@ -24,3 +24,9 @@
 .sdt-done { color: #166534; font-weight: 700; }
 .sdt-left { color: #92400e; }
 .sdt-empty { margin: 0; padding: 18px; text-align: center; color: #6b7280; }
+.sdt-url { min-width: 200px; }
+.sdt-in.is-bad { border-color: #b91c1c; }
+.sdt-na { color: #a39a80; font-size: 12.5px; }
+.sdt-src { white-space: nowrap; font-size: 13px; }
+.sdt-src a { color: var(--hh-burgundy, #530126); }
+.sdt-src a.is-all { color: #3f6212; font-weight: 600; }
