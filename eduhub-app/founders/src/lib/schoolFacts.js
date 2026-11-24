@@ -128,7 +128,7 @@ export function schoolGaps(school, src) {
   if (isDubai(s) && !s.khda_rating) add(forSuggestions, "KHDA rating", "facts", "sf-khda");
   else if (isDubai(s) && !isLink(s.khda_report_url)) add(forSuggestions, "KHDA report link", "facts", "sf-khda-link");
   const unsourced = FACTS.filter((f) => ["none", "changed"].includes(factState(s, src, f.key)));
-  if (unsourced.length) add(forSuggestions, `Sources (${unsourced.length})`, "facts", "sf-sources");
+  if (unsourced.length) add(forSuggestions, `Sources (${unsourced.length})`, "facts", `sf-src-${unsourced[0].key}`);
 
   if (!s.general_phone) add(other, "School phone", "record", "sch-phone", true);
   if (!s.website_url) add(other, "Website", "record", "sch-website", true);

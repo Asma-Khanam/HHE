@@ -434,8 +434,8 @@ export default function SchoolDetailPage() {
     setTimeout(() => {
       const el = document.getElementById(item.id);
       if (!el) return;
-      const input = el.matches("input, select, textarea") ? el : el.querySelector("input, select, textarea");
-      const box = el.closest(".rec-field, .sf-field, .sd-row, .sf-src-row") || el;
+      const input = el.matches("input, select, textarea") ? el : el.querySelector("input, select, textarea, button");
+      const box = el.closest(".rec-field, .sf-field, .sd-row, .sf-src") || el;
       box.scrollIntoView({ behavior: "smooth", block: "center" });
       if (input) input.focus({ preventScroll: true });
       box.classList.remove("hh-flash");
