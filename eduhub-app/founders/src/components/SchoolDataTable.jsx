@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { updateSchool, listFactSources, friendlyError } from "../lib/staffData";
+import { updateSchool, friendlyError } from "../lib/staffData";
 import { EMIRATE_CHOICES } from "../data/emirates";
 import { STAGE_PRESETS, stageOf } from "../lib/schoolStages";
-import { FACTS, KHDA_RATINGS, factState, isDubai, isLink, khdaVerified, sourcesBySchool } from "../lib/schoolFacts";
+import { KHDA_RATINGS, isDubai } from "../lib/schoolFacts";
 import "./SchoolDataTable.css";
 
 // Fill in school details straight down a list (Schools > Fill in details). The Suggested schools
@@ -19,9 +19,6 @@ const LEVELS = [
 ];
 const CURRICULA = ["British", "IB", "British & IB", "American", "American & IB", "Indian (CBSE)", "Indian (ICSE)", "French", "UAE National"];
 
-// Facts that are filled in but have no source (or changed since they were checked), addendum 166.
-const unsourced = (s, src) => FACTS.filter((f) => ["none", "changed"].includes(factState(s, src, f.key))).length;
-
 const FIELDS = [
   { key: "fees", label: "Fees", missing: (s) => s.tuition_from == null },
   { key: "area", label: "Area", missing: (s) => !s.area },
@@ -29,11 +26,10 @@ const FIELDS = [
   { key: "years", label: "Year groups", missing: (s) => !s.lowest_year_group || !s.highest_year_group },
   { key: "inclusion", label: "Inclusion", missing: (s) => !s.inclusion_level },
   { key: "emirate", label: "Emirate", missing: (s) => !s.emirate },
-  // KHDA only inspects Dubai schools. A rating without a report link isn't used.
-  { key: "khda", label: "KHDA", missing: (s) => isDubai(s) && !khdaVerified(s) },
-  { key: "sources", label: "No source", missing: (s, src) => unsourced(s, src) > 0 },
+  // KHDA only inspects Dubai schools (ratings filled from KHDA by addendum 167).
+  { key: "khda", label: "KHDA", missing: (s) => isDubai(s) && !s.khda_rating },
 ];
-const missingOf = (s, src) => FIELDS.filter((f) => f.missing(s, src)).map((f) => f.key);
+const missingOf = (s) => FIELDS.filter((f) => f.missing(s)).map((f) => f.key);
 
 const numOrNull = (v) => {
   const n = String(v ?? "").replace(/,/g, "").trim();
@@ -48,42 +44,31 @@ export default function SchoolDataTable({ schools, onSchoolChange }) {
   const [matchIds, setMatchIds] = useState(null);
   const latest = useRef(schools);
   latest.current = schools;
-  const [sourceRows, setSourceRows] = useState([]);
-  const srcMap = useMemo(() => sourcesBySchool(sourceRows), [sourceRows]);
-  const srcRef = useRef(srcMap);
-  srcRef.current = srcMap;
-
-  useEffect(() => {
-    // Addendum 166 not run yet: every filled fact just shows as having no source.
-    listFactSources()
-      .then(setSourceRows)
-      .catch(() => setSourceRows([]));
-  }, []);
 
   useEffect(() => {
     const q = search.trim().toLowerCase();
     const ids = latest.current
       .filter((s) => {
         if (q && !`${s.name} ${s.area || ""} ${s.curriculum || ""}`.toLowerCase().includes(q)) return false;
-        const miss = missingOf(s, srcRef.current.get(s.id));
+        const miss = missingOf(s);
         if (filter === "all") return true;
         if (filter === "any") return miss.length > 0;
         return miss.includes(filter);
       })
       .map((s) => s.id);
     setMatchIds(new Set(ids));
-  }, [filter, search, sourceRows]);
+  }, [filter, search]);
 
   const counts = useMemo(() => {
     const c = { any: 0 };
     for (const f of FIELDS) c[f.key] = 0;
     for (const s of schools) {
-      const m = missingOf(s, srcMap.get(s.id));
+      const m = missingOf(s);
       if (m.length) c.any += 1;
       m.forEach((k) => (c[k] += 1));
     }
     return c;
-  }, [schools, srcMap]);
+  }, [schools]);
 
   async function save(school, patch) {
     setRowState((r) => ({ ...r, [school.id]: "saving" }));
@@ -146,8 +131,8 @@ export default function SchoolDataTable({ schools, onSchoolChange }) {
       </div>
       <p className="sdt-hint">
         Change a cell and it saves. Fees are the lowest and highest yearly tuition across year groups, in AED. Press Enter to finish a
-        cell. KHDA is for Dubai schools only, and the rating only counts with the report link. Sources shows how many facts have
-        been checked against the school website or KHDA report; click it to add them.
+        cell. KHDA ratings are for Dubai schools only and come from KHDA's
+        school data.
       </p>
 
       <div className="sdt-wrap">
@@ -163,18 +148,13 @@ export default function SchoolDataTable({ schools, onSchoolChange }) {
               <th>Year groups</th>
               <th>Inclusion</th>
               <th>KHDA rating</th>
-              <th>KHDA link</th>
-              <th>Sources</th>
               <th aria-label="Status" />
             </tr>
           </thead>
           <tbody>
             {shown.map((s) => {
               const st = rowState[s.id];
-              const src = srcMap.get(s.id);
-              const miss = missingOf(s, src);
-              const filled = FACTS.filter((f) => factState(s, src, f.key) !== "empty").length;
-              const checked = FACTS.filter((f) => factState(s, src, f.key) === "verified").length;
+              const miss = missingOf(s);
               return (
                 <tr key={s.id}>
                   <td className="sdt-name">
@@ -247,44 +227,13 @@ export default function SchoolDataTable({ schools, onSchoolChange }) {
                       <span className="sdt-na">Not Dubai</span>
                     )}
                   </td>
-                  <td>
-                    {isDubai(s) || !s.emirate ? (
-                      <input
-                        key={`${s.id}-khda-url-${s.khda_report_url ?? ""}`}
-                        className={"sdt-in sdt-url" + (s.khda_report_url && !isLink(s.khda_report_url) ? " is-bad" : "")}
-                        type="url"
-                        placeholder="https://..."
-                        defaultValue={s.khda_report_url ?? ""}
-                        onBlur={(e) => {
-                          const v = e.target.value.trim();
-                          if (v !== String(s.khda_report_url ?? "")) save(s, { khda_report_url: v || null });
-                        }}
-                        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-                      />
-                    ) : (
-                      <span className="sdt-na">—</span>
-                    )}
-                  </td>
-                  <td className="sdt-src">
-                    {filled === 0 ? (
-                      <span className="sdt-na">—</span>
-                    ) : (
-                      <Link
-                        to={`/staff/schools/${s.id}?tab=facts`}
-                        className={checked === filled ? "is-all" : ""}
-                        title="Open the school's Facts and sources tab"
-                      >
-                        {checked} of {filled} checked
-                      </Link>
-                    )}
-                  </td>
                   <td className="sdt-status">
                     {st === "saving" ? (
                       <span className="sdt-saving">Saving…</span>
                     ) : st && st !== "saved" ? (
                       <span className="sdt-err" title={st}>Not saved</span>
                     ) : miss.length === 0 ? (
-                      <span className="sdt-done" title="Everything the suggestions use is filled in and checked">✓</span>
+                      <span className="sdt-done" title="Everything the suggestions use is filled in">✓</span>
                     ) : (
                       <span className="sdt-left" title={`Still missing: ${miss.join(", ")}`}>{miss.length} left</span>
                     )}

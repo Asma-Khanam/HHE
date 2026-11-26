@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { listSchoolsWithStats, createSchool, friendlyError } from "../lib/staffData";
 import SchoolAnalytics from "../components/SchoolAnalytics";
 import SchoolDataTable from "../components/SchoolDataTable";
-import KhdaImportCard from "../components/KhdaImportCard";
 import "../components/panels.css";
 import "./FamiliesListPage.css";
 import "./AccountingPage.css";
@@ -30,8 +29,6 @@ export default function SchoolsPage() {
   const [newArea, setNewArea] = useState("");
   const [newEmirate, setNewEmirate] = useState("");
   const [saving, setSaving] = useState(false);
-  // Bumped after "Fill from KHDA" so the table reloads its sources.
-  const [tableKey, setTableKey] = useState(0);
   const [tab, setTab] = useState(() => {
     try { return sessionStorage.getItem("schools-emirate-tab") || "all"; } catch { return "all"; }
   });
@@ -165,17 +162,7 @@ export default function SchoolsPage() {
       {view === "analytics" && <SchoolAnalytics />}
 
       {view === "fill" && schools && (
-        <KhdaImportCard
-          schools={schools}
-          onDone={() => {
-            load();
-            setTableKey((k) => k + 1);
-          }}
-        />
-      )}
-      {view === "fill" && schools && (
         <SchoolDataTable
-          key={tableKey}
           schools={schools}
           onSchoolChange={(id, patch) => setSchools((list) => list.map((s) => (s.id === id ? { ...s, ...patch } : s)))}
         />

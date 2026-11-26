@@ -1,0 +1,56 @@
+/* KHDA tab on a school. Brand colours only: burgundy, gold, cream, and the site's green. */
+.kt { display: flex; flex-direction: column; gap: 18px; }
+
+.kt-hero {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 32px;
+  padding: 24px 28px; border-radius: 14px; color: var(--hh-white); box-shadow: var(--hh-shadow);
+  background: linear-gradient(135deg, var(--hh-burgundy) 0%, var(--hh-burgundy-light) 100%);
+}
+.kt-eyebrow { display: block; font-size: 11.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #e2cf9f; }
+.kt-hero h2 { margin: 4px 0 6px; font-family: var(--hh-font-heading); font-size: 22px; font-weight: 600; color: var(--hh-white); }
+.kt-hero p { margin: 0; font-size: 14.5px; opacity: 0.85; }
+.kt-rating { min-width: 200px; padding: 14px 20px; border-radius: 14px; background: var(--hh-white); color: var(--hh-burgundy); display: flex; flex-direction: column; gap: 2px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12); }
+.kt-rating span { font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--hh-gold); }
+.kt-rating strong { font-size: 26px; line-height: 1.15; font-weight: 600; }
+.kt-rating.is-good strong { color: #8a6d1a; }
+.kt-rating.is-acceptable strong, .kt-rating.is-none strong { color: var(--hh-ink); opacity: 0.75; }
+
+.kt-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; align-items: start; }
+@media (max-width: 1000px) { .kt-grid { grid-template-columns: 1fr; } }
+.kt-card { background: var(--hh-white); border-radius: 14px; box-shadow: var(--hh-shadow); padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; }
+.kt-card h3 { margin: 0; font-family: var(--hh-font-heading); font-size: 18px; font-weight: 600; color: var(--hh-burgundy); }
+.kt-card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.kt-range { font-size: 14.5px; font-weight: 600; color: #8a6d1a; }
+.kt-muted { margin: 0; font-size: 13.5px; color: var(--hh-ink); opacity: 0.6; }
+
+.kt-dl { margin: 0; display: flex; flex-direction: column; }
+.kt-row { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-top: 1px solid #f2ebde; font-size: 14.5px; }
+.kt-row:first-child { border-top: 0; padding-top: 0; }
+.kt-row dt { color: var(--hh-ink); opacity: 0.55; }
+.kt-row dd { margin: 0; color: var(--hh-ink); overflow-wrap: anywhere; }
+.kt-row a { color: var(--hh-burgundy); font-weight: 500; }
+@media (max-width: 600px) { .kt-row { grid-template-columns: 1fr; gap: 2px; } }
+
+.kt-history { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.kt-history li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: 10px; background: var(--hh-cream); }
+.kt-history li:first-child { background: #f6eef1; }
+.kt-year { font-size: 14px; font-weight: 600; color: var(--hh-ink); opacity: 0.75; }
+.kt-chip { font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 999px; background: var(--hh-white); color: var(--hh-ink); border: 1px solid #e8dfcf; white-space: nowrap; }
+.kt-chip.is-outstanding { background: var(--hh-burgundy); border-color: var(--hh-burgundy); color: var(--hh-white); }
+.kt-chip.is-very-good { background: var(--hh-burgundy-light); border-color: var(--hh-burgundy-light); color: var(--hh-white); }
+.kt-chip.is-good { background: var(--hh-gold); border-color: var(--hh-gold); color: var(--hh-white); }
+.kt-chip.is-acceptable { background: #f6efdd; border-color: #e6d7ae; color: #8a6d1a; }
+.kt-chip.is-not-yet-inspected { background: transparent; border-style: dashed; color: var(--hh-ink); opacity: 0.6; font-weight: 500; }
+
+.kt-fees { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.kt-fees li { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--hh-cream); }
+.kt-fees span { font-size: 12.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--hh-ink); opacity: 0.55; }
+.kt-fees strong { font-size: 16px; font-weight: 600; color: var(--hh-burgundy); }
+
+.kt-credit { margin: 0; font-size: 12.5px; color: var(--hh-ink); opacity: 0.55; }
+.kt-credit a { color: inherit; }
+
+.kt-empty { background: var(--hh-white); border-radius: 14px; box-shadow: var(--hh-shadow); padding: 36px 24px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; color: var(--hh-ink); }
+.kt-empty h2 { margin: 6px 0 0; font-family: var(--hh-font-heading); font-size: 19px; color: var(--hh-burgundy); }
+.kt-empty p { margin: 0; max-width: 520px; font-size: 14.5px; opacity: 0.65; line-height: 1.5; }
+.kt-mark { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; background: var(--hh-burgundy); color: #f3e6c4; font-weight: 700; font-size: 13px; letter-spacing: 0.08em; }

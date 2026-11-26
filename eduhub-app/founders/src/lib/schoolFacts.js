@@ -103,17 +103,17 @@ export const KHDA_RATINGS = [
 ];
 export const KHDA_LABEL = Object.fromEntries(KHDA_RATINGS);
 export const isDubai = (s) => s?.emirate === "Dubai";
-// A rating only counts when there's a link to the published report.
-export const khdaVerified = (s) => !!s?.khda_rating && isLink(s?.khda_report_url);
+// The rating comes straight from KHDA's school data (addendum 167), so a recorded rating counts.
+export const khdaVerified = (s) => !!s?.khda_rating;
 export const khdaText = (s) =>
   s?.khda_rating ? `KHDA ${KHDA_LABEL[s.khda_rating] || s.khda_rating}${s.khda_inspection_year ? `, ${s.khda_inspection_year}` : ""}` : "";
 
 // ---- Still to fill in ----
 // Everything missing from a school record, each pointing at the exact field.
-//   tab  : "record" | "facts"
+//   tab  : "record" | "academics"
 //   edit : open the School record edit form first
 //   id   : the element to scroll to and highlight
-export function schoolGaps(school, src) {
+export function schoolGaps(school) {
   const s = school || {};
   const forSuggestions = [];
   const other = [];
@@ -123,12 +123,8 @@ export function schoolGaps(school, src) {
   if (!s.area) add(forSuggestions, "Area", "record", "sch-area", true);
   if (!s.curriculum) add(forSuggestions, "Curriculum", "record", "sch-curriculum", true);
   if (s.tuition_from == null || s.tuition_from === "") add(forSuggestions, "Fees per year", "record", "sch-tuition-from", true);
-  if (!s.lowest_year_group || !s.highest_year_group) add(forSuggestions, "Year groups", "facts", "sf-years");
-  if (!s.inclusion_level) add(forSuggestions, "Inclusion support", "facts", "sf-inclusion");
-  if (isDubai(s) && !s.khda_rating) add(forSuggestions, "KHDA rating", "facts", "sf-khda");
-  else if (isDubai(s) && !isLink(s.khda_report_url)) add(forSuggestions, "KHDA report link", "facts", "sf-khda-link");
-  const unsourced = FACTS.filter((f) => ["none", "changed"].includes(factState(s, src, f.key)));
-  if (unsourced.length) add(forSuggestions, `Sources (${unsourced.length})`, "facts", `sf-src-${unsourced[0].key}`);
+  if (!s.lowest_year_group || !s.highest_year_group) add(forSuggestions, "Year groups", "academics", "sf-years");
+  if (!s.inclusion_level) add(forSuggestions, "Inclusion support", "academics", "sf-inclusion");
 
   if (!s.general_phone) add(other, "School phone", "record", "sch-phone", true);
   if (!s.website_url) add(other, "Website", "record", "sch-website", true);
@@ -143,7 +139,7 @@ export function schoolGaps(school, src) {
   if (!s.documents_required) add(other, "Documents required", "record", "sch-documents", true);
   // Exam boards only matter for schools that teach older year groups.
   const takesSecondary = !s.highest_year_group || YEAR_GROUPS.indexOf(s.highest_year_group) >= YEAR_GROUPS.indexOf("Year 10 / Grade 9");
-  if (stageOf(s) !== "Primary" && takesSecondary && !(s.exam_boards || []).length) add(other, "Exam boards", "facts", "sf-boards");
+  if (stageOf(s) !== "Primary" && takesSecondary && !(s.exam_boards || []).length) add(other, "Exam boards", "academics", "sf-boards");
 
   return { forSuggestions, other };
 }

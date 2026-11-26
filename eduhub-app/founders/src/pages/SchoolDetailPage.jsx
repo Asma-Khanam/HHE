@@ -10,15 +10,14 @@ import {
   listSchoolNotes,
   createSchoolNote,
   updateSchoolNote,
-  listFactSources,
   friendlyError,
 } from "../lib/staffData";
 import { relativeDay } from "../lib/workflow";
 import { displayNameForChild } from "../lib/completeness";
 import GenericDocumentsPanel from "../components/GenericDocumentsPanel";
 import AutosaveField from "../components/Autosave";
-import SchoolFactsTab from "../components/SchoolFactsTab";
-import { sourcesBySchool } from "../lib/schoolFacts";
+import SchoolAcademicsTab from "../components/SchoolAcademicsTab";
+import SchoolKhdaTab from "../components/SchoolKhdaTab";
 import { EMIRATE_CHOICES } from "../data/emirates";
 import SchoolContactsPanel from "../components/SchoolContactsPanel";
 import SchoolFeedbackPanel from "../components/SchoolFeedbackPanel";
@@ -323,8 +322,6 @@ export default function SchoolDetailPage() {
   const [error, setError] = useState("");
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState(() => searchParams.get("tab") || "record");
-  // Where each fact came from (addendum 166). Empty if that addendum hasn't been run yet.
-  const [factSources, setFactSources] = useState([]);
   const [famFilter, setFamFilter] = useState("all");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(null);
@@ -347,9 +344,6 @@ export default function SchoolDetailPage() {
     setDetail(null);
     setError("");
     load();
-    listFactSources(schoolId)
-      .then(setFactSources)
-      .catch(() => setFactSources([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolId]);
 
@@ -375,7 +369,6 @@ export default function SchoolDetailPage() {
   if (!detail) return <div className="family-detail-page">Loading…</div>;
 
   const { school, shortlist, stats } = detail;
-  const srcForSchool = sourcesBySchool(factSources).get(school.id) || {};
 
   function startEdit() {
     setDraft({
@@ -422,26 +415,6 @@ export default function SchoolDetailPage() {
       setError(friendlyError(err, "Couldn't save that."));
       return false;
     }
-  }
-
-  // Open the exact field a "Still to fill in" chip points at: switch tab, open the edit form if the
-  // field lives there, then scroll to it, put the cursor in it and give it the "look here" glow.
-  function goTo(item) {
-    if (!item) return;
-    setTab(item.tab);
-    if (item.edit && !editing) startEdit();
-    setTimeout(() => {
-      const el = document.getElementById(item.id);
-      if (!el) return;
-      const input = el.matches("input, select, textarea") ? el : el.querySelector("input, select, textarea, button");
-      const box = el.closest(".rec-field, .sf-field, .sd-row, .sf-src") || el;
-      box.scrollIntoView({ behavior: "smooth", block: "center" });
-      if (input) input.focus({ preventScroll: true });
-      box.classList.remove("hh-flash");
-      void box.offsetWidth;
-      box.classList.add("hh-flash");
-      setTimeout(() => box.classList.remove("hh-flash"), 4500);
-    }, 120);
   }
 
   async function saveRecord(e) {
@@ -580,7 +553,8 @@ export default function SchoolDetailPage() {
       <div className="family-detail-tabs" role="tablist">
         {[
           ["record", "School record"],
-          ["facts", "Facts and sources"],
+          ["academics", "Academics"],
+          ["khda", "KHDA"],
           ["notes", "Notes"],
           ["documents", "Documents"],
           ["families", "Shortlisted families" + (shortlist.length ? ` (${shortlist.length})` : "")],
@@ -993,15 +967,14 @@ export default function SchoolDetailPage() {
         />
       )}
 
-      {tab === "facts" && (
-        <SchoolFactsTab
+      {tab === "academics" && (
+        <SchoolAcademicsTab
           school={school}
-          sources={srcForSchool}
           onSchoolChange={(patch) => setDetail((d) => ({ ...d, school: { ...d.school, ...patch } }))}
-          onSourcesChange={setFactSources}
-          onGo={goTo}
         />
       )}
+
+      {tab === "khda" && <SchoolKhdaTab school={school} />}
 
       {tab === "notes" && (
       <section className="family-detail-card">
