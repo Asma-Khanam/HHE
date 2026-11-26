@@ -1,20 +1,6 @@
 /* KHDA tab on a school. Brand colours only: burgundy, gold, cream, and the site's green. */
 .kt { display: flex; flex-direction: column; gap: 18px; }
 
-.kt-hero {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 32px;
-  padding: 24px 28px; border-radius: 14px; color: var(--hh-white); box-shadow: var(--hh-shadow);
-  background: linear-gradient(135deg, var(--hh-burgundy) 0%, var(--hh-burgundy-light) 100%);
-}
-.kt-eyebrow { display: block; font-size: 11.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #e2cf9f; }
-.kt-hero h2 { margin: 4px 0 6px; font-family: var(--hh-font-heading); font-size: 22px; font-weight: 600; color: var(--hh-white); }
-.kt-hero p { margin: 0; font-size: 14.5px; opacity: 0.85; }
-.kt-rating { min-width: 200px; padding: 14px 20px; border-radius: 14px; background: var(--hh-white); color: var(--hh-burgundy); display: flex; flex-direction: column; gap: 2px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12); }
-.kt-rating span { font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--hh-gold); }
-.kt-rating strong { font-size: 26px; line-height: 1.15; font-weight: 600; }
-.kt-rating.is-good strong { color: #8a6d1a; }
-.kt-rating.is-acceptable strong, .kt-rating.is-none strong { color: var(--hh-ink); opacity: 0.75; }
-
 .kt-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; align-items: start; }
 @media (max-width: 1000px) { .kt-grid { grid-template-columns: 1fr; } }
 .kt-card { background: var(--hh-white); border-radius: 14px; box-shadow: var(--hh-shadow); padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; }

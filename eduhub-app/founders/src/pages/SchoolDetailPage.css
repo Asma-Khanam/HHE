@@ -366,3 +366,19 @@
 .sd-simple tr.is-first td { border-top: 1px solid rgba(83, 1, 38, 0.14); }
 .sd-simple tr.is-sibling td { border-top: 1px dashed rgba(83, 1, 38, 0.08); }
 .sd-simple tbody tr:first-child td { border-top: 0; }
+
+/* KHDA rating on the right of the school header (from KHDA's school data, addendum 167). */
+.school-khda-badge {
+  margin-left: auto; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
+  padding: 8px 16px; border-radius: 12px; cursor: pointer; font-family: var(--hh-font-body);
+  background: var(--hh-white); border: 1px solid #eadfcf; box-shadow: 0 4px 14px rgba(83, 1, 38, 0.08);
+}
+.school-khda-badge:hover { border-color: var(--hh-gold); }
+.school-khda-badge span { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--hh-gold); }
+.school-khda-badge strong { font-size: 17px; font-weight: 600; color: var(--hh-burgundy); }
+.school-khda-badge.is-good strong { color: #8a6d1a; }
+.school-khda-badge.is-acceptable strong, .school-khda-badge.is-weak strong, .school-khda-badge.is-very_weak strong { color: var(--hh-ink); opacity: 0.75; }
+@media (max-width: 700px) {
+  .family-detail-header:has(.school-khda-badge) { flex-wrap: wrap; }
+  .school-khda-badge { margin-left: 0; align-items: flex-start; }
+}

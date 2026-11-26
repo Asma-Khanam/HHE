@@ -63,3 +63,28 @@ export function matchKhda(school, khda) {
   const hits = khda.byKey.get(khdaKey(school.name));
   return hits && hits.length === 1 ? hits[0] : null;
 }
+
+// What KHDA fills in on a school: the rating and KHDA's name always, everything else only where
+// the school is still empty (the same rules as addendum 167). Used when a school is added, so a
+// new Dubai school arrives already filled in.
+export function khdaFillPatch(school, k) {
+  if (!k) return {};
+  const empty = (v) => v === null || v === undefined || String(v).trim() === "";
+  const patch = { khda_name: k.n };
+  if (k.r) patch.khda_rating = k.r;
+  if (k.r && empty(school.khda_report_url)) patch.khda_report_url = KHDA_URL;
+  if (empty(school.emirate)) patch.emirate = "Dubai";
+  if (empty(school.area) && k.a) patch.area = k.a;
+  if (empty(school.curriculum) && k.c) patch.curriculum = k.c;
+  if (empty(school.lowest_year_group) && empty(school.highest_year_group) && k.lo && k.hi) {
+    patch.lowest_year_group = k.lo;
+    patch.highest_year_group = k.hi;
+  }
+  if (empty(school.tuition_from) && k.f) {
+    patch.tuition_from = k.f[0];
+    patch.tuition_to = k.f[1];
+  }
+  if (empty(school.general_phone) && k.p) patch.general_phone = k.p;
+  if (empty(school.website_url) && k.w) patch.website_url = k.w;
+  return patch;
+}

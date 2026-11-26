@@ -16,9 +16,10 @@ import { relativeDay } from "../lib/workflow";
 import { displayNameForChild } from "../lib/completeness";
 import GenericDocumentsPanel from "../components/GenericDocumentsPanel";
 import AutosaveField from "../components/Autosave";
-import SchoolAcademicsTab from "../components/SchoolAcademicsTab";
 import SchoolKhdaTab from "../components/SchoolKhdaTab";
 import { EMIRATE_CHOICES } from "../data/emirates";
+import { YEAR_GROUPS } from "../data/formOptions";
+import { KHDA_LABEL } from "../lib/schoolFacts";
 import SchoolContactsPanel from "../components/SchoolContactsPanel";
 import SchoolFeedbackPanel from "../components/SchoolFeedbackPanel";
 import "../components/panels.css";
@@ -198,6 +199,21 @@ function SchoolNotesFeed({ schoolId }) {
   );
 }
 
+const INCLUSION_LABEL = { none: "No formal support", limited: "Limited (mild needs)", moderate: "Moderate", extensive: "Extensive (specialist team)" };
+const listText = (a) => (Array.isArray(a) ? a.join(", ") : "");
+function toList(text) {
+  const seen = new Set();
+  return String(text || "")
+    .split(/[,;\n]/)
+    .map((x) => x.trim())
+    .filter((x) => {
+      const k = x.toLowerCase();
+      if (!x || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+}
+
 function LongText({ text }) {
   const [open, setOpen] = useState(false);
   if (!text) return <span className="sd-empty">Nothing added yet</span>;
@@ -278,6 +294,9 @@ function SchoolRecordView({ school, onEmirate }) {
           </div>
           <SvRow label="Area">{school.area}</SvRow>
           <SvRow label="Curriculum">{school.curriculum}</SvRow>
+          <SvRow label="Year groups">
+            {school.lowest_year_group && school.highest_year_group ? `${school.lowest_year_group} to ${school.highest_year_group}` : ""}
+          </SvRow>
           <SvRow label="Address">{school.address}</SvRow>
           <SvRow label="School phone">
             {school.general_phone && <a href={"tel:" + school.general_phone.replace(/\s+/g, "")}>{school.general_phone}</a>}
@@ -306,6 +325,20 @@ function SchoolRecordView({ school, onEmirate }) {
             {school.tuition_from != null ? `${school.fee_currency || "AED"} ${school.tuition_from}${school.tuition_to != null && school.tuition_to !== school.tuition_from ? ` – ${school.tuition_to}` : ""}` : ""}
           </SvRow>
           <SvRow label="Transport per year">{school.transport_per_year != null ? `${school.fee_currency || "AED"} ${school.transport_per_year}` : ""}</SvRow>
+        </div>
+      </div>
+      <div className="sd-card sd-wide">
+        <h3>SEN support and subjects</h3>
+        <div className="sd-cols sd-cols-2">
+          <div>
+            <SvRow label="Inclusion support">{INCLUSION_LABEL[school.inclusion_level]}</SvRow>
+            <SvRow label="Needs supported">{listText(school.inclusion_needs_supported)}</SvRow>
+          </div>
+          <div>
+            <SvRow label="Exam boards">{listText(school.exam_boards)}</SvRow>
+            <SvRow label="GCSE / IGCSE">{listText(school.gcse_subjects)}</SvRow>
+            <SvRow label="A-levels">{listText(school.a_level_subjects)}</SvRow>
+          </div>
         </div>
       </div>
       <div className="sd-card sd-wide">
@@ -402,6 +435,13 @@ export default function SchoolDetailPage() {
       tuition_to: school.tuition_to ?? "",
       transport_per_year: school.transport_per_year ?? "",
       documents_required: school.documents_required || "",
+      lowest_year_group: school.lowest_year_group || "",
+      highest_year_group: school.highest_year_group || "",
+      inclusion_level: school.inclusion_level || "",
+      inclusion_needs_supported: listText(school.inclusion_needs_supported),
+      exam_boards: listText(school.exam_boards),
+      gcse_subjects: listText(school.gcse_subjects),
+      a_level_subjects: listText(school.a_level_subjects),
     });
     setEditing(true);
   }
@@ -432,6 +472,13 @@ export default function SchoolDetailPage() {
         // Empty = not set. The platform column only accepts openapply / other / null.
         application_platform: draft.application_platform || null,
         openapply_login_url: (draft.openapply_login_url || "").trim() || null,
+        lowest_year_group: draft.lowest_year_group || null,
+        highest_year_group: draft.highest_year_group || null,
+        inclusion_level: draft.inclusion_level || null,
+        inclusion_needs_supported: toList(draft.inclusion_needs_supported),
+        exam_boards: toList(draft.exam_boards),
+        gcse_subjects: toList(draft.gcse_subjects),
+        a_level_subjects: toList(draft.a_level_subjects),
       };
       // An OpenApply address tags the school as OpenApply on its own, so
       // consultants only ever have to paste the link.
@@ -517,6 +564,17 @@ export default function SchoolDetailPage() {
             </span>
           </div>
         </div>
+        {school.khda_rating && (
+          <button
+            type="button"
+            className={"school-khda-badge is-" + school.khda_rating}
+            onClick={() => setTab("khda")}
+            title="Open the KHDA tab"
+          >
+            <span>KHDA rating</span>
+            <strong>{KHDA_LABEL[school.khda_rating] || school.khda_rating}</strong>
+          </button>
+        )}
       </div>
 
       {stats && (
@@ -553,7 +611,6 @@ export default function SchoolDetailPage() {
       <div className="family-detail-tabs" role="tablist">
         {[
           ["record", "School record"],
-          ["academics", "Academics"],
           ["khda", "KHDA"],
           ["notes", "Notes"],
           ["documents", "Documents"],
@@ -634,6 +691,110 @@ export default function SchoolDetailPage() {
                   className="panel-input"
                   value={draft.curriculum}
                   onChange={(e) => setDraft((d) => ({ ...d, curriculum: e.target.value }))}
+                />
+              </div>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-year-from">
+                  Youngest year group
+                </label>
+                <select
+                  id="sch-year-from"
+                  className="panel-input"
+                  value={draft.lowest_year_group}
+                  onChange={(e) => setDraft((d) => ({ ...d, lowest_year_group: e.target.value }))}
+                >
+                  <option value="">Not recorded</option>
+                  {YEAR_GROUPS.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-year-to">
+                  Oldest year group
+                </label>
+                <select
+                  id="sch-year-to"
+                  className="panel-input"
+                  value={draft.highest_year_group}
+                  onChange={(e) => setDraft((d) => ({ ...d, highest_year_group: e.target.value }))}
+                >
+                  <option value="">Not recorded</option>
+                  {YEAR_GROUPS.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <h3 className="rec-subhead">SEN support and subjects</h3>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-inclusion">
+                  Inclusion support
+                </label>
+                <select
+                  id="sch-inclusion"
+                  className="panel-input"
+                  value={draft.inclusion_level}
+                  onChange={(e) => setDraft((d) => ({ ...d, inclusion_level: e.target.value }))}
+                >
+                  <option value="">Not recorded</option>
+                  {Object.entries(INCLUSION_LABEL).map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-needs">
+                  Needs supported
+                </label>
+                <input
+                  id="sch-needs"
+                  className="panel-input"
+                  placeholder="e.g. Dyslexia, ADHD, Autism"
+                  value={draft.inclusion_needs_supported}
+                  onChange={(e) => setDraft((d) => ({ ...d, inclusion_needs_supported: e.target.value }))}
+                />
+              </div>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-boards">
+                  Exam boards
+                </label>
+                <input
+                  id="sch-boards"
+                  className="panel-input"
+                  placeholder="e.g. Edexcel, AQA, Cambridge, IB"
+                  value={draft.exam_boards}
+                  onChange={(e) => setDraft((d) => ({ ...d, exam_boards: e.target.value }))}
+                />
+              </div>
+              <div className="rec-field">
+                <label className="rec-field-label" htmlFor="sch-gcse">
+                  GCSE / IGCSE subjects
+                </label>
+                <input
+                  id="sch-gcse"
+                  className="panel-input"
+                  placeholder="Separate with commas"
+                  value={draft.gcse_subjects}
+                  onChange={(e) => setDraft((d) => ({ ...d, gcse_subjects: e.target.value }))}
+                />
+              </div>
+              <div className="rec-field rec-field-wide">
+                <label className="rec-field-label" htmlFor="sch-alevel">
+                  A-level subjects
+                </label>
+                <input
+                  id="sch-alevel"
+                  className="panel-input"
+                  placeholder="Separate with commas. Leave empty if there is no sixth form"
+                  value={draft.a_level_subjects}
+                  onChange={(e) => setDraft((d) => ({ ...d, a_level_subjects: e.target.value }))}
                 />
               </div>
 
@@ -962,13 +1123,6 @@ export default function SchoolDetailPage() {
 
       {tab === "record" && (
         <SchoolContactsPanel
-          school={school}
-          onSchoolChange={(patch) => setDetail((d) => ({ ...d, school: { ...d.school, ...patch } }))}
-        />
-      )}
-
-      {tab === "academics" && (
-        <SchoolAcademicsTab
           school={school}
           onSchoolChange={(patch) => setDetail((d) => ({ ...d, school: { ...d.school, ...patch } }))}
         />

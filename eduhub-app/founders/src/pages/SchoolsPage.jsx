@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { listSchoolsWithStats, createSchool, friendlyError } from "../lib/staffData";
 import SchoolAnalytics from "../components/SchoolAnalytics";
 import SchoolDataTable from "../components/SchoolDataTable";
+import { loadKhda, matchKhda, khdaFillPatch } from "../lib/khda";
 import "../components/panels.css";
 import "./FamiliesListPage.css";
 import "./AccountingPage.css";
@@ -94,7 +95,10 @@ export default function SchoolsPage() {
     setSaving(true);
     setError("");
     try {
-      const created = await createSchool({ name: newName.trim(), area: newArea.trim() || null, emirate: newEmirate || (activeTab !== "all" && activeTab !== NONE ? activeTab : null) });
+      const fields = { name: newName.trim(), area: newArea.trim() || null, emirate: newEmirate || (activeTab !== "all" && activeTab !== NONE ? activeTab : null) };
+      // A Dubai school on KHDA's list arrives already filled in from KHDA's data.
+      const khda = await loadKhda().catch(() => null);
+      const created = await createSchool({ ...fields, ...khdaFillPatch(fields, matchKhda(fields, khda)) });
       setNewName("");
       setNewArea("");
       setNewEmirate("");

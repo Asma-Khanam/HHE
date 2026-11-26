@@ -5,9 +5,8 @@ import "./SchoolKhdaTab.css";
 // The KHDA tab on a school: everything KHDA publishes about it, read only, straight from KHDA's
 // Dubai Private Schools Open Data (November 2025). Nothing to fill in here; addendum 167 already
 // copied the useful parts (rating, fees, year groups, curriculum, area, phone, website) into the
-// school record wherever ours was empty.
+// school record wherever ours was empty. The latest rating sits in the page header.
 
-const RATING_LABEL = { outstanding: "Outstanding", very_good: "Very good", good: "Good", acceptable: "Acceptable", weak: "Weak", very_weak: "Very weak" };
 const tone = (text) => String(text || "").toLowerCase().replace(/\s+/g, "-");
 const aed = (n) => Number(n).toLocaleString("en-GB");
 
@@ -57,21 +56,12 @@ export default function SchoolKhdaTab({ school }) {
 
   return (
     <div className="kt">
-      <section className="kt-hero">
-        <div className="kt-hero-text">
-          <span className="kt-eyebrow">KHDA record</span>
-          <h2>{k.n}</h2>
-          <p>{[k.a, k.ck, k.g].filter(Boolean).join(" · ")}</p>
-        </div>
-        <div className={"kt-rating is-" + (k.r || "none")}>
-          <span>Latest KHDA rating</span>
-          <strong>{RATING_LABEL[k.r] || "Not rated yet"}</strong>
-        </div>
-      </section>
-
       <div className="kt-grid">
         <section className="kt-card">
-          <h3>School details</h3>
+          <div>
+            <span className="kt-eyebrow">KHDA record</span>
+            <h3>{k.n}</h3>
+          </div>
           <dl className="kt-dl">
             <Row label="Curriculum">{k.ck}</Row>
             <Row label="Year groups">{k.g}</Row>
